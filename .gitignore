@@ -40,3 +40,5 @@ api/alembic/versions/__pycache__/
 # Coverage
 htmlcov/
 .coverage
+
+.worktrees/
