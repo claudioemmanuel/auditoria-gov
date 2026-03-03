@@ -17,7 +17,6 @@ import type {
   RadarV2SignalItem,
   RadarV2SignalPreviewResponse,
   RadarV2SummaryResponse,
-  RiskSignal,
   SignalEvidencePage,
   SignalDetail,
   SignalGraphResponse,
@@ -58,31 +57,6 @@ export function getIngestStatus(): Promise<IngestStatusResponse> {
 
 export function getIngestRunDetail(runId: string): Promise<IngestRunDetailResponse> {
   return fetchJSON(`/internal/ingest/run/${runId}`);
-}
-
-export function getRadar(params?: {
-  offset?: number;
-  limit?: number;
-  typology?: string;
-  severity?: string;
-  sort?: "analysis_date" | "ingestion_date";
-  period_from?: string;
-  period_to?: string;
-  corruption_type?: string;
-  sphere?: string;
-}): Promise<PaginatedResponse<RiskSignal>> {
-  const search = new URLSearchParams();
-  if (params?.offset != null) search.set("offset", String(params.offset));
-  if (params?.limit != null) search.set("limit", String(params.limit));
-  if (params?.typology) search.set("typology", params.typology);
-  if (params?.severity) search.set("severity", params.severity);
-  if (params?.sort) search.set("sort", params.sort);
-  if (params?.period_from) search.set("period_from", params.period_from);
-  if (params?.period_to) search.set("period_to", params.period_to);
-  if (params?.corruption_type) search.set("corruption_type", params.corruption_type);
-  if (params?.sphere) search.set("sphere", params.sphere);
-  const qs = search.toString();
-  return fetchJSON(`/public/radar${qs ? `?${qs}` : ""}`);
 }
 
 export function getRadarV2Summary(params?: {
