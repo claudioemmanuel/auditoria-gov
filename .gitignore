@@ -81,3 +81,6 @@ api/alembic/versions/__pycache__/
 *.bak
 *.tmp
 .hypothesis/
+
+# ── Documentation ───────────────────────────────────────────────────
+docs/plans

@@ -83,14 +83,18 @@ class TestPortalTransparencia:
         assert "pt_sancoes_ceis_cnep" in names
         assert "pt_servidores_remuneracao" in names
 
-    def test_all_jobs_enabled(self):
+    def test_jobs_enabled_state(self):
         jobs = {j.name: j for j in self.c.list_jobs()}
+        # Bulk-fetchable jobs
         assert jobs["pt_sancoes_ceis_cnep"].enabled is True
         assert jobs["pt_emendas"].enabled is True
-        assert jobs["pt_servidores_remuneracao"].enabled is True
         assert jobs["pt_viagens"].enabled is True
         assert jobs["pt_convenios_transferencias"].enabled is True
-        assert jobs["pt_beneficios"].enabled is True
+        assert jobs["pt_despesas_execucao"].enabled is True
+        assert jobs["pt_cartao_pagamento"].enabled is True
+        # Disabled: API requires per-entity params (organ code / IBGE code)
+        assert jobs["pt_servidores_remuneracao"].enabled is False
+        assert jobs["pt_beneficios"].enabled is False
 
     def test_rate_limit_policy(self):
         policy = self.c.rate_limit_policy()
