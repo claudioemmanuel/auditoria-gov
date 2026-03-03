@@ -158,3 +158,78 @@ async def test_get_signal_graph_orders_timeline_and_sets_story_bounds(monkeypatc
         entity.photo_url == "https://example.org/prefeitura.png"
         for entity in graph.involved_entities
     )
+
+
+@pytest.mark.asyncio
+async def test_get_signal_graph_preview_mode_truncates_timeline(monkeypatch):
+    signal_id = uuid.uuid4()
+    org_id = uuid.uuid4()
+    supplier_id = uuid.uuid4()
+
+    signal = SimpleNamespace(
+        id=signal_id,
+        typology=SimpleNamespace(code="T03", name="Fracionamento de Despesa"),
+        severity="high",
+        confidence=0.8,
+        title="Sinal",
+        summary="Resumo",
+        factors={"n_purchases": 10, "total_value_brl": 100000.0},
+        period_start=None,
+        period_end=None,
+        event_ids=[str(uuid.uuid4()) for _ in range(10)],
+        entity_ids=[str(org_id), str(supplier_id)],
+    )
+
+    async def _fake_get_signal_by_id(_session, _signal_id):
+        return signal
+
+    monkeypatch.setattr(queries, "get_signal_by_id", _fake_get_signal_by_id)
+
+    event_ids = [uuid.UUID(raw) for raw in signal.event_ids]
+    event_rows = [
+        SimpleNamespace(
+            id=event_id,
+            occurred_at=datetime(2026, 3, 1, 10 + idx, 0, tzinfo=timezone.utc),
+            value_brl=1000.0 + idx,
+            description=f"Evento {idx}",
+            source_connector="compras_gov",
+            source_id=f"evt-{idx}",
+            subtype="dispensa",
+            attrs={},
+        )
+        for idx, event_id in enumerate(event_ids)
+    ]
+    org_entity = SimpleNamespace(id=org_id, name="Orgao", type="org", identifiers={}, attrs={})
+    supplier_entity = SimpleNamespace(id=supplier_id, name="Fornecedor", type="company", identifiers={}, attrs={})
+
+    participant_rows = []
+    for event_id in event_ids:
+        participant_rows.append(
+            (
+                SimpleNamespace(event_id=event_id, entity_id=org_id, role="buyer", attrs={}),
+                org_entity,
+            )
+        )
+        participant_rows.append(
+            (
+                SimpleNamespace(event_id=event_id, entity_id=supplier_id, role="supplier", attrs={}),
+                supplier_entity,
+            )
+        )
+
+    class _FakeSession:
+        def __init__(self):
+            self.calls = 0
+
+        async def execute(self, _stmt):
+            self.calls += 1
+            if self.calls == 1:
+                return _ExecResult(scalar_values=event_rows)
+            if self.calls == 2:
+                return _ExecResult(rows=participant_rows)
+            raise AssertionError("Unexpected execute call")
+
+    preview = await queries.get_signal_graph(_FakeSession(), signal_id, mode="preview")
+
+    assert preview is not None
+    assert len(preview.timeline) == 8
