@@ -3,7 +3,7 @@ import json
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +14,7 @@ from shared.models.orm import (
     Case,
     CaseItem,
     CoverageRegistry,
+    ERRunState,
     Entity,
     Event,
     EventParticipant,
@@ -21,11 +22,35 @@ from shared.models.orm import (
     GraphEdge,
     GraphNode,
     RawRun,
+    RawSource,
     RiskSignal,
     Typology,
     TypologyRunLog,
 )
 from shared.models.coverage import CoverageItem, CoverageMapItem, CoverageMapResponse
+from shared.models.coverage_v2 import (
+    CoverageV2AnalyticsResponse,
+    CoverageV2AnalyticsSummary,
+    CoverageV2LatestRun,
+    CoverageV2MapNational,
+    CoverageV2MapResponse,
+    CoverageV2PipelineStage,
+    CoverageV2PipelineSummary,
+    CoverageV2RunDetailResponse,
+    CoverageV2RunFieldProfile,
+    CoverageV2RunSampleRecord,
+    CoverageV2RuntimeTotals,
+    CoverageV2ScheduleWindow,
+    CoverageV2SourceItem,
+    CoverageV2SourcePreviewConnector,
+    CoverageV2SourcePreviewJob,
+    CoverageV2SourcePreviewResponse,
+    CoverageV2SourceRuntime,
+    CoverageV2SourcesResponse,
+    CoverageV2StatusCounts,
+    CoverageV2SummaryResponse,
+    CoverageV2Totals,
+)
 from shared.models.graph import (
     CaseFocusSignalSummary,
     CaseGraphResponse,
@@ -121,6 +146,41 @@ _TYPOLOGY_LEGAL_REFERENCES = {
     "T03": "Lei 14.133/2021 (dispensa de licitacao por valor)",
 }
 
+_COVERAGE_STATUS_RANK = {
+    "error": 5,
+    "stale": 4,
+    "warning": 3,
+    "pending": 2,
+    "ok": 1,
+}
+
+_COVERAGE_PROFILE_SAMPLE_LIMIT = 200
+_COVERAGE_RECORD_SAMPLE_LIMIT = 12
+_COVERAGE_MAX_RAW_DATA_CHARS = 2400
+_COVERAGE_MAX_PREVIEW_VALUE_CHARS = 160
+_COVERAGE_STUCK_MINUTES = 20
+
+_COVERAGE_PREVIEW_KEYS = (
+    "id",
+    "numero",
+    "codigoEmenda",
+    "numeroEmenda",
+    "objeto",
+    "orgao_nome",
+    "fornecedor_nome",
+    "autor",
+    "nomeAutor",
+    "tipoEmenda",
+    "valor_global",
+    "valorPago",
+    "data_assinatura",
+    "dataInicioSancao",
+    "dataFimSancao",
+    "dataPublicacaoSancao",
+    "sancionado",
+    "pessoa",
+)
+
 
 def _normalize_missing_text(value: object, fallback: str = "nao_informado") -> str:
     text = str(value or "").strip()
@@ -183,6 +243,231 @@ def _extract_photo_url(attrs: dict | None) -> str | None:
 
 def _actor_sort_key(actor: SignalStoryActorOut) -> tuple[int, str]:
     return (-actor.event_count, actor.name.lower())
+
+
+def _coverage_now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _coverage_is_stuck_run(run: RawRun, now: datetime | None = None) -> bool:
+    now_ref = now or _coverage_now_utc()
+    if run.status != "running" or run.created_at is None:
+        return False
+    started_at = run.created_at
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    return (now_ref - started_at) > timedelta(minutes=_COVERAGE_STUCK_MINUTES)
+
+
+def _coverage_empty_status_counts() -> dict[str, int]:
+    return {"ok": 0, "warning": 0, "stale": 0, "error": 0, "pending": 0}
+
+
+def _coverage_worst_status(counts: dict[str, int]) -> str:
+    status = "ok"
+    rank = -1
+    for key, value in counts.items():
+        if value <= 0:
+            continue
+        current_rank = _COVERAGE_STATUS_RANK.get(key, 0)
+        if current_rank > rank:
+            status = key
+            rank = current_rank
+    return status
+
+
+def _coverage_connector_label(connector: str) -> str:
+    return connector.replace("_", " ")
+
+
+def _coverage_safe_iso(dt: Optional[datetime]) -> Optional[str]:
+    return dt.isoformat() if dt else None
+
+
+def _coverage_value_type(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _coverage_compact_nested(value: Any) -> Any:
+    if isinstance(value, dict):
+        preferred_subkeys = (
+            "id",
+            "nome",
+            "codigoFormatado",
+            "descricaoPortal",
+            "descricaoResumida",
+            "cnpjFormatado",
+            "cpfFormatado",
+        )
+        compact = {k: value[k] for k in preferred_subkeys if k in value}
+        if compact:
+            return compact
+        keys = list(value.keys())[:4]
+        return {k: value[k] for k in keys}
+    if isinstance(value, list):
+        first = value[0] if value else None
+        return {"items": len(value), "first": _coverage_compact_nested(first)}
+    if isinstance(value, str) and len(value) > _COVERAGE_MAX_PREVIEW_VALUE_CHARS:
+        return f"{value[:_COVERAGE_MAX_PREVIEW_VALUE_CHARS]}..."
+    return value
+
+
+def _coverage_preview_value(value: Any) -> Any:
+    if isinstance(value, (dict, list)):
+        return _coverage_compact_nested(value)
+    if isinstance(value, str):
+        if len(value) <= _COVERAGE_MAX_PREVIEW_VALUE_CHARS:
+            return value
+        return f"{value[:_COVERAGE_MAX_PREVIEW_VALUE_CHARS]}..."
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    text = json.dumps(value, ensure_ascii=False, default=str)
+    if len(text) <= _COVERAGE_MAX_PREVIEW_VALUE_CHARS:
+        return text
+    return f"{text[:_COVERAGE_MAX_PREVIEW_VALUE_CHARS]}..."
+
+
+def _coverage_example_fingerprint(value: Any) -> str:
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+    except TypeError:
+        return str(value)
+
+
+def _coverage_build_preview(raw_data: dict[str, Any]) -> dict[str, Any]:
+    keys = [key for key in _COVERAGE_PREVIEW_KEYS if key in raw_data]
+    if len(keys) < 8:
+        for key in raw_data.keys():
+            if key not in keys:
+                keys.append(key)
+            if len(keys) >= 8:
+                break
+    return {key: _coverage_compact_nested(raw_data.get(key)) for key in keys}
+
+
+def _coverage_trim_raw_data(raw_data: dict[str, Any]) -> dict[str, Any]:
+    text = str(raw_data)
+    if len(text) <= _COVERAGE_MAX_RAW_DATA_CHARS:
+        return raw_data
+    trimmed: dict[str, Any] = {}
+    for key, value in raw_data.items():
+        if len(str(trimmed)) > _COVERAGE_MAX_RAW_DATA_CHARS:
+            break
+        trimmed[key] = _coverage_compact_nested(value)
+    trimmed["_truncated"] = True
+    trimmed["_note"] = "Payload reduzido para visualizacao."
+    return trimmed
+
+
+def _coverage_run_error_message(run: RawRun) -> Optional[str]:
+    if not run.errors:
+        return None
+    if isinstance(run.errors, dict):
+        for key in ("message", "error", "detail"):
+            value = run.errors.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return str(run.errors)
+
+
+def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2LatestRun:
+    return CoverageV2LatestRun(
+        id=run.id,
+        status=run.status,
+        is_stuck=_coverage_is_stuck_run(run, now),
+        started_at=run.created_at,
+        finished_at=run.finished_at,
+        items_fetched=run.items_fetched or 0,
+        items_normalized=run.items_normalized or 0,
+        error_message=_coverage_run_error_message(run),
+    )
+
+
+def _coverage_scalar_one_or_none(result):
+    if hasattr(result, "scalar_one_or_none"):
+        return result.scalar_one_or_none()
+    if hasattr(result, "scalars"):
+        rows = result.scalars().all()
+        return rows[0] if rows else None
+    rows = result.all() if hasattr(result, "all") else []
+    return rows[0] if rows else None
+
+
+def _coverage_scalar_one(result, default=0):
+    if hasattr(result, "scalar_one"):
+        value = result.scalar_one()
+        return default if value is None else value
+    row = _coverage_scalar_one_or_none(result)
+    if row is None:
+        return default
+    return row
+
+
+def _coverage_row_one_or_none(result):
+    if hasattr(result, "one_or_none"):
+        return result.one_or_none()
+    rows = result.all() if hasattr(result, "all") else []
+    return rows[0] if rows else None
+
+
+def _coverage_build_job_info(connector_name: str, job_name: str) -> dict[str, Any]:
+    from shared.connectors import get_connector
+
+    info: dict[str, Any] = {
+        "connector": connector_name,
+        "job": job_name,
+        "description": None,
+        "domain": None,
+        "supports_incremental": None,
+        "enabled": None,
+        "default_params": {},
+    }
+    try:
+        connector = get_connector(connector_name)
+        job_spec = next((job for job in connector.list_jobs() if job.name == job_name), None)
+        if job_spec is not None:
+            info.update(
+                {
+                    "description": job_spec.description,
+                    "domain": job_spec.domain,
+                    "supports_incremental": job_spec.supports_incremental,
+                    "enabled": job_spec.enabled,
+                    "default_params": job_spec.default_params or {},
+                }
+            )
+    except Exception:
+        # Endpoint remains available even if connector metadata fails.
+        pass
+    return info
+
+
+def _coverage_format_schedule_window(code: str, entry: dict) -> str:
+    schedule = entry.get("schedule")
+    if schedule is None:
+        return "janela nao definida"
+
+    minute = str(getattr(schedule, "_orig_minute", "*"))
+    hour = str(getattr(schedule, "_orig_hour", "*"))
+
+    if code == "ingest-all-incremental" and hour == "*/2" and minute == "0":
+        return "a cada 2h (00:00, 02:00, ...)"
+    if hour != "*" and minute != "*":
+        return f"diario {hour.zfill(2)}:{minute.zfill(2)}"
+    if hour == "*/2" and minute == "0":
+        return "a cada 2h"
+    return f"cron h={hour} m={minute}"
 
 
 def _build_investigation_summary(signal: RiskSignal) -> dict:
@@ -776,6 +1061,592 @@ async def get_coverage_map(
         generated_at=now,
         items=items,
     )
+
+
+async def _coverage_get_latest_runs(
+    session: AsyncSession,
+    *,
+    connector: Optional[str] = None,
+    limit: int = 1000,
+) -> tuple[list[RawRun], dict[tuple[str, str], RawRun]]:
+    stmt = select(RawRun).order_by(RawRun.created_at.desc()).limit(limit)
+    if connector:
+        stmt = stmt.where(RawRun.connector == connector)
+    run_rows = (await session.execute(stmt)).scalars().all()
+
+    latest_by_job: dict[tuple[str, str], RawRun] = {}
+    for run in run_rows:
+        key = (run.connector, run.job)
+        if key not in latest_by_job:
+            latest_by_job[key] = run
+    return run_rows, latest_by_job
+
+
+async def get_coverage_v2_sources(
+    session: AsyncSession,
+    *,
+    offset: int = 0,
+    limit: int = 20,
+    status: Optional[str] = None,
+    domain: Optional[str] = None,
+    enabled_only: bool = False,
+    q: Optional[str] = None,
+    sort: str = "status_desc",
+) -> dict:
+    coverage_items = await get_coverage_list(session)
+    now = _coverage_now_utc()
+    _run_rows, latest_by_job = await _coverage_get_latest_runs(session, limit=600)
+
+    grouped: dict[str, list[CoverageItem]] = defaultdict(list)
+    for item in coverage_items:
+        grouped[item.connector].append(item)
+
+    q_normalized = (q or "").strip().lower()
+    rows: list[CoverageV2SourceItem] = []
+
+    for connector, connector_items in grouped.items():
+        selected_jobs: list[CoverageItem] = []
+        for item in connector_items:
+            if enabled_only and not bool(item.enabled_in_mvp):
+                continue
+            if domain and item.domain != domain:
+                continue
+            if q_normalized:
+                haystack = " ".join(
+                    [
+                        connector.lower(),
+                        item.job.lower(),
+                        (item.domain or "").lower(),
+                        (item.description or "").lower(),
+                    ]
+                )
+                if q_normalized not in haystack:
+                    continue
+            selected_jobs.append(item)
+
+        if not selected_jobs:
+            continue
+
+        status_counts = _coverage_empty_status_counts()
+        for item in selected_jobs:
+            status_counts[str(item.status)] += 1
+
+        worst_status = _coverage_worst_status(status_counts)
+        if status and worst_status != status:
+            continue
+
+        running_jobs = 0
+        stuck_jobs = 0
+        error_jobs = 0
+        for item in selected_jobs:
+            run = latest_by_job.get((item.connector, item.job))
+            if run is None:
+                continue
+            if run.status == "running":
+                running_jobs += 1
+                if _coverage_is_stuck_run(run, now):
+                    stuck_jobs += 1
+            elif run.status == "error":
+                error_jobs += 1
+
+        last_success_values = [item.last_success_at for item in selected_jobs if item.last_success_at]
+        lag_values = [item.freshness_lag_hours for item in selected_jobs if item.freshness_lag_hours is not None]
+
+        rows.append(
+            CoverageV2SourceItem(
+                connector=connector,
+                connector_label=_coverage_connector_label(connector),
+                job_count=len(selected_jobs),
+                enabled_job_count=sum(1 for item in selected_jobs if item.enabled_in_mvp),
+                worst_status=worst_status,  # type: ignore[arg-type]
+                status_counts=CoverageV2StatusCounts(**status_counts),
+                runtime=CoverageV2SourceRuntime(
+                    running_jobs=running_jobs,
+                    stuck_jobs=stuck_jobs,
+                    error_jobs=error_jobs,
+                ),
+                last_success_at=max(last_success_values) if last_success_values else None,
+                max_freshness_lag_hours=max(lag_values) if lag_values else None,
+            )
+        )
+
+    if sort == "name_asc":
+        rows.sort(key=lambda row: row.connector_label.lower())
+    elif sort == "freshness_desc":
+        rows.sort(
+            key=lambda row: (
+                row.max_freshness_lag_hours is None,
+                -(row.max_freshness_lag_hours or 0.0),
+                row.connector_label.lower(),
+            )
+        )
+    elif sort == "jobs_desc":
+        rows.sort(key=lambda row: (-row.job_count, row.connector_label.lower()))
+    else:
+        rows.sort(
+            key=lambda row: (
+                -_COVERAGE_STATUS_RANK.get(row.worst_status, 0),
+                row.connector_label.lower(),
+            )
+        )
+
+    total = len(rows)
+    paginated = rows[offset : offset + limit]
+    return CoverageV2SourcesResponse(
+        items=paginated,
+        total=total,
+        offset=offset,
+        limit=limit,
+    ).model_dump()
+
+
+async def get_coverage_v2_summary(session: AsyncSession) -> dict:
+    from shared.scheduler.schedule import BEAT_SCHEDULE
+
+    now = _coverage_now_utc()
+    coverage_items = await get_coverage_list(session)
+    _run_rows, latest_by_job = await _coverage_get_latest_runs(session, limit=600)
+    analytics = await get_coverage_v2_analytics(session)
+
+    status_counts = _coverage_empty_status_counts()
+    for item in coverage_items:
+        status_counts[str(item.status)] += 1
+
+    runtime_running = 0
+    runtime_stuck = 0
+    runtime_error = 0
+    for run in latest_by_job.values():
+        if run.status == "running":
+            runtime_running += 1
+            if _coverage_is_stuck_run(run, now):
+                runtime_stuck += 1
+        elif run.status == "error":
+            runtime_error += 1
+
+    event_count = int(
+        _coverage_scalar_one(
+            await session.execute(select(func.count()).select_from(Event)),
+            default=0,
+        )
+        or 0
+    )
+    graph_nodes = int(
+        _coverage_scalar_one(
+            await session.execute(select(func.count()).select_from(GraphNode)),
+            default=0,
+        )
+        or 0
+    )
+    graph_edges = int(
+        _coverage_scalar_one(
+            await session.execute(select(func.count()).select_from(GraphEdge)),
+            default=0,
+        )
+        or 0
+    )
+    baseline_count = int(
+        _coverage_scalar_one(
+            await session.execute(select(func.count()).select_from(BaselineSnapshot)),
+            default=0,
+        )
+        or 0
+    )
+    signal_count = int(
+        _coverage_scalar_one(
+            await session.execute(select(func.count()).select_from(RiskSignal)),
+            default=0,
+        )
+        or 0
+    )
+    er_state = _coverage_scalar_one_or_none(
+        await session.execute(select(ERRunState).order_by(ERRunState.created_at.desc()).limit(1))
+    )
+
+    if not coverage_items or status_counts["pending"] == len(coverage_items):
+        ingest_stage = CoverageV2PipelineStage(
+            code="ingest",
+            label="Ingestao de Dados",
+            status="pending",
+            reason="Nenhuma fonte de dados ingerida ainda.",
+        )
+    elif runtime_running > 0:
+        ingest_stage = CoverageV2PipelineStage(
+            code="ingest",
+            label="Ingestao de Dados",
+            status="processing",
+            reason=f"{runtime_running} job(s) em execucao no momento.",
+        )
+    elif status_counts["error"] > 0:
+        ingest_stage = CoverageV2PipelineStage(
+            code="ingest",
+            label="Ingestao de Dados",
+            status="error",
+            reason="Existem jobs com erro recente.",
+        )
+    elif status_counts["warning"] > 0 or status_counts["stale"] > 0:
+        ingest_stage = CoverageV2PipelineStage(
+            code="ingest",
+            label="Ingestao de Dados",
+            status="warning",
+            reason="Ha fontes com dados desatualizados ou em atencao.",
+        )
+    else:
+        ingest_stage = CoverageV2PipelineStage(
+            code="ingest",
+            label="Ingestao de Dados",
+            status="done",
+            reason="Fontes principais com atualizacao recente.",
+        )
+
+    if event_count == 0:
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="pending",
+            reason="Aguardando dados para iniciar vinculação.",
+        )
+    elif er_state is not None and er_state.status == "running":
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="processing",
+            reason="Resolucao de entidades em processamento.",
+        )
+    elif er_state is not None and er_state.status == "error":
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="error",
+            reason="Ultima execucao de resolucao falhou.",
+        )
+    elif graph_nodes == 0:
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="warning",
+            reason="Ainda sem nos materializados no grafo.",
+        )
+    elif graph_edges == 0:
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="warning",
+            reason="Nos criados, mas sem ligacoes entre entidades.",
+        )
+    else:
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="done",
+            reason="Entidades e ligacoes materializadas.",
+        )
+
+    if baseline_count == 0:
+        baseline_stage = CoverageV2PipelineStage(
+            code="baselines",
+            label="Calculo de Baselines",
+            status="pending",
+            reason="Aguardando dados para calcular baselines.",
+        )
+    else:
+        baseline_stage = CoverageV2PipelineStage(
+            code="baselines",
+            label="Calculo de Baselines",
+            status="done",
+            reason="Baselines recentes disponiveis para detecao.",
+        )
+
+    if signal_count == 0:
+        signal_stage = CoverageV2PipelineStage(
+            code="signals",
+            label="Deteccao de Sinais",
+            status="pending",
+            reason="Aguardando baselines para iniciar detecao.",
+        )
+    else:
+        signal_stage = CoverageV2PipelineStage(
+            code="signals",
+            label="Deteccao de Sinais",
+            status="done",
+            reason="Sinais de risco detectados recentemente.",
+        )
+
+    stages = [ingest_stage, er_stage, baseline_stage, signal_stage]
+    if runtime_error + runtime_stuck > 0 or any(stage.status == "error" for stage in stages):
+        overall_status = "blocked"
+    elif any(stage.status in {"warning", "processing", "pending"} for stage in stages):
+        overall_status = "attention"
+    else:
+        overall_status = "healthy"
+
+    schedule_windows = [
+        CoverageV2ScheduleWindow(
+            job_code=code,
+            window=_coverage_format_schedule_window(code, entry),
+        )
+        for code, entry in BEAT_SCHEDULE.items()
+    ]
+
+    return CoverageV2SummaryResponse(
+        snapshot_at=now,
+        totals=CoverageV2Totals(
+            connectors=len({item.connector for item in coverage_items}),
+            jobs=len(coverage_items),
+            jobs_enabled=sum(1 for item in coverage_items if item.enabled_in_mvp),
+            signals_total=signal_count,
+            status_counts=CoverageV2StatusCounts(**status_counts),
+            runtime=CoverageV2RuntimeTotals(
+                running=runtime_running,
+                stuck=runtime_stuck,
+                failed_or_stuck=runtime_error + runtime_stuck,
+            ),
+        ),
+        pipeline=CoverageV2PipelineSummary(
+            overall_status=overall_status,  # type: ignore[arg-type]
+            stages=stages,
+        ),
+        schedule_windows_brt=schedule_windows,
+    ).model_dump()
+
+
+async def get_coverage_v2_source_preview(
+    session: AsyncSession,
+    connector: str,
+    *,
+    runs_limit: int = 10,
+) -> Optional[dict]:
+    coverage_items = await get_coverage_list(session)
+    connector_jobs = [item for item in coverage_items if item.connector == connector]
+    if not connector_jobs:
+        return None
+
+    now = _coverage_now_utc()
+    run_rows, latest_by_job = await _coverage_get_latest_runs(
+        session,
+        connector=connector,
+        limit=max(120, runs_limit * 12),
+    )
+
+    status_counts = _coverage_empty_status_counts()
+    job_items: list[CoverageV2SourcePreviewJob] = []
+    for item in sorted(
+        connector_jobs,
+        key=lambda row: (
+            -_COVERAGE_STATUS_RANK.get(row.status, 0),
+            row.job,
+        ),
+    ):
+        status_counts[item.status] += 1
+        latest_run = latest_by_job.get((connector, item.job))
+        job_items.append(
+            CoverageV2SourcePreviewJob(
+                job=item.job,
+                domain=item.domain,
+                description=item.description,
+                enabled_in_mvp=bool(item.enabled_in_mvp),
+                status=item.status,  # type: ignore[arg-type]
+                total_items=item.total_items,
+                last_success_at=item.last_success_at,
+                freshness_lag_hours=item.freshness_lag_hours,
+                latest_run=(
+                    _coverage_latest_run_to_model(latest_run, now)
+                    if latest_run is not None
+                    else None
+                ),
+            )
+        )
+
+    recent_runs: list[CoverageV2LatestRun] = [
+        _coverage_latest_run_to_model(run, now)
+        for run in run_rows[:runs_limit]
+    ]
+
+    worst_status = _coverage_worst_status(status_counts)
+    insights: list[str] = []
+    stuck_count = sum(1 for run in recent_runs if run.is_stuck)
+    error_count = sum(1 for run in recent_runs if run.status == "error")
+    if stuck_count > 0:
+        insights.append(f"{stuck_count} execucao(oes) em andamento acima de 20 minutos.")
+    if error_count > 0:
+        insights.append(f"{error_count} execucao(oes) recente(s) com erro.")
+    if status_counts["pending"] == len(connector_jobs):
+        insights.append("Fonte aguardando primeira ingestao de dados.")
+    if not insights:
+        insights.append("Fonte operando dentro do comportamento esperado no periodo recente.")
+
+    return CoverageV2SourcePreviewResponse(
+        connector=CoverageV2SourcePreviewConnector(
+            connector=connector,
+            connector_label=_coverage_connector_label(connector),
+            worst_status=worst_status,  # type: ignore[arg-type]
+            job_count=len(connector_jobs),
+            enabled_job_count=sum(1 for item in connector_jobs if item.enabled_in_mvp),
+            status_counts=CoverageV2StatusCounts(**status_counts),
+        ),
+        jobs=job_items,
+        recent_runs=recent_runs,
+        insights=insights,
+    ).model_dump()
+
+
+async def get_coverage_v2_map(
+    session: AsyncSession,
+    *,
+    layer: str = "uf",
+    metric: str = "coverage",
+) -> dict:
+    base_map = await get_coverage_map(session, layer=layer, metric=metric)
+    regions_with_data = sum(1 for item in base_map.items if item.event_count > 0)
+    regions_without_data = len(base_map.items) - regions_with_data
+    total_events = sum(int(item.event_count) for item in base_map.items)
+    total_signals = sum(int(item.signal_count) for item in base_map.items)
+
+    return CoverageV2MapResponse(
+        layer=base_map.layer,
+        metric=base_map.metric,
+        generated_at=base_map.generated_at,
+        date_ref=base_map.date_ref,
+        national=CoverageV2MapNational(
+            regions_with_data=regions_with_data,
+            regions_without_data=regions_without_data,
+            total_events=total_events,
+            total_signals=total_signals,
+        ),
+        items=base_map.items,
+    ).model_dump()
+
+
+async def get_coverage_v2_analytics(session: AsyncSession) -> dict:
+    items = await get_analytical_coverage(session)
+    apt_count = sum(1 for item in items if bool(item.get("apt")))
+    blocked_count = sum(1 for item in items if not bool(item.get("apt")))
+    with_signals_30d = sum(1 for item in items if int(item.get("signals_30d") or 0) > 0)
+    return CoverageV2AnalyticsResponse(
+        summary=CoverageV2AnalyticsSummary(
+            total_typologies=len(items),
+            apt_count=apt_count,
+            blocked_count=blocked_count,
+            with_signals_30d=with_signals_30d,
+        ),
+        items=items,
+    ).model_dump()
+
+
+async def get_coverage_v2_run_detail(
+    session: AsyncSession,
+    run_id: uuid.UUID,
+) -> Optional[dict]:
+    run = _coverage_scalar_one_or_none(
+        await session.execute(select(RawRun).where(RawRun.id == run_id))
+    )
+    if run is None:
+        return None
+
+    summary_row = _coverage_row_one_or_none(
+        await session.execute(
+            select(
+                func.count(RawSource.id).label("records_stored"),
+                func.count(func.distinct(RawSource.raw_id)).label("distinct_raw_ids"),
+                func.min(RawSource.created_at).label("first_record_at"),
+                func.max(RawSource.created_at).label("last_record_at"),
+            ).where(RawSource.run_id == run_id)
+        )
+    )
+    records_stored = int(getattr(summary_row, "records_stored", 0) or 0)
+    distinct_raw_ids = int(getattr(summary_row, "distinct_raw_ids", 0) or 0)
+    duplicate_raw_ids = max(records_stored - distinct_raw_ids, 0)
+
+    profile_sources = (
+        await session.execute(
+            select(RawSource.raw_data)
+            .where(RawSource.run_id == run_id)
+            .order_by(RawSource.created_at.desc())
+            .limit(_COVERAGE_PROFILE_SAMPLE_LIMIT)
+        )
+    ).scalars().all()
+
+    field_stats: dict[str, dict[str, Any]] = {}
+    profile_total = 0
+    for raw_data in profile_sources:
+        if not isinstance(raw_data, dict):
+            continue
+        profile_total += 1
+        for key, value in raw_data.items():
+            stat = field_stats.setdefault(
+                key,
+                {"count": 0, "types": set(), "examples": [], "fingerprints": set()},
+            )
+            stat["count"] += 1
+            stat["types"].add(_coverage_value_type(value))
+            if len(stat["examples"]) < 3:
+                preview = _coverage_preview_value(value)
+                fingerprint = _coverage_example_fingerprint(preview)
+                if fingerprint not in stat["fingerprints"]:
+                    stat["examples"].append(preview)
+                    stat["fingerprints"].add(fingerprint)
+
+    field_profile = [
+        CoverageV2RunFieldProfile(
+            key=key,
+            present_count=stats["count"],
+            coverage_pct=round((stats["count"] / profile_total * 100.0), 2)
+            if profile_total
+            else 0.0,
+            detected_types=sorted(list(stats["types"])),
+            examples=stats["examples"],
+        )
+        for key, stats in sorted(
+            field_stats.items(),
+            key=lambda item: (-item[1]["count"], item[0]),
+        )
+    ]
+
+    sample_rows = (
+        await session.execute(
+            select(RawSource)
+            .where(RawSource.run_id == run_id)
+            .order_by(RawSource.created_at.desc())
+            .limit(_COVERAGE_RECORD_SAMPLE_LIMIT)
+        )
+    ).scalars().all()
+
+    samples = [
+        CoverageV2RunSampleRecord(
+            raw_id=row.raw_id,
+            created_at=_coverage_safe_iso(row.created_at),
+            preview=_coverage_build_preview(row.raw_data if isinstance(row.raw_data, dict) else {}),
+            raw_data=_coverage_trim_raw_data(row.raw_data if isinstance(row.raw_data, dict) else {}),
+        )
+        for row in sample_rows
+    ]
+
+    return CoverageV2RunDetailResponse(
+        run={
+            "id": str(run.id),
+            "connector": run.connector,
+            "job": run.job,
+            "status": run.status,
+            "cursor_start": run.cursor_start,
+            "cursor_end": run.cursor_end,
+            "items_fetched": run.items_fetched,
+            "items_normalized": run.items_normalized,
+            "errors": run.errors,
+            "started_at": _coverage_safe_iso(run.created_at),
+            "finished_at": _coverage_safe_iso(run.finished_at),
+        },
+        job=_coverage_build_job_info(run.connector, run.job),
+        summary={
+            "records_stored": records_stored,
+            "distinct_raw_ids": distinct_raw_ids,
+            "duplicate_raw_ids": duplicate_raw_ids,
+            "first_record_at": _coverage_safe_iso(getattr(summary_row, "first_record_at", None)),
+            "last_record_at": _coverage_safe_iso(getattr(summary_row, "last_record_at", None)),
+            "profile_sampled_records": profile_total,
+            "profile_sample_limit": _COVERAGE_PROFILE_SAMPLE_LIMIT,
+        },
+        field_profile=field_profile,
+        samples=samples,
+    ).model_dump()
 
 
 def build_signal_replay_hash(signal: RiskSignal, evidence_package: EvidencePackage | None) -> str:
