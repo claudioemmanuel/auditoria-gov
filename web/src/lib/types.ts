@@ -86,6 +86,110 @@ export interface PaginatedResponse<T> {
   limit: number;
 }
 
+export interface RadarV2Totals {
+  signals: number;
+  cases: number;
+}
+
+export interface RadarV2SeverityCounts {
+  low: number;
+  medium: number;
+  high: number;
+  critical: number;
+}
+
+export interface RadarV2TypologyCount {
+  code: string;
+  name: string;
+  count: number;
+}
+
+export interface RadarV2SummaryResponse {
+  snapshot_at: string;
+  totals: RadarV2Totals;
+  severity_counts: RadarV2SeverityCounts;
+  typology_counts: RadarV2TypologyCount[];
+  active_filters_count: number;
+}
+
+export interface RadarV2SignalItem {
+  id: string;
+  typology_code: string;
+  typology_name: string;
+  severity: SignalSeverity;
+  confidence: number;
+  title: string;
+  summary?: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  created_at: string;
+  event_count: number;
+  entity_count: number;
+  has_graph: boolean;
+}
+
+export interface RadarV2CaseItem {
+  id: string;
+  title: string;
+  status: string;
+  severity: SignalSeverity;
+  summary?: string;
+  signal_count: number;
+  entity_count: number;
+  typology_codes: string[];
+  period_start?: string | null;
+  period_end?: string | null;
+  created_at: string;
+}
+
+export interface RadarV2SignalPreviewResponse {
+  signal: SignalDetail;
+  graph: SignalGraphResponse;
+  evidence: SignalEvidencePage;
+}
+
+export interface RadarV2CasePreviewResponse {
+  case: {
+    id: string;
+    title: string;
+    status: string;
+    severity: SignalSeverity;
+    summary?: string | null;
+    entity_names: string[];
+    signal_count: number;
+    period_start?: string | null;
+    period_end?: string | null;
+    total_value_brl?: number | null;
+    created_at: string;
+  };
+  graph: CaseGraphResponse;
+  top_signals: {
+    id: string;
+    typology_code: string;
+    typology_name: string;
+    severity: SignalSeverity;
+    confidence: number;
+    title: string;
+    summary?: string | null;
+    period_start?: string | null;
+    period_end?: string | null;
+    entity_count: number;
+    event_count: number;
+  }[];
+}
+
+export interface RadarV2CoverageSummary {
+  apt_count: number;
+  with_signals_30d: number;
+  blocked_count: number;
+  total_typologies: number;
+}
+
+export interface RadarV2CoverageResponse {
+  summary: RadarV2CoverageSummary;
+  items: AnalyticalCoverageItem[];
+}
+
 export interface CoverageItem {
   connector: string;
   job: string;
