@@ -1,0 +1,81 @@
+[project]
+name = "auditoria-gov"
+version = "0.1.0"
+description = "AuditorIA Gov — citizen auditing of Brazilian federal data"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.14",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "redis>=5.2",
+    "celery>=5.4",
+    "flower>=2.0",
+    "httpx>=0.28",
+    "structlog>=24.4",
+    "pgvector>=0.3",
+    "openai>=1.60",
+    "jinja2>=3.1",
+    "networkx>=3.2",
+    "scipy>=1.12",
+]
+
+[project.optional-dependencies]
+nlp = [
+    "transformers>=4.40",
+    "torch>=2.2",
+]
+test = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-asyncio>=0.25",
+    "respx>=0.22",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--tb=short",
+    "--strict-markers",
+    "-m",
+    "not integration",
+    "-v",
+]
+markers = [
+    "integration: marks tests that hit real external APIs (deselect with '-m \"not integration\"')",
+]
+
+[tool.coverage.run]
+source = ["shared"]
+omit = [
+    "shared/db.py",
+    "shared/db_sync.py",
+    "shared/logging.py",
+    "shared/repo/*",
+    "shared/connectors/http_client.py",
+    "shared/connectors/receita_cnpj.py",
+    "shared/connectors/querido_diario.py",
+    "shared/services/alerts.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["shared"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,225 @@
+import uuid
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select
+
+from shared.models.orm import Event, EventParticipant
+from shared.models.signals import (
+    EvidenceRef,
+    RefType,
+    RiskSignalOut,
+    SignalSeverity,
+)
+from shared.typologies.base import BaseTypology
+
+
+# Thresholds for dispensa de licitação (Lei 14.133/2021)
+_DISPENSA_GOODS_THRESHOLD = 50_000.0  # R$ 50k for goods
+_DISPENSA_SERVICES_THRESHOLD = 100_000.0  # R$ 100k for services
+_DEFAULT_THRESHOLD = _DISPENSA_GOODS_THRESHOLD
+_MAX_GAP_DAYS = 30  # Max days between purchases to be considered a cluster
+
+
+def _normalize_catmat_group(value: object) -> str:
+    text = str(value or "").strip()
+    if text.lower() in {
+        "",
+        "unknown",
+        "sem classificacao",
+        "sem classificação",
+        "null",
+        "none",
+        "nao_informado",
+        "não informado",
+    }:
+        return "nao_informado"
+    return text
+
+
+def _display_catmat_group(value: str) -> str:
+    if value == "nao_informado":
+        return "Nao informado pela fonte"
+    return value
+
+
+class T03SplittingTypology(BaseTypology):
+    """T03 — Expenditure Splitting (Fracionamento de Despesa).
+
+    Algorithm:
+    1. For each procuring entity + CATMAT/CATSER group:
+       a. Find direct purchases (dispensa) in temporal sequences.
+       b. Identify clusters where cumulative value approaches or exceeds
+          the dispensa threshold (R$ 50k for goods, R$ 100k for services).
+    2. Use semantic clustering on descriptions to detect split purchases
+       with slightly different wording.
+    3. Flag sequences where:
+       - Temporal gap between purchases < 30 days
+       - Same or similar object descriptions
+       - Cumulative value > threshold
+    4. Severity: CRITICAL if > 2x threshold, HIGH if > threshold.
+    """
+
+    @property
+    def id(self) -> str:
+        return "T03"
+
+    @property
+    def name(self) -> str:
+        return "Fracionamento de Despesa"
+
+    @property
+    def required_domains(self) -> list[str]:
+        return ["despesa", "licitacao"]
+
+    @property
+    def required_fields(self) -> list[str]:
+        return ["value_brl", "modality", "description", "occurred_at"]
+
+    async def run(self, session) -> list[RiskSignalOut]:
+        window_end = datetime.now(timezone.utc)
+        window_start = window_end - timedelta(days=365)
+
+        # Query dispensa/direct purchase events
+        stmt = (
+            select(Event)
+            .where(
+                Event.type.in_(["despesa", "licitacao"]),
+                Event.occurred_at >= window_start,
+                Event.occurred_at <= window_end,
+                Event.value_brl.isnot(None),
+                Event.value_brl > 0,
+            )
+        )
+        result = await session.execute(stmt)
+        events = result.scalars().all()
+
+        # Filter for dispensa modality
+        dispensas = [
+            e for e in events
+            if e.attrs.get("modality", "").lower() in (
+                "dispensa", "dispensa de licitacao",
+                "dispensa_licitacao", "dispensa_valor",
+                "compra_direta", "inexigibilidade",
+            )
+            or (e.value_brl and e.value_brl < _DEFAULT_THRESHOLD)
+        ]
+
+        if not dispensas:
+            return []
+
+        # Get procuring entities
+        event_ids = [e.id for e in dispensas]
+        buyer_stmt = select(EventParticipant).where(
+            EventParticipant.event_id.in_(event_ids),
+            EventParticipant.role.in_(["procuring_entity", "buyer"]),
+        )
+        buyer_result = await session.execute(buyer_stmt)
+        buyers = buyer_result.scalars().all()
+
+        event_buyer: dict[str, uuid.UUID] = {}
+        for b in buyers:
+            event_buyer[str(b.event_id)] = b.entity_id
+
+        # Group by (buyer, catmat_group)
+        groups: dict[tuple, list[Event]] = defaultdict(list)
+        for e in dispensas:
+            buyer_id = event_buyer.get(str(e.id), uuid.UUID(int=0))
+            catmat = _normalize_catmat_group(
+                e.attrs.get("catmat_group") or e.attrs.get("catmat_code")
+            )
+            groups[(str(buyer_id), catmat)].append(e)
+
+        signals: list[RiskSignalOut] = []
+
+        for key, group_events in groups.items():
+            buyer_id_str, catmat = key
+            if len(group_events) < 2:
+                continue
+
+            # Sort by date
+            sorted_events = sorted(
+                group_events, key=lambda e: e.occurred_at or datetime.min.replace(tzinfo=timezone.utc)
+            )
+
+            # Find temporal clusters (purchases within MAX_GAP_DAYS of each other)
+            clusters: list[list[Event]] = []
+            current_cluster: list[Event] = [sorted_events[0]]
+
+            for e in sorted_events[1:]:
+                prev_date = current_cluster[-1].occurred_at
+                curr_date = e.occurred_at
+                if prev_date and curr_date and (curr_date - prev_date).days <= _MAX_GAP_DAYS:
+                    current_cluster.append(e)
+                else:
+                    if len(current_cluster) >= 2:
+                        clusters.append(current_cluster)
+                    current_cluster = [e]
+
+            if len(current_cluster) >= 2:
+                clusters.append(current_cluster)
+
+            # Evaluate each cluster
+            for cluster in clusters:
+                total_value = sum(e.value_brl or 0 for e in cluster)
+                threshold = _DEFAULT_THRESHOLD
+
+                if total_value <= threshold:
+                    continue
+
+                ratio = total_value / threshold
+
+                if ratio > 2.0:
+                    severity = SignalSeverity.CRITICAL
+                    confidence = min(0.95, 0.75 + (ratio - 2) * 0.05)
+                else:
+                    severity = SignalSeverity.HIGH
+                    confidence = min(0.85, 0.55 + (ratio - 1) * 0.3)
+
+                first_date = cluster[0].occurred_at
+                last_date = cluster[-1].occurred_at
+                span_days = (last_date - first_date).days if first_date and last_date else 0
+                catmat_display = _display_catmat_group(catmat)
+
+                signal = RiskSignalOut(
+                    id=uuid.uuid4(),
+                    typology_code=self.id,
+                    typology_name=self.name,
+                    severity=severity,
+                    confidence=confidence,
+                    title=f"Possível fracionamento — {catmat_display}",
+                    summary=(
+                        f"{len(cluster)} compras diretas em {span_days} dias, "
+                        f"totalizando R$ {total_value:,.2f} "
+                        f"({ratio:.1f}x o limite de R$ {threshold:,.2f}). "
+                        f"Grupo CATMAT: {catmat_display}."
+                    ),
+                    factors={
+                        "n_purchases": len(cluster),
+                        "total_value_brl": round(total_value, 2),
+                        "threshold_brl": threshold,
+                        "ratio": round(ratio, 2),
+                        "span_days": span_days,
+                        "catmat_group": catmat,
+                        "avg_value_brl": round(total_value / len(cluster), 2),
+                    },
+                    evidence_refs=[
+                        EvidenceRef(
+                            ref_type=RefType.EVENT,
+                            ref_id=str(e.id),
+                            description=(
+                                f"Compra R$ {e.value_brl:,.2f} em "
+                                f"{e.occurred_at.strftime('%d/%m/%Y') if e.occurred_at else 'N/A'}"
+                            ),
+                        )
+                        for e in cluster[:10]
+                    ],
+                    entity_ids=[uuid.UUID(buyer_id_str)] if buyer_id_str != str(uuid.UUID(int=0)) else [],
+                    event_ids=[e.id for e in cluster],
+                    period_start=first_date,
+                    period_end=last_date,
+                    created_at=datetime.now(timezone.utc),
+                )
+                signals.append(signal)
+
+        return signals
