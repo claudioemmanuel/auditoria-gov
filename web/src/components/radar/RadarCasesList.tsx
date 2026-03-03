@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import type { RadarV2CaseItem } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
-import { SEVERITY_LABELS, TYPOLOGY_LABELS } from "@/lib/constants";
+import type { RadarV2CaseItem, RadarV2CasePreviewResponse } from "@/lib/types";
+import { cn, formatBRL, severityDotColor } from "@/lib/utils";
+import { Badge } from "@/components/ui/Badge";
+import { relativeTime } from "@/lib/utils";
 
 interface RadarCasesListProps {
   items: RadarV2CaseItem[];
@@ -11,78 +11,83 @@ interface RadarCasesListProps {
 }
 
 export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
-  const router = useRouter();
-
   return (
-    <div className="overflow-x-auto rounded-xl border border-gov-gray-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface-card shadow-sm">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-gov-gray-200 bg-gov-gray-50">
+        <thead className="border-b border-border bg-surface-subtle">
           <tr>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Severidade</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Caso</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Resumo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Tipologias</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Periodo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Acoes</th>
+            <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Sev</th>
+            <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Sinais</th>
+            <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Titulo</th>
+            <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Entidades</th>
+            <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted">Valor</th>
+            <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Tempo</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gov-gray-100">
-          {items.map((item) => (
-            <tr
-              key={item.id}
-              onClick={() => router.push(`/case/${item.id}`)}
-              className="cursor-pointer transition-colors hover:bg-gov-blue-50"
-            >
-              <td className="px-4 py-3 text-xs font-medium text-gov-gray-700">
-                {SEVERITY_LABELS[item.severity]}
-              </td>
-              <td className="px-4 py-3">
-                <p className="font-medium text-gov-gray-900">{item.title}</p>
-                <p className="text-xs text-gov-gray-500">
-                  {item.signal_count} sinais / {item.entity_count} entidades
-                </p>
-              </td>
-              <td className="max-w-[24rem] px-4 py-3 text-xs text-gov-gray-600">
-                {item.summary || "Sem resumo"}
-              </td>
-              <td className="px-4 py-3 text-xs text-gov-gray-600">
-                {item.typology_codes.length > 0
-                  ? item.typology_codes
-                    .map((code) => TYPOLOGY_LABELS[code] ?? code)
-                    .join(", ")
-                  : "Nao informado"}
-              </td>
-              <td className="px-4 py-3 text-xs text-gov-gray-500">
-                {(item.period_start || item.period_end)
-                  ? `${item.period_start ? formatDate(item.period_start) : "---"} -> ${item.period_end ? formatDate(item.period_end) : "---"}`
-                  : formatDate(item.created_at)}
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenPreview(item.id);
-                    }}
-                    className="rounded-md border border-gov-blue-200 bg-gov-blue-50 px-2.5 py-1 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-100"
-                  >
-                    Previa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      router.push(`/investigation/${item.id}`);
-                    }}
-                    className="rounded-md border border-gov-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gov-gray-700 hover:bg-gov-gray-50"
-                  >
-                    Investigar
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-border">
+          {items.map((item) => {
+            const caseWithValue = item as RadarV2CaseItem & { total_value_brl?: number; entity_names?: string[] };
+            const entityNames: string[] = caseWithValue.entity_names ?? [];
+            const entityDisplay = entityNames.length > 0
+              ? entityNames.slice(0, 2).join(", ") + (entityNames.length > 2 ? ` +${entityNames.length - 2}` : "")
+              : `${item.entity_count} entidade${item.entity_count !== 1 ? "s" : ""}`;
+            const valueDisplay = typeof caseWithValue.total_value_brl === "number"
+              ? formatBRL(caseWithValue.total_value_brl)
+              : null;
+
+            return (
+              <tr
+                key={item.id}
+                onClick={() => onOpenPreview(item.id)}
+                className="cursor-pointer transition-colors hover:bg-surface-subtle"
+              >
+                {/* Severity dot + badge */}
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={cn("h-2 w-2 flex-shrink-0 rounded-full", severityDotColor(item.severity))}
+                    />
+                    <Badge severity={item.severity} className="hidden sm:inline-flex" />
+                  </div>
+                </td>
+
+                {/* Signal count */}
+                <td className="px-3 py-2.5">
+                  <span className="font-mono text-xs font-bold tabular-nums text-primary">
+                    {item.signal_count}
+                  </span>
+                </td>
+
+                {/* Title */}
+                <td className="max-w-[20rem] px-3 py-2.5">
+                  <span className="block truncate text-xs font-medium text-primary" title={item.title}>
+                    {item.title}
+                  </span>
+                </td>
+
+                {/* Entity names (first 2) */}
+                <td className="max-w-[12rem] px-3 py-2.5">
+                  <span className="block truncate text-xs text-secondary">
+                    {entityDisplay}
+                  </span>
+                </td>
+
+                {/* Total value */}
+                <td className="px-3 py-2.5 text-right">
+                  <span className="font-mono text-xs tabular-nums text-secondary">
+                    {valueDisplay ?? "—"}
+                  </span>
+                </td>
+
+                {/* Relative time */}
+                <td className="whitespace-nowrap px-3 py-2.5">
+                  <span className="text-xs text-muted">
+                    {relativeTime(item.created_at)}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

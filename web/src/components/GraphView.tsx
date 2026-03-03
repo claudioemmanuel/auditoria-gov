@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getGraphNeighborhood } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { NeighborhoodResponse, GraphNode, GraphEdge } from "@/lib/types";
 import ForceGraph2D from "react-force-graph-2d";
 
 interface GraphViewProps {
   entityId: string;
+  height?: number;
+  className?: string;
 }
 
 interface GNode {
@@ -39,7 +42,7 @@ const DIAGNOSTIC_REASON_LABELS: Record<string, string> = {
   graph_available: "Grafo materializado",
 };
 
-export function GraphView({ entityId }: GraphViewProps) {
+export function GraphView({ entityId, height = 400, className }: GraphViewProps) {
   const [data, setData] = useState<NeighborhoodResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +50,7 @@ export function GraphView({ entityId }: GraphViewProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
+  const [dimensions, setDimensions] = useState({ width: 600, height });
   const router = useRouter();
 
   useEffect(() => {
@@ -65,13 +68,13 @@ export function GraphView({ entityId }: GraphViewProps) {
       for (const entry of entries) {
         setDimensions({
           width: entry.contentRect.width,
-          height: Math.max(entry.contentRect.height, 400),
+          height: Math.max(entry.contentRect.height, height),
         });
       }
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [height]);
 
   const graphData = useMemo(() => {
     if (!data) return { nodes: [] as GNode[], links: [] as { source: string; target: string; type: string; weight: number }[] };
@@ -141,10 +144,13 @@ export function GraphView({ entityId }: GraphViewProps) {
 
   if (loading) {
     return (
-      <div className="flex h-[400px] items-center justify-center">
+      <div
+        className={cn("flex items-center justify-center bg-surface-card", className)}
+        style={{ height }}
+      >
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gov-blue-600 border-t-transparent" />
-          <span className="text-sm text-gov-gray-500">Carregando grafo...</span>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <span className="text-sm text-secondary">Carregando grafo...</span>
         </div>
       </div>
     );
@@ -152,8 +158,11 @@ export function GraphView({ entityId }: GraphViewProps) {
 
   if (error) {
     return (
-      <div className="flex h-[400px] items-center justify-center">
-        <p className="text-sm text-red-500">{error}</p>
+      <div
+        className={cn("flex items-center justify-center bg-surface-card", className)}
+        style={{ height }}
+      >
+        <p className="text-sm text-severity-critical">{error}</p>
       </div>
     );
   }
@@ -165,19 +174,19 @@ export function GraphView({ entityId }: GraphViewProps) {
       ? (DIAGNOSTIC_REASON_LABELS[diagnostics.reason] || diagnostics.reason)
       : "Sem diagnostico disponivel";
     return (
-      <div className="p-4">
-        <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-4">
+      <div className={cn("p-4 bg-surface-card", className)}>
+        <div className="rounded-lg border border-border bg-surface-subtle p-4">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-white">
-              <svg className="h-5 w-5 text-gov-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-surface-card">
+              <svg className="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-4.568a4.5 4.5 0 00-6.364-6.364L4.5 8.78" />
               </svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-gov-gray-900">
+              <p className="text-sm font-semibold text-primary">
                 Nenhuma conexao materializada para esta entidade
               </p>
-              <p className="mt-1 text-xs text-gov-gray-600">
+              <p className="mt-1 text-xs text-secondary">
                 Isso pode ocorrer quando o processo de resolucao de entidades/arestas ainda nao foi executado
                 ou quando os eventos nao possuem co-participantes suficientes.
               </p>
@@ -185,29 +194,29 @@ export function GraphView({ entityId }: GraphViewProps) {
           </div>
           {diagnostics && (
             <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
-              <div className="rounded bg-white px-2 py-1.5 text-gov-gray-700">
+              <div className="rounded bg-surface-card px-2 py-1.5 text-secondary">
                 Eventos da entidade: <strong>{diagnostics.entity_event_count}</strong>
               </div>
-              <div className="rounded bg-white px-2 py-1.5 text-gov-gray-700">
+              <div className="rounded bg-surface-card px-2 py-1.5 text-secondary">
                 Co-participantes: <strong>{diagnostics.co_participant_count}</strong>
               </div>
-              <div className="rounded bg-white px-2 py-1.5 text-gov-gray-700">
-                Motivo: <strong>{reasonLabel}</strong> <span className="text-gov-gray-500">({diagnostics.reason})</span>
+              <div className="rounded bg-surface-card px-2 py-1.5 text-secondary">
+                Motivo: <strong>{reasonLabel}</strong> <span className="text-muted">({diagnostics.reason})</span>
               </div>
             </div>
           )}
           {data?.virtual_center_node && (
-            <p className="mt-2 text-xs text-gov-gray-600">
+            <p className="mt-2 text-xs text-secondary">
               Entidade central: <strong>{data.virtual_center_node.label}</strong> ({data.virtual_center_node.node_type})
             </p>
           )}
           {coParticipants.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-semibold text-gov-gray-700">Co-participantes identificados</p>
+              <p className="text-xs font-semibold text-primary">Co-participantes identificados</p>
               <div className="mt-1 overflow-x-auto">
                 <table className="min-w-full text-left text-xs">
                   <thead>
-                    <tr className="text-gov-gray-500">
+                    <tr className="text-muted">
                       <th className="py-1 pr-3">Entidade</th>
                       <th className="py-1 pr-3">Tipo</th>
                       <th className="py-1">Eventos em comum</th>
@@ -217,7 +226,7 @@ export function GraphView({ entityId }: GraphViewProps) {
                     {coParticipants.map((cp) => (
                       <tr
                         key={cp.entity_id}
-                        className="cursor-pointer border-t border-gov-gray-200 text-gov-gray-700 hover:bg-white"
+                        className="cursor-pointer border-t border-border text-secondary hover:bg-surface-base"
                         onClick={() => router.push(`/entity/${cp.entity_id}`)}
                       >
                         <td className="py-1 pr-3">{cp.label}</td>
@@ -236,13 +245,13 @@ export function GraphView({ entityId }: GraphViewProps) {
   }
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={cn("relative", className)} ref={containerRef}>
       {/* Legend */}
-      <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 rounded-md bg-white/90 px-3 py-2 text-xs shadow-sm backdrop-blur-sm">
+      <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 rounded-md bg-surface-card/90 px-3 py-2 text-xs shadow-sm backdrop-blur-sm">
         {Object.entries(NODE_COLORS).map(([type, color]) => (
           <div key={type} className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
-            <span className="capitalize text-gov-gray-700">
+            <span className="capitalize text-secondary">
               {type === "person" ? "Pessoa" : type === "company" ? "Empresa" : "Orgao"}
             </span>
           </div>
@@ -250,18 +259,18 @@ export function GraphView({ entityId }: GraphViewProps) {
       </div>
 
       {/* Stats */}
-      <div className="absolute right-2 top-2 z-10 rounded-md bg-white/90 px-3 py-2 text-xs text-gov-gray-500 shadow-sm backdrop-blur-sm">
+      <div className="absolute right-2 top-2 z-10 rounded-md bg-surface-card/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur-sm">
         {data.nodes.length} nos, {data.edges.length} arestas
         {data.truncated && (
-          <span className="ml-1 text-yellow-600">(truncado)</span>
+          <span className="ml-1 text-severity-medium">(truncado)</span>
         )}
       </div>
 
       {/* Tooltip */}
       {hoveredNode && (
-        <div className="absolute bottom-2 left-2 z-10 rounded-md bg-white px-3 py-2 text-xs shadow-md">
-          <p className="font-semibold text-gov-gray-900">{hoveredNode.label}</p>
-          <p className="capitalize text-gov-gray-500">
+        <div className="absolute bottom-2 left-2 z-10 rounded-md bg-surface-card px-3 py-2 text-xs shadow-md border border-border">
+          <p className="font-semibold text-primary">{hoveredNode.label}</p>
+          <p className="capitalize text-secondary">
             {hoveredNode.node_type === "person" ? "Pessoa" : hoveredNode.node_type === "company" ? "Empresa" : "Orgao"}
           </p>
         </div>
@@ -271,7 +280,7 @@ export function GraphView({ entityId }: GraphViewProps) {
         ref={graphRef}
         graphData={graphData}
         width={dimensions.width}
-        height={400}
+        height={height}
         nodeCanvasObject={paintNode}
         nodePointerAreaPaint={(node: GNode, color: string, ctx: CanvasRenderingContext2D) => {
           const r = (NODE_SIZE[node.node_type] ?? 5) * (node.isCenter ? 1.5 : 1) + 2;
