@@ -28,7 +28,7 @@ const TYPE_CONFIG: Record<
   },
   org: {
     Icon: Landmark,
-    label: "Orgao Publico",
+    label: "Órgão Público",
     accent: "text-violet-700",
     iconBg: "bg-violet-100",
     headerBar: "bg-violet-500",
@@ -183,7 +183,7 @@ export function InvestigationSidebar({
 
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
           <p className="text-[11px] font-semibold text-amber-800">
-            Por que esta entidade esta ligada ao padrao
+            Por que esta entidade está ligada ao padrão
           </p>
           <p className="mt-1 text-[11px] leading-relaxed text-amber-700">
             {whyLinked}

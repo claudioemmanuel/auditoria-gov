@@ -21,8 +21,8 @@ const TYPE_LABELS: Record<string, string> = {
   person: "Pessoa",
   pessoa_juridica: "Empresa",
   company: "Empresa",
-  orgao: "Orgao",
-  org: "Orgao",
+  orgao: "Órgão",
+  org: "Órgão",
 };
 
 const SEVERITY_ORDER: SignalSeverity[] = ["critical", "high", "medium", "low"];
@@ -57,7 +57,7 @@ const NODE_TYPE_ICONS = {
 const NODE_TYPE_LABELS: Record<string, string> = {
   person: "Pessoa",
   company: "Empresa",
-  org: "Orgao",
+  org: "Órgão",
 };
 
 export default async function EntityDetailPage({

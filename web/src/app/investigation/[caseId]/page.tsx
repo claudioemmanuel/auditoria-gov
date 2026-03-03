@@ -43,7 +43,7 @@ function LegendOverlay({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-violet-500" />
-          <span className="text-secondary">Orgao Publico</span>
+          <span className="text-secondary">Órgão Público</span>
         </div>
       </div>
       <div className="my-2 h-px bg-border" />
@@ -182,7 +182,7 @@ export default function InvestigationPage() {
         <div className="flex max-w-md flex-col items-center gap-3 text-center">
           <Network className="h-8 w-8 text-muted" />
           <p className="text-sm text-muted">
-            Nenhuma entidade com conexoes encontrada neste caso
+            Nenhuma entidade com conexões encontrada neste caso
           </p>
           <Link
             href={`/case/${caseId}`}
@@ -216,7 +216,7 @@ export default function InvestigationPage() {
               </h1>
             </div>
             <span className="text-xs text-muted">
-              {graphData.nodes.length} entidades | 0 conexoes
+              {graphData.nodes.length} entidades | 0 conexões
             </span>
           </div>
 
@@ -229,9 +229,9 @@ export default function InvestigationPage() {
                   Grafo de relacionamentos pendente
                 </p>
                 <p className="mt-1 text-xs text-amber-700">
-                  As entidades deste caso ainda nao possuem conexoes mapeadas no grafo.
+                  As entidades deste caso ainda não possuem conexões mapeadas no grafo.
                   Execute a resolucao de entidades para enriquecer o grafo com relacionamentos
-                  derivados de contratos, licitacoes e participacoes em eventos compartilhados.
+                  derivados de contratos, licitações e participações em eventos compartilhados.
                 </p>
               </div>
             </div>

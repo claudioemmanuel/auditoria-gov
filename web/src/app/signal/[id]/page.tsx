@@ -139,7 +139,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
   const investigation = signal.investigation_summary ?? fallbackInvestigation;
 
   const WHAT_CROSSED_LABELS: Record<string, string> = {
-    orgao_comprador: "Orgao comprador",
+    orgao_comprador: "Órgão comprador",
     modalidade_dispensa: "Modalidade de compra direta (dispensa)",
     grupo_catmat: "Classificacao do item (CATMAT/CATSER)",
     janela_temporal: "Janela temporal das compras",
@@ -366,7 +366,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
               Por que este sinal existe?
             </h2>
             <p className="mt-2 text-xs text-secondary">
-              O motor cruzou dados publicos para identificar um padrao atipico nesta tipologia.
+              O motor cruzou dados públicos para identificar um padrão atípico nesta tipologia.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-md bg-surface-card border border-border px-3 py-2">
@@ -430,7 +430,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
           <p className="text-xs text-muted">
             <strong className="text-secondary">Aviso legal:</strong>{" "}
             Este sinal constitui uma{" "}
-            <em>hipotese investigativa</em> baseada em cruzamento automatico de
+            <em>hipótese investigativa</em> baseada em cruzamento automático de
             dados publicos. Nao equivale a acusacao, condenacao ou juizo de
             culpa. A decisao final pertence aos orgaos competentes (controle
             interno, auditoria, corregedoria, Ministerio Publico e Judiciario).

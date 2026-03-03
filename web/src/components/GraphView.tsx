@@ -252,7 +252,7 @@ export function GraphView({ entityId, height = 400, className }: GraphViewProps)
           <div key={type} className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
             <span className="capitalize text-secondary">
-              {type === "person" ? "Pessoa" : type === "company" ? "Empresa" : "Orgao"}
+              {type === "person" ? "Pessoa" : type === "company" ? "Empresa" : "Órgão"}
             </span>
           </div>
         ))}
@@ -271,7 +271,7 @@ export function GraphView({ entityId, height = 400, className }: GraphViewProps)
         <div className="absolute bottom-2 left-2 z-10 rounded-md bg-surface-card px-3 py-2 text-xs shadow-md border border-border">
           <p className="font-semibold text-primary">{hoveredNode.label}</p>
           <p className="capitalize text-secondary">
-            {hoveredNode.node_type === "person" ? "Pessoa" : hoveredNode.node_type === "company" ? "Empresa" : "Orgao"}
+            {hoveredNode.node_type === "person" ? "Pessoa" : hoveredNode.node_type === "company" ? "Empresa" : "Órgão"}
           </p>
         </div>
       )}
