@@ -463,8 +463,10 @@ class PortalTransparenciaConnector(BaseConnector):
         if total_windows == 0:
             total_windows = 1
 
-        # Skip forward through empty dimension/window combinations
-        max_empty_skips = 50
+        # Skip forward through empty dimension/window combinations.
+        # Budget must be large enough to skip legacy/inactive dimension keys
+        # (e.g., first ~200 SIAPE codes × 5 windows = 1000 empty slots).
+        max_empty_skips = 500
         skips = 0
 
         while skips < max_empty_skips:
