@@ -62,6 +62,8 @@ def normalize_run(run_id: str):
         total_events = 0
         total_normalized = 0
 
+        from shared.config import settings
+
         # Process in chunks to avoid memory spikes on large runs.
         for chunk_start in range(0, len(raw_sources), _NORMALIZE_CHUNK_SIZE):
             chunk = raw_sources[chunk_start : chunk_start + _NORMALIZE_CHUNK_SIZE]
@@ -73,9 +75,15 @@ def normalize_run(run_id: str):
 
             result = connector.normalize(job, raw_items)
 
+            entities_to_embed: list[dict] = []
+
             # Upsert standalone entities
             for canonical_entity in result.entities:
-                upsert_entity_sync(session, canonical_entity)
+                entity = upsert_entity_sync(session, canonical_entity)
+                if entity.name:
+                    entities_to_embed.append(
+                        {"entity_id": str(entity.id), "name_normalized": entity.name}
+                    )
                 total_entities += 1
 
             # Upsert events and their participants
@@ -85,6 +93,10 @@ def normalize_run(run_id: str):
 
                 for participant in canonical_event.participants:
                     entity = upsert_entity_sync(session, participant.entity_ref)
+                    if entity.name:
+                        entities_to_embed.append(
+                            {"entity_id": str(entity.id), "name_normalized": entity.name}
+                        )
                     upsert_participant_sync(
                         session,
                         event_id=event.id,
@@ -102,6 +114,11 @@ def normalize_run(run_id: str):
             # Commit per chunk — releases memory and makes progress visible.
             raw_run.items_normalized = total_normalized
             session.commit()
+
+            # Fire-and-forget: embed entity names for semantic ER (non-blocking).
+            if settings.LLM_PROVIDER != "none" and entities_to_embed:
+                from worker.tasks.ai_tasks import embed_entities_batch
+                embed_entities_batch.delay(entities_to_embed)
 
             log.info(
                 "normalize_run.chunk",

@@ -3368,3 +3368,65 @@ async def get_org_summary(
             for s in entity_signals[:10]
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Embedding / pgvector helpers
+# ---------------------------------------------------------------------------
+
+def get_entity_embeddings_for_er(session, entity_ids: list) -> dict:
+    """Load text embeddings for entities, keyed by str(entity_id).
+
+    Returns dict mapping source_id -> list[float] embedding vector.
+    Used by the ER semantic matching pass. Sync-compatible.
+    """
+    from sqlalchemy import text
+
+    if not entity_ids:
+        return {}
+
+    id_strs = [str(eid) for eid in entity_ids]
+    sql = text("""
+        SELECT tc.source_id, te.embedding::text
+        FROM text_embedding te
+        JOIN text_corpus tc ON tc.id = te.corpus_id
+        WHERE tc.source_type = 'entity'
+          AND tc.source_id = ANY(:source_ids)
+    """)
+    rows = session.execute(sql, {"source_ids": id_strs}).fetchall()
+    result: dict = {}
+    for source_id, embedding_text in rows:
+        vec = [float(v) for v in embedding_text.strip("[]").split(",")]
+        result[source_id] = vec
+    return result
+
+
+def find_similar_signal_embeddings(
+    session,
+    embedding_vector: list,
+    threshold: float = 0.90,
+    limit: int = 5,
+) -> list:
+    """Find signals with cosine similarity >= threshold using pgvector.
+
+    Returns list of dicts with source_id and similarity score.
+    Used for semantic signal deduplication. Sync-compatible.
+    """
+    from sqlalchemy import text
+
+    vec_str = "[" + ",".join(str(v) for v in embedding_vector) + "]"
+    sql = text("""
+        SELECT
+            tc.source_id,
+            1 - (te.embedding <=> :query_vec::vector) AS similarity
+        FROM text_embedding te
+        JOIN text_corpus tc ON tc.id = te.corpus_id
+        WHERE tc.source_type = 'signal'
+          AND 1 - (te.embedding <=> :query_vec::vector) >= :threshold
+        ORDER BY te.embedding <=> :query_vec::vector
+        LIMIT :limit
+    """)
+    rows = session.execute(
+        sql, {"query_vec": vec_str, "threshold": threshold, "limit": limit}
+    ).fetchall()
+    return [{"source_id": row.source_id, "similarity": float(row.similarity)} for row in rows]

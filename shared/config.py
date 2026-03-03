@@ -18,9 +18,11 @@ class Settings(BaseSettings):
     RECEITA_CNPJ_DATA_DIR: str = "/data/receita_cnpj"
 
     # LLM
-    LLM_PROVIDER: Literal["openai", "none"] = "none"
+    LLM_PROVIDER: Literal["openai", "anthropic", "none"] = "none"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # Rate Limits (outgoing)
