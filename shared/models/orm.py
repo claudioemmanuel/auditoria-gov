@@ -399,3 +399,18 @@ class TypologyRunLog(Base):
     __table_args__ = (
         Index("ix_typology_run_log_code_started", "typology_code", "started_at"),
     )
+
+
+class ReferenceData(Base):
+    __tablename__ = "reference_data"
+
+    category: Mapped[str] = mapped_column(String(50))
+    code: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(500))
+    parent_code: Mapped[Optional[str]] = mapped_column(String(50))
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    __table_args__ = (
+        UniqueConstraint("category", "code", name="uq_reference_data_category_code"),
+        Index("ix_reference_data_category", "category"),
+    )

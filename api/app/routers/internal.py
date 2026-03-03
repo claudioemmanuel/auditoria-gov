@@ -14,7 +14,7 @@ from shared.config import settings
 from shared.connectors import get_connector
 from shared.db import async_session
 from shared.db_sync import SyncSession
-from shared.models.orm import IngestState, RawRun, RawSource
+from shared.models.orm import IngestState, RawRun, RawSource, ReferenceData
 from shared.repo.queries import get_signal_quality_metrics, replay_signal
 from shared.utils.sync_async import run_async
 
@@ -592,6 +592,29 @@ async def trigger_baselines():
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
+
+
+# --- Reference data endpoints ---
+
+
+@router.post("/reference/seed")
+async def trigger_seed_reference():
+    """Trigger one-time population of reference_data table."""
+    result = celery_app.send_task(
+        "worker.tasks.reference_tasks.seed_reference_data",
+        queue="default",
+    )
+    return {"status": "dispatched", "task_id": result.id}
+
+
+@router.get("/reference/stats")
+async def reference_stats():
+    """Return counts of reference_data rows per category."""
+    from shared.services.reference_seed import get_reference_stats
+
+    with SyncSession() as session:
+        stats = get_reference_stats(session)
+    return stats
 
 
 # --- Case endpoints ---

@@ -10,6 +10,8 @@ from typing import Optional
 
 import httpx
 
+from sqlalchemy import select
+
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
 from shared.connectors.http_client import portal_transparencia_client, DEFAULT_PAGE_SIZE
 from shared.logging import log
@@ -46,6 +48,23 @@ _WINDOWED_DAY_RANGES: dict[str, tuple[str, str]] = {
 }
 # Endpoints with single YYYYMM mesAno param (one month per window)
 _WINDOWED_MESANO_JOBS: set[str] = {"pt_beneficios"}
+
+# Dimension-keyed jobs: iterate over external dimension keys from reference_data.
+# Maps job_name -> (reference_data category, API query param name)
+_DIMENSION_KEYED_JOBS: dict[str, tuple[str, str]] = {
+    "pt_servidores_remuneracao": ("siape_orgao", "orgaoServidorExercicio"),
+    "pt_beneficios": ("ibge_municipio", "codigoIbge"),
+}
+
+
+def _parse_dimension_cursor(cursor: Optional[str]) -> tuple[int, int, int]:
+    """Parse 3D cursor 'd{dim}w{window}p{page}' -> (dim_idx, window_idx, page)."""
+    if cursor and cursor.startswith("d") and "w" in cursor and "p" in cursor:
+        rest = cursor[1:]
+        dim_str, rest2 = rest.split("w", 1)
+        win_str, page_str = rest2.split("p", 1)
+        return int(dim_str), int(win_str), int(page_str)
+    return 0, 0, 1
 
 
 def _parse_window_cursor(cursor: Optional[str]) -> tuple[int, int]:
@@ -133,9 +152,9 @@ class PortalTransparenciaConnector(BaseConnector):
             ),
             JobSpec(
                 name="pt_servidores_remuneracao",
-                description="Federal civil servants — requires organ code (codigoOrgaoExercicioSiape); disabled for bulk ingest",
+                description="Federal civil servants — iterates per SIAPE organ",
                 domain="remuneracao",
-                enabled=False,  # /servidores requires organ or CPF param — not bulk-fetchable
+                enabled=True,
             ),
             JobSpec(
                 name="pt_viagens",
@@ -157,9 +176,9 @@ class PortalTransparenciaConnector(BaseConnector):
             ),
             JobSpec(
                 name="pt_beneficios",
-                description="Social benefits by municipality — requires codigoIbge param; disabled for bulk ingest",
+                description="Social benefits — iterates per IBGE municipality",
                 domain="beneficio",
-                enabled=False,  # /bolsa-familia-por-municipio requires codigoIbge — per-municipality only
+                enabled=True,
             ),
             JobSpec(
                 name="pt_emendas",
@@ -186,6 +205,12 @@ class PortalTransparenciaConnector(BaseConnector):
             raise ValueError(f"Unknown job: {job.name}")
 
         params = params or {}
+
+        # Dimension-keyed jobs: iterate dimension × window × page
+        if job.name in _DIMENSION_KEYED_JOBS:
+            return await self._fetch_dimension_windowed(
+                job, endpoint, cursor=cursor, params=params
+            )
 
         # Endpoints with windowed pagination (month, day, or mesAno)
         if (
@@ -339,6 +364,167 @@ class PortalTransparenciaConnector(BaseConnector):
             next_cursor = f"w{window_idx + 1}p1"
         else:
             next_cursor = None
+        return items, next_cursor
+
+    def _get_dimension_keys(self, category: str) -> list[str]:
+        """Load dimension keys from reference_data table (cached on self)."""
+        cache_attr = f"_cached_{category}"
+        if hasattr(self, cache_attr):
+            return getattr(self, cache_attr)
+
+        from shared.db_sync import SyncSession
+        from shared.models.orm import ReferenceData
+
+        with SyncSession() as session:
+            stmt = (
+                select(ReferenceData.code)
+                .where(ReferenceData.category == category)
+                .order_by(ReferenceData.code)
+            )
+            codes = list(session.execute(stmt).scalars().all())
+
+        if not codes:
+            raise RuntimeError(
+                f"reference_data table has no entries for category '{category}'. "
+                f"Run: curl -X POST http://localhost:8000/internal/reference/seed"
+            )
+
+        setattr(self, cache_attr, codes)
+        log.info(
+            "portal_transparencia.dimension_keys_loaded",
+            category=category,
+            count=len(codes),
+        )
+        return codes
+
+    def _build_windows_for_job(self, job: JobSpec) -> list:
+        """Build time windows for a job (reuses windowed logic)."""
+        if job.name in _WINDOWED_MONTH_RANGES:
+            default_end = date.today().replace(day=1) - timedelta(days=1)
+            default_start = _add_months(default_end.replace(day=1), -59)
+            return _build_month_windows(default_start, default_end.replace(day=1), months_per_window=12)
+        if job.name in _WINDOWED_MESANO_JOBS:
+            default_end = date.today().replace(day=1) - timedelta(days=1)
+            default_start = _add_months(default_end.replace(day=1), -59)
+            months: list[date] = []
+            current = default_start.replace(day=1)
+            end_month = default_end.replace(day=1)
+            while current <= end_month:
+                months.append(current)
+                current = _add_months(current, 1)
+            return months
+        if job.name in _WINDOWED_DAY_RANGES:
+            default_end = date.today()
+            default_start = _add_months(default_end.replace(day=1), -59)
+            return _build_calendar_month_windows(default_start, default_end)
+        return []
+
+    def _apply_window_params(
+        self, job: JobSpec, windows: list, window_idx: int, query_params: dict
+    ) -> None:
+        """Apply window-specific query parameters."""
+        if job.name in _WINDOWED_MONTH_RANGES:
+            start_key, end_key = _WINDOWED_MONTH_RANGES[job.name]
+            window_start, window_end = windows[window_idx]
+            query_params[start_key] = window_start.strftime("%m/%Y")
+            query_params[end_key] = window_end.strftime("%m/%Y")
+        elif job.name in _WINDOWED_MESANO_JOBS:
+            query_params["mesAno"] = windows[window_idx].strftime("%Y%m")
+        elif job.name in _WINDOWED_DAY_RANGES:
+            start_key, end_key = _WINDOWED_DAY_RANGES[job.name]
+            window_start, window_end = windows[window_idx]
+            query_params[start_key] = window_start.strftime("%d/%m/%Y")
+            query_params[end_key] = window_end.strftime("%d/%m/%Y")
+
+    async def _fetch_dimension_windowed(
+        self,
+        job: JobSpec,
+        endpoint: str,
+        cursor: Optional[str],
+        params: dict,
+    ) -> tuple[list[RawItem], Optional[str]]:
+        """Iterate: dimension_key x time_window x page (3D cursor)."""
+        dim_idx, window_idx, page = _parse_dimension_cursor(cursor)
+        ref_category, dim_param = _DIMENSION_KEYED_JOBS[job.name]
+
+        dim_keys = self._get_dimension_keys(ref_category)
+        if dim_idx >= len(dim_keys):
+            return [], None
+
+        windows = self._build_windows_for_job(job)
+        total_windows = len(windows)
+
+        # If no windows defined, treat as single-window job
+        if total_windows == 0:
+            total_windows = 1
+
+        if window_idx >= total_windows:
+            # Move to next dimension key
+            if dim_idx + 1 < len(dim_keys):
+                return [], f"d{dim_idx + 1}w0p1"
+            return [], None
+
+        # Build query params
+        query_params = {k: v for k, v in params.items() if k != "pagina"}
+        query_params[dim_param] = dim_keys[dim_idx]
+        query_params["pagina"] = page
+
+        if windows:
+            self._apply_window_params(job, windows, window_idx, query_params)
+
+        async with portal_transparencia_client() as client:
+            response = await client.get(endpoint, params=query_params)
+
+            if response.status_code in (405, 403):
+                log.warning(
+                    "portal_transparencia.dimension_pagination_limit",
+                    job=job.name,
+                    dim_idx=dim_idx,
+                    window=window_idx,
+                    page=page,
+                    status=response.status_code,
+                )
+                # Skip to next window or dimension
+                if window_idx + 1 < total_windows:
+                    return [], f"d{dim_idx}w{window_idx + 1}p1"
+                if dim_idx + 1 < len(dim_keys):
+                    return [], f"d{dim_idx + 1}w0p1"
+                return [], None
+
+            if response.status_code == 400:
+                # Invalid dimension key — skip to next
+                log.warning(
+                    "portal_transparencia.dimension_invalid_key",
+                    job=job.name,
+                    dim_key=dim_keys[dim_idx],
+                    status=400,
+                )
+                if dim_idx + 1 < len(dim_keys):
+                    return [], f"d{dim_idx + 1}w0p1"
+                return [], None
+
+            response.raise_for_status()
+            data = response.json()
+
+        records = _extract_records(data)
+        items = [
+            RawItem(
+                raw_id=f"{job.name}:d{dim_idx}w{window_idx}p{page}:{i}",
+                data=r,
+            )
+            for i, r in enumerate(records)
+        ]
+
+        # 3D cursor advancement: page -> window -> dimension
+        if len(records) >= DEFAULT_PAGE_SIZE:
+            next_cursor = f"d{dim_idx}w{window_idx}p{page + 1}"
+        elif window_idx + 1 < total_windows:
+            next_cursor = f"d{dim_idx}w{window_idx + 1}p1"
+        elif dim_idx + 1 < len(dim_keys):
+            next_cursor = f"d{dim_idx + 1}w0p1"
+        else:
+            next_cursor = None
+
         return items, next_cursor
 
     def normalize(

@@ -92,9 +92,9 @@ class TestPortalTransparencia:
         assert jobs["pt_convenios_transferencias"].enabled is True
         assert jobs["pt_despesas_execucao"].enabled is True
         assert jobs["pt_cartao_pagamento"].enabled is True
-        # Disabled: API requires per-entity params (organ code / IBGE code)
-        assert jobs["pt_servidores_remuneracao"].enabled is False
-        assert jobs["pt_beneficios"].enabled is False
+        # Dimension-keyed jobs (iterate per SIAPE organ / IBGE municipality)
+        assert jobs["pt_servidores_remuneracao"].enabled is True
+        assert jobs["pt_beneficios"].enabled is True
 
     def test_rate_limit_policy(self):
         policy = self.c.rate_limit_policy()
@@ -347,6 +347,121 @@ class TestPortalTransparencia:
         assert _safe_float(42) == 42.0
         assert _safe_float("3.14") == 3.14
         assert _safe_float("1.489,00") == 1489.0
+
+    def test_parse_dimension_cursor(self):
+        from shared.connectors.portal_transparencia import _parse_dimension_cursor
+        assert _parse_dimension_cursor("d42w3p7") == (42, 3, 7)
+        assert _parse_dimension_cursor("d0w0p1") == (0, 0, 1)
+        assert _parse_dimension_cursor(None) == (0, 0, 1)
+        assert _parse_dimension_cursor("") == (0, 0, 1)
+        assert _parse_dimension_cursor("w3p2") == (0, 0, 1)  # Legacy cursor
+        assert _parse_dimension_cursor("d100w55p999") == (100, 55, 999)
+
+    @pytest.mark.asyncio
+    async def test_fetch_dimension_windowed_servidores(self):
+        """Dimension-keyed fetch for servidores iterates per SIAPE organ."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [{"id": 1, "nome": "JOAO", "mesAno": "202501"}]
+        mock_resp.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            return_value=mock_client,
+        ), patch.object(
+            self.c, "_get_dimension_keys", return_value=["26000", "26100"]
+        ):
+            job = JobSpec(name="pt_servidores_remuneracao", description="", domain="remuneracao")
+            items, next_cursor = await self.c.fetch(job)
+
+            assert len(items) == 1
+            assert items[0].raw_id.startswith("pt_servidores_remuneracao:d0w0p1:")
+            # 1 item < 100 → advance to next window
+            assert next_cursor is not None
+            # Verify the organ code was sent
+            called_params = mock_client.get.call_args.kwargs["params"]
+            assert called_params["orgaoServidorExercicio"] == "26000"
+
+    @pytest.mark.asyncio
+    async def test_fetch_dimension_windowed_beneficios(self):
+        """Dimension-keyed fetch for beneficios iterates per IBGE municipality."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [{"id": 1, "valor": "500.00", "mesAno": "202501"}]
+        mock_resp.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            return_value=mock_client,
+        ), patch.object(
+            self.c, "_get_dimension_keys", return_value=["3550308"]
+        ):
+            job = JobSpec(name="pt_beneficios", description="", domain="beneficio")
+            items, next_cursor = await self.c.fetch(job)
+
+            assert len(items) == 1
+            called_params = mock_client.get.call_args.kwargs["params"]
+            assert called_params["codigoIbge"] == "3550308"
+
+    @pytest.mark.asyncio
+    async def test_fetch_dimension_windowed_exhausted_dimensions(self):
+        """When all dimensions are exhausted, cursor is None."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = []  # no data
+        mock_resp.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            return_value=mock_client,
+        ), patch.object(
+            self.c, "_get_dimension_keys", return_value=["26000"]
+        ):
+            job = JobSpec(name="pt_servidores_remuneracao", description="", domain="remuneracao")
+            # Start beyond the only dimension key
+            items, next_cursor = await self.c.fetch(job, cursor="d1w0p1")
+            assert items == []
+            assert next_cursor is None
+
+    @pytest.mark.asyncio
+    async def test_fetch_dimension_windowed_400_skips_dimension(self):
+        """A 400 error skips to the next dimension key."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 400
+        mock_resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(), response=mock_resp
+        ))
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            return_value=mock_client,
+        ), patch.object(
+            self.c, "_get_dimension_keys", return_value=["99999", "26000"]
+        ):
+            job = JobSpec(name="pt_servidores_remuneracao", description="", domain="remuneracao")
+            items, next_cursor = await self.c.fetch(job, cursor="d0w0p1")
+            assert items == []
+            assert next_cursor == "d1w0p1"
 
 
 # ── Câmara ──────────────────────────────────────────────────────────
