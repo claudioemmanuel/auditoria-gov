@@ -167,8 +167,8 @@ export default function CoveragePage() {
   }
 
   return (
-    <div className="pt-14 lg:pt-0">
-      <div className="mx-auto max-w-7xl px-4 py-8">
+    <div>
+      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
         <Breadcrumb items={[{ label: "Cobertura" }]} />
 
         {/* Page title + snapshot */}

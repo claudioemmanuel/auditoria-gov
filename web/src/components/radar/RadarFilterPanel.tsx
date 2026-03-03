@@ -49,14 +49,14 @@ export function RadarFilterPanel({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Filter className="h-3.5 w-3.5 text-accent" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-secondary">Filtros</span>
+          <Filter className="h-3.5 w-3.5 text-gov-blue-700" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-gov-gray-600">Filtros</span>
         </div>
         {hasFilters && (
           <button
             type="button"
             onClick={onClearAll}
-            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-gov-blue-700 hover:underline"
           >
             <X className="h-3 w-3" />
             Limpar
@@ -194,19 +194,19 @@ export function RadarFilterPanel({
         <button
           type="button"
           onClick={() => setMobileOpen((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary shadow-sm"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gov-gray-200 bg-white px-3 py-2 text-xs font-medium text-gov-gray-600 shadow-sm"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filtros
           {hasFilters && (
-            <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white">
+            <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-gov-blue-700 text-[10px] font-semibold text-white">
               {[typology, severity, periodFrom || periodTo, corruptionType, sphere].filter(Boolean).length}
             </span>
           )}
         </button>
 
         {mobileOpen && (
-          <div className="mt-2 rounded-xl border border-border bg-surface-card p-4 shadow-sm">
+          <div className="mt-2 rounded-xl border border-gov-gray-200 bg-white p-4 shadow-sm">
             {panelContent}
           </div>
         )}
@@ -214,7 +214,7 @@ export function RadarFilterPanel({
 
       {/* Desktop sidebar panel */}
       <aside className="hidden lg:flex lg:w-56 lg:flex-shrink-0 lg:flex-col">
-        <div className="rounded-xl border border-border bg-surface-card p-4 shadow-sm">
+        <div className="rounded-xl border border-gov-gray-200 bg-white p-4 shadow-sm">
           {panelContent}
         </div>
       </aside>

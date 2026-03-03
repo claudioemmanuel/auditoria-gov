@@ -422,7 +422,7 @@ export default function HomePage() {
       {/* ── Scope ──────────────────────────────────────────────── */}
       <section className="border-t border-gov-gray-200 bg-white py-16">
         <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-2xl font-bold text-gov-gray-900">Escopo da Plataforma</h2>
+          <h2 className="text-center text-2xl font-bold text-gov-gray-900">Escopo da Plataforma</h2>
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-lg border border-gov-gray-200 bg-white p-5">
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
@@ -460,8 +460,8 @@ export default function HomePage() {
       {/* ── Explore ────────────────────────────────────────────── */}
       <section className="border-t border-gov-gray-200 bg-gov-gray-50 py-16">
         <div className="mx-auto max-w-5xl px-4">
-          <h2 className="text-2xl font-bold text-gov-gray-900">Explorar a Plataforma</h2>
-          <p className="mt-2 text-sm text-gov-gray-500">
+          <h2 className="text-center text-2xl font-bold text-gov-gray-900">Explorar a Plataforma</h2>
+          <p className="mt-2 text-center text-sm text-gov-gray-500">
             Acesse qualquer seção diretamente. Não é necessário cadastro ou login.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

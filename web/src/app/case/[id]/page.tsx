@@ -25,12 +25,12 @@ function sortBySeverity(signals: CaseSignal[]): CaseSignal[] {
 function EntityTypeIcon({ type }: { type: string }) {
   const t = type.toLowerCase();
   if (t === "person" || t === "individual" || t === "cpf") {
-    return <User className="h-3.5 w-3.5 shrink-0 text-muted" />;
+    return <User className="h-3.5 w-3.5 shrink-0 text-gov-gray-400" />;
   }
   if (t === "org" || t === "organization" || t === "landmark") {
-    return <Landmark className="h-3.5 w-3.5 shrink-0 text-muted" />;
+    return <Landmark className="h-3.5 w-3.5 shrink-0 text-gov-gray-400" />;
   }
-  return <Building2 className="h-3.5 w-3.5 shrink-0 text-muted" />;
+  return <Building2 className="h-3.5 w-3.5 shrink-0 text-gov-gray-400" />;
 }
 
 async function CaseContent({ id }: { id: string }) {
@@ -53,7 +53,7 @@ async function CaseContent({ id }: { id: string }) {
       : null;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-gov-gray-400" aria-label="Breadcrumb">
         <Link
@@ -212,10 +212,10 @@ export default async function CaseDetailPage({
   const { id } = await params;
 
   return (
-    <main className="flex-1 pt-14 lg:pt-0">
+    <main className="flex-1">
       <Suspense
         fallback={
-          <div className="mx-auto max-w-4xl px-4 py-8">
+          <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
             <DetailSkeleton />
           </div>
         }

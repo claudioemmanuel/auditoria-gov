@@ -126,7 +126,7 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
   return (
     <h2
       id={id}
-      className="text-xl font-semibold text-primary mb-4 mt-10 pb-2 border-b border-border scroll-mt-8"
+      className="text-xl font-semibold text-gov-gray-900 mb-4 mt-10 pb-2 border-b border-gov-gray-200 scroll-mt-8"
     >
       {children}
     </h2>
@@ -137,13 +137,13 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 
 export default function MethodologyPage() {
   return (
-    <div className="pt-14 lg:pt-0">
-      <div className="mx-auto max-w-5xl px-4 py-8">
+    <div>
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         {/* Page title */}
-        <h1 className="text-2xl font-bold text-primary tracking-tight">
+        <h1 className="text-2xl font-bold text-gov-gray-900 tracking-tight">
           Metodologia AuditorIA Gov
         </h1>
-        <p className="mt-2 text-sm text-secondary leading-relaxed max-w-2xl">
+        <p className="mt-2 text-sm text-gov-gray-600 leading-relaxed max-w-2xl">
           Como o sistema transforma dados públicos em sinais de risco, como interpretar os scores
           e quais limites considerar na leitura.
         </p>
@@ -167,8 +167,8 @@ export default function MethodologyPage() {
             <div className="space-y-4">
               {PRINCIPLES.map((p) => (
                 <div key={p.title}>
-                  <h3 className="text-base font-semibold text-primary mb-1">{p.title}</h3>
-                  <p className="text-sm text-secondary leading-relaxed">{p.body}</p>
+                  <h3 className="text-base font-semibold text-gov-gray-900 mb-1">{p.title}</h3>
+                  <p className="text-sm text-gov-gray-600 leading-relaxed">{p.body}</p>
                 </div>
               ))}
             </div>
@@ -178,12 +178,12 @@ export default function MethodologyPage() {
             <ol className="space-y-4">
               {PIPELINE_STEPS.map((step) => (
                 <li key={step.n} className="flex gap-4">
-                  <span className="font-mono tabular-nums text-sm font-bold text-accent shrink-0 w-6 pt-0.5">
+                  <span className="font-mono tabular-nums text-sm font-bold text-gov-blue-700 shrink-0 w-6 pt-0.5">
                     {step.n}.
                   </span>
                   <div>
-                    <h3 className="text-base font-semibold text-primary mb-1">{step.title}</h3>
-                    <p className="text-sm text-secondary leading-relaxed">{step.desc}</p>
+                    <h3 className="text-base font-semibold text-gov-gray-900 mb-1">{step.title}</h3>
+                    <p className="text-sm text-gov-gray-600 leading-relaxed">{step.desc}</p>
                   </div>
                 </li>
               ))}
@@ -191,7 +191,7 @@ export default function MethodologyPage() {
 
             {/* ── Tipologias ── */}
             <SectionHeading id="tipologias">Tipologias</SectionHeading>
-            <p className="text-sm text-secondary leading-relaxed mb-6">
+            <p className="text-sm text-gov-gray-600 leading-relaxed mb-6">
               O motor aplica 10 tipologias com thresholds específicos por contexto e baseline.
               A leitura de cada código deve considerar o nível de evidência: direto (viola regra
               legal específica), indireto (anomalia estatística) ou proxy (indicador associado ao
@@ -204,21 +204,21 @@ export default function MethodologyPage() {
                 return (
                   <div
                     key={code}
-                    className="border border-border rounded-lg p-4 bg-surface-card"
+                    className="border border-gov-gray-200 rounded-lg p-4 bg-white"
                   >
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="font-mono font-bold text-accent text-sm">{code}</span>
-                      <span className="text-sm font-semibold text-primary">{name}</span>
+                      <span className="font-mono font-bold text-gov-blue-700 text-sm">{code}</span>
+                      <span className="text-sm font-semibold text-gov-gray-900">{name}</span>
                     </div>
                     {desc && (
-                      <p className="text-xs text-secondary leading-relaxed mb-3">{desc}</p>
+                      <p className="text-xs text-gov-gray-600 leading-relaxed mb-3">{desc}</p>
                     )}
                     {sources.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {sources.map((src) => (
                           <span
                             key={src}
-                            className="rounded-full bg-accent-subtle px-2 py-0.5 text-[10px] font-medium text-accent"
+                            className="rounded-full bg-gov-blue-50 px-2 py-0.5 text-[10px] font-medium text-gov-blue-700"
                           >
                             {src}
                           </span>
@@ -231,12 +231,12 @@ export default function MethodologyPage() {
             </div>
 
             {/* Fontes de dados */}
-            <h3 className="text-base font-semibold text-primary mt-8 mb-3">Fontes de Dados</h3>
+            <h3 className="text-base font-semibold text-gov-gray-900 mt-8 mb-3">Fontes de Dados</h3>
             <div className="flex flex-wrap gap-2">
               {DATA_SOURCES.map((src) => (
                 <span
                   key={src}
-                  className="rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs font-medium text-secondary"
+                  className="rounded-full border border-gov-gray-200 bg-gov-gray-50 px-3 py-1 text-xs font-medium text-gov-gray-600"
                 >
                   {src}
                 </span>
@@ -245,7 +245,7 @@ export default function MethodologyPage() {
 
             {/* ── Scores ── */}
             <SectionHeading id="scores">Scores de Avaliação</SectionHeading>
-            <p className="text-sm text-secondary leading-relaxed mb-6">
+            <p className="text-sm text-gov-gray-600 leading-relaxed mb-6">
               A leitura correta exige considerar os três eixos em conjunto. Severidade alta sem
               completude adequada indica prioridade de verificação, não conclusão final.
             </p>
@@ -253,10 +253,10 @@ export default function MethodologyPage() {
               {SCORE_DIMENSIONS.map((dim) => (
                 <div
                   key={dim.name}
-                  className="border border-border rounded-lg p-4 bg-surface-card"
+                  className="border border-gov-gray-200 rounded-lg p-4 bg-white"
                 >
-                  <h3 className="text-base font-semibold text-primary mb-1">{dim.name}</h3>
-                  <p className="text-sm text-secondary leading-relaxed">{dim.desc}</p>
+                  <h3 className="text-base font-semibold text-gov-gray-900 mb-1">{dim.name}</h3>
+                  <p className="text-sm text-gov-gray-600 leading-relaxed">{dim.desc}</p>
                 </div>
               ))}
             </div>
@@ -265,22 +265,22 @@ export default function MethodologyPage() {
             <SectionHeading id="escopo">Escopo</SectionHeading>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
-                <h3 className="text-base font-semibold text-primary mb-3">Cobertura atual</h3>
+                <h3 className="text-base font-semibold text-gov-gray-900 mb-3">Cobertura atual</h3>
                 <ul className="space-y-2">
                   {SCOPE_CURRENT.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-secondary">
-                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-secondary" />
+                    <li key={item} className="flex items-start gap-2 text-sm text-gov-gray-600">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-gov-gray-600" />
                       {item}
                     </li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-primary mb-3">Roadmap</h3>
+                <h3 className="text-base font-semibold text-gov-gray-900 mb-3">Roadmap</h3>
                 <ul className="space-y-2">
                   {SCOPE_ROADMAP.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-muted">
-                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted" />
+                    <li key={item} className="flex items-start gap-2 text-sm text-gov-gray-400">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-gov-gray-400" />
                       {item}
                     </li>
                   ))}
@@ -290,33 +290,33 @@ export default function MethodologyPage() {
 
             {/* ── Base Legal ── */}
             <SectionHeading id="base-legal">Base Legal</SectionHeading>
-            <p className="text-sm text-secondary leading-relaxed mb-6">
+            <p className="text-sm text-gov-gray-600 leading-relaxed mb-6">
               Cada tipologia mapeia para tipos de corrupção com artigos legais específicos e esferas
               de atuação. Esses filtros estão disponíveis no Radar para busca por categoria jurídica.
             </p>
-            <div className="border border-border rounded-lg overflow-hidden">
+            <div className="border border-gov-gray-200 rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-surface-subtle border-b border-border">
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  <tr className="bg-gov-gray-50 border-b border-gov-gray-200">
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gov-gray-400">
                       Tipo
                     </th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gov-gray-400">
                       Referência
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-gov-gray-200">
                   {LEGAL_REFS.map(([name, ref]) => (
-                    <tr key={name} className="bg-surface-card">
-                      <td className="px-4 py-2.5 text-sm text-primary">{name}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-muted">{ref}</td>
+                    <tr key={name} className="bg-white">
+                      <td className="px-4 py-2.5 text-sm text-gov-gray-900">{name}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gov-gray-400">{ref}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="mt-6 text-xs text-muted leading-relaxed">
+            <p className="mt-6 text-xs text-gov-gray-400 leading-relaxed">
               A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência
               por UF/município. Ajustes de threshold, score e tipologias são versionados para
               rastreabilidade técnica.
