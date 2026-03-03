@@ -54,6 +54,11 @@ export default function CoveragePage() {
   const [mapData, setMapData] = useState<CoverageV2MapResponse | null>(null);
   const [analytics, setAnalytics] = useState<CoverageV2AnalyticsResponse | null>(null);
 
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [mapLoading, setMapLoading] = useState(true);
@@ -73,10 +78,15 @@ export default function CoveragePage() {
   useEffect(() => {
     let active = true;
     setSummaryLoading(true);
+    setSummaryError(null);
     getCoverageV2Summary()
       .then((payload) => {
         if (!active) return;
         setSummary(payload);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSummaryError("Nao foi possivel carregar o resumo da cobertura.");
       })
       .finally(() => {
         if (active) setSummaryLoading(false);
@@ -89,6 +99,7 @@ export default function CoveragePage() {
   useEffect(() => {
     let active = true;
     setSourcesLoading(true);
+    setSourcesError(null);
     getCoverageV2Sources({
       offset,
       limit: PAGE_LIMIT,
@@ -102,6 +113,10 @@ export default function CoveragePage() {
         if (!active) return;
         setSources(payload);
       })
+      .catch(() => {
+        if (!active) return;
+        setSourcesError("Falha de rede ao carregar fontes. Verifique a API e tente novamente.");
+      })
       .finally(() => {
         if (active) setSourcesLoading(false);
       });
@@ -113,10 +128,15 @@ export default function CoveragePage() {
   useEffect(() => {
     let active = true;
     setMapLoading(true);
+    setMapError(null);
     getCoverageV2Map({ layer: "uf", metric: mapMetric })
       .then((payload) => {
         if (!active) return;
         setMapData(payload);
+      })
+      .catch(() => {
+        if (!active) return;
+        setMapError("Nao foi possivel carregar o mapa de cobertura.");
       })
       .finally(() => {
         if (active) setMapLoading(false);
@@ -132,10 +152,15 @@ export default function CoveragePage() {
     }
     let active = true;
     setAnalyticsLoading(true);
+    setAnalyticsError(null);
     getCoverageV2Analytics()
       .then((payload) => {
         if (!active) return;
         setAnalytics(payload);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAnalyticsError("Nao foi possivel carregar a cobertura analitica.");
       })
       .finally(() => {
         if (active) setAnalyticsLoading(false);
@@ -175,6 +200,11 @@ export default function CoveragePage() {
       <Breadcrumb items={[{ label: "Cobertura" }]} />
 
       <CoverageHeader snapshotAt={summary?.snapshot_at} />
+      {summaryError && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {summaryError}
+        </div>
+      )}
       <CoverageSummaryStrip summary={summary} loading={summaryLoading} />
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -186,16 +216,31 @@ export default function CoveragePage() {
             loading={mapLoading}
             onMetricChange={setMapMetric}
           />
+          {mapError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {mapError}
+            </div>
+          )}
           <CoverageAnalyticsPanel
             open={analyticsOpen}
             loading={analyticsLoading}
             data={analytics}
             onToggle={() => setAnalyticsOpen((prev) => !prev)}
           />
+          {analyticsError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {analyticsError}
+            </div>
+          )}
         </div>
 
         <div className="space-y-3 xl:col-span-8">
           <CoverageFilterBar value={filters} domains={domains} onChange={handleFiltersChange} />
+          {sourcesError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {sourcesError}
+            </div>
+          )}
           <CoverageSourcesList
             loading={sourcesLoading}
             items={sources?.items || []}
