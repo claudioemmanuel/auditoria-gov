@@ -443,7 +443,12 @@ class PortalTransparenciaConnector(BaseConnector):
         cursor: Optional[str],
         params: dict,
     ) -> tuple[list[RawItem], Optional[str]]:
-        """Iterate: dimension_key x time_window x page (3D cursor)."""
+        """Iterate: dimension_key x time_window x page (3D cursor).
+
+        When a dimension/window returns empty data, skips forward internally
+        (up to _MAX_EMPTY_SKIPS attempts) to find the next non-empty slot.
+        This prevents the ingest task from stopping on the first empty dimension.
+        """
         dim_idx, window_idx, page = _parse_dimension_cursor(cursor)
         ref_category, dim_param = _DIMENSION_KEYED_JOBS[job.name]
 
@@ -458,74 +463,115 @@ class PortalTransparenciaConnector(BaseConnector):
         if total_windows == 0:
             total_windows = 1
 
-        if window_idx >= total_windows:
-            # Move to next dimension key
-            if dim_idx + 1 < len(dim_keys):
-                return [], f"d{dim_idx + 1}w0p1"
-            return [], None
+        # Skip forward through empty dimension/window combinations
+        max_empty_skips = 50
+        skips = 0
 
-        # Build query params
-        query_params = {k: v for k, v in params.items() if k != "pagina"}
-        query_params[dim_param] = dim_keys[dim_idx]
-        query_params["pagina"] = page
-
-        if windows:
-            self._apply_window_params(job, windows, window_idx, query_params)
-
-        async with portal_transparencia_client() as client:
-            response = await client.get(endpoint, params=query_params)
-
-            if response.status_code in (405, 403):
-                log.warning(
-                    "portal_transparencia.dimension_pagination_limit",
-                    job=job.name,
-                    dim_idx=dim_idx,
-                    window=window_idx,
-                    page=page,
-                    status=response.status_code,
-                )
-                # Skip to next window or dimension
-                if window_idx + 1 < total_windows:
-                    return [], f"d{dim_idx}w{window_idx + 1}p1"
-                if dim_idx + 1 < len(dim_keys):
-                    return [], f"d{dim_idx + 1}w0p1"
+        while skips < max_empty_skips:
+            if dim_idx >= len(dim_keys):
                 return [], None
 
-            if response.status_code == 400:
-                # Invalid dimension key — skip to next
-                log.warning(
-                    "portal_transparencia.dimension_invalid_key",
-                    job=job.name,
-                    dim_key=dim_keys[dim_idx],
-                    status=400,
+            if window_idx >= total_windows:
+                # Move to next dimension key
+                dim_idx += 1
+                window_idx = 0
+                page = 1
+                continue
+
+            # Build query params
+            query_params = {k: v for k, v in params.items() if k != "pagina"}
+            query_params[dim_param] = dim_keys[dim_idx]
+            query_params["pagina"] = page
+
+            if windows:
+                self._apply_window_params(job, windows, window_idx, query_params)
+
+            async with portal_transparencia_client() as client:
+                response = await client.get(endpoint, params=query_params)
+
+                if response.status_code in (405, 403):
+                    log.warning(
+                        "portal_transparencia.dimension_pagination_limit",
+                        job=job.name,
+                        dim_idx=dim_idx,
+                        window=window_idx,
+                        page=page,
+                        status=response.status_code,
+                    )
+                    # Skip to next window or dimension
+                    window_idx += 1
+                    page = 1
+                    skips += 1
+                    continue
+
+                if response.status_code == 400:
+                    # Invalid dimension key — skip to next
+                    log.warning(
+                        "portal_transparencia.dimension_invalid_key",
+                        job=job.name,
+                        dim_key=dim_keys[dim_idx],
+                        status=400,
+                    )
+                    dim_idx += 1
+                    window_idx = 0
+                    page = 1
+                    skips += 1
+                    continue
+
+                response.raise_for_status()
+                data = response.json()
+
+            records = _extract_records(data)
+
+            if not records:
+                # Empty response — advance to next window or dimension
+                window_idx += 1
+                page = 1
+                skips += 1
+                continue
+
+            # Found data — build items and cursor
+            items = [
+                RawItem(
+                    raw_id=f"{job.name}:d{dim_idx}w{window_idx}p{page}:{i}",
+                    data=r,
                 )
-                if dim_idx + 1 < len(dim_keys):
-                    return [], f"d{dim_idx + 1}w0p1"
-                return [], None
+                for i, r in enumerate(records)
+            ]
 
-            response.raise_for_status()
-            data = response.json()
+            # 3D cursor advancement: page -> window -> dimension
+            if len(records) >= DEFAULT_PAGE_SIZE:
+                next_cursor = f"d{dim_idx}w{window_idx}p{page + 1}"
+            elif window_idx + 1 < total_windows:
+                next_cursor = f"d{dim_idx}w{window_idx + 1}p1"
+            elif dim_idx + 1 < len(dim_keys):
+                next_cursor = f"d{dim_idx + 1}w0p1"
+            else:
+                next_cursor = None
 
-        records = _extract_records(data)
-        items = [
-            RawItem(
-                raw_id=f"{job.name}:d{dim_idx}w{window_idx}p{page}:{i}",
-                data=r,
+            if skips > 0:
+                log.info(
+                    "portal_transparencia.dimension_skipped_empty",
+                    job=job.name,
+                    skips=skips,
+                    landed_dim=dim_idx,
+                    landed_window=window_idx,
+                )
+
+            return items, next_cursor
+
+        # Exhausted skip budget — return current position as cursor for next call
+        if dim_idx < len(dim_keys):
+            log.info(
+                "portal_transparencia.dimension_skip_budget_exhausted",
+                job=job.name,
+                dim_idx=dim_idx,
+                window_idx=window_idx,
+                skips=skips,
             )
-            for i, r in enumerate(records)
-        ]
+            return [], f"d{dim_idx}w{window_idx}p1"
 
-        # 3D cursor advancement: page -> window -> dimension
-        if len(records) >= DEFAULT_PAGE_SIZE:
-            next_cursor = f"d{dim_idx}w{window_idx}p{page + 1}"
-        elif window_idx + 1 < total_windows:
-            next_cursor = f"d{dim_idx}w{window_idx + 1}p1"
-        elif dim_idx + 1 < len(dim_keys):
-            next_cursor = f"d{dim_idx + 1}w0p1"
-        else:
-            next_cursor = None
-
-        return items, next_cursor
+        return [], None
 
     def normalize(
         self,

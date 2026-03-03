@@ -439,16 +439,22 @@ class TestPortalTransparencia:
             assert next_cursor is None
 
     @pytest.mark.asyncio
-    async def test_fetch_dimension_windowed_400_skips_dimension(self):
-        """A 400 error skips to the next dimension key."""
-        mock_resp = MagicMock()
-        mock_resp.status_code = 400
-        mock_resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError(
-            "Bad Request", request=MagicMock(), response=mock_resp
+    async def test_fetch_dimension_windowed_400_skips_to_valid_dimension(self):
+        """A 400 error on dim 0 skips forward until finding valid data."""
+        bad_resp = MagicMock()
+        bad_resp.status_code = 400
+        bad_resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(), response=bad_resp
         ))
 
+        good_resp = MagicMock()
+        good_resp.status_code = 200
+        good_resp.json.return_value = [{"id": 1, "nome": "SERVIDOR"}]
+        good_resp.raise_for_status = MagicMock()
+
         mock_client = AsyncMock()
-        mock_client.get.return_value = mock_resp
+        # First call (dim 0) → 400, second call (dim 1) → 200 with data
+        mock_client.get.side_effect = [bad_resp, good_resp]
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
@@ -460,8 +466,9 @@ class TestPortalTransparencia:
         ):
             job = JobSpec(name="pt_servidores_remuneracao", description="", domain="remuneracao")
             items, next_cursor = await self.c.fetch(job, cursor="d0w0p1")
-            assert items == []
-            assert next_cursor == "d1w0p1"
+            assert len(items) == 1
+            # Verify the item's raw_id shows it landed on dim 1
+            assert "d1w0p1" in items[0].raw_id
 
 
 # ── Câmara ──────────────────────────────────────────────────────────
