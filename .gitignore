@@ -83,5 +83,5 @@ api/alembic/versions/__pycache__/
 .hypothesis/
 
 # ── Documentation ───────────────────────────────────────────────────
-docs/plans
+docs/plans/
 .worktrees/
