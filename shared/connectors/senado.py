@@ -59,7 +59,7 @@ class SenadoConnector(BaseConnector):
         async with senado_client() as client:
             response = await client.get("/senador/lista/atual")
             response.raise_for_status()
-            body = response.json()
+            body = {} if response.status_code == 204 else response.json()
 
         parlamentares = (
             body.get("ListaParlamentarEmExercicio", {})
@@ -113,7 +113,7 @@ class SenadoConnector(BaseConnector):
                 params={"year": ano, "page": page},
             )
             response.raise_for_status()
-            body = response.json()
+            body = {} if response.status_code == 204 else response.json()
 
         records = body.get("data", [])
         items = [

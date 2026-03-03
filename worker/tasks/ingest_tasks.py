@@ -73,7 +73,6 @@ def _finalize_stale_running_runs(session, connector_name: str, job_name: str) ->
     name="worker.tasks.ingest_tasks.ingest_connector",
     bind=True,
     max_retries=3,
-    default_retry_delay=60,
 )
 def ingest_connector(
     self,
@@ -158,6 +157,10 @@ def ingest_connector(
                 )
 
                 if not items:
+                    # Preserve cursor even when no items returned (e.g., rate limit
+                    # returns empty items with a resume cursor).
+                    if next_cursor is not None:
+                        current_cursor = next_cursor
                     break
 
                 # Store raw items in bulk (one add_all per page).
@@ -182,14 +185,15 @@ def ingest_connector(
                 raw_run.cursor_end = current_cursor
                 session.commit()
 
-                log.info(
-                    "ingest_connector.page",
-                    connector=connector_name,
-                    job=job_name,
-                    page=pages,
-                    items_in_page=len(items),
-                    total=total_items,
-                )
+                if pages % 100 == 0 or next_cursor is None:
+                    log.info(
+                        "ingest_connector.page",
+                        connector=connector_name,
+                        job=job_name,
+                        page=pages,
+                        items_in_page=len(items),
+                        total=total_items,
+                    )
 
                 if next_cursor is None:
                     break
@@ -275,7 +279,8 @@ def ingest_connector(
             )
 
             if retryable:
-                raise self.retry(exc=exc)
+                backoff = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
+                raise self.retry(exc=exc, countdown=backoff)
             # Non-retryable (4xx permanent): fail immediately, don't waste retries.
             return {
                 "connector": connector_name,
@@ -297,9 +302,29 @@ def ingest_all_incremental():
     for name, cls in ConnectorRegistry.items():
         connector = cls()
         for job in connector.list_jobs():
-            if job.enabled:
+            if job.enabled and job.supports_incremental:
                 ingest_connector.delay(name, job.name)
                 dispatched += 1
 
     log.info("ingest_all_incremental.dispatched", count=dispatched)
+    return {"status": "dispatched", "count": dispatched}
+
+
+@shared_task(name="worker.tasks.ingest_tasks.ingest_all_bulk")
+def ingest_all_bulk():
+    """Trigger ingestion for all enabled BULK (non-incremental) connector jobs."""
+    from shared.connectors import ConnectorRegistry
+
+    log.info("ingest_all_bulk.start")
+    dispatched = 0
+    for name, cls in ConnectorRegistry.items():
+        connector = cls()
+        for job in connector.list_jobs():
+            if job.enabled and not job.supports_incremental:
+                ingest_connector.apply_async(
+                    args=[name, job.name],
+                    queue="bulk",
+                )
+                dispatched += 1
+    log.info("ingest_all_bulk.dispatched", count=dispatched)
     return {"status": "dispatched", "count": dispatched}

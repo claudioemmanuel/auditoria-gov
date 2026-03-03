@@ -1,21 +1,15 @@
 "use client";
 
 import { Radar } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 
 export function RadarHeader() {
   return (
-    <div className="mt-4 flex items-center gap-3">
-      <div className="rounded-xl bg-gov-blue-50 p-2.5">
-        <Radar className="h-6 w-6 text-gov-blue-600" />
-      </div>
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gov-gray-900">
-          Central de Riscos
-        </h1>
-        <p className="text-sm text-gov-gray-500">
-          Triagem investigativa com visoes por sinais e por casos consolidados.
-        </p>
-      </div>
-    </div>
+    <PageHero
+      icon={Radar}
+      title="Central de Riscos"
+      description="Triagem investigativa dos sinais e casos consolidados, com foco em contexto, gravidade e explicabilidade para apoiar a priorização da análise."
+      note="os resultados indicam prioridade técnica de análise. Não representam acusação, prova definitiva ou conclusão judicial."
+    />
   );
 }

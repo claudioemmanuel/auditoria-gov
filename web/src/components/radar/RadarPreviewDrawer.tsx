@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import type { RadarV2CasePreviewResponse, RadarV2SignalPreviewResponse } from "@/lib/types";
-import { formatBRL, formatDate, normalizeUnknownDisplay, severityColor } from "@/lib/utils";
+import { formatBRL, formatDate, normalizeUnknownDisplay } from "@/lib/utils";
 import { SEVERITY_LABELS } from "@/lib/constants";
+import { Badge } from "@/components/ui/Badge";
 import { X } from "lucide-react";
 
 interface RadarPreviewDrawerProps {
@@ -33,19 +34,18 @@ export function RadarPreviewDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
       <div className="h-full w-full max-w-2xl overflow-y-auto bg-white p-4 shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-gov-gray-100 pb-3">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b border-gov-gray-200 pb-3">
           <div>
             <h3 className="text-lg font-semibold text-gov-gray-900">
               {type === "signal" ? "Previa do sinal" : "Previa do caso"}
             </h3>
-            <p className="text-xs text-gov-gray-500">
-              Entenda o padrao sem sair do Radar.
-            </p>
+            <p className="text-xs text-gov-gray-400">Entenda o padrão sem sair do Radar.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-gov-gray-500 hover:bg-gov-gray-100"
+            className="rounded-md p-1 text-gov-gray-400 hover:bg-gov-gray-50"
           >
             <X className="h-4 w-4" />
           </button>
@@ -58,24 +58,21 @@ export function RadarPreviewDrawer({
           <p className="mt-4 text-sm text-red-600">{error}</p>
         )}
 
+        {/* Signal preview */}
         {signal && (
           <div className="mt-4 space-y-4">
             <div className="rounded-lg border border-gov-gray-200 bg-white p-3">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-base font-semibold text-gov-gray-900">
-                    {signal.signal.title}
-                  </p>
+                  <p className="text-base font-semibold text-gov-gray-900">{signal.signal.title}</p>
                   <p className="text-xs text-gov-gray-600">
-                    {signal.signal.typology_code} - {signal.signal.typology_name}
+                    {signal.signal.typology_code} — {signal.signal.typology_name}
                   </p>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${severityColor(signal.signal.severity)}`}>
-                  {SEVERITY_LABELS[signal.signal.severity]}
-                </span>
+                <Badge severity={signal.signal.severity} dot />
               </div>
               {signal.signal.investigation_summary && (
-                <p className="mt-2 text-sm text-gov-gray-700">
+                <p className="mt-2 text-sm text-gov-gray-600">
                   Razao sobre limite:{" "}
                   {signal.signal.investigation_summary.ratio_over_threshold != null
                     ? `${Number(signal.signal.investigation_summary.ratio_over_threshold).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}x`
@@ -87,17 +84,17 @@ export function RadarPreviewDrawer({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-gov-blue-200 bg-gov-blue-50 p-3">
-                <p className="text-xs font-semibold uppercase text-gov-blue-700">Onde comecou</p>
-                <p className="mt-1 text-sm text-gov-blue-900">
+              <div className="rounded-lg border border-gov-gray-200 bg-gov-blue-50 p-3">
+                <p className="text-xs font-semibold uppercase text-gov-blue-700">Onde começou</p>
+                <p className="mt-1 text-sm text-gov-gray-900">
                   {signal.graph.pattern_story.started_at
                     ? formatDate(signal.graph.pattern_story.started_at)
                     : "Data nao informada"}
                 </p>
               </div>
-              <div className="rounded-lg border border-gov-blue-200 bg-gov-blue-50 p-3">
+              <div className="rounded-lg border border-gov-gray-200 bg-gov-blue-50 p-3">
                 <p className="text-xs font-semibold uppercase text-gov-blue-700">Para onde foi</p>
-                <p className="mt-1 text-sm text-gov-blue-900">
+                <p className="mt-1 text-sm text-gov-gray-900">
                   {signal.graph.pattern_story.ended_at
                     ? formatDate(signal.graph.pattern_story.ended_at)
                     : "Data nao informada"}
@@ -106,15 +103,13 @@ export function RadarPreviewDrawer({
             </div>
 
             <div className="rounded-lg border border-gov-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase text-gov-gray-500">
-                Evidencias ({signal.evidence.total})
+              <p className="text-xs font-semibold uppercase text-gov-gray-400">
+                Evidências ({signal.evidence.total})
               </p>
               <div className="mt-2 space-y-2">
                 {signal.evidence.items.map((item) => (
                   <div key={item.event_id} className="rounded-md bg-gov-gray-50 p-2">
-                    <p className="text-sm font-medium text-gov-gray-900">
-                      {item.description}
-                    </p>
+                    <p className="text-sm font-medium text-gov-gray-900">{item.description}</p>
                     <p className="mt-1 text-xs text-gov-gray-600">
                       {item.occurred_at ? formatDate(item.occurred_at) : "Sem data"}{" "}
                       {typeof item.value_brl === "number" ? `| ${formatBRL(item.value_brl)}` : ""}
@@ -128,47 +123,47 @@ export function RadarPreviewDrawer({
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/signal/${signal.signal.id}`}
-                className="rounded-md border border-gov-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-700 hover:bg-gov-gray-50"
+                className="rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-600 hover:bg-gov-gray-50"
               >
-                Abrir sinal completo
+                Abrir detalhe
               </Link>
               <Link
                 href={`/signal/${signal.signal.id}/graph`}
-                className="rounded-md border border-gov-blue-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-100"
+                className="rounded-md border border-gov-gray-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-50/80"
               >
-                Abrir teia completa
+                Ver teia
               </Link>
             </div>
           </div>
         )}
 
+        {/* Case preview */}
         {caseData && (
           <div className="mt-4 space-y-4">
             <div className="rounded-lg border border-gov-gray-200 bg-white p-3">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-base font-semibold text-gov-gray-900">{caseData.case.title}</p>
                   <p className="text-xs text-gov-gray-600">
                     {caseData.case.signal_count} sinais conectados
                   </p>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${severityColor(caseData.case.severity)}`}>
-                  {SEVERITY_LABELS[caseData.case.severity]}
-                </span>
+                <Badge severity={caseData.case.severity} dot />
               </div>
               {caseData.case.summary && (
-                <p className="mt-2 text-sm text-gov-gray-700">{caseData.case.summary}</p>
+                <p className="mt-2 text-sm text-gov-gray-600">{caseData.case.summary}</p>
               )}
             </div>
 
             <div className="rounded-lg border border-gov-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase text-gov-gray-500">Sinais associados</p>
+              <p className="text-xs font-semibold uppercase text-gov-gray-400">Sinais associados</p>
               <div className="mt-2 space-y-2">
-                {caseData.top_signals.map((signal) => (
-                  <div key={signal.id} className="rounded-md bg-gov-gray-50 p-2">
-                    <p className="text-sm font-medium text-gov-gray-900">{signal.title}</p>
+                {caseData.top_signals.map((sig) => (
+                  <div key={sig.id} className="rounded-md bg-gov-gray-50 p-2">
+                    <p className="text-sm font-medium text-gov-gray-900">{sig.title}</p>
                     <p className="mt-1 text-xs text-gov-gray-600">
-                      {signal.typology_code} - {signal.typology_name} | {Math.round(signal.confidence * 100)}%
+                      {sig.typology_code} — {sig.typology_name} |{" "}
+                      <span className="font-mono tabular-nums">{Math.round(sig.confidence * 100)}%</span>
                     </p>
                   </div>
                 ))}
@@ -176,19 +171,20 @@ export function RadarPreviewDrawer({
             </div>
 
             <div className="rounded-lg border border-gov-gray-200 p-3 text-xs text-gov-gray-600">
-              Teia do caso: {caseData.graph.nodes.length} entidades e {caseData.graph.edges.length} conexoes.
+              Teia do caso: <span className="font-mono tabular-nums">{caseData.graph.nodes.length}</span> entidades e{" "}
+              <span className="font-mono tabular-nums">{caseData.graph.edges.length}</span> conexões.
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/case/${caseData.case.id}`}
-                className="rounded-md border border-gov-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-700 hover:bg-gov-gray-50"
+                className="rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-600 hover:bg-gov-gray-50"
               >
-                Abrir caso completo
+                Abrir detalhe
               </Link>
               <Link
                 href={`/investigation/${caseData.case.id}`}
-                className="rounded-md border border-gov-blue-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-100"
+                className="rounded-md border border-gov-gray-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-50/80"
               >
                 Abrir investigacao
               </Link>

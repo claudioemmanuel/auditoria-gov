@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getSignalGraph } from "@/lib/api";
 import type { SignalGraphResponse, SignalInvolvedEntityProfile } from "@/lib/types";
-import type { GNode } from "@/hooks/useCaseGraph";
+import type { GNode, GLink } from "@/hooks/useCaseGraph";
+import { CONNECTOR_COLORS, CONNECTOR_LABELS } from "@/lib/constants";
 import { InvestigationCanvas } from "@/components/investigation/InvestigationCanvas";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { DetailSkeleton } from "@/components/Skeleton";
@@ -20,10 +21,11 @@ import {
   Calendar,
   Users,
   FileText,
+  Waypoints,
 } from "lucide-react";
 
 function entityTypeLabel(nodeType: string): string {
-  if (nodeType === "org") return "Orgao";
+  if (nodeType === "org") return "Órgão";
   if (nodeType === "company") return "Empresa";
   if (nodeType === "person") return "Pessoa";
   return nodeType;
@@ -38,6 +40,7 @@ export default function SignalGraphPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GNode | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
+  const [showExpanded, setShowExpanded] = useState(true);
 
   useEffect(() => {
     if (!signalId) return;
@@ -51,28 +54,76 @@ export default function SignalGraphPage() {
       .finally(() => setLoading(false));
   }, [signalId]);
 
+  const expandedCount = data?.overview.expanded_nodes?.length ?? 0;
+  const expansionEdgeCount = data?.overview.expansion_edges?.length ?? 0;
+
   const graphData = useMemo(() => {
-    if (!data) return { nodes: [] as GNode[], links: [] as { id: string; source: string; target: string; type: string; weight: number; isFocused: boolean }[] };
+    if (!data) return { nodes: [] as GNode[], links: [] as GLink[] };
+
     const starterIds = new Set(data.pattern_story.started_from_entities.map((entity) => entity.entity_id));
+
+    // Direct participant nodes
+    const directNodes: GNode[] = data.overview.nodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      node_type: node.node_type,
+      entity_id: node.entity_id,
+      isSeed: starterIds.has(node.entity_id),
+      isFocused: false,
+    }));
+
+    // BFS expanded nodes (only if toggle is on)
+    const bfsNodes: GNode[] = showExpanded
+      ? (data.overview.expanded_nodes ?? []).map((node) => ({
+          id: node.id,
+          label: node.label,
+          node_type: node.node_type,
+          entity_id: node.entity_id,
+          isSeed: false,
+          isFocused: false,
+          isExpanded: true,
+          sourceConnector: node.source_connector ?? undefined,
+        }))
+      : [];
+
+    const allNodes = [...directNodes, ...bfsNodes];
+
+    // Build entity_id → node_id map for resolving expansion edges
+    const entityToNodeId: Record<string, string> = {};
+    for (const node of allNodes) {
+      entityToNodeId[node.entity_id] = node.id;
+    }
+
+    // Direct edges
+    const directLinks: GLink[] = data.overview.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.from_node_id,
+      target: edge.to_node_id,
+      type: edge.type,
+      weight: edge.weight,
+      isFocused: false,
+    }));
+
+    // BFS expansion edges (only if toggle is on)
+    const bfsLinks: GLink[] = showExpanded
+      ? (data.overview.expansion_edges ?? [])
+          .map((edge) => ({
+            id: edge.id,
+            source: entityToNodeId[edge.from_entity_id] ?? "",
+            target: entityToNodeId[edge.to_entity_id] ?? "",
+            type: edge.edge_type,
+            weight: edge.weight,
+            isFocused: false,
+            isExpansion: true,
+          }))
+          .filter((link) => link.source && link.target)
+      : [];
+
     return {
-      nodes: data.overview.nodes.map((node) => ({
-        id: node.id,
-        label: node.label,
-        node_type: node.node_type,
-        entity_id: node.entity_id,
-        isSeed: starterIds.has(node.entity_id),
-        isFocused: false,
-      })),
-      links: data.overview.edges.map((edge) => ({
-        id: edge.id,
-        source: edge.from_node_id,
-        target: edge.to_node_id,
-        type: edge.type,
-        weight: edge.weight,
-        isFocused: false,
-      })),
+      nodes: allNodes,
+      links: [...directLinks, ...bfsLinks],
     };
-  }, [data]);
+  }, [data, showExpanded]);
 
   const degreeMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -87,6 +138,9 @@ export default function SignalGraphPage() {
     if (!data) return {};
     const map: Record<string, Record<string, unknown>> = {};
     for (const node of data.overview.nodes) {
+      map[node.id] = node.attrs || {};
+    }
+    for (const node of data.overview.expanded_nodes ?? []) {
       map[node.id] = node.attrs || {};
     }
     return map;
@@ -138,8 +192,8 @@ export default function SignalGraphPage() {
       <div className="mx-auto max-w-4xl px-4 py-12">
         <EmptyState
           icon={AlertTriangle}
-          title="Nao foi possivel carregar a teia do sinal"
-          description={error || "Sinal nao encontrado"}
+          title="Não foi possível carregar a teia do sinal"
+          description={error || "Sinal não encontrado"}
         />
       </div>
     );
@@ -169,7 +223,7 @@ export default function SignalGraphPage() {
             {SEVERITY_LABELS[data.signal.severity]}
           </span>
           <span className="rounded-full bg-gov-blue-100 px-3 py-1 text-xs font-semibold text-gov-blue-700">
-            {Math.round(data.signal.confidence * 100)}% confianca
+            {Math.round(data.signal.confidence * 100)}% confiança
           </span>
           <Link
             href={`/signal/${data.signal.id}`}
@@ -182,14 +236,14 @@ export default function SignalGraphPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="rounded-lg border border-gov-blue-200 bg-gov-blue-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gov-blue-700">Padrao detectado</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gov-blue-700">Padrão detectado</p>
           <p className="mt-1 text-sm text-gov-blue-900">{data.pattern_story.pattern_label}</p>
           <p className="mt-2 text-xs text-gov-blue-800">{data.pattern_story.why_flagged}</p>
         </div>
         <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-600">Comecou em</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-600">Começou em</p>
           <p className="mt-1 text-sm font-medium text-gov-gray-900">
-            {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data nao informada"}
+            {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data não informada"}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {data.pattern_story.started_from_entities.map((entity) => (
@@ -202,7 +256,7 @@ export default function SignalGraphPage() {
         <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-600">Fluxo observado</p>
           <p className="mt-1 text-sm font-medium text-gov-gray-900">
-            {data.pattern_story.ended_at ? formatDate(data.pattern_story.ended_at) : "Data nao informada"}
+            {data.pattern_story.ended_at ? formatDate(data.pattern_story.ended_at) : "Data não informada"}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {data.pattern_story.flow_targets.map((entity) => (
@@ -219,11 +273,36 @@ export default function SignalGraphPage() {
           <div className="mb-3 flex items-center justify-between px-1">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-800">
               <Network className="h-4 w-4 text-gov-blue-600" />
-              Teia de conexoes
+              Teia de conexões
             </h2>
-            <span className="text-xs text-gov-gray-500">
-              {data.overview.nodes.length} entidades - {data.overview.edges.length} ligacoes
-            </span>
+            <div className="flex items-center gap-3">
+              {expandedCount > 0 && (
+                <button
+                  onClick={() => setShowExpanded(!showExpanded)}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    showExpanded
+                      ? "bg-gov-blue-50 text-gov-blue-700 hover:bg-gov-blue-100"
+                      : "bg-gov-gray-100 text-gov-gray-500 hover:bg-gov-gray-200"
+                  }`}
+                >
+                  <Waypoints className="h-3.5 w-3.5" />
+                  {showExpanded ? "Ocultar expansão" : "Mostrar expansão"}
+                </button>
+              )}
+              <span className="text-xs text-gov-gray-500">
+                {data.overview.nodes.length} entidades
+                {expandedCount > 0 && (
+                  <span className={showExpanded ? "text-gov-blue-600" : "text-gov-gray-400"}>
+                    {" "}+ {expandedCount} descobertas
+                  </span>
+                )}
+                {" - "}
+                {data.overview.edges.length} ligações
+                {expansionEdgeCount > 0 && showExpanded && (
+                  <span className="text-gov-blue-600"> + {expansionEdgeCount} conexões</span>
+                )}
+              </span>
+            </div>
           </div>
           {hasGraph ? (
             <div className="relative h-[520px] overflow-hidden rounded-lg border border-gov-gray-100">
@@ -235,11 +314,13 @@ export default function SignalGraphPage() {
                 selectedNodeId={selectedNode?.id ?? null}
                 onNodeClick={(node) => setSelectedNode(node)}
                 onBackgroundClick={() => setSelectedNode(null)}
+                onClearSelected={() => setSelectedNode(null)}
+                onExpandSelected={() => {}}
               />
             </div>
           ) : (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-medium text-amber-800">Teia insuficiente para desenhar conexoes</p>
+              <p className="text-sm font-medium text-amber-800">Teia insuficiente para desenhar conexões</p>
               <p className="mt-1 text-xs text-amber-700">
                 Motivo: {data.diagnostics.fallback_reason || "sem detalhes"}.
                 Eventos carregados: {data.diagnostics.events_loaded}/{data.diagnostics.events_total}.
@@ -276,6 +357,13 @@ export default function SignalGraphPage() {
                 </div>
               </div>
 
+              {selectedEntity.is_direct_participant === false && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                  <Waypoints className="h-3 w-3" />
+                  Descoberto via expansão de rede
+                </span>
+              )}
+
               {Object.keys(selectedEntity.identifiers).length > 0 && (
                 <div className="space-y-1">
                   {Object.entries(selectedEntity.identifiers).map(([key, value]) => (
@@ -296,6 +384,26 @@ export default function SignalGraphPage() {
                 </div>
               )}
 
+              {selectedEntity.cluster_entities && selectedEntity.cluster_entities.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gov-gray-700">Outras aparições (mesmo cluster)</p>
+                  {selectedEntity.cluster_entities.map((ce) => {
+                    const ceColors = CONNECTOR_COLORS[ce.source_connector ?? ""];
+                    const ceLabel = CONNECTOR_LABELS[ce.source_connector ?? ""] ?? ce.source_connector;
+                    return (
+                      <div key={ce.entity_id} className="flex items-center gap-2 rounded bg-gov-gray-50 px-2 py-1 text-xs">
+                        {ceLabel && (
+                          <span className={`inline-flex shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${ceColors?.bg ?? "bg-gov-gray-100"} ${ceColors?.text ?? "text-gov-gray-700"}`}>
+                            {ceLabel}
+                          </span>
+                        )}
+                        <span className="text-gov-gray-700 truncate">{ce.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <Link
                 href={`/entity/${selectedEntity.entity_id}`}
                 className="inline-flex items-center gap-1 text-xs font-medium text-gov-blue-700 hover:underline"
@@ -312,7 +420,7 @@ export default function SignalGraphPage() {
           <div className="mt-4 rounded-lg border border-gov-gray-100 bg-gov-gray-50 p-3 text-xs text-gov-gray-600">
             Cobertura: {data.diagnostics.events_loaded}/{data.diagnostics.events_total} eventos,
             {" "}
-            {data.diagnostics.participants_total} participacoes, {data.diagnostics.unique_entities} entidades.
+            {data.diagnostics.participants_total} participações, {data.diagnostics.unique_entities} entidades.
           </div>
         </div>
       </div>
@@ -321,7 +429,7 @@ export default function SignalGraphPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-800">
             <FileText className="h-4 w-4 text-gov-blue-600" />
-            Eventos e evidencias ({filteredTimeline.length})
+            Eventos e evidências ({filteredTimeline.length})
           </h2>
           <label className="text-xs text-gov-gray-600">
             Filtrar por papel:
@@ -345,7 +453,7 @@ export default function SignalGraphPage() {
               <div className="flex flex-wrap items-center gap-2 text-xs text-gov-gray-500">
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
-                  {event.occurred_at ? formatDate(event.occurred_at) : "Data nao informada"}
+                  {event.occurred_at ? formatDate(event.occurred_at) : "Data não informada"}
                 </span>
                 {typeof event.value_brl === "number" && (
                   <span>{formatBRL(event.value_brl)}</span>
@@ -361,7 +469,7 @@ export default function SignalGraphPage() {
                 ))}
               </div>
               <p className="mt-2 text-xs text-gov-gray-600">
-                Porque sustenta a ligacao: {event.evidence_reason}
+                Porque sustenta a ligação: {event.evidence_reason}
               </p>
             </div>
           ))}
@@ -373,7 +481,7 @@ export default function SignalGraphPage() {
 
       <div className="mt-6 rounded-lg border border-gov-gray-100 bg-gov-gray-50 p-3">
         <p className="text-xs text-gov-gray-500">
-          <strong>Aviso legal:</strong> Esta teia representa hipotese investigativa com base em cruzamento automatico de dados publicos.
+          <strong>Aviso legal:</strong> Esta teia representa hipótese investigativa com base em cruzamento automático de dados públicos.
         </p>
       </div>
     </div>

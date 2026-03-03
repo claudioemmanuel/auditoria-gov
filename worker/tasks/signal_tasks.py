@@ -1,19 +1,25 @@
 import hashlib
 import json
+import uuid
 from datetime import datetime, timezone
 
 from celery import shared_task
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from shared.logging import log
+from shared.models.orm import SignalEntity, SignalEvent
 
 _COMPLETENESS_THRESHOLD = 0.65
 
 
-def _compute_dedup_key(typology_code: str, entity_ids: list, period_start, period_end) -> str:
+def _compute_dedup_key(
+    typology_code: str, entity_ids: list, event_ids: list, period_start, period_end,
+) -> str:
     """Deterministic hash for signal deduplication across runs."""
     parts = [
         typology_code,
         ",".join(sorted(str(eid) for eid in entity_ids)),
+        ",".join(sorted(str(eid) for eid in event_ids)),
         str(period_start) if period_start else "",
         str(period_end) if period_end else "",
     ]
@@ -87,7 +93,28 @@ def _compute_evidence_signature(db_signal, evidence_package) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-@shared_task(name="worker.tasks.signal_tasks.run_all_signals")
+async def _populate_signal_links(session, signal_id, entity_ids, event_ids):
+    for eid_str in (event_ids or []):
+        try:
+            eid = uuid.UUID(str(eid_str))
+            stmt = pg_insert(SignalEvent).values(
+                signal_id=signal_id, event_id=eid,
+            ).on_conflict_do_nothing(constraint='uq_signal_event')
+            await session.execute(stmt)
+        except (ValueError, TypeError):
+            pass
+    for eid_str in (entity_ids or []):
+        try:
+            eid = uuid.UUID(str(eid_str))
+            stmt = pg_insert(SignalEntity).values(
+                signal_id=signal_id, entity_id=eid,
+            ).on_conflict_do_nothing(constraint='uq_signal_entity')
+            await session.execute(stmt)
+        except (ValueError, TypeError):
+            pass
+
+
+@shared_task(name="worker.tasks.signal_tasks.run_all_signals", max_retries=1)
 def run_all_signals(dry_run: bool = False):
     """Execute all active typology detectors.
 
@@ -106,7 +133,7 @@ def run_all_signals(dry_run: bool = False):
     return {"status": "dispatched", "count": len(typologies), "dry_run": dry_run}
 
 
-@shared_task(name="worker.tasks.signal_tasks.run_single_signal")
+@shared_task(name="worker.tasks.signal_tasks.run_single_signal", max_retries=2)
 def run_single_signal(
     typology_code: str,
     dry_run: bool = False,
@@ -183,6 +210,7 @@ def run_single_signal(
                     dedup_key = _compute_dedup_key(
                         typology_code,
                         signal.entity_ids,
+                        signal.event_ids,
                         signal.period_start,
                         signal.period_end,
                     )
@@ -207,6 +235,28 @@ def run_single_signal(
                         if existing_signal is not None and not force_refresh:
                             deduped += 1
                             continue
+
+                        # Semantic dedup: skip if a very similar signal already exists.
+                        if settings.LLM_PROVIDER != "none" and signal.summary:
+                            from sqlalchemy import text as _sa_text
+                            from shared.ai.provider import get_llm_provider as _get_provider
+                            _provider = _get_provider()
+                            _emb_result = await _provider.embed([signal.summary])
+                            if _emb_result and any(v != 0.0 for v in _emb_result[0]):
+                                _vec_str = "[" + ",".join(str(v) for v in _emb_result[0]) + "]"
+                                _dup = (await session.execute(
+                                    _sa_text("""
+                                        SELECT 1 FROM text_embedding te
+                                        JOIN text_corpus tc ON tc.id = te.corpus_id
+                                        WHERE tc.source_type = 'signal'
+                                          AND (te.embedding <=> :q::vector) <= :dist
+                                        LIMIT 1
+                                    """),
+                                    {"q": _vec_str, "dist": 0.10},
+                                )).first()
+                                if _dup is not None:
+                                    deduped += 1
+                                    continue
 
                         source_url = None
                         for ref in signal.evidence_refs:
@@ -253,6 +303,7 @@ def run_single_signal(
                             db_signal.period_end = signal.period_end
                             db_signal.dedup_key = dedup_key
                             await session.flush()
+                            await _populate_signal_links(session, db_signal.id, db_signal.entity_ids, db_signal.event_ids)
                             refreshed += 1
                         else:
                             db_signal = RiskSignal(
@@ -274,7 +325,19 @@ def run_single_signal(
                             )
                             session.add(db_signal)
                             await session.flush()
+                            await _populate_signal_links(session, db_signal.id, db_signal.entity_ids, db_signal.event_ids)
                             created += 1
+
+                            # Embed summary for future semantic dedup checks.
+                            if settings.LLM_PROVIDER != "none" and signal.summary:
+                                from shared.ai.embeddings import embed_signal_summary
+                                try:
+                                    await embed_signal_summary(session, db_signal.id, signal.summary)
+                                except Exception:
+                                    log.warning(
+                                        "run_single_signal.embed_failed",
+                                        signal_id=str(db_signal.id),
+                                    )
 
                         evidence_package.signature = _compute_evidence_signature(
                             db_signal=db_signal,

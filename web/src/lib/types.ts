@@ -1,6 +1,10 @@
 export type SignalSeverity = "low" | "medium" | "high" | "critical";
 export type CoverageStatus = "ok" | "warning" | "stale" | "error" | "pending";
 
+export interface ApiHeartbeatResponse {
+  status: string;
+}
+
 export interface EvidenceRef {
   ref_type: "raw_source" | "event" | "entity" | "baseline" | "external_url";
   ref_id?: string;
@@ -544,6 +548,8 @@ export interface SignalInvolvedEntityProfile {
   photo_url?: string | null;
   roles_in_signal: SignalInvolvedEntityRole[];
   event_count: number;
+  is_direct_participant?: boolean;
+  cluster_entities?: ClusterEntity[];
 }
 
 export interface SignalGraphResponse {
@@ -580,6 +586,8 @@ export interface SignalGraphResponse {
   overview: {
     nodes: SignalGraphNode[];
     edges: SignalGraphEdge[];
+    expanded_nodes?: ExpandedNode[];
+    expansion_edges?: ExpansionEdge[];
   };
   timeline: SignalTimelineEvent[];
   involved_entities: SignalInvolvedEntityProfile[];
@@ -694,4 +702,73 @@ export interface OrgSummary {
   severity_distribution: Record<string, number>;
   total_contracts_value: number;
   risk_score?: number;
+}
+
+// Provenance types
+
+export interface RawSourceItem {
+  id: string;
+  connector: string;
+  job: string;
+  raw_id: string;
+  raw_data: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface EventProvenance {
+  event_id: string;
+  raw_sources: RawSourceItem[];
+}
+
+export interface SignalProvenanceResponse {
+  signal_id: string;
+  title: string;
+  typology_code?: string | null;
+  events: EventProvenance[];
+}
+
+export interface EventRawSourcesResponse {
+  event_id: string;
+  raw_sources: RawSourceItem[];
+}
+
+export interface CaseProvenanceSignal {
+  id: string;
+  title: string;
+  event_ids: string[];
+}
+
+export interface CaseProvenanceWeb {
+  case_id: string;
+  case_title: string;
+  signals: CaseProvenanceSignal[];
+  event_raw_sources: Record<string, { id: string; connector: string; raw_id: string }[]>;
+}
+
+// Expanded graph types (BFS expansion)
+
+export interface ExpandedNode {
+  id: string;
+  entity_id: string;
+  label: string;
+  node_type: string;
+  source_connector?: string | null;
+  attrs: Record<string, unknown>;
+  is_direct_participant: boolean;
+}
+
+export interface ExpansionEdge {
+  id: string;
+  from_entity_id: string;
+  to_entity_id: string;
+  edge_type: string;
+  weight: number;
+  attrs: Record<string, unknown>;
+}
+
+export interface ClusterEntity {
+  entity_id: string;
+  name: string;
+  node_type: string;
+  source_connector?: string | null;
 }

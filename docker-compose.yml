@@ -22,8 +22,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -54,25 +57,84 @@ services:
       - ./shared:/app/shared
       - ./api:/app/api
 
-  # I/O-bound worker: external API fetches + normalization.
-  # Concurrency tuned for network-wait tasks (gevent or higher prefork concurrency).
-  worker-io:
+  # Incremental API ingestion (Portal Transparência, Câmara, Senado, etc.)
+  worker-ingest:
+    restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q ingest,normalize --concurrency=4 -n worker-io@%h
+    command: celery -A worker.worker_app worker --loglevel=info -Q ingest --concurrency=3 -n worker-ingest@%h
     env_file: .env
     environment:
       PYTHONPATH: /app
+      APP_ENV: production
     depends_on:
       api:
         condition: service_healthy
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # Normalization processing
+  worker-normalize:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    command: celery -A worker.worker_app worker --loglevel=info -Q normalize --concurrency=2 -n worker-normalize@%h
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+      APP_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./shared:/app/shared
+      - ./worker:/app/worker
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # Bulk dataset ingestion (TSE, Receita — long-running, resource-heavy)
+  worker-bulk:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    command: celery -A worker.worker_app worker --loglevel=info -Q bulk --concurrency=1 -n worker-bulk@%h
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+      APP_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./shared:/app/shared
+      - ./worker:/app/worker
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 3G
+        reservations:
+          memory: 1G
 
   # CPU-bound worker: ER matching, signal detection, baselines, coverage.
   worker-cpu:
+    restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
@@ -80,15 +142,24 @@ services:
     env_file: .env
     environment:
       PYTHONPATH: /app
+      APP_ENV: production
     depends_on:
       api:
         condition: service_healthy
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+        reservations:
+          memory: 1G
 
   # AI worker: LLM calls (low concurrency to respect API rate limits).
   worker-ai:
+    restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
@@ -96,14 +167,23 @@ services:
     env_file: .env
     environment:
       PYTHONPATH: /app
+      APP_ENV: production
     depends_on:
       api:
         condition: service_healthy
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 1G
+        reservations:
+          memory: 256M
 
   beat:
+    restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
@@ -111,6 +191,7 @@ services:
     env_file: .env
     environment:
       PYTHONPATH: /app
+      APP_ENV: production
     depends_on:
       api:
         condition: service_healthy
@@ -151,3 +232,4 @@ services:
 
 volumes:
   pgdata:
+  redis_data:

@@ -1,12 +1,15 @@
 import type {
+  ApiHeartbeatResponse,
   CaseDetail,
   CaseGraphResponse,
+  CaseProvenanceWeb,
   CoverageV2AnalyticsResponse,
   CoverageV2MapResponse,
   CoverageV2SourcePreviewResponse,
   CoverageV2SourcesResponse,
   CoverageV2SummaryResponse,
   EntityDetail,
+  EventRawSourcesResponse,
   IngestRunDetailResponse,
   NeighborhoodResponse,
   OrgSummary,
@@ -21,6 +24,7 @@ import type {
   SignalEvidencePage,
   SignalDetail,
   SignalGraphResponse,
+  SignalProvenanceResponse,
 } from "./types";
 
 const API_BASE = "/api";
@@ -31,6 +35,10 @@ async function fetchJSON<T>(path: string): Promise<T> {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
   return res.json();
+}
+
+export function getApiHeartbeat(): Promise<ApiHeartbeatResponse> {
+  return fetchJSON("/health");
 }
 
 export function getIngestRunDetail(runId: string): Promise<IngestRunDetailResponse> {
@@ -228,6 +236,18 @@ export function getCaseGraph(
 
 export function getSignalGraph(signalId: string): Promise<SignalGraphResponse> {
   return fetchJSON(`/public/signal/${signalId}/graph`);
+}
+
+export function getSignalProvenance(signalId: string): Promise<SignalProvenanceResponse> {
+  return fetchJSON(`/public/signal/${signalId}/provenance`);
+}
+
+export function getEventRawSources(eventId: string): Promise<EventRawSourcesResponse> {
+  return fetchJSON(`/public/event/${eventId}/raw-sources`);
+}
+
+export function getCaseProvenance(caseId: string): Promise<CaseProvenanceWeb> {
+  return fetchJSON(`/public/case/${caseId}/provenance`);
 }
 
 export function comparePrices(params?: {

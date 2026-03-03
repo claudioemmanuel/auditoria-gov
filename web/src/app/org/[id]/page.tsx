@@ -43,7 +43,7 @@ export default function OrgDetailPage() {
       setError(null);
       getOrg(params.id as string)
         .then(setOrg)
-        .catch(() => setError("Erro ao carregar organizacao"))
+        .catch(() => setError("Erro ao carregar organização"))
         .finally(() => setLoading(false));
     }
   }, [params.id]);
@@ -61,7 +61,7 @@ export default function OrgDetailPage() {
       <div className="mx-auto max-w-4xl px-4 py-12">
         <EmptyState
           icon={AlertTriangle}
-          title="Erro ao carregar organizacao"
+          title="Erro ao carregar organização"
           description={error}
         />
       </div>
@@ -73,15 +73,16 @@ export default function OrgDetailPage() {
       <div className="mx-auto max-w-4xl px-4 py-12">
         <EmptyState
           icon={Search}
-          title="Organizacao nao encontrada"
-          description="A organizacao solicitada nao existe ou foi removida"
+          title="Organização não encontrada"
+          description="A organização solicitada não existe ou foi removida"
         />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="page-wrap">
+      <div className="mx-auto max-w-5xl">
       <Breadcrumb
         items={[
           { label: "Radar", href: "/radar" },
@@ -95,7 +96,7 @@ export default function OrgDetailPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gov-gray-900">{org.name}</h1>
-          <p className="mt-0.5 text-sm text-gov-gray-500">Organizacao</p>
+          <p className="mt-0.5 text-sm text-gov-gray-500">Organização</p>
         </div>
       </div>
 
@@ -151,7 +152,7 @@ export default function OrgDetailPage() {
         <div className="mt-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
             <ShieldCheck className="h-5 w-5 text-gov-blue-600" />
-            Distribuicao de Sinais por Severidade
+            Distribuição de Sinais por Severidade
           </h2>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(["critical", "high", "medium", "low"] as const).map((sev) => {
@@ -179,6 +180,7 @@ export default function OrgDetailPage() {
         <div className="mt-2 overflow-hidden rounded-lg border border-gov-gray-200 bg-white">
           <GraphView entityId={org.id} />
         </div>
+      </div>
       </div>
     </div>
   );

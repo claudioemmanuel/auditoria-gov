@@ -7,16 +7,16 @@ interface SkeletonProps {
 export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-gov-gray-200", className)}
+      className={cn("animate-pulse rounded-md bg-surface-subtle", className)}
     />
   );
 }
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-gov-gray-200 bg-white">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface-card">
       {/* Header */}
-      <div className="flex gap-4 border-b border-gov-gray-200 bg-gov-gray-50 px-4 py-3">
+      <div className="flex gap-4 border-b border-border bg-surface-subtle px-4 py-3">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-40" />
@@ -25,7 +25,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
       </div>
       {/* Rows */}
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 border-b border-gov-gray-100 px-4 py-3 last:border-0">
+        <div key={i} className="flex items-center gap-4 border-b border-border/50 px-4 py-3 last:border-0">
           <Skeleton className="h-5 w-16 rounded-full" />
           <Skeleton className="h-4 w-12" />
           <Skeleton className="h-4 w-48" />
@@ -39,7 +39,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function CardSkeleton() {
   return (
-    <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
+    <div className="rounded-lg border border-border bg-surface-card p-4">
       <Skeleton className="h-5 w-32" />
       <div className="mt-3 space-y-2">
         <Skeleton className="h-4 w-full" />
@@ -71,12 +71,12 @@ export function DetailSkeleton() {
         <Skeleton className="h-8 w-64" />
         <Skeleton className="mt-2 h-4 w-32" />
       </div>
-      <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
+      <div className="rounded-lg border border-border bg-surface-card p-4">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="mt-2 h-4 w-3/4" />
         <Skeleton className="mt-2 h-4 w-1/2" />
       </div>
-      <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
+      <div className="rounded-lg border border-border bg-surface-card p-4">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="mt-2 h-4 w-2/3" />
       </div>

@@ -86,7 +86,7 @@ class TransfereGovConnector(BaseConnector):
                 headers=headers,
             )
             response.raise_for_status()
-            body = response.json()
+            body = [] if response.status_code == 204 else response.json()
 
         records = body if isinstance(body, list) else body.get("data", body.get("registros", []))
         items = [

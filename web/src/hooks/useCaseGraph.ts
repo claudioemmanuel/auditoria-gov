@@ -17,6 +17,8 @@ export interface GNode {
   entity_id: string;
   isSeed: boolean;
   isFocused: boolean;
+  isExpanded?: boolean;
+  sourceConnector?: string;
   x?: number;
   y?: number;
 }
@@ -28,6 +30,7 @@ export interface GLink {
   type: string;
   weight: number;
   isFocused: boolean;
+  isExpansion?: boolean;
   edge_strength?: string;
   verification_method?: string;
   verification_confidence?: number;

@@ -1,10 +1,11 @@
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
 from shared.baselines.models import BaselineType
-from shared.models.orm import Event
+from shared.models.orm import Event, EventParticipant
 from shared.models.signals import (
     EvidenceRef,
     RefType,
@@ -61,6 +62,27 @@ class T04AmendmentsOutlierTypology(BaseTypology):
 
         if not contracts:
             return []
+
+        # Query participants for entity_ids
+        contract_ids = [c.id for c in contracts]
+        parts_stmt = select(EventParticipant).where(
+            EventParticipant.event_id.in_(contract_ids),
+            EventParticipant.role.in_(
+                ["procuring_entity", "buyer", "supplier", "winner"]
+            ),
+        )
+        parts_result = await session.execute(parts_stmt)
+        all_participants = parts_result.scalars().all()
+
+        event_entity_ids: dict[str, list] = defaultdict(list)
+        _seen: set[tuple[str, str]] = set()
+        for p in all_participants:
+            eid_str = str(p.event_id)
+            entity_str = str(p.entity_id)
+            pair = (eid_str, entity_str)
+            if pair not in _seen:
+                _seen.add(pair)
+                event_entity_ids[eid_str].append(p.entity_id)
 
         # Get baseline
         baseline = await get_baseline(
@@ -141,7 +163,7 @@ class T04AmendmentsOutlierTypology(BaseTypology):
                         description=f"Baseline p95={p95:.1%}, p99={p99:.1%}",
                     ),
                 ],
-                entity_ids=[],
+                entity_ids=event_entity_ids.get(str(c.id), []),
                 event_ids=[c.id],
                 period_start=c.occurred_at,
                 period_end=window_end,

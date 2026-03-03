@@ -6,6 +6,11 @@ BEAT_SCHEDULE = {
         "schedule": crontab(minute=0, hour="*/2"),  # Every 2 hours
         "options": {"queue": "ingest"},
     },
+    "ingest-all-bulk": {
+        "task": "worker.tasks.ingest_tasks.ingest_all_bulk",
+        "schedule": crontab(minute=0, hour=0),  # Daily at midnight UTC
+        "options": {"queue": "bulk"},
+    },
     "run-entity-resolution": {
         "task": "worker.tasks.er_tasks.run_entity_resolution",
         "schedule": crontab(minute=30, hour=1),  # Daily at 01:30
@@ -21,6 +26,11 @@ BEAT_SCHEDULE = {
         "schedule": crontab(minute=0, hour=3),  # Daily at 03:00
         "options": {"queue": "signals"},
     },
+    "build-cases-daily": {
+        "task": "worker.tasks.case_tasks.build_cases",
+        "schedule": crontab(minute=30, hour=3),  # Daily at 03:30 — after signals
+        "options": {"queue": "default"},
+    },
     "update-coverage-daily": {
         "task": "worker.tasks.coverage_tasks.update_coverage_registry",
         "schedule": crontab(minute=0, hour=4),  # Daily at 04:00
@@ -29,6 +39,11 @@ BEAT_SCHEDULE = {
     "explain-pending-signals": {
         "task": "worker.tasks.ai_tasks.explain_pending_signals",
         "schedule": crontab(minute=30, hour=4),  # Daily at 04:30
+        "options": {"queue": "ai"},
+    },
+    "classify-texts-daily": {
+        "task": "worker.tasks.ai_tasks.classify_texts_unclassified",
+        "schedule": crontab(minute=45, hour=4),  # Daily at 04:45 UTC
         "options": {"queue": "ai"},
     },
     "cleanup-stale-runs": {

@@ -74,7 +74,7 @@ class CamaraConnector(BaseConnector):
         async with camara_client() as client:
             response = await client.get(endpoint, params=query_params)
             response.raise_for_status()
-            body = response.json()
+            body = {} if response.status_code == 204 else response.json()
 
         data = body.get("dados", [])
         items = [
@@ -167,7 +167,7 @@ class CamaraConnector(BaseConnector):
                 params={"pagina": dep_page, "itens": _DEPUTIES_PER_PAGE},
             )
             resp.raise_for_status()
-            deputies = resp.json().get("dados", [])
+            deputies = (resp.json().get("dados", []) if resp.status_code != 204 else [])
 
         if not deputies or dep_idx >= len(deputies):
             # No more deputies on this page — advance to next year
@@ -202,7 +202,7 @@ class CamaraConnector(BaseConnector):
                 params={"ano": ano, "pagina": page, "itens": DEFAULT_PAGE_SIZE},
             )
             resp.raise_for_status()
-            data = resp.json().get("dados", [])
+            data = (resp.json().get("dados", []) if resp.status_code != 204 else [])
 
         items = [
             RawItem(
@@ -319,7 +319,7 @@ class CamaraConnector(BaseConnector):
                     source_connector="camara",
                     source_id=str(d.get("id", item.raw_id)),
                     type="org",
-                    name=d.get("nome", d.get("sigla", "")),
+                    name=d.get("nome", d.get("sigla", ""))[:500],
                     attrs={"sigla": d.get("sigla", ""), "tipo": d.get("tipoOrgao", "")},
                 )
             )

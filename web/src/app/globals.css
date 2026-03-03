@@ -1,6 +1,34 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── New semantic tokens ─────────────────────────────── */
+  --color-surface-base: #f7f8fc;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f3f8;
+  --color-border: #e4e7ef;
+
+  --color-primary: #0c1329;
+  --color-secondary: #52607a;
+  --color-muted: #8896b0;
+
+  --color-accent: #1d4ed8;
+  --color-accent-subtle: #dbeafe;
+
+  /* Severity */
+  --color-severity-critical: #dc2626;
+  --color-severity-critical-bg: #fef2f2;
+  --color-severity-high: #ea580c;
+  --color-severity-high-bg: #fff7ed;
+  --color-severity-medium: #ca8a04;
+  --color-severity-medium-bg: #fefce8;
+  --color-severity-low: #2563eb;
+  --color-severity-low-bg: #eff6ff;
+
+  /* Typography */
+  --font-sans: var(--font-inter, system-ui, -apple-system, sans-serif);
+  --font-mono: var(--font-jetbrains-mono, "Courier New", monospace);
+
+  /* ── Legacy tokens (removed once phases 3-10 complete) ── */
   --color-gov-blue-50: #eff6ff;
   --color-gov-blue-100: #dbeafe;
   --color-gov-blue-500: #3b82f6;
@@ -15,25 +43,37 @@
   --color-gov-gray-300: #d1d5db;
   --color-gov-gray-400: #9ca3af;
   --color-gov-gray-500: #6b7280;
+  --color-gov-gray-600: #4b5563;
   --color-gov-gray-700: #374151;
+  --color-gov-gray-800: #1f2937;
   --color-gov-gray-900: #111827;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  color: var(--color-gov-gray-900);
+  font-family: var(--font-sans);
+  color: var(--color-primary);
   background-color: var(--color-gov-gray-50);
+}
+
+.page-wrap {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Focus ring for accessibility */
 *:focus-visible {
-  outline: 2px solid var(--color-gov-blue-500);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 /* Investigation page — light background */
 .investigation-bg {
-  background-color: var(--color-gov-gray-50);
+  background-color: var(--color-surface-base);
 }
 
 /* Investigation sidebar slide animation */
@@ -55,14 +95,14 @@ body {
 .investigation-bg .react-flow__controls {
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 .investigation-bg .react-flow__controls button {
   border-radius: 0;
-  border-color: var(--color-gov-gray-100);
+  border-color: var(--color-border);
 }
 .investigation-bg .react-flow__controls button:hover {
-  background-color: var(--color-gov-gray-50);
+  background-color: var(--color-surface-subtle);
 }
 .investigation-bg .react-flow__edge-textbg {
   fill: transparent;
@@ -71,5 +111,5 @@ body {
   transition: filter 150ms ease;
 }
 .investigation-bg .react-flow__node.selected {
-  filter: drop-shadow(0 4px 12px rgb(59 130 246 / 0.15));
+  filter: drop-shadow(0 4px 12px rgb(29 78 216 / 0.15));
 }

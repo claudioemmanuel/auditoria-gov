@@ -17,6 +17,7 @@ app.conf.update(
     beat_schedule=BEAT_SCHEDULE,
     task_routes={
         "worker.tasks.ingest_tasks.*": {"queue": "ingest"},
+        "worker.tasks.ingest_tasks.ingest_all_bulk": {"queue": "bulk"},
         "worker.tasks.normalize_tasks.*": {"queue": "normalize"},
         "worker.tasks.er_tasks.*": {"queue": "er"},
         "worker.tasks.baseline_tasks.*": {"queue": "default"},
@@ -25,11 +26,13 @@ app.conf.update(
         "worker.tasks.coverage_tasks.*": {"queue": "default"},
         "worker.tasks.maintenance_tasks.*": {"queue": "default"},
         "worker.tasks.reference_tasks.*": {"queue": "default"},
+        "worker.tasks.case_tasks.*": {"queue": "default"},
     },
     # ── Performance tuning ───────────────────────────────────────────
     # Fetch one task at a time so long-running ingest doesn't starve
     # other queues when workers share the same process.
     worker_prefetch_multiplier=1,
+    task_track_started=True,
     # Don't store results for fire-and-forget tasks (ingest, normalize, ER).
     task_ignore_result=False,
     # Auto-expire results after 1 hour to avoid Redis bloat.

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   getRadarV2CasePreview,
   getRadarV2Cases,
@@ -17,34 +18,67 @@ import type {
   RadarV2SignalPreviewResponse,
   RadarV2SummaryResponse,
 } from "@/lib/types";
-import { Breadcrumb } from "@/components/Breadcrumb";
 import { TableSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
-import { RadarHeader } from "@/components/radar/RadarHeader";
-import { RadarSummaryStrip } from "@/components/radar/RadarSummaryStrip";
 import { RadarViewTabs, type RadarViewMode } from "@/components/radar/RadarViewTabs";
-import { RadarFilterBar } from "@/components/radar/RadarFilterBar";
+import { RadarFilterPanel } from "@/components/radar/RadarFilterPanel";
 import { RadarSignalsList } from "@/components/radar/RadarSignalsList";
 import { RadarCasesList } from "@/components/radar/RadarCasesList";
 import { RadarPreviewDrawer } from "@/components/radar/RadarPreviewDrawer";
 import { RadarCoveragePanel } from "@/components/radar/RadarCoveragePanel";
-import { AlertTriangle, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, ChevronLeft, ChevronRight, Search, ShieldCheck } from "lucide-react";
+import { cn, formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 
-export default function RadarPage() {
-  const [view, setView] = useState<RadarViewMode>("signals");
+function RadarPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [typology, setTypology] = useState("");
-  const [severity, setSeverity] = useState("");
-  const [sort, setSort] = useState<"analysis_date" | "ingestion_date">("analysis_date");
-  const [periodFrom, setPeriodFrom] = useState("");
-  const [periodTo, setPeriodTo] = useState("");
-  const [corruptionType, setCorruptionType] = useState("");
-  const [sphere, setSphere] = useState("");
+  // Read filter state from URL
+  const view = (searchParams.get("view") as RadarViewMode) || "signals";
+  const typology = searchParams.get("typology") || "";
+  const severity = searchParams.get("severity") || "";
+  const sort = (searchParams.get("sort") as "analysis_date" | "ingestion_date") || "analysis_date";
+  const periodFrom = searchParams.get("period_from") || "";
+  const periodTo = searchParams.get("period_to") || "";
+  const corruptionType = searchParams.get("corruption_type") || "";
+  const sphere = searchParams.get("sphere") || "";
+  const offsetParam = Number(searchParams.get("offset") || "0");
 
-  const [offset, setOffset] = useState(0);
+  const [search, setSearch] = useState("");
 
+  const updateParam = useCallback(
+    (updates: Record<string, string>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(updates)) {
+        if (value) {
+          params.set(key, value);
+        } else {
+          params.delete(key);
+        }
+      }
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  const setView = (next: RadarViewMode) => updateParam({ view: next, offset: "" });
+  const setTypology = (v: string) => updateParam({ typology: v, offset: "" });
+  const setSeverity = (v: string) => updateParam({ severity: v, offset: "" });
+  const setSort = (v: string) => updateParam({ sort: v, offset: "" });
+  const setPeriodFrom = (v: string) => updateParam({ period_from: v, offset: "" });
+  const setPeriodTo = (v: string) => updateParam({ period_to: v, offset: "" });
+  const setCorruptionType = (v: string) => updateParam({ corruption_type: v, offset: "" });
+  const setSphere = (v: string) => updateParam({ sphere: v, offset: "" });
+  const setOffset = (v: number) => updateParam({ offset: v > 0 ? String(v) : "" });
+
+  const clearAllFilters = () => {
+    router.replace("?", { scroll: false });
+    setSearch("");
+  };
+
+  // Data state
   const [summary, setSummary] = useState<RadarV2SummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
 
@@ -67,25 +101,6 @@ export default function RadarPage() {
   const [coverage, setCoverage] = useState<RadarV2CoverageResponse | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const queryView = params.get("view");
-    if (queryView === "signals" || queryView === "cases") {
-      setView(queryView);
-      return;
-    }
-    const stored = window.localStorage.getItem("radar:last-view");
-    if (stored === "signals" || stored === "cases") {
-      setView(stored);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("radar:last-view", view);
-  }, [view]);
-
-  useEffect(() => {
     setSummaryLoading(true);
     getRadarV2Summary({
       typology: typology || undefined,
@@ -105,7 +120,7 @@ export default function RadarPage() {
     setError(null);
 
     const commonParams = {
-      offset,
+      offset: offsetParam,
       limit: PAGE_SIZE,
       typology: typology || undefined,
       severity: severity || undefined,
@@ -115,9 +130,10 @@ export default function RadarPage() {
       sphere: sphere || undefined,
     };
 
-    const task = view === "signals"
-      ? getRadarV2Signals({ ...commonParams, sort })
-      : getRadarV2Cases(commonParams);
+    const task =
+      view === "signals"
+        ? getRadarV2Signals({ ...commonParams, sort })
+        : getRadarV2Cases(commonParams);
 
     task
       .then((data) => {
@@ -130,9 +146,9 @@ export default function RadarPage() {
           setSignals([]);
         }
       })
-      .catch(() => setError("Erro ao carregar dados do Radar v2"))
+      .catch(() => setError("Erro ao carregar dados do Radar"))
       .finally(() => setLoading(false));
-  }, [view, offset, typology, severity, sort, periodFrom, periodTo, corruptionType, sphere]);
+  }, [view, offsetParam, typology, severity, sort, periodFrom, periodTo, corruptionType, sphere]);
 
   const openSignalPreview = (signalId: string) => {
     setPreviewOpen(true);
@@ -141,10 +157,9 @@ export default function RadarPage() {
     setPreviewError(null);
     setSignalPreview(null);
     setCasePreview(null);
-
     getRadarV2SignalPreview(signalId, { limit: 10 })
       .then(setSignalPreview)
-      .catch(() => setPreviewError("Nao foi possivel carregar a previa do sinal"))
+      .catch(() => setPreviewError("Não foi possível carregar a prévia do sinal"))
       .finally(() => setPreviewLoading(false));
   };
 
@@ -155,10 +170,9 @@ export default function RadarPage() {
     setPreviewError(null);
     setSignalPreview(null);
     setCasePreview(null);
-
     getRadarV2CasePreview(caseId)
       .then(setCasePreview)
-      .catch(() => setPreviewError("Nao foi possivel carregar a previa do caso"))
+      .catch(() => setPreviewError("Não foi possível carregar a prévia do caso"))
       .finally(() => setPreviewLoading(false));
   };
 
@@ -169,152 +183,158 @@ export default function RadarPage() {
     setCoverageError(null);
     getRadarV2Coverage()
       .then(setCoverage)
-      .catch(() => setCoverageError("Nao foi possivel carregar a cobertura analitica"))
+      .catch(() => setCoverageError("Não foi possível carregar a cobertura analítica"))
       .finally(() => setCoverageLoading(false));
   };
 
-  const clearAllFilters = () => {
-    setTypology("");
-    setSeverity("");
-    setSort("analysis_date");
-    setPeriodFrom("");
-    setPeriodTo("");
-    setCorruptionType("");
-    setSphere("");
-    setOffset(0);
-  };
-
   const hasData = view === "signals" ? signals.length > 0 : cases.length > 0;
-
-  const listLabel = useMemo(() => {
-    if (view === "signals") return "sinais";
-    return "casos";
-  }, [view]);
+  const listLabel = view === "signals" ? "sinais" : "casos";
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const currentPage = Math.floor(offsetParam / PAGE_SIZE) + 1;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <Breadcrumb items={[{ label: "Radar" }]} />
-
-      <RadarHeader />
-
-      <RadarSummaryStrip
-        summary={summary}
-        loading={summaryLoading}
-        activeSeverity={severity}
-        onSeverityClick={(value) => {
-          setSeverity((current) => (current === value ? "" : value));
-          setOffset(0);
-        }}
-      />
-
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <RadarViewTabs
-          value={view}
-          onChange={(next) => {
-            setView(next);
-            setOffset(0);
-          }}
-        />
-        <button
-          type="button"
-          onClick={openCoverage}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gov-blue-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-100"
-        >
-          <ShieldCheck className="h-4 w-4" />
-          Ver confiabilidade da analise
-        </button>
-      </div>
-
-      <RadarFilterBar
-        view={view}
-        typology={typology}
-        severity={severity}
-        sort={sort}
-        periodFrom={periodFrom}
-        periodTo={periodTo}
-        corruptionType={corruptionType}
-        sphere={sphere}
-        onTypologyChange={(value) => {
-          setTypology(value);
-          setOffset(0);
-        }}
-        onSeverityChange={(value) => {
-          setSeverity(value);
-          setOffset(0);
-        }}
-        onSortChange={(value) => {
-          setSort(value);
-          setOffset(0);
-        }}
-        onPeriodFromChange={(value) => {
-          setPeriodFrom(value);
-          setOffset(0);
-        }}
-        onPeriodToChange={(value) => {
-          setPeriodTo(value);
-          setOffset(0);
-        }}
-        onCorruptionTypeChange={(value) => {
-          setCorruptionType(value);
-          setOffset(0);
-        }}
-        onSphereChange={(value) => {
-          setSphere(value);
-          setOffset(0);
-        }}
-        onClearAll={clearAllFilters}
-      />
-
-      <div className="mt-6">
-        {loading ? (
-          <TableSkeleton rows={6} />
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 py-12">
-            <AlertTriangle className="h-8 w-8 text-red-400" />
-            <p className="mt-2 text-sm text-red-600">{error}</p>
+    <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
+      {/* Page header */}
+      <div className="border-b border-gov-gray-200 bg-white px-4 py-4 lg:px-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-gov-gray-900">Radar de Riscos</h1>
+            <p className="mt-0.5 text-xs text-gov-gray-400">
+              Monitoramento de sinais e casos de risco em tempo real
+            </p>
           </div>
-        ) : hasData ? (
-          view === "signals" ? (
-            <RadarSignalsList items={signals} onOpenPreview={openSignalPreview} />
-          ) : (
-            <RadarCasesList items={cases} onOpenPreview={openCasePreview} />
-          )
-        ) : (
-          <EmptyState
-            icon={AlertTriangle}
-            title={`Nenhum ${listLabel} encontrado`}
-            description="Ajuste os filtros para ampliar a busca investigativa."
-          />
-        )}
-      </div>
-
-      {!loading && !error && total > PAGE_SIZE && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm text-gov-gray-500">
-            Mostrando {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} de {total}
-          </p>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
+            {!summaryLoading && summary && (
+              <span className="font-mono text-sm font-semibold tabular-nums text-gov-gray-600">
+                {formatNumber(summary.totals.signals)} sinais
+              </span>
+            )}
             <button
               type="button"
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              className="inline-flex items-center gap-1 rounded-md border border-gov-gray-300 bg-white px-3 py-1.5 text-sm transition hover:bg-gov-gray-50 disabled:opacity-50"
+              onClick={openCoverage}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gov-gray-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-50/80"
             >
-              <ChevronLeft className="h-4 w-4" />
-              Anterior
-            </button>
-            <button
-              type="button"
-              disabled={offset + PAGE_SIZE >= total}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
-              className="inline-flex items-center gap-1 rounded-md border border-gov-gray-300 bg-white px-3 py-1.5 text-sm transition hover:bg-gov-gray-50 disabled:opacity-50"
-            >
-              Proximo
-              <ChevronRight className="h-4 w-4" />
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Confiabilidade
             </button>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* 2-column body */}
+      <div className="flex min-h-0 flex-col gap-4 p-4 lg:flex-row lg:items-start lg:gap-6 lg:p-6">
+        {/* Left: filter panel */}
+        <RadarFilterPanel
+          view={view}
+          typology={typology}
+          severity={severity}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          corruptionType={corruptionType}
+          sphere={sphere}
+          onTypologyChange={setTypology}
+          onSeverityChange={setSeverity}
+          onPeriodFromChange={setPeriodFrom}
+          onPeriodToChange={setPeriodTo}
+          onCorruptionTypeChange={setCorruptionType}
+          onSphereChange={setSphere}
+          onClearAll={clearAllFilters}
+        />
+
+        {/* Right: main content */}
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {/* Tabs + search + sort bar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <RadarViewTabs
+              value={view}
+              onChange={(next) => setView(next)}
+            />
+
+            <div className="ml-auto flex items-center gap-2">
+              {/* Search input */}
+              <label className="flex items-center gap-2 rounded-lg border border-gov-gray-200 bg-white px-3 py-1.5 shadow-sm">
+                <Search className="h-3.5 w-3.5 flex-shrink-0 text-gov-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-40 bg-transparent text-xs text-gov-gray-900 outline-none placeholder:text-gov-gray-400"
+                />
+              </label>
+
+              {/* Sort — only for signals */}
+              {view === "signals" && (
+                <label className="flex items-center gap-2 rounded-lg border border-gov-gray-200 bg-white px-3 py-1.5 shadow-sm">
+                  <ArrowUpDown className="h-3.5 w-3.5 flex-shrink-0 text-gov-gray-400" />
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value)}
+                    className="bg-transparent text-xs text-gov-gray-900 outline-none"
+                  >
+                    <option value="analysis_date">Data de análise</option>
+                    <option value="ingestion_date">Data de ingestão</option>
+                  </select>
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Table area */}
+          {loading ? (
+            <TableSkeleton rows={8} />
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 py-12">
+              <AlertTriangle className="h-8 w-8 text-red-400" />
+              <p className="mt-2 text-sm text-red-600">{error}</p>
+            </div>
+          ) : hasData ? (
+            view === "signals" ? (
+              <RadarSignalsList items={signals} onOpenPreview={openSignalPreview} />
+            ) : (
+              <RadarCasesList items={cases} onOpenPreview={openCasePreview} />
+            )
+          ) : (
+            <EmptyState
+              icon={AlertTriangle}
+              title={`Nenhum ${listLabel} encontrado`}
+              description="Ajuste os filtros para ampliar a busca investigativa."
+            />
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && total > PAGE_SIZE && (
+            <div className="flex items-center justify-between border-t border-gov-gray-200 pt-3">
+              <p className="font-mono text-xs tabular-nums text-gov-gray-400">
+                {offsetParam + 1}–{Math.min(offsetParam + PAGE_SIZE, total)} de {formatNumber(total)}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={offsetParam === 0}
+                  onClick={() => setOffset(Math.max(0, offsetParam - PAGE_SIZE))}
+                  className="inline-flex items-center gap-1 rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-600 transition hover:bg-gov-gray-50 disabled:opacity-50"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </button>
+                <span className="text-xs text-gov-gray-400">
+                  Pg <span className="font-mono tabular-nums">{currentPage}</span>/<span className="font-mono tabular-nums">{totalPages}</span>
+                </span>
+                <button
+                  type="button"
+                  disabled={offsetParam + PAGE_SIZE >= total}
+                  onClick={() => setOffset(offsetParam + PAGE_SIZE)}
+                  className="inline-flex items-center gap-1 rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-600 transition hover:bg-gov-gray-50 disabled:opacity-50"
+                >
+                  Próxima
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <RadarPreviewDrawer
         open={previewOpen}
@@ -340,5 +360,13 @@ export default function RadarPage() {
         onClose={() => setCoverageOpen(false)}
       />
     </div>
+  );
+}
+
+export default function RadarPage() {
+  return (
+    <Suspense fallback={<TableSkeleton rows={8} />}>
+      <RadarPageInner />
+    </Suspense>
   );
 }

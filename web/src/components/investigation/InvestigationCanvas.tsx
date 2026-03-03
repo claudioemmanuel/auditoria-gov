@@ -9,10 +9,12 @@ import {
   MarkerType,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   type Node,
   type Edge,
   BackgroundVariant,
   Panel,
+  ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -21,6 +23,7 @@ import { RelationEdge } from "./RelationEdge";
 import { useElkLayout } from "./useElkLayout";
 import type { GNode, GLink } from "@/hooks/useCaseGraph";
 import type { SignalSeverity } from "@/lib/types";
+import { tokens } from "@/lib/design-tokens";
 
 const NODE_TYPES = { entity: EntityNode };
 const EDGE_TYPES = { relation: RelationEdge };
@@ -39,6 +42,10 @@ interface InvestigationCanvasProps {
   selectedNodeId: string | null;
   onNodeClick: (node: GNode) => void;
   onBackgroundClick: () => void;
+  onClearSelected: () => void;
+  onExpandSelected: () => void;
+  /** Optional ref that will be populated with the fitView function once the canvas mounts */
+  fitViewRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 const DEFAULT_EDGE_OPTIONS = { type: "relation" as const };
@@ -50,7 +57,7 @@ function getIdentifier(attrs: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-export function InvestigationCanvas({
+function InvestigationCanvasInner({
   graphData,
   degreeMap,
   entitySeverityMap,
@@ -58,8 +65,22 @@ export function InvestigationCanvas({
   selectedNodeId,
   onNodeClick,
   onBackgroundClick,
+  onClearSelected,
+  onExpandSelected,
+  fitViewRef,
 }: InvestigationCanvasProps) {
   const { computeLayout } = useElkLayout();
+  const { fitView } = useReactFlow();
+
+  // Expose fitView to parent via ref
+  useEffect(() => {
+    if (fitViewRef) {
+      fitViewRef.current = () => fitView({ padding: 0.2, maxZoom: 1.2, duration: 400 });
+    }
+    return () => {
+      if (fitViewRef) fitViewRef.current = null;
+    };
+  }, [fitView, fitViewRef]);
   const [layoutReady, setLayoutReady] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -80,6 +101,8 @@ export function InvestigationCanvas({
           entityId: gn.entity_id,
           isSeed: gn.isSeed,
           isFocused: gn.isFocused,
+          isExpanded: gn.isExpanded,
+          sourceConnector: gn.sourceConnector,
           severity: entitySeverityMap[gn.entity_id],
           identifier: getIdentifier(nodeAttrsMap[gn.id] ?? {}),
           connectionCount: degreeMap[gn.id] ?? 0,
@@ -99,6 +122,7 @@ export function InvestigationCanvas({
           type: link.type,
           weight: link.weight,
           isFocused: link.isFocused,
+          isExpansion: link.isExpansion,
           edge_strength: link.edge_strength,
           verification_method: link.verification_method,
           verification_confidence: link.verification_confidence,
@@ -161,6 +185,31 @@ export function InvestigationCanvas({
     );
   }, [selectedNodeId, setNodes, setEdges]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't fire when typing in inputs
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        fitView({ padding: 0.2, maxZoom: 1.2, duration: 400 });
+      } else if (e.key === "f" || e.key === "F") {
+        fitView({ padding: 0.2, maxZoom: 1.2, duration: 400 });
+      } else if (e.key === "Escape") {
+        onClearSelected();
+      } else if (e.key === "e" || e.key === "E") {
+        if (selectedNodeId) {
+          onExpandSelected();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [fitView, onClearSelected, onExpandSelected, selectedNodeId]);
+
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       const gNode = graphData.nodes.find((n) => n.id === node.id);
@@ -175,10 +224,10 @@ export function InvestigationCanvas({
 
   if (!layoutReady && rfNodes.length > 0) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gov-gray-50">
+      <div className="absolute inset-0 flex items-center justify-center bg-surface-subtle">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gov-blue-600 border-t-transparent" />
-          <span className="text-xs text-gov-gray-500">Calculando layout...</span>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <span className="text-xs text-muted">Calculando layout...</span>
         </div>
       </div>
     );
@@ -208,20 +257,20 @@ export function InvestigationCanvas({
           variant={BackgroundVariant.Dots}
           gap={20}
           size={0.8}
-          color="#cbd5e1"
+          color={tokens.border}
         />
 
         <Controls
           showInteractive={false}
-          className="!bg-white !border-gov-gray-200 !shadow-md [&>button]:!bg-white [&>button]:!border-gov-gray-200 [&>button]:!text-gov-gray-500 [&>button:hover]:!bg-gov-gray-100"
+          className="!bg-surface-card !border-border !shadow-md [&>button]:!bg-surface-card [&>button]:!border-border [&>button]:!text-secondary [&>button:hover]:!bg-surface-subtle"
         />
 
         <MiniMap
           nodeColor={(node) =>
-            MINIMAP_NODE_COLOR[(node.data as EntityNodeData).nodeType] ?? "#9ca3af"
+            MINIMAP_NODE_COLOR[(node.data as EntityNodeData).nodeType] ?? tokens.text.muted
           }
-          maskColor="rgba(255,255,255,0.7)"
-          className="!bg-white !border-gov-gray-200 !shadow-md"
+          maskColor="rgba(247,248,252,0.75)"
+          className="!bg-surface-card !border-border !shadow-md"
           pannable
           zoomable
         />
@@ -250,12 +299,20 @@ export function InvestigationCanvas({
                 markerHeight="12"
                 orient="auto-start-reverse"
               >
-                <path d="M 2 2 L 10 6 L 2 10 z" fill="#2563eb" />
+                <path d="M 2 2 L 10 6 L 2 10 z" fill={tokens.accent} />
               </marker>
             </defs>
           </svg>
         </Panel>
       </ReactFlow>
     </div>
+  );
+}
+
+export function InvestigationCanvas(props: InvestigationCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <InvestigationCanvasInner {...props} />
+    </ReactFlowProvider>
   );
 }
