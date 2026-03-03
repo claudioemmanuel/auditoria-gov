@@ -31,6 +31,11 @@ BEAT_SCHEDULE = {
         "schedule": crontab(minute=30, hour=4),  # Daily at 04:30
         "options": {"queue": "ai"},
     },
+    "classify-texts-daily": {
+        "task": "worker.tasks.ai_tasks.classify_texts_unclassified",
+        "schedule": crontab(minute=45, hour=4),  # Daily at 04:45 UTC
+        "options": {"queue": "ai"},
+    },
     "cleanup-stale-runs": {
         "task": "worker.tasks.maintenance_tasks.cleanup_stale_runs",
         "schedule": crontab(minute=0, hour=5),  # Daily at 05:00

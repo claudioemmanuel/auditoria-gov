@@ -208,6 +208,28 @@ def run_single_signal(
                             deduped += 1
                             continue
 
+                        # Semantic dedup: skip if a very similar signal already exists.
+                        if settings.LLM_PROVIDER != "none" and signal.summary:
+                            from sqlalchemy import text as _sa_text
+                            from shared.ai.provider import get_llm_provider as _get_provider
+                            _provider = _get_provider()
+                            _emb_result = await _provider.embed([signal.summary])
+                            if _emb_result and any(v != 0.0 for v in _emb_result[0]):
+                                _vec_str = "[" + ",".join(str(v) for v in _emb_result[0]) + "]"
+                                _dup = (await session.execute(
+                                    _sa_text("""
+                                        SELECT 1 FROM text_embedding te
+                                        JOIN text_corpus tc ON tc.id = te.corpus_id
+                                        WHERE tc.source_type = 'signal'
+                                          AND (te.embedding <=> :q::vector) <= :dist
+                                        LIMIT 1
+                                    """),
+                                    {"q": _vec_str, "dist": 0.10},
+                                )).first()
+                                if _dup is not None:
+                                    deduped += 1
+                                    continue
+
                         source_url = None
                         for ref in signal.evidence_refs:
                             if ref.url:
@@ -275,6 +297,17 @@ def run_single_signal(
                             session.add(db_signal)
                             await session.flush()
                             created += 1
+
+                            # Embed summary for future semantic dedup checks.
+                            if settings.LLM_PROVIDER != "none" and signal.summary:
+                                from shared.ai.embeddings import embed_signal_summary
+                                try:
+                                    await embed_signal_summary(session, db_signal.id, signal.summary)
+                                except Exception:
+                                    log.warning(
+                                        "run_single_signal.embed_failed",
+                                        signal_id=str(db_signal.id),
+                                    )
 
                         evidence_package.signature = _compute_evidence_signature(
                             db_signal=db_signal,
