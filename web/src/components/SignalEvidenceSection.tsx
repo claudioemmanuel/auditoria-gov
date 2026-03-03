@@ -32,7 +32,7 @@ export function SignalEvidenceSection({
       sort: "occurred_at_desc",
     })
       .then(setPage)
-      .catch(() => setError("Erro ao carregar evidencias"))
+      .catch(() => setError("Erro ao carregar evidências"))
       .finally(() => setLoading(false));
   }, [signalId, offset]);
 

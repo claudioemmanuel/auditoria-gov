@@ -25,7 +25,7 @@ const TYPE_CONFIG: Record<
   },
   org: {
     Icon: Landmark,
-    label: "Orgao",
+    label: "Órgão",
     accent: "text-violet-600",
     iconBg: "bg-violet-50",
     accentBar: "bg-violet-500",

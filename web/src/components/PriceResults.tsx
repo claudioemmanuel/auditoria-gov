@@ -33,7 +33,7 @@ export function PriceResults({ result }: PriceResultsProps) {
     { label: "Mediana", value: formatBRL(b.median), highlight: false },
     { label: "Minimo", value: formatBRL(b.min), highlight: false },
     { label: "Maximo", value: formatBRL(b.max), highlight: false },
-    { label: "Desvio padrao", value: formatBRL(b.std), highlight: false },
+    { label: "Desvio padrão", value: formatBRL(b.std), highlight: false },
   ];
 
   const percentiles = [

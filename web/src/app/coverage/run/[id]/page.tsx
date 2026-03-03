@@ -38,22 +38,22 @@ import {
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; Icon: typeof CheckCircle2; desc: string }> = {
   completed: {
-    label: "Concluido",
+    label: "Concluído",
     cls: "bg-green-100 text-green-800 border-green-200",
     Icon: CheckCircle2,
-    desc: "A execucao foi finalizada com sucesso. Todos os registros foram processados.",
+    desc: "A execução foi finalizada com sucesso. Todos os registros foram processados.",
   },
   running: {
-    label: "Em execucao",
+    label: "Em execução",
     cls: "bg-blue-100 text-blue-800 border-blue-200",
     Icon: Loader2,
-    desc: "Esta execucao ainda esta em andamento. Os numeros podem mudar.",
+    desc: "Esta execução ainda está em andamento. Os números podem mudar.",
   },
   error: {
     label: "Erro",
     cls: "bg-red-100 text-red-800 border-red-200",
     Icon: CircleX,
-    desc: "A execucao encontrou um erro durante o processamento.",
+    desc: "A execução encontrou um erro durante o processamento.",
   },
 };
 
@@ -62,7 +62,7 @@ function getStatusConfig(status: string) {
     label: status,
     cls: "bg-gov-gray-100 text-gov-gray-700 border-gov-gray-200",
     Icon: Clock,
-    desc: "Status aguardando atualizacao.",
+    desc: "Status aguardando atualização.",
   };
 }
 
@@ -255,7 +255,7 @@ export default function CoverageRunDetailPage() {
     setError(null);
     getIngestRunDetail(runId)
       .then(setDetail)
-      .catch(() => setError("Nao foi possivel carregar o detalhe da execucao."))
+      .catch(() => setError("Não foi possível carregar o detalhe da execução."))
       .finally(() => setLoading(false));
   };
 
@@ -278,7 +278,7 @@ export default function CoverageRunDetailPage() {
         <Breadcrumb
           items={[
             { label: "Cobertura", href: "/coverage" },
-            { label: "Detalhe da Execucao" },
+            { label: "Detalhe da Execução" },
           ]}
         />
         <div className="mt-4">
@@ -295,14 +295,14 @@ export default function CoverageRunDetailPage() {
         <Breadcrumb
           items={[
             { label: "Cobertura", href: "/coverage" },
-            { label: "Detalhe da Execucao" },
+            { label: "Detalhe da Execução" },
           ]}
         />
         <div className="mt-6">
           <EmptyState
             icon={AlertTriangle}
-            title="Erro ao carregar execucao"
-            description={error ?? "Detalhe da execucao indisponivel."}
+            title="Erro ao carregar execução"
+            description={error ?? "Detalhe da execução indisponível."}
           />
           <div className="mt-4 text-center">
             <button
@@ -364,7 +364,7 @@ export default function CoverageRunDetailPage() {
                 </h1>
                 {detail.job.domain && (
                   <span className="mt-0.5 inline-block rounded bg-gov-gray-100 px-1.5 py-0.5 text-xs text-gov-gray-600">
-                    Dominio: {detail.job.domain}
+                    Domínio: {detail.job.domain}
                   </span>
                 )}
               </div>
@@ -403,10 +403,10 @@ export default function CoverageRunDetailPage() {
       <section className="surface-card mt-6 p-4">
         <div className="mb-3 flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-gov-blue-600" />
-          <h2 className="panel-title">Numeros da execucao</h2>
+          <h2 className="panel-title">Números da execução</h2>
         </div>
         <p className="text-xs text-gov-gray-500">
-          Metricas quantitativas do processamento para validar volume, normalizacao e persistencia.
+          Métricas quantitativas do processamento para validar volume, normalização e persistência.
         </p>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -414,28 +414,28 @@ export default function CoverageRunDetailPage() {
             icon={Database}
             label="Itens Buscados"
             value={detail.run.items_fetched}
-            tooltip="Quantidade de registros brutos recuperados da fonte de dados original durante esta execucao."
+            tooltip="Quantidade de registros brutos recuperados da fonte de dados original durante esta execução."
           />
           <KpiCard
             icon={ArrowDownUp}
             label="Itens Normalizados"
             value={detail.run.items_normalized}
             sub={`${normalizedPct}% do total buscado`}
-            tooltip="Registros que foram convertidos para o formato padrao da plataforma. Uma taxa abaixo de 100% pode indicar registros com formato inesperado."
+            tooltip="Registros que foram convertidos para o formato padrão da plataforma. Uma taxa abaixo de 100% pode indicar registros com formato inesperado."
           />
           <KpiCard
             icon={Hash}
             label="Registros Persistidos"
             value={detail.summary.records_stored}
-            sub={`${formatNumber(detail.summary.distinct_raw_ids)} IDs unicos`}
-            tooltip="Total de registros salvos no banco de dados. IDs unicos indica quantos registros distintos foram identificados."
+            sub={`${formatNumber(detail.summary.distinct_raw_ids)} IDs únicos`}
+            tooltip="Total de registros salvos no banco de dados. IDs únicos indica quantos registros distintos foram identificados."
           />
           <KpiCard
             icon={Copy}
             label="Duplicidades Detectadas"
             value={detail.summary.duplicate_raw_ids}
             sub={dupPct > 0 ? `${dupPct}% do total` : "Nenhuma duplicidade"}
-            tooltip="Registros que ja existiam no banco de dados. Um numero alto indica atualizacoes incrementais (normal) ou reprocessamento."
+            tooltip="Registros que já existiam no banco de dados. Um número alto indica atualizações incrementais (normal) ou reprocessamento."
           />
         </div>
       </section>
@@ -444,17 +444,17 @@ export default function CoverageRunDetailPage() {
       <section className="surface-card mt-6 p-4">
         <h2 className="panel-title">Linha do tempo</h2>
         <p className="mt-1 text-xs text-gov-gray-500">
-          Janela temporal da execucao e dos registros processados.
+          Janela temporal da execução e dos registros processados.
         </p>
 
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">
-              Execucao
+              Execução
             </h3>
             <div className="mt-2 space-y-2 text-sm text-gov-gray-700">
               <div className="flex justify-between">
-                <span className="text-gov-gray-500">Inicio</span>
+                <span className="text-gov-gray-500">Início</span>
                 <span className="font-medium">{fmtMaybeDate(detail.run.started_at)}</span>
               </div>
               <div className="flex justify-between">
@@ -462,7 +462,7 @@ export default function CoverageRunDetailPage() {
                 <span className="font-medium">{fmtMaybeDate(detail.run.finished_at)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gov-gray-500">Duracao</span>
+                <span className="text-gov-gray-500">Duração</span>
                 <span className="font-medium">{duration}</span>
               </div>
             </div>
@@ -510,9 +510,9 @@ export default function CoverageRunDetailPage() {
               1
             </div>
             <div>
-              <p className="text-xs font-semibold text-gov-gray-800">Ingestao</p>
+              <p className="text-xs font-semibold text-gov-gray-800">Ingestão</p>
               <p className="text-xs text-gov-gray-600">
-                O conector acessa a fonte publica e baixa os registros brutos (payloads JSON).
+                O conector acessa a fonte pública e baixa os registros brutos (payloads JSON).
               </p>
             </div>
           </div>
@@ -521,9 +521,9 @@ export default function CoverageRunDetailPage() {
               2
             </div>
             <div>
-              <p className="text-xs font-semibold text-gov-gray-800">Normalizacao</p>
+              <p className="text-xs font-semibold text-gov-gray-800">Normalização</p>
               <p className="text-xs text-gov-gray-600">
-                Os registros sao convertidos para o formato padrao, extraindo campos-chave.
+                Os registros são convertidos para o formato padrão, extraindo campos-chave.
               </p>
             </div>
           </div>
@@ -532,19 +532,19 @@ export default function CoverageRunDetailPage() {
               3
             </div>
             <div>
-              <p className="text-xs font-semibold text-gov-gray-800">Persistencia</p>
+              <p className="text-xs font-semibold text-gov-gray-800">Persistência</p>
               <p className="text-xs text-gov-gray-600">
-                Registros unicos sao salvos; duplicatas sao detectadas automaticamente pelo ID.
+                Registros únicos são salvos; duplicatas são detectadas automaticamente pelo ID.
               </p>
             </div>
           </div>
         </div>
         <p className="mt-3 text-xs text-gov-gray-500">
           O perfil de campos abaixo foi calculado sobre{" "}
-          <strong>{detail.summary.profile_sampled_records}</strong> registro(s) desta execucao
-          (limite tecnico: {detail.summary.profile_sample_limit}).
+          <strong>{detail.summary.profile_sampled_records}</strong> registro(s) desta execução
+          (limite técnico: {detail.summary.profile_sample_limit}).
           {detail.job.supports_incremental && (
-            <> Este job suporta ingestao incremental — apenas registros novos sao processados a cada execucao.</>
+            <> Este job suporta ingestão incremental — apenas registros novos são processados a cada execução.</>
           )}
         </p>
       </section>
@@ -576,7 +576,7 @@ export default function CoverageRunDetailPage() {
                 Perfil dos Campos ({detail.field_profile.length})
               </h2>
               <p className="mt-1 text-xs text-gov-gray-500">
-                Presenca e tipos de cada campo encontrado nos registros brutos.
+                Presença e tipos de cada campo encontrado nos registros brutos.
                 A barra de cobertura indica em quantos registros o campo aparece.
               </p>
             </div>
@@ -619,7 +619,7 @@ export default function CoverageRunDetailPage() {
                 </table>
               </div>
               <p className="mt-2 text-xs text-gov-gray-400">
-                Cobertura indica a proporcao de registros amostrados que possuem este campo preenchido.
+                Cobertura indica a proporção de registros amostrados que possuem este campo preenchido.
                 Verde ({"\u2265"}90%), amarelo (50-89%), vermelho ({"<"}50%).
               </p>
             </div>
@@ -640,7 +640,7 @@ export default function CoverageRunDetailPage() {
               Amostra de Registros ({detail.samples.length})
             </h2>
             <p className="mt-1 text-xs text-gov-gray-500">
-              Registros reais processados nesta execucao, exibidos para auditoria e verificacao.
+              Registros reais processados nesta execução, exibidos para auditoria e verificação.
               Cada registro mostra os principais campos e permite ver o JSON bruto original.
             </p>
           </div>
@@ -657,7 +657,7 @@ export default function CoverageRunDetailPage() {
               <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-6 text-center">
                 <FileText className="mx-auto h-8 w-8 text-gov-gray-300" />
                 <p className="mt-2 text-sm text-gov-gray-500">
-                  Nenhum registro bruto encontrado para esta execucao.
+                  Nenhum registro bruto encontrado para esta execução.
                 </p>
               </div>
             ) : (
@@ -775,7 +775,7 @@ export default function CoverageRunDetailPage() {
                         onClick={() => setSamplesPage((p) => p + 1)}
                         className="rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-700 hover:bg-gov-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Proximo
+                        Próximo
                       </button>
                     </div>
                   </div>
@@ -789,11 +789,11 @@ export default function CoverageRunDetailPage() {
       {/* ── Transparency footer ────────────────────────────────── */}
       <div className="surface-muted mt-6 p-3">
         <p className="text-xs text-gov-gray-500">
-          <strong>Transparencia:</strong> Esta pagina exibe o detalhe tecnico de uma
-          execucao de ingestao de dados publicos. Os registros sao obtidos exclusivamente
-          de fontes oficiais (portais de transparencia, APIs publicas) e tratados com
-          deduplicacao automatica. Nenhum dado pessoal e coletado alem do estritamente
-          necessario para fins de controle social e interesse publico (LGPD, art. 7, VII).
+          <strong>Transparência:</strong> Esta página exibe o detalhe técnico de uma
+          execução de ingestão de dados públicos. Os registros são obtidos exclusivamente
+          de fontes oficiais (portais de transparência, APIs públicas) e tratados com
+          deduplicação automática. Nenhum dado pessoal é coletado além do estritamente
+          necessário para fins de controle social e interesse público (LGPD, art. 7, VII).
         </p>
       </div>
     </div>

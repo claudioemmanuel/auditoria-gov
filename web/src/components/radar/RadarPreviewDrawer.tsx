@@ -40,7 +40,7 @@ export function RadarPreviewDrawer({
             <h3 className="text-lg font-semibold text-primary">
               {type === "signal" ? "Previa do sinal" : "Previa do caso"}
             </h3>
-            <p className="text-xs text-muted">Entenda o padrao sem sair do Radar.</p>
+            <p className="text-xs text-muted">Entenda o padrão sem sair do Radar.</p>
           </div>
           <button
             type="button"
@@ -85,7 +85,7 @@ export function RadarPreviewDrawer({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-accent-subtle p-3">
-                <p className="text-xs font-semibold uppercase text-accent">Onde comecou</p>
+                <p className="text-xs font-semibold uppercase text-accent">Onde começou</p>
                 <p className="mt-1 text-sm text-primary">
                   {signal.graph.pattern_story.started_at
                     ? formatDate(signal.graph.pattern_story.started_at)
@@ -104,7 +104,7 @@ export function RadarPreviewDrawer({
 
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs font-semibold uppercase text-muted">
-                Evidencias ({signal.evidence.total})
+                Evidências ({signal.evidence.total})
               </p>
               <div className="mt-2 space-y-2">
                 {signal.evidence.items.map((item) => (
@@ -172,7 +172,7 @@ export function RadarPreviewDrawer({
 
             <div className="rounded-lg border border-border p-3 text-xs text-secondary">
               Teia do caso: <span className="font-mono tabular-nums">{caseData.graph.nodes.length}</span> entidades e{" "}
-              <span className="font-mono tabular-nums">{caseData.graph.edges.length}</span> conexoes.
+              <span className="font-mono tabular-nums">{caseData.graph.edges.length}</span> conexões.
             </div>
 
             <div className="flex flex-wrap gap-2">
