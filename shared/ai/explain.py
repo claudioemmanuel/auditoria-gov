@@ -1,13 +1,23 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from jinja2 import Template
 
 from shared.ai.provider import get_llm_provider
 from shared.config import settings
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 EXPLAIN_TEMPLATE = Template("""Você é um analista de controle público.
 
 Analise o seguinte sinal de risco e produza uma explicação clara em português,
 com evidências reproduzíveis. Use linguagem acessível ao cidadão.
-
+{% if rag_context %}
+## Sinais Similares (contexto histórico)
+{{ rag_context }}
+{% endif %}
 ## Sinal de Risco
 - **Tipologia:** {{ typology_name }} ({{ typology_code }})
 - **Severidade:** {{ severity }}
@@ -63,10 +73,13 @@ async def explain_signal(
     title: str,
     factors: dict,
     evidence_refs: list[dict],
+    session: AsyncSession | None = None,
 ) -> str:
     """Generate a markdown explanation for a risk signal.
 
     Uses LLM when available, falls back to deterministic Jinja2 template.
+    When session is provided, enriches the prompt with RAG context from
+    top-3 similar past signals stored in text_embedding.
     """
     context = {
         "typology_code": typology_code,
@@ -76,10 +89,15 @@ async def explain_signal(
         "title": title,
         "factors": factors,
         "evidence_refs": evidence_refs,
+        "rag_context": "",
     }
 
     if settings.LLM_PROVIDER == "none":
         return DETERMINISTIC_TEMPLATE.render(**context)
+
+    if session is not None:
+        from shared.ai.rag import build_rag_context
+        context["rag_context"] = await build_rag_context(title, session, max_tokens=500)
 
     prompt = EXPLAIN_TEMPLATE.render(**context)
     provider = get_llm_provider()

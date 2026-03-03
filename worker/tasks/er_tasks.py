@@ -1,3 +1,4 @@
+import uuid as _uuid_mod
 from collections import defaultdict
 from datetime import datetime, timezone
 from itertools import combinations
@@ -9,6 +10,10 @@ from shared.logging import log
 _PROBABILISTIC_THRESHOLD = 0.85
 _PROBABILISTIC_MAX_BUCKET_SIZE = 300
 _PROBABILISTIC_MAX_ENTITIES = 5000
+
+# Semantic ER pass constants
+_SEMANTIC_DISTANCE_THRESHOLD = 0.12   # cosine distance ≤ 0.12 ≡ similarity ≥ 0.88
+_SEMANTIC_MAX_UNMATCHED = 10_000      # skip semantic pass for very large datasets
 
 _PHOTO_KEYS = ("url_foto", "urlFoto", "photo_url", "UrlFotoParlamentar")
 
@@ -187,6 +192,105 @@ def _build_probabilistic_matches(entities: list[dict], matched_ids: set):
     return matches
 
 
+def _build_semantic_matches(session, entities: list[dict], matched_ids: set) -> list:
+    """Semantic ER pass using pgvector cosine similarity on entity name embeddings.
+
+    Runs after deterministic + probabilistic passes.
+    Only iterates over entities NOT yet matched in prior passes.
+    Threshold: cosine distance <= 0.12 (cosine similarity >= 0.88).
+    Requires same entity.type for a match to avoid cross-type false positives.
+
+    Args:
+        session: Synchronous SQLAlchemy session (SyncSession).
+        entities: All entity dicts being processed in this ER run.
+        matched_ids: Set of entity UUIDs already matched in prior passes.
+
+    Returns:
+        List of MatchResult objects for semantic matches found.
+    """
+    from sqlalchemy import text as sa_text
+
+    from shared.er.matching import MatchResult
+    from shared.repo.queries import get_entity_embeddings_for_er
+
+    unmatched = [e for e in entities if e["id"] not in matched_ids]
+
+    if not unmatched:
+        return []
+
+    if len(unmatched) > _SEMANTIC_MAX_UNMATCHED:
+        log.warning(
+            "er.semantic_skipped_large_dataset",
+            entity_count=len(unmatched),
+            limit=_SEMANTIC_MAX_UNMATCHED,
+        )
+        return []
+
+    embeddings_map = get_entity_embeddings_for_er(session, [e["id"] for e in unmatched])
+
+    if not embeddings_map:
+        log.info("er.semantic_no_embeddings")
+        return []
+
+    # Optimize pgvector HNSW search for ER batch (transaction-scoped).
+    try:
+        session.execute(sa_text("SET LOCAL hnsw.ef_search = 100"))
+    except Exception:
+        pass  # Non-critical; continue without the hint.
+
+    entity_type_map = {str(e["id"]): e["type"] for e in entities}
+    checked_pairs: set = set()
+    matches: list = []
+
+    for entity in unmatched:
+        entity_id_str = str(entity["id"])
+        emb = embeddings_map.get(entity_id_str)
+        if emb is None:
+            continue
+
+        vec_str = "[" + ",".join(str(v) for v in emb) + "]"
+        sql = sa_text("""
+            SELECT tc.source_id, (te.embedding <=> :query_vec::vector) AS distance
+            FROM text_embedding te
+            JOIN text_corpus tc ON tc.id = te.corpus_id
+            WHERE tc.source_type = 'entity'
+              AND tc.source_id != :exclude_id
+              AND (te.embedding <=> :query_vec::vector) <= :threshold
+            ORDER BY te.embedding <=> :query_vec::vector
+            LIMIT 5
+        """)
+        rows = session.execute(
+            sql,
+            {
+                "query_vec": vec_str,
+                "threshold": _SEMANTIC_DISTANCE_THRESHOLD,
+                "exclude_id": entity_id_str,
+            },
+        ).fetchall()
+
+        for row in rows:
+            neighbor_id_str = row.source_id
+            if entity_type_map.get(neighbor_id_str) != entity["type"]:
+                continue
+            pair = tuple(sorted([entity_id_str, neighbor_id_str]))
+            if pair in checked_pairs:
+                continue
+            checked_pairs.add(pair)
+
+            similarity = 1.0 - float(row.distance)
+            matches.append(
+                MatchResult(
+                    entity_a_id=_uuid_mod.UUID(entity_id_str),
+                    entity_b_id=_uuid_mod.UUID(neighbor_id_str),
+                    match_type="semantic",
+                    score=similarity,
+                    reason=f"Embedding cosine similarity: {similarity:.3f}",
+                )
+            )
+
+    return matches
+
+
 @shared_task(name="worker.tasks.er_tasks.run_entity_resolution")
 def run_entity_resolution():
     """Run incremental entity resolution pipeline.
@@ -287,6 +391,18 @@ def run_entity_resolution():
 
         prob_count = len(matches) - det_count
         log.info("er.probabilistic_done", matches=prob_count)
+
+        # Phase 3 — Semantic pass (pgvector cosine similarity on entity name embeddings)
+        sem_count = 0
+        from shared.config import settings as _settings
+        if _settings.LLM_PROVIDER != "none":
+            sem_matches = _build_semantic_matches(session, entities, matched_ids)
+            matches.extend(sem_matches)
+            sem_count = len(sem_matches)
+            log.info("er.semantic_done", matches=sem_count)
+            for m in sem_matches:
+                matched_ids.add(m.entity_a_id)
+                matched_ids.add(m.entity_b_id)
 
         # 4. Clustering (Union-Find)
         clusters = cluster_entities(matches)
@@ -505,6 +621,7 @@ def run_entity_resolution():
         "entities_processed": len(entities),
         "deterministic_matches": det_count,
         "probabilistic_matches": prob_count,
+        "semantic_matches": sem_count,
         "clusters_formed": len(clusters),
         "edges_created": edges_created,
         "incremental": watermark is not None,
