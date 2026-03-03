@@ -175,6 +175,10 @@ npm run build
 Contributions are welcome.
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening issues or pull requests.
 
+## Wiki
+
+Project wiki pages are versioned in [docs/wiki](./docs/wiki/README.md) and intended for GitHub Wiki publication.
+
 ## License
 
 Licensed under the GNU Affero General Public License v3.0.
