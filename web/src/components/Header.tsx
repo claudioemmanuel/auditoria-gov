@@ -27,7 +27,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-gov-blue-800/95 text-white backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-gradient-to-r from-gov-blue-900 to-gov-blue-800 text-white backdrop-blur">
       <div className="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3">
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white">
@@ -35,6 +35,7 @@ export function Header() {
           </span>
           <span className="leading-tight">
             <span className="block text-2xl font-extrabold tracking-tight sm:text-[1.65rem]">AuditorIA Gov</span>
+            <span className="block text-[0.65rem] font-medium tracking-widest text-gov-blue-200 uppercase">Dados Públicos</span>
           </span>
         </Link>
 
@@ -50,7 +51,7 @@ export function Header() {
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[0.97rem] font-semibold tracking-tight transition",
                   isActive
-                    ? "bg-white/14 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]"
+                    ? "bg-white/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_0_0_1px_rgba(255,255,255,0.2)]"
                     : "text-gov-blue-100 hover:bg-white/10 hover:text-white"
                 )}
               >

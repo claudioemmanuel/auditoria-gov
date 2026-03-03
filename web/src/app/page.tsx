@@ -37,12 +37,12 @@ export default async function HomePage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+    <div className="mx-auto max-w-[1280px] space-y-6 px-4 py-8 sm:px-6">
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="text-xl font-bold text-primary">Panorama de Riscos</h1>
+        <h1 className="text-2xl font-bold text-gov-gray-900">Panorama de Riscos</h1>
         {snapshotAt && (
-          <p className="text-xs text-muted">
+          <p className="text-xs text-gov-gray-400">
             snapshot:{" "}
             <span className="font-mono tabular-nums">{snapshotAt}</span>
           </p>
@@ -51,7 +51,7 @@ export default async function HomePage() {
 
       {/* ── Error banner if everything failed ────────────────────── */}
       {!summary && !signals && !coverage && !sources && (
-        <div className="rounded-lg border border-border bg-surface-card px-4 py-6 text-center text-sm text-secondary">
+        <div className="rounded-lg border border-gov-gray-200 bg-white px-4 py-6 text-center text-sm text-gov-gray-600">
           Não foi possível carregar os dados. Verifique a conectividade com a
           API.
         </div>
@@ -65,12 +65,12 @@ export default async function HomePage() {
           {["Críticos", "Altos", "Médios", "Baixos"].map((label) => (
             <div
               key={label}
-              className="rounded-lg border border-border bg-surface-card p-4"
+              className="rounded-lg border border-gov-gray-200 bg-white p-4"
             >
-              <p className="text-xs font-medium uppercase tracking-wide text-secondary">
+              <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-600">
                 {label}
               </p>
-              <p className="mt-1 font-mono tabular-nums text-3xl font-bold text-muted">
+              <p className="mt-1 font-mono tabular-nums text-3xl font-bold text-gov-gray-400">
                 —
               </p>
             </div>
@@ -86,7 +86,7 @@ export default async function HomePage() {
         {coverage ? (
           <TypologyCoverageBar items={coverage.items.slice(0, 8)} />
         ) : (
-          <div className="rounded-lg border border-border bg-surface-card px-4 py-8 text-center text-sm text-secondary">
+          <div className="rounded-lg border border-gov-gray-200 bg-white px-4 py-8 text-center text-sm text-gov-gray-600">
             Cobertura indisponível.
           </div>
         )}
@@ -94,7 +94,7 @@ export default async function HomePage() {
         {sources ? (
           <SourceHealthChips items={sources.items} />
         ) : (
-          <div className="rounded-lg border border-border bg-surface-card px-4 py-8 text-center text-sm text-secondary">
+          <div className="rounded-lg border border-gov-gray-200 bg-white px-4 py-8 text-center text-sm text-gov-gray-600">
             Fontes indisponíveis.
           </div>
         )}
