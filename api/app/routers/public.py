@@ -10,23 +10,35 @@ from api.app.deps import DbSession, Pagination
 from shared.models.coverage import CoverageItem, CoverageMapResponse
 from shared.models.graph import CaseGraphResponse, NeighborhoodResponse, SignalGraphResponse
 from shared.models.orm import Contestation
+from shared.models.radar import (
+    RadarV2CaseListResponse,
+    RadarV2CasePreviewResponse,
+    RadarV2CoverageResponse,
+    RadarV2SignalListResponse,
+    RadarV2SignalPreviewResponse,
+    RadarV2SummaryResponse,
+)
 from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
 from shared.repo.queries import (
     get_analytical_coverage,
     get_case_by_id,
     get_case_graph,
-    get_cases_paginated,
     get_coverage_list,
     get_coverage_map,
     get_evidence_package_by_id,
     get_entity_by_id,
     get_graph_neighborhood,
     get_org_summary,
+    get_radar_v2_case_preview,
+    get_radar_v2_cases,
+    get_radar_v2_coverage,
+    get_radar_v2_signal_preview,
+    get_radar_v2_signals,
+    get_radar_v2_summary,
     get_signal_by_id,
     get_signal_detail,
     get_signal_graph,
     get_signal_evidence_page,
-    get_signals_paginated,
     replay_signal,
 )
 
@@ -59,8 +71,30 @@ async def coverage_analytics(session: DbSession):
     return await get_analytical_coverage(session)
 
 
-@router.get("/radar")
-async def radar(
+
+@router.get("/radar/v2/summary", response_model=RadarV2SummaryResponse)
+async def radar_v2_summary(
+    session: DbSession,
+    typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
+    severity: Optional[str] = Query(None, description="Filter by severity"),
+    period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
+    period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
+    corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
+    sphere: Optional[str] = Query(None, description="Filter by sphere"),
+):
+    return await get_radar_v2_summary(
+        session,
+        typology_code=typology,
+        severity=severity,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
+    )
+
+
+@router.get("/radar/v2/signals", response_model=RadarV2SignalListResponse)
+async def radar_v2_signals(
     session: DbSession,
     pagination: Pagination,
     typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
@@ -68,11 +102,10 @@ async def radar(
     sort: str = Query("analysis_date", pattern="^(analysis_date|ingestion_date)$", description="Sort by analysis_date (period_end) or ingestion_date (created_at)"),
     period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
     period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
-    corruption_type: Optional[str] = Query(None, description="Filter by corruption type (e.g. fraude_licitatoria)"),
-    sphere: Optional[str] = Query(None, description="Filter by sphere (e.g. administrativa)"),
+    corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
+    sphere: Optional[str] = Query(None, description="Filter by sphere"),
 ):
-    """Risk signal radar — paginated, filtered list of signals."""
-    signals, total = await get_signals_paginated(
+    items, total = await get_radar_v2_signals(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -85,43 +118,69 @@ async def radar(
         sphere=sphere,
     )
     return {
-        "items": signals,
+        "items": items,
         "total": total,
         "offset": pagination.offset,
         "limit": pagination.limit,
     }
 
 
-@router.get("/cases")
-async def cases(
+@router.get("/radar/v2/cases", response_model=RadarV2CaseListResponse)
+async def radar_v2_cases(
     session: DbSession,
     pagination: Pagination,
+    typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
+    period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
+    period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
+    corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
+    sphere: Optional[str] = Query(None, description="Filter by sphere"),
 ):
-    """List aggregated cases with pagination."""
-    case_list, total = await get_cases_paginated(
+    items, total = await get_radar_v2_cases(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
+        typology_code=typology,
         severity=severity,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
     )
     return {
-        "items": [
-            {
-                "id": c.id,
-                "title": c.title,
-                "status": c.status,
-                "severity": c.severity,
-                "summary": c.summary,
-                "signal_count": len(c.items),
-                "created_at": c.created_at,
-            }
-            for c in case_list
-        ],
+        "items": items,
         "total": total,
         "offset": pagination.offset,
         "limit": pagination.limit,
     }
+
+
+@router.get("/radar/v2/signal/{signal_id}/preview", response_model=RadarV2SignalPreviewResponse)
+async def radar_v2_signal_preview(
+    signal_id: uuid.UUID,
+    session: DbSession,
+    limit: int = Query(10, ge=1, le=30, description="Evidence preview limit"),
+):
+    preview = await get_radar_v2_signal_preview(session, signal_id=signal_id, evidence_limit=limit)
+    if preview is None:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    return preview
+
+
+@router.get("/radar/v2/case/{case_id}/preview", response_model=RadarV2CasePreviewResponse)
+async def radar_v2_case_preview(
+    case_id: uuid.UUID,
+    session: DbSession,
+):
+    preview = await get_radar_v2_case_preview(session, case_id=case_id)
+    if preview is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return preview
+
+
+@router.get("/radar/v2/coverage", response_model=RadarV2CoverageResponse)
+async def radar_v2_coverage(session: DbSession):
+    return await get_radar_v2_coverage(session)
 
 
 @router.get("/case/{case_id}")
