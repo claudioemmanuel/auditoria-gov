@@ -56,6 +56,16 @@ from shared.models.signals import (
     SignalReplayOut,
     SignalSeverity,
 )
+from shared.models.radar import (
+    RadarV2CaseListItemOut,
+    RadarV2CoverageResponse,
+    RadarV2CoverageSummaryOut,
+    RadarV2SeverityCountsOut,
+    RadarV2SignalListItemOut,
+    RadarV2SummaryResponse,
+    RadarV2TotalsOut,
+    RadarV2TypologyCountOut,
+)
 # NOTE: Do NOT import from shared.typologies at module level — it causes a
 # circular import (typology implementations import queries.py).  Use lazy
 # imports inside the functions that need factor_metadata helpers.
@@ -204,6 +214,36 @@ def _build_investigation_summary(signal: RiskSignal) -> dict:
     return summary
 
 
+def _apply_signal_filters(
+    stmt,
+    *,
+    typology_code: Optional[str] = None,
+    severity: Optional[str] = None,
+    period_from: Optional[datetime] = None,
+    period_to: Optional[datetime] = None,
+    corruption_type: Optional[str] = None,
+    sphere: Optional[str] = None,
+):
+    if typology_code:
+        stmt = stmt.where(Typology.code == typology_code)
+    if severity:
+        stmt = stmt.where(RiskSignal.severity == severity)
+    if corruption_type or sphere:
+        from shared.typologies.factor_metadata import get_typology_codes_for_filter
+
+        matching_codes = get_typology_codes_for_filter(
+            corruption_type=corruption_type,
+            sphere=sphere,
+        )
+        if matching_codes is not None:
+            stmt = stmt.where(Typology.code.in_(matching_codes))
+    if period_from:
+        stmt = stmt.where(RiskSignal.period_end >= period_from)
+    if period_to:
+        stmt = stmt.where(RiskSignal.period_start <= period_to)
+    return stmt
+
+
 async def get_signals_paginated(
     session: AsyncSession,
     offset: int = 0,
@@ -291,6 +331,163 @@ async def get_signals_paginated(
         )
         for s in signals
     ], total
+
+
+async def get_radar_v2_summary(
+    session: AsyncSession,
+    *,
+    typology_code: Optional[str] = None,
+    severity: Optional[str] = None,
+    period_from: Optional[datetime] = None,
+    period_to: Optional[datetime] = None,
+    corruption_type: Optional[str] = None,
+    sphere: Optional[str] = None,
+) -> RadarV2SummaryResponse:
+    count_stmt = (
+        select(func.count())
+        .select_from(RiskSignal)
+        .join(Typology)
+    )
+    count_stmt = _apply_signal_filters(
+        count_stmt,
+        typology_code=typology_code,
+        severity=severity,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
+    )
+    total_signals = int((await session.execute(count_stmt)).scalar_one() or 0)
+
+    sev_stmt = (
+        select(RiskSignal.severity, func.count().label("cnt"))
+        .select_from(RiskSignal)
+        .join(Typology)
+    )
+    sev_stmt = _apply_signal_filters(
+        sev_stmt,
+        typology_code=typology_code,
+        severity=severity,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
+    ).group_by(RiskSignal.severity)
+    sev_rows = (await session.execute(sev_stmt)).all()
+    severity_counts = RadarV2SeverityCountsOut(
+        **{row.severity: int(row.cnt or 0) for row in sev_rows}
+    )
+
+    typo_stmt = (
+        select(
+            Typology.code.label("code"),
+            Typology.name.label("name"),
+            func.count().label("cnt"),
+        )
+        .select_from(RiskSignal)
+        .join(Typology)
+    )
+    typo_stmt = _apply_signal_filters(
+        typo_stmt,
+        typology_code=typology_code,
+        severity=severity,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
+    ).group_by(Typology.code, Typology.name)
+    typo_rows = (await session.execute(typo_stmt)).all()
+    typology_counts = sorted(
+        [
+            RadarV2TypologyCountOut(
+                code=row.code,
+                name=row.name,
+                count=int(row.cnt or 0),
+            )
+            for row in typo_rows
+        ],
+        key=lambda row: (-row.count, row.code),
+    )
+
+    case_stmt = (
+        select(func.count(func.distinct(Case.id)))
+        .select_from(Case)
+        .join(CaseItem, CaseItem.case_id == Case.id)
+        .join(RiskSignal, RiskSignal.id == CaseItem.signal_id)
+        .join(Typology, Typology.id == RiskSignal.typology_id)
+    )
+    case_stmt = _apply_signal_filters(
+        case_stmt,
+        typology_code=typology_code,
+        severity=severity,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
+    )
+    total_cases = int((await session.execute(case_stmt)).scalar_one() or 0)
+
+    active_filters_count = (
+        int(bool(typology_code))
+        + int(bool(severity))
+        + int(bool(period_from or period_to))
+        + int(bool(corruption_type))
+        + int(bool(sphere))
+    )
+
+    return RadarV2SummaryResponse(
+        snapshot_at=datetime.now(timezone.utc),
+        totals=RadarV2TotalsOut(signals=total_signals, cases=total_cases),
+        severity_counts=severity_counts,
+        typology_counts=typology_counts,
+        active_filters_count=active_filters_count,
+    )
+
+
+async def get_radar_v2_signals(
+    session: AsyncSession,
+    *,
+    offset: int = 0,
+    limit: int = 20,
+    typology_code: Optional[str] = None,
+    severity: Optional[str] = None,
+    sort: str = "analysis_date",
+    period_from: Optional[datetime] = None,
+    period_to: Optional[datetime] = None,
+    corruption_type: Optional[str] = None,
+    sphere: Optional[str] = None,
+) -> tuple[list[RadarV2SignalListItemOut], int]:
+    signals, total = await get_signals_paginated(
+        session,
+        offset=offset,
+        limit=limit,
+        typology_code=typology_code,
+        severity=severity,
+        sort=sort,
+        period_from=period_from,
+        period_to=period_to,
+        corruption_type=corruption_type,
+        sphere=sphere,
+    )
+    items = [
+        RadarV2SignalListItemOut(
+            id=signal.id,
+            typology_code=signal.typology_code,
+            typology_name=signal.typology_name,
+            severity=signal.severity,
+            confidence=signal.confidence,
+            title=signal.title,
+            summary=signal.summary,
+            period_start=signal.period_start,
+            period_end=signal.period_end,
+            created_at=signal.created_at,
+            event_count=len(signal.event_ids or []),
+            entity_count=len(signal.entity_ids or []),
+            has_graph=len(signal.event_ids or []) > 0,
+        )
+        for signal in signals
+    ]
+    return items, total
 
 
 async def get_entity_by_id(
@@ -1080,6 +1277,12 @@ async def get_signal_graph(
         elif not edges:
             fallback_reason = "no_relationship_edges"
 
+    if mode == "preview":
+        timeline = timeline[:8]
+        edges = edges[:20]
+        involved_profiles = involved_profiles[:20]
+        nodes = nodes[:30]
+
     return SignalGraphResponse(
         signal=signal_out,
         pattern_story=SignalPatternStoryOut(
@@ -1208,6 +1411,116 @@ async def get_signal_evidence_page(
         "limit": limit,
         "items": paginated,
     }
+
+
+async def get_radar_v2_signal_preview(
+    session: AsyncSession,
+    signal_id: uuid.UUID,
+    *,
+    evidence_limit: int = 10,
+) -> Optional[dict]:
+    signal_detail = await get_signal_detail(session, signal_id)
+    if signal_detail is None:
+        return None
+
+    signal_graph = await get_signal_graph(session, signal_id, mode="preview")
+    if signal_graph is None:
+        return None
+    signal_evidence = await get_signal_evidence_page(
+        session,
+        signal_id=signal_id,
+        offset=0,
+        limit=evidence_limit,
+        sort="occurred_at_desc",
+    )
+
+    return {
+        "signal": signal_detail,
+        "graph": signal_graph,
+        "evidence": signal_evidence or {
+            "signal_id": str(signal_id),
+            "total": 0,
+            "offset": 0,
+            "limit": evidence_limit,
+            "items": [],
+        },
+    }
+
+
+async def get_radar_v2_case_preview(
+    session: AsyncSession,
+    case_id: uuid.UUID,
+) -> Optional[dict]:
+    case = await get_case_by_id(session, case_id)
+    if case is None:
+        return None
+
+    attrs = case.attrs or {}
+    signal_rows = []
+    entity_names = attrs.get("entity_names", [])
+    for item in case.items:
+        signal = item.signal
+        if signal is None or signal.typology is None:
+            continue
+        signal_rows.append(
+            {
+                "id": str(signal.id),
+                "typology_code": signal.typology.code,
+                "typology_name": signal.typology.name,
+                "severity": signal.severity,
+                "confidence": signal.confidence,
+                "title": signal.title,
+                "summary": signal.summary,
+                "period_start": signal.period_start,
+                "period_end": signal.period_end,
+                "entity_count": len(signal.entity_ids or []),
+                "event_count": len(signal.event_ids or []),
+            }
+        )
+
+    signal_rows.sort(
+        key=lambda row: (
+            -_SEVERITY_TO_SCORE.get(str(row["severity"]), 0.0),
+            -(float(row["confidence"] or 0)),
+        )
+    )
+    case_graph = await get_case_graph(session, case_id, depth=1, limit=120)
+    if case_graph is None:
+        return None
+
+    return {
+        "case": {
+            "id": str(case.id),
+            "title": case.title,
+            "status": case.status,
+            "severity": case.severity,
+            "summary": case.summary,
+            "entity_names": entity_names,
+            "signal_count": len(signal_rows),
+            "period_start": attrs.get("period_start"),
+            "period_end": attrs.get("period_end"),
+            "total_value_brl": attrs.get("total_value_brl"),
+            "created_at": case.created_at,
+        },
+        "graph": case_graph,
+        "top_signals": signal_rows[:10],
+    }
+
+
+async def get_radar_v2_coverage(session: AsyncSession) -> RadarV2CoverageResponse:
+    analytics = await get_analytical_coverage(session)
+    apt_count = sum(1 for item in analytics if item.get("apt"))
+    with_signals_30d = sum(1 for item in analytics if int(item.get("signals_30d") or 0) > 0)
+    blocked_count = sum(1 for item in analytics if not item.get("apt"))
+    return RadarV2CoverageResponse(
+        summary=RadarV2CoverageSummaryOut(
+            apt_count=apt_count,
+            with_signals_30d=with_signals_30d,
+            blocked_count=blocked_count,
+            total_typologies=len(analytics),
+        ),
+        items=analytics,
+    )
 
 
 async def replay_signal(
@@ -1439,6 +1752,121 @@ async def get_cases_paginated(
     cases = list(result.scalars().all())
 
     return cases, total
+
+
+def _risk_signal_matches_filters(
+    signal: RiskSignal,
+    *,
+    typology_code: Optional[str],
+    severity: Optional[str],
+    period_from: Optional[datetime],
+    period_to: Optional[datetime],
+    allowed_typology_codes: set[str] | None,
+) -> bool:
+    current_typology_code = signal.typology.code if signal.typology else None
+    if typology_code and current_typology_code != typology_code:
+        return False
+    if severity and signal.severity != severity:
+        return False
+    if allowed_typology_codes is not None and current_typology_code not in allowed_typology_codes:
+        return False
+    if period_from and signal.period_end and signal.period_end < period_from:
+        return False
+    if period_to and signal.period_start and signal.period_start > period_to:
+        return False
+    return True
+
+
+async def get_radar_v2_cases(
+    session: AsyncSession,
+    *,
+    offset: int = 0,
+    limit: int = 20,
+    typology_code: Optional[str] = None,
+    severity: Optional[str] = None,
+    period_from: Optional[datetime] = None,
+    period_to: Optional[datetime] = None,
+    corruption_type: Optional[str] = None,
+    sphere: Optional[str] = None,
+) -> tuple[list[RadarV2CaseListItemOut], int]:
+    allowed_typology_codes: set[str] | None = None
+    if corruption_type or sphere:
+        from shared.typologies.factor_metadata import get_typology_codes_for_filter
+
+        allowed = get_typology_codes_for_filter(
+            corruption_type=corruption_type,
+            sphere=sphere,
+        )
+        allowed_typology_codes = set(allowed or [])
+
+    base_stmt = (
+        select(Case)
+        .options(
+            selectinload(Case.items)
+            .selectinload(CaseItem.signal)
+            .selectinload(RiskSignal.typology)
+        )
+        .order_by(Case.created_at.desc())
+    )
+    raw_cases = list((await session.execute(base_stmt)).scalars().all())
+
+    filtered_cases: list[Case] = []
+    case_signals_map: dict[uuid.UUID, list[RiskSignal]] = {}
+    for case in raw_cases:
+        matched_signals: list[RiskSignal] = []
+        for item in case.items:
+            sig = item.signal
+            if sig is None or sig.typology is None:
+                continue
+            if _risk_signal_matches_filters(
+                sig,
+                typology_code=typology_code,
+                severity=severity,
+                period_from=period_from,
+                period_to=period_to,
+                allowed_typology_codes=allowed_typology_codes,
+            ):
+                matched_signals.append(sig)
+        if matched_signals:
+            filtered_cases.append(case)
+            case_signals_map[case.id] = matched_signals
+
+    total = len(filtered_cases)
+    paged_cases = filtered_cases[offset : offset + limit]
+
+    items: list[RadarV2CaseListItemOut] = []
+    for case in paged_cases:
+        signals = case_signals_map.get(case.id, [])
+        entity_ids: set[str] = set()
+        typology_codes: set[str] = set()
+        period_start: datetime | None = None
+        period_end: datetime | None = None
+        for sig in signals:
+            typology_codes.add(sig.typology.code)
+            for eid in sig.entity_ids or []:
+                entity_ids.add(str(eid))
+            if sig.period_start and (period_start is None or sig.period_start < period_start):
+                period_start = sig.period_start
+            if sig.period_end and (period_end is None or sig.period_end > period_end):
+                period_end = sig.period_end
+
+        items.append(
+            RadarV2CaseListItemOut(
+                id=case.id,
+                title=case.title,
+                status=case.status,
+                severity=SignalSeverity(case.severity),
+                summary=case.summary,
+                signal_count=len(signals),
+                entity_count=len(entity_ids),
+                typology_codes=sorted(typology_codes),
+                period_start=period_start,
+                period_end=period_end,
+                created_at=case.created_at,
+            )
+        )
+
+    return items, total
 
 
 # --- Graph queries ---
