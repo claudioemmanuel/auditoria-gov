@@ -278,7 +278,7 @@ async def test_t04_minimum_detectable_dataset_generates_signal(monkeypatch):
 
     monkeypatch.setattr("shared.typologies.t04_amendments_outlier.get_baseline", _baseline)
 
-    session = _FakeAsyncSession([events])
+    session = _FakeAsyncSession([events, []])  # 2nd call: parts query returns empty
     signals = await T04AmendmentsOutlierTypology().run(session)
 
     assert len(signals) == 1
@@ -313,7 +313,7 @@ async def test_t05_minimum_detectable_dataset_generates_signal(monkeypatch):
 
     monkeypatch.setattr("shared.typologies.t05_price_outlier.get_baseline", _baseline)
 
-    session = _FakeAsyncSession([events])
+    session = _FakeAsyncSession([events, []])  # 2nd call: parts query returns empty
     signals = await T05PriceOutlierTypology().run(session)
 
     assert len(signals) == 1

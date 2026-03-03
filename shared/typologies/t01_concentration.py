@@ -182,7 +182,10 @@ class T01ConcentrationTypology(BaseTypology):
                         description=f"HHI baseline p90={p90:.4f}, p95={p95:.4f}",
                     ),
                 ],
-                entity_ids=[uuid.UUID(procurer_id_str)] if procurer_id_str != str(uuid.UUID(int=0)) else [],
+                entity_ids=(
+                    ([uuid.UUID(procurer_id_str)] if procurer_id_str != str(uuid.UUID(int=0)) else [])
+                    + [uuid.UUID(wid) for wid in winner_totals if wid != procurer_id_str]
+                ),
                 event_ids=[uuid.UUID(eid) for eid in event_id_list[:20]],
                 period_start=window_start,
                 period_end=window_end,

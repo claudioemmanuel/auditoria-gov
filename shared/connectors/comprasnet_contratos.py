@@ -100,7 +100,7 @@ class ComprasNetContratosConnector(BaseConnector):
                     timeout=_PRIMARY_TIMEOUT,
                 )
                 response.raise_for_status()
-                records = _extract_records(response.json())
+                records = _extract_records([] if response.status_code == 204 else response.json())
         except httpx.HTTPError:
             # Primary source down — switch to windowed PNCP fallback
             return await self._fetch_pncp_windowed(job, "w0p1", params)
@@ -159,7 +159,7 @@ class ComprasNetContratosConnector(BaseConnector):
         async with pncp_client() as client:
             resp = await client.get("/contratos", params=query)
             resp.raise_for_status()
-            rows = _extract_records(resp.json())
+            rows = _extract_records([] if resp.status_code == 204 else resp.json())
 
         records = [_map_pncp_contract(row) for row in rows]
         items = [

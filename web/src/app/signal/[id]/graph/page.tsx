@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getSignalGraph } from "@/lib/api";
 import type { SignalGraphResponse, SignalInvolvedEntityProfile } from "@/lib/types";
-import type { GNode } from "@/hooks/useCaseGraph";
+import type { GNode, GLink } from "@/hooks/useCaseGraph";
+import { CONNECTOR_COLORS, CONNECTOR_LABELS } from "@/lib/constants";
 import { InvestigationCanvas } from "@/components/investigation/InvestigationCanvas";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { DetailSkeleton } from "@/components/Skeleton";
@@ -20,6 +21,7 @@ import {
   Calendar,
   Users,
   FileText,
+  Waypoints,
 } from "lucide-react";
 
 function entityTypeLabel(nodeType: string): string {
@@ -38,6 +40,7 @@ export default function SignalGraphPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GNode | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
+  const [showExpanded, setShowExpanded] = useState(true);
 
   useEffect(() => {
     if (!signalId) return;
@@ -51,28 +54,76 @@ export default function SignalGraphPage() {
       .finally(() => setLoading(false));
   }, [signalId]);
 
+  const expandedCount = data?.overview.expanded_nodes?.length ?? 0;
+  const expansionEdgeCount = data?.overview.expansion_edges?.length ?? 0;
+
   const graphData = useMemo(() => {
-    if (!data) return { nodes: [] as GNode[], links: [] as { id: string; source: string; target: string; type: string; weight: number; isFocused: boolean }[] };
+    if (!data) return { nodes: [] as GNode[], links: [] as GLink[] };
+
     const starterIds = new Set(data.pattern_story.started_from_entities.map((entity) => entity.entity_id));
+
+    // Direct participant nodes
+    const directNodes: GNode[] = data.overview.nodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      node_type: node.node_type,
+      entity_id: node.entity_id,
+      isSeed: starterIds.has(node.entity_id),
+      isFocused: false,
+    }));
+
+    // BFS expanded nodes (only if toggle is on)
+    const bfsNodes: GNode[] = showExpanded
+      ? (data.overview.expanded_nodes ?? []).map((node) => ({
+          id: node.id,
+          label: node.label,
+          node_type: node.node_type,
+          entity_id: node.entity_id,
+          isSeed: false,
+          isFocused: false,
+          isExpanded: true,
+          sourceConnector: node.source_connector ?? undefined,
+        }))
+      : [];
+
+    const allNodes = [...directNodes, ...bfsNodes];
+
+    // Build entity_id → node_id map for resolving expansion edges
+    const entityToNodeId: Record<string, string> = {};
+    for (const node of allNodes) {
+      entityToNodeId[node.entity_id] = node.id;
+    }
+
+    // Direct edges
+    const directLinks: GLink[] = data.overview.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.from_node_id,
+      target: edge.to_node_id,
+      type: edge.type,
+      weight: edge.weight,
+      isFocused: false,
+    }));
+
+    // BFS expansion edges (only if toggle is on)
+    const bfsLinks: GLink[] = showExpanded
+      ? (data.overview.expansion_edges ?? [])
+          .map((edge) => ({
+            id: edge.id,
+            source: entityToNodeId[edge.from_entity_id] ?? "",
+            target: entityToNodeId[edge.to_entity_id] ?? "",
+            type: edge.edge_type,
+            weight: edge.weight,
+            isFocused: false,
+            isExpansion: true,
+          }))
+          .filter((link) => link.source && link.target)
+      : [];
+
     return {
-      nodes: data.overview.nodes.map((node) => ({
-        id: node.id,
-        label: node.label,
-        node_type: node.node_type,
-        entity_id: node.entity_id,
-        isSeed: starterIds.has(node.entity_id),
-        isFocused: false,
-      })),
-      links: data.overview.edges.map((edge) => ({
-        id: edge.id,
-        source: edge.from_node_id,
-        target: edge.to_node_id,
-        type: edge.type,
-        weight: edge.weight,
-        isFocused: false,
-      })),
+      nodes: allNodes,
+      links: [...directLinks, ...bfsLinks],
     };
-  }, [data]);
+  }, [data, showExpanded]);
 
   const degreeMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -87,6 +138,9 @@ export default function SignalGraphPage() {
     if (!data) return {};
     const map: Record<string, Record<string, unknown>> = {};
     for (const node of data.overview.nodes) {
+      map[node.id] = node.attrs || {};
+    }
+    for (const node of data.overview.expanded_nodes ?? []) {
       map[node.id] = node.attrs || {};
     }
     return map;
@@ -221,9 +275,34 @@ export default function SignalGraphPage() {
               <Network className="h-4 w-4 text-gov-blue-600" />
               Teia de conexoes
             </h2>
-            <span className="text-xs text-gov-gray-500">
-              {data.overview.nodes.length} entidades - {data.overview.edges.length} ligacoes
-            </span>
+            <div className="flex items-center gap-3">
+              {expandedCount > 0 && (
+                <button
+                  onClick={() => setShowExpanded(!showExpanded)}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    showExpanded
+                      ? "bg-gov-blue-50 text-gov-blue-700 hover:bg-gov-blue-100"
+                      : "bg-gov-gray-100 text-gov-gray-500 hover:bg-gov-gray-200"
+                  }`}
+                >
+                  <Waypoints className="h-3.5 w-3.5" />
+                  {showExpanded ? "Ocultar expansao" : "Mostrar expansao"}
+                </button>
+              )}
+              <span className="text-xs text-gov-gray-500">
+                {data.overview.nodes.length} entidades
+                {expandedCount > 0 && (
+                  <span className={showExpanded ? "text-gov-blue-600" : "text-gov-gray-400"}>
+                    {" "}+ {expandedCount} descobertas
+                  </span>
+                )}
+                {" - "}
+                {data.overview.edges.length} ligacoes
+                {expansionEdgeCount > 0 && showExpanded && (
+                  <span className="text-gov-blue-600"> + {expansionEdgeCount} conexoes</span>
+                )}
+              </span>
+            </div>
           </div>
           {hasGraph ? (
             <div className="relative h-[520px] overflow-hidden rounded-lg border border-gov-gray-100">
@@ -278,6 +357,13 @@ export default function SignalGraphPage() {
                 </div>
               </div>
 
+              {selectedEntity.is_direct_participant === false && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                  <Waypoints className="h-3 w-3" />
+                  Descoberto via expansao de rede
+                </span>
+              )}
+
               {Object.keys(selectedEntity.identifiers).length > 0 && (
                 <div className="space-y-1">
                   {Object.entries(selectedEntity.identifiers).map(([key, value]) => (
@@ -295,6 +381,26 @@ export default function SignalGraphPage() {
                       {role.label} ({role.code}) - {role.count_in_signal}
                     </span>
                   ))}
+                </div>
+              )}
+
+              {selectedEntity.cluster_entities && selectedEntity.cluster_entities.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gov-gray-700">Outras aparicoes (mesmo cluster)</p>
+                  {selectedEntity.cluster_entities.map((ce) => {
+                    const ceColors = CONNECTOR_COLORS[ce.source_connector ?? ""];
+                    const ceLabel = CONNECTOR_LABELS[ce.source_connector ?? ""] ?? ce.source_connector;
+                    return (
+                      <div key={ce.entity_id} className="flex items-center gap-2 rounded bg-gov-gray-50 px-2 py-1 text-xs">
+                        {ceLabel && (
+                          <span className={`inline-flex shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${ceColors?.bg ?? "bg-gov-gray-100"} ${ceColors?.text ?? "text-gov-gray-700"}`}>
+                            {ceLabel}
+                          </span>
+                        )}
+                        <span className="text-gov-gray-700 truncate">{ce.name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

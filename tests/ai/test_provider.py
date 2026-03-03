@@ -238,11 +238,13 @@ class TestAnthropicProvider:
 
     @pytest.mark.asyncio
     async def test_embed_without_openai_key(self):
+        from unittest.mock import patch
         mock_anthropic_client = AsyncMock()
-        provider, mock_settings = self._make_provider(mock_anthropic_client)
-        mock_settings.OPENAI_API_KEY = ""
+        provider, _ = self._make_provider(mock_anthropic_client)
 
-        result = await provider.embed(["text1", "text2"])
+        with patch("shared.ai.provider.settings") as mock_settings:
+            mock_settings.OPENAI_API_KEY = ""
+            result = await provider.embed(["text1", "text2"])
 
         assert len(result) == 2
         assert len(result[0]) == 1536
@@ -251,9 +253,11 @@ class TestAnthropicProvider:
 
     @pytest.mark.asyncio
     async def test_embed_empty_texts(self):
+        from unittest.mock import patch
         mock_anthropic_client = AsyncMock()
-        provider, mock_settings = self._make_provider(mock_anthropic_client)
-        mock_settings.OPENAI_API_KEY = ""
+        provider, _ = self._make_provider(mock_anthropic_client)
 
-        result = await provider.embed([])
+        with patch("shared.ai.provider.settings") as mock_settings:
+            mock_settings.OPENAI_API_KEY = ""
+            result = await provider.embed([])
         assert result == []

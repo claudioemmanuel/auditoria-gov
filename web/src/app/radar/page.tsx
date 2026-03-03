@@ -159,7 +159,7 @@ export default function RadarPage() {
     setCasePreview(null);
     getRadarV2SignalPreview(signalId, { limit: 10 })
       .then(setSignalPreview)
-      .catch(() => setPreviewError("Nao foi possivel carregar a previa do sinal"))
+      .catch(() => setPreviewError("Não foi possível carregar a prévia do sinal"))
       .finally(() => setPreviewLoading(false));
   };
 
@@ -172,7 +172,7 @@ export default function RadarPage() {
     setCasePreview(null);
     getRadarV2CasePreview(caseId)
       .then(setCasePreview)
-      .catch(() => setPreviewError("Nao foi possivel carregar a previa do caso"))
+      .catch(() => setPreviewError("Não foi possível carregar a prévia do caso"))
       .finally(() => setPreviewLoading(false));
   };
 
@@ -183,7 +183,7 @@ export default function RadarPage() {
     setCoverageError(null);
     getRadarV2Coverage()
       .then(setCoverage)
-      .catch(() => setCoverageError("Nao foi possivel carregar a cobertura analitica"))
+      .catch(() => setCoverageError("Não foi possível carregar a cobertura analítica"))
       .finally(() => setCoverageLoading(false));
   };
 
@@ -272,8 +272,8 @@ export default function RadarPage() {
                     onChange={(e) => setSort(e.target.value)}
                     className="bg-transparent text-xs text-primary outline-none"
                   >
-                    <option value="analysis_date">Data de analise</option>
-                    <option value="ingestion_date">Data de ingestao</option>
+                    <option value="analysis_date">Data de análise</option>
+                    <option value="ingestion_date">Data de ingestão</option>
                   </select>
                 </label>
               )}
@@ -327,7 +327,7 @@ export default function RadarPage() {
                   onClick={() => setOffset(offsetParam + PAGE_SIZE)}
                   className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle disabled:opacity-50"
                 >
-                  Proxima
+                  Próxima
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>

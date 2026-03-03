@@ -1,10 +1,11 @@
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
 from shared.baselines.models import BaselineType
-from shared.models.orm import Event
+from shared.models.orm import Event, EventParticipant
 from shared.models.signals import (
     EvidenceRef,
     RefType,
@@ -80,6 +81,27 @@ class T05PriceOutlierTypology(BaseTypology):
 
         if not events:
             return []
+
+        # Query participants for entity_ids
+        all_event_ids = [e.id for e in events]
+        parts_stmt = select(EventParticipant).where(
+            EventParticipant.event_id.in_(all_event_ids),
+            EventParticipant.role.in_(
+                ["procuring_entity", "buyer", "supplier", "winner"]
+            ),
+        )
+        parts_result = await session.execute(parts_stmt)
+        all_participants = parts_result.scalars().all()
+
+        event_entity_ids: dict[str, list] = defaultdict(list)
+        _seen: set[tuple[str, str]] = set()
+        for p in all_participants:
+            eid_str = str(p.event_id)
+            entity_str = str(p.entity_id)
+            pair = (eid_str, entity_str)
+            if pair not in _seen:
+                _seen.add(pair)
+                event_entity_ids[eid_str].append(p.entity_id)
 
         signals: list[RiskSignalOut] = []
 
@@ -167,7 +189,7 @@ class T05PriceOutlierTypology(BaseTypology):
                         ),
                     ),
                 ],
-                entity_ids=[],
+                entity_ids=event_entity_ids.get(str(e.id), []),
                 event_ids=[e.id],
                 period_start=window_start,
                 period_end=window_end,

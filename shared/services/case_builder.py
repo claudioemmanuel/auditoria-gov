@@ -39,6 +39,15 @@ def _max_severity(*severities: str) -> str:
     return max(severities, key=lambda s: _SEVERITY_ORDER.get(s, 0))
 
 
+def _should_create_case(signals: list) -> bool:
+    """Accept 2+ signal groups, or single HIGH/CRITICAL signals."""
+    if len(signals) >= 2:
+        return True
+    if signals:
+        return signals[0].severity in ("high", "critical")
+    return False
+
+
 def build_cases_from_signals(session: Session) -> list[Case]:
     """Group uncased signals into cases by entity cluster + time window.
 
@@ -113,7 +122,7 @@ def build_cases_from_signals(session: Session) -> list[Case]:
     created_cases: list[Case] = []
 
     for cluster_id, signals in cluster_signals.items():
-        if len(signals) < 2:
+        if not _should_create_case(signals):
             continue
 
         # Sub-group by time proximity (90-day windows)
@@ -129,11 +138,11 @@ def build_cases_from_signals(session: Session) -> list[Case]:
             if prev_time and curr_time and (curr_time - prev_time) <= timedelta(days=90):
                 current_group.append(s)
             else:
-                if len(current_group) >= 2:
+                if _should_create_case(current_group):
                     time_groups.append(current_group)
                 current_group = [s]
 
-        if len(current_group) >= 2:
+        if _should_create_case(current_group):
             time_groups.append(current_group)
 
         for group in time_groups:
@@ -217,6 +226,35 @@ def build_cases_from_signals(session: Session) -> list[Case]:
                 session.add(item)
 
             created_cases.append(case)
+
+    # 6. Create standalone cases for high-severity ungrouped signals
+    for s in ungrouped:
+        if s.severity not in ("high", "critical"):
+            continue
+
+        typology_code = s.typology.code if hasattr(s, "typology") and s.typology else "?"
+        typology_label = _TYPOLOGY_SHORT.get(typology_code, typology_code)
+
+        case = Case(
+            title=f"Caso: sinal isolado — {typology_label}",
+            status="open",
+            severity=s.severity,
+            summary=(
+                f"Sinal de risco {s.severity} sem vínculo a cluster de entidades. "
+                f"Tipologia: {typology_label}."
+            ),
+            attrs={
+                "signal_count": 1,
+                "typology_codes": [typology_code],
+                "ungrouped": True,
+            },
+        )
+        session.add(case)
+        session.flush()
+
+        item = CaseItem(case_id=case.id, signal_id=s.id)
+        session.add(item)
+        created_cases.append(case)
 
     session.commit()
 

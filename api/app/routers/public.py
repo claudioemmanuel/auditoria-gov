@@ -26,6 +26,11 @@ from shared.models.radar import (
     RadarV2SummaryResponse,
 )
 from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
+from shared.repo.provenance import (
+    get_raw_sources_for_event,
+    get_raw_sources_for_events,
+    get_case_provenance_web,
+)
 from shared.repo.queries import (
     get_case_by_id,
     get_case_graph,
@@ -571,6 +576,72 @@ async def replay_signal_endpoint(signal_id: uuid.UUID, session: DbSession):
     if replay is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return replay
+
+
+@router.get("/signal/{signal_id}/provenance")
+async def signal_provenance(signal_id: uuid.UUID, session: DbSession):
+    """Full provenance chain: Signal -> Events -> RawSources."""
+    signal = await get_signal_by_id(session, signal_id)
+    if signal is None:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    event_ids = []
+    for eid_str in (signal.event_ids or []):
+        try:
+            event_ids.append(uuid.UUID(str(eid_str)))
+        except (ValueError, TypeError):
+            pass
+    event_raw_sources = await get_raw_sources_for_events(session, event_ids)
+    return {
+        "signal_id": signal.id,
+        "title": signal.title,
+        "typology_code": signal.typology.code if signal.typology else None,
+        "events": [
+            {
+                "event_id": eid,
+                "raw_sources": [
+                    {
+                        "id": rs.id,
+                        "connector": rs.connector,
+                        "job": rs.job,
+                        "raw_id": rs.raw_id,
+                        "raw_data": rs.raw_data,
+                        "created_at": rs.created_at,
+                    }
+                    for rs in sources
+                ],
+            }
+            for eid, sources in event_raw_sources.items()
+        ],
+    }
+
+
+@router.get("/event/{event_id}/raw-sources")
+async def event_raw_sources_endpoint(event_id: uuid.UUID, session: DbSession):
+    """Original API JSON for one event."""
+    raw_sources = await get_raw_sources_for_event(session, event_id)
+    return {
+        "event_id": event_id,
+        "raw_sources": [
+            {
+                "id": rs.id,
+                "connector": rs.connector,
+                "job": rs.job,
+                "raw_id": rs.raw_id,
+                "raw_data": rs.raw_data,
+                "created_at": rs.created_at,
+            }
+            for rs in raw_sources
+        ],
+    }
+
+
+@router.get("/case/{case_id}/provenance")
+async def case_provenance(case_id: uuid.UUID, session: DbSession):
+    """Complete investigative web with raw data for a case."""
+    result = await get_case_provenance_web(session, case_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return result
 
 
 @router.post("/contestation", response_model=ContestationOut, status_code=status.HTTP_201_CREATED)

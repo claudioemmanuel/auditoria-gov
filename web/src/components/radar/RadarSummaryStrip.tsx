@@ -33,9 +33,9 @@ export function RadarSummaryStrip({
   return (
     <div className="mt-6 space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-gov-gray-200 bg-white p-4 shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
               Total de sinais
             </p>
             <Activity className="h-4 w-4 text-gov-blue-600" />
@@ -44,9 +44,9 @@ export function RadarSummaryStrip({
             {summary.totals.signals}
           </p>
         </div>
-        <div className="rounded-xl border border-gov-gray-200 bg-white p-4 shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
               Total de casos
             </p>
             <BriefcaseBusiness className="h-4 w-4 text-gov-blue-600" />
@@ -55,9 +55,9 @@ export function RadarSummaryStrip({
             {summary.totals.cases}
           </p>
         </div>
-        <div className="rounded-xl border border-gov-gray-200 bg-white p-4 shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
               Filtros ativos
             </p>
             <Filter className="h-4 w-4 text-gov-blue-600" />
@@ -66,9 +66,9 @@ export function RadarSummaryStrip({
             {summary.active_filters_count}
           </p>
         </div>
-        <div className="rounded-xl border border-gov-gray-200 bg-white p-4 shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
               Tipologias detectadas
             </p>
             <Info className="h-4 w-4 text-gov-blue-600" />
@@ -82,21 +82,28 @@ export function RadarSummaryStrip({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(["critical", "high", "medium", "low"] as const).map((severity) => {
           const isActive = activeSeverity === severity;
+          const severityTone = severity === "critical"
+            ? "text-red-700"
+            : severity === "high"
+              ? "text-orange-700"
+              : severity === "medium"
+                ? "text-amber-700"
+                : "text-blue-700";
           return (
             <button
               key={severity}
               type="button"
               onClick={() => onSeverityClick(severity)}
-              className={`rounded-xl border p-3 text-left transition ${
+              className={`rounded-xl border p-3.5 text-left transition ${
                 isActive
                   ? "border-gov-blue-300 bg-gov-blue-50 shadow-sm"
-                  : "border-gov-gray-200 bg-white hover:border-gov-blue-200 hover:shadow-sm"
+                  : "border-gov-gray-200/90 bg-white/90 hover:border-gov-blue-200 hover:shadow-sm"
               }`}
             >
-              <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">
+              <p className="text-sm font-semibold uppercase tracking-wide text-gov-gray-500">
                 {SEVERITY_LABELS[severity]}
               </p>
-              <p className="mt-1 text-xl font-semibold text-gov-gray-900">
+              <p className={`mt-1 text-xl font-semibold ${severityTone}`}>
                 {summary.severity_counts[severity]}
               </p>
             </button>

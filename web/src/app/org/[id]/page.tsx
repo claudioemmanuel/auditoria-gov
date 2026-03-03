@@ -81,7 +81,8 @@ export default function OrgDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="page-wrap">
+      <div className="mx-auto max-w-5xl">
       <Breadcrumb
         items={[
           { label: "Radar", href: "/radar" },
@@ -179,6 +180,7 @@ export default function OrgDetailPage() {
         <div className="mt-2 overflow-hidden rounded-lg border border-gov-gray-200 bg-white">
           <GraphView entityId={org.id} />
         </div>
+      </div>
       </div>
     </div>
   );

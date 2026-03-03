@@ -78,7 +78,7 @@ export default function CoveragePage() {
       })
       .catch(() => {
         if (!active) return;
-        setSummaryError("Nao foi possivel carregar o resumo da cobertura.");
+        setSummaryError("Não foi possível carregar o resumo da cobertura.");
       })
       .finally(() => {
         if (active) setSummaryLoading(false);
@@ -131,7 +131,7 @@ export default function CoveragePage() {
       })
       .catch(() => {
         if (!active) return;
-        setAnalyticsError("Nao foi possivel carregar a cobertura analitica.");
+        setAnalyticsError("Não foi possível carregar a cobertura analítica.");
       })
       .finally(() => {
         if (active) setAnalyticsLoading(false);
@@ -159,7 +159,7 @@ export default function CoveragePage() {
         setPreviewData(payload);
       })
       .catch(() => {
-        setPreviewError("Nao foi possivel carregar o diagnostico detalhado desta fonte.");
+        setPreviewError("Não foi possível carregar o diagnóstico detalhado desta fonte.");
       })
       .finally(() => {
         setPreviewLoading(false);

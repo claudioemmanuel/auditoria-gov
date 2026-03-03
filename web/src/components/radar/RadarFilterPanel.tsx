@@ -117,7 +117,7 @@ export function RadarFilterPanel({
       <div className="flex flex-col gap-1.5">
         <label className="flex items-center gap-1.5 text-xs font-medium text-secondary">
           <CalendarRange className="h-3.5 w-3.5" />
-          Periodo
+          Período
         </label>
         <input
           type="date"
@@ -130,7 +130,7 @@ export function RadarFilterPanel({
           type="date"
           value={periodTo}
           onChange={(e) => onPeriodToChange(e.target.value)}
-          placeholder="Ate"
+          placeholder="Até"
           className="w-full rounded-md border border-border bg-surface-card px-2.5 py-1.5 text-xs text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
         />
       </div>
@@ -139,7 +139,7 @@ export function RadarFilterPanel({
       <div className="flex flex-col gap-1.5">
         <label className="flex items-center gap-1.5 text-xs font-medium text-secondary">
           <Scale className="h-3.5 w-3.5" />
-          Tipo de Corrupcao
+          Tipo de Corrupção
         </label>
         <select
           value={corruptionType}

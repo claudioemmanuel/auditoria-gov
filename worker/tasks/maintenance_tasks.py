@@ -4,6 +4,7 @@
 - Celery result backend cleanup.
 - Stale run garbage collection.
 """
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -43,25 +44,30 @@ def _existing_photo(attrs: dict | None) -> str | None:
     return None
 
 
-def _fetch_camara_photo(deputado_id: str) -> str | None:
+def _fetch_camara_photo(deputado_id: str, client: httpx.Client | None = None) -> str | None:
     if not deputado_id:
         return None
     try:
-        with httpx.Client(
-            base_url="https://dadosabertos.camara.leg.br/api/v2",
-            headers={"Accept": "application/json"},
-            timeout=20.0,
-        ) as client:
-            response = client.get(f"/deputados/{deputado_id}")
+        def _do_fetch(c: httpx.Client) -> str | None:
+            response = c.get(f"/deputados/{deputado_id}")
             response.raise_for_status()
             body = response.json() or {}
             dados = body.get("dados") or {}
             value = dados.get("urlFoto")
             if isinstance(value, str) and value.strip():
                 return value.strip()
+            return None
+
+        if client is not None:
+            return _do_fetch(client)
+        with httpx.Client(
+            base_url="https://dadosabertos.camara.leg.br/api/v2",
+            headers={"Accept": "application/json"},
+            timeout=20.0,
+        ) as c:
+            return _do_fetch(c)
     except Exception:
         return None
-    return None
 
 
 def _fetch_senado_photo_map() -> dict[str, str]:
@@ -117,7 +123,7 @@ def _log_dead_letter(sender=None, task_id=None, exception=None, traceback=None, 
         )
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.cleanup_stale_runs")
+@shared_task(name="worker.tasks.maintenance_tasks.cleanup_stale_runs", soft_time_limit=300, time_limit=360, max_retries=1)
 def cleanup_stale_runs(max_age_hours: int = 24):
     """Close orphaned 'running' RawRun entries older than max_age_hours.
 
@@ -156,7 +162,7 @@ def cleanup_stale_runs(max_age_hours: int = 24):
         return {"status": "ok", "cleaned": len(stale)}
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.purge_old_results")
+@shared_task(name="worker.tasks.maintenance_tasks.purge_old_results", soft_time_limit=300, time_limit=360, max_retries=1)
 def purge_old_results(max_age_days: int = 7):
     """Remove old Celery result entries from Redis to reclaim memory.
 
@@ -175,7 +181,7 @@ def purge_old_results(max_age_days: int = 7):
     return {"status": "ok"}
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.backfill_signal_clarity")
+@shared_task(name="worker.tasks.maintenance_tasks.backfill_signal_clarity", soft_time_limit=1800, time_limit=1900, max_retries=1)
 def backfill_signal_clarity(max_events: int = 20000):
     """Backfill data quality for investigability and refresh T03/T05 signals.
 
@@ -217,6 +223,62 @@ def backfill_signal_clarity(max_events: int = 20000):
         )
         events = session.execute(candidate_stmt).scalars().all()
 
+        # Batch-preload related events by source_pncp_id to avoid N+1
+        pncp_to_event = {}  # source_pncp_id -> list of events needing enrichment
+        pncp_ids_to_query = set()
+        for event in events:
+            pncp_id = str((event.attrs or {}).get("source_pncp_id") or "").strip()
+            if pncp_id:
+                pncp_to_event[event.id] = pncp_id
+                pncp_ids_to_query.add(pncp_id)
+
+        related_by_pncp: dict[str, "Event"] = {}
+        if pncp_ids_to_query:
+            # Batch query: find related events by source_pncp_id
+            _PNCP_BATCH = 500
+            pncp_list = list(pncp_ids_to_query)
+            for i in range(0, len(pncp_list), _PNCP_BATCH):
+                batch = pncp_list[i : i + _PNCP_BATCH]
+                related_stmt = (
+                    select(Event)
+                    .where(
+                        or_(
+                            Event.source_id.in_(batch),
+                            Event.attrs["source_pncp_id"].as_string().in_(batch),
+                        ),
+                    )
+                )
+                for r in session.execute(related_stmt).scalars().all():
+                    key = r.source_id or str((r.attrs or {}).get("source_pncp_id", ""))
+                    if key and key not in related_by_pncp:
+                        related_by_pncp[key] = r
+
+        # Batch-preload participants for related events
+        related_event_ids = [r.id for r in related_by_pncp.values()]
+        parts_by_event: dict[str, list] = defaultdict(list)
+        if related_event_ids:
+            _PART_BATCH = 500
+            for i in range(0, len(related_event_ids), _PART_BATCH):
+                batch_eids = related_event_ids[i : i + _PART_BATCH]
+                parts_stmt = select(EventParticipant).where(
+                    EventParticipant.event_id.in_(batch_eids),
+                    EventParticipant.role.in_(["winner", "bidder", "supplier"]),
+                )
+                for p in session.execute(parts_stmt).scalars().all():
+                    parts_by_event[p.event_id].append(p)
+
+        # Batch-preload existing roles for target events
+        event_ids_list = [e.id for e in events]
+        existing_roles_by_event: dict[str, set] = defaultdict(set)
+        if event_ids_list:
+            for i in range(0, len(event_ids_list), _PNCP_BATCH):
+                batch_eids = event_ids_list[i : i + _PNCP_BATCH]
+                roles_stmt = select(EventParticipant.event_id, EventParticipant.role).where(
+                    EventParticipant.event_id.in_(batch_eids)
+                )
+                for eid, role in session.execute(roles_stmt).all():
+                    existing_roles_by_event[eid].add(role)
+
         for event in events:
             attrs = dict(event.attrs or {})
             current_catmat = _normalize_classification(
@@ -226,21 +288,10 @@ def backfill_signal_clarity(max_events: int = 20000):
                 attrs["catmat_group"] = current_catmat
                 updated_catmat += 1
 
-            source_pncp_id = str(attrs.get("source_pncp_id") or "").strip()
+            source_pncp_id = pncp_to_event.get(event.id)
             if source_pncp_id:
-                related_stmt = (
-                    select(Event)
-                    .where(
-                        Event.id != event.id,
-                        or_(
-                            Event.source_id == source_pncp_id,
-                            Event.attrs["source_pncp_id"].as_string() == source_pncp_id,
-                        ),
-                    )
-                    .limit(1)
-                )
-                related = session.execute(related_stmt).scalar_one_or_none()
-                if related is not None:
+                related = related_by_pncp.get(source_pncp_id)
+                if related is not None and related.id != event.id:
                     related_attrs = related.attrs or {}
                     related_catmat = _normalize_classification(
                         related_attrs.get("catmat_group") or related_attrs.get("catmat_code")
@@ -250,21 +301,10 @@ def backfill_signal_clarity(max_events: int = 20000):
                         current_catmat = related_catmat
                         enriched_catmat += 1
 
-                    existing_roles = set(
-                        session.execute(
-                            select(EventParticipant.role).where(
-                                EventParticipant.event_id == event.id
-                            )
-                        ).scalars().all()
-                    )
+                    existing_roles = existing_roles_by_event.get(event.id, set())
                     has_business_roles = bool(existing_roles & {"winner", "bidder", "supplier"})
                     if not has_business_roles:
-                        related_parts = session.execute(
-                            select(EventParticipant).where(
-                                EventParticipant.event_id == related.id,
-                                EventParticipant.role.in_(["winner", "bidder", "supplier"]),
-                            )
-                        ).scalars().all()
+                        related_parts = parts_by_event.get(related.id, [])
                         for rp in related_parts:
                             upsert_participant_sync(
                                 session,
@@ -299,7 +339,7 @@ def backfill_signal_clarity(max_events: int = 20000):
     return result
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.backfill_public_profile_photos")
+@shared_task(name="worker.tasks.maintenance_tasks.backfill_public_profile_photos", soft_time_limit=1800, time_limit=1900, max_retries=1)
 def backfill_public_profile_photos(limit: int = 1000):
     """Populate missing public-profile photos for political entities."""
     from shared.db_sync import SyncSession
@@ -322,6 +362,12 @@ def backfill_public_profile_photos(limit: int = 1000):
             .limit(max(limit * 5, 200))
         ).scalars().all()
 
+        camara_client = httpx.Client(
+            base_url="https://dadosabertos.camara.leg.br/api/v2",
+            headers={"Accept": "application/json"},
+            timeout=20.0,
+        )
+
         for entity in candidates:
             scanned += 1
             attrs = dict(entity.attrs or {})
@@ -334,7 +380,7 @@ def backfill_public_profile_photos(limit: int = 1000):
 
             deputado_id = str(identifiers.get("deputado_id", "")).strip()
             if deputado_id:
-                photo_url = _fetch_camara_photo(deputado_id)
+                photo_url = _fetch_camara_photo(deputado_id, client=camara_client)
                 source = "camara"
 
             if not photo_url:
@@ -366,6 +412,8 @@ def backfill_public_profile_photos(limit: int = 1000):
 
             if updated >= limit:
                 break
+
+        camara_client.close()
 
         session.commit()
 

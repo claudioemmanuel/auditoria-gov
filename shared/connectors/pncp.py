@@ -186,7 +186,10 @@ class PNCPConnector(BaseConnector):
             async with pncp_client() as client:
                 response = await client.get(endpoint, params=query_params, timeout=_PNCP_TIMEOUT)
                 response.raise_for_status()
-                body = response.json()
+                if response.status_code == 204:
+                    body = []
+                else:
+                    body = response.json()
         except httpx.ReadTimeout:
             # Large pages occasionally time out on PNCP; retry once with a smaller page.
             if page_size <= _PNCP_REDUCED_PAGE_SIZE:
@@ -196,7 +199,10 @@ class PNCPConnector(BaseConnector):
             async with pncp_client() as client:
                 response = await client.get(endpoint, params=query_params, timeout=_PNCP_TIMEOUT)
                 response.raise_for_status()
-                body = response.json()
+                if response.status_code == 204:
+                    body = []
+                else:
+                    body = response.json()
 
         records = body if isinstance(body, list) else body.get("data", body.get("registros", []))
         items = [
@@ -245,6 +251,41 @@ class PNCPConnector(BaseConnector):
             )
             entities.append(orgao)
 
+            # Extract supplier/winner if present in raw data
+            fornecedor_ni = d.get("niFornecedor", d.get("cnpjFornecedor", ""))
+            fornecedor_nome = d.get(
+                "nomeRazaoSocialFornecedor", d.get("nomeFornecedor", "")
+            )
+
+            if fornecedor_ni or fornecedor_nome:
+                fornecedor = CanonicalEntity(
+                    source_connector="pncp",
+                    source_id=fornecedor_ni or f"{item.raw_id}:fornecedor",
+                    type="company",
+                    name=fornecedor_nome or fornecedor_ni,
+                    identifiers=(
+                        {"cnpj": fornecedor_ni} if fornecedor_ni else {}
+                    ),
+                )
+                entities.append(fornecedor)
+                participants = [
+                    CanonicalEventParticipant(entity_ref=orgao, role="buyer"),
+                    CanonicalEventParticipant(
+                        entity_ref=orgao, role="procuring_entity"
+                    ),
+                    CanonicalEventParticipant(
+                        entity_ref=fornecedor, role="supplier"
+                    ),
+                ]
+            else:
+                participants = [
+                    CanonicalEventParticipant(entity_ref=orgao, role="orgao"),
+                    CanonicalEventParticipant(
+                        entity_ref=orgao, role="procuring_entity"
+                    ),
+                    CanonicalEventParticipant(entity_ref=orgao, role="buyer"),
+                ]
+
             events.append(
                 CanonicalEvent(
                     source_connector="pncp",
@@ -269,11 +310,7 @@ class PNCPConnector(BaseConnector):
                             else d.get("uf", "")
                         ),
                     },
-                    participants=[
-                        CanonicalEventParticipant(entity_ref=orgao, role="orgao"),
-                        CanonicalEventParticipant(entity_ref=orgao, role="procuring_entity"),
-                        CanonicalEventParticipant(entity_ref=orgao, role="buyer"),
-                    ],
+                    participants=participants,
                 )
             )
 

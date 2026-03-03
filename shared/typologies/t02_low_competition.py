@@ -65,18 +65,28 @@ class T02LowCompetitionTypology(BaseTypology):
 
         event_ids = [e.id for e in events]
 
-        # Count bidders per event
-        bidder_stmt = select(EventParticipant).where(
+        # Query all relevant participants (bidders for count + all roles for entity_ids)
+        parts_stmt = select(EventParticipant).where(
             EventParticipant.event_id.in_(event_ids),
-            EventParticipant.role == "bidder",
+            EventParticipant.role.in_(
+                ["procuring_entity", "buyer", "supplier", "winner", "bidder"]
+            ),
         )
-        bidder_result = await session.execute(bidder_stmt)
-        bidders = bidder_result.scalars().all()
+        parts_result = await session.execute(parts_stmt)
+        all_participants = parts_result.scalars().all()
 
-        # Group bidders by event
         bidder_counts: dict[str, set[str]] = defaultdict(set)
-        for b in bidders:
-            bidder_counts[str(b.event_id)].add(str(b.entity_id))
+        event_entity_ids: dict[str, list] = defaultdict(list)
+        _seen: set[tuple[str, str]] = set()
+        for p in all_participants:
+            eid_str = str(p.event_id)
+            entity_str = str(p.entity_id)
+            if p.role == "bidder":
+                bidder_counts[eid_str].add(entity_str)
+            pair = (eid_str, entity_str)
+            if pair not in _seen:
+                _seen.add(pair)
+                event_entity_ids[eid_str].append(p.entity_id)
 
         # Build event info map
         event_info: dict[str, dict] = {}
@@ -145,7 +155,7 @@ class T02LowCompetitionTypology(BaseTypology):
                         description=f"Baseline p10 = {p10:.1f} participantes",
                     ),
                 ],
-                entity_ids=[],
+                entity_ids=event_entity_ids.get(eid, []),
                 event_ids=[e.id],
                 period_start=window_start,
                 period_end=window_end,

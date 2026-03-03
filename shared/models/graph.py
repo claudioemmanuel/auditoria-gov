@@ -145,9 +145,37 @@ class SignalGraphEdgeOut(BaseModel):
     attrs: dict = Field(default_factory=dict)
 
 
+class ExpandedNodeOut(BaseModel):
+    id: uuid.UUID
+    entity_id: uuid.UUID
+    label: str
+    node_type: str
+    source_connector: Optional[str] = None
+    attrs: dict = Field(default_factory=dict)
+    is_direct_participant: bool = False
+
+
+class ExpansionEdgeOut(BaseModel):
+    id: uuid.UUID
+    from_entity_id: uuid.UUID
+    to_entity_id: uuid.UUID
+    edge_type: str
+    weight: float = 1.0
+    attrs: dict = Field(default_factory=dict)
+
+
+class ClusterEntityOut(BaseModel):
+    entity_id: uuid.UUID
+    name: str
+    node_type: str
+    source_connector: Optional[str] = None
+
+
 class SignalGraphOverviewOut(BaseModel):
     nodes: list[SignalGraphNodeOut] = Field(default_factory=list)
     edges: list[SignalGraphEdgeOut] = Field(default_factory=list)
+    expanded_nodes: list[ExpandedNodeOut] = Field(default_factory=list)
+    expansion_edges: list[ExpansionEdgeOut] = Field(default_factory=list)
 
 
 class SignalTimelineParticipantOut(BaseModel):
@@ -184,6 +212,8 @@ class SignalInvolvedEntityProfileOut(BaseModel):
     photo_url: Optional[str] = None
     roles_in_signal: list[SignalInvolvedEntityRoleOut] = Field(default_factory=list)
     event_count: int = 0
+    is_direct_participant: bool = True
+    cluster_entities: list[ClusterEntityOut] = Field(default_factory=list)
 
 
 class SignalGraphDiagnosticsOut(BaseModel):

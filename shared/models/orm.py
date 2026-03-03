@@ -401,6 +401,94 @@ class TypologyRunLog(Base):
     )
 
 
+class EventRawSource(Base):
+    """M2M link: Event ↔ RawSource — traces an event back to its raw API JSON."""
+
+    __tablename__ = "event_raw_source"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("event.id", ondelete="CASCADE")
+    )
+    raw_source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("raw_source.id", ondelete="CASCADE")
+    )
+
+    event: Mapped["Event"] = relationship()
+    raw_source: Mapped["RawSource"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "raw_source_id", name="uq_event_raw_source"),
+        Index("ix_event_raw_source_event", "event_id"),
+        Index("ix_event_raw_source_raw_source", "raw_source_id"),
+    )
+
+
+class EntityRawSource(Base):
+    """M2M link: Entity ↔ RawSource — traces an entity back to its raw API JSON."""
+
+    __tablename__ = "entity_raw_source"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity.id", ondelete="CASCADE")
+    )
+    raw_source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("raw_source.id", ondelete="CASCADE")
+    )
+
+    entity: Mapped["Entity"] = relationship()
+    raw_source: Mapped["RawSource"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("entity_id", "raw_source_id", name="uq_entity_raw_source"),
+        Index("ix_entity_raw_source_entity", "entity_id"),
+        Index("ix_entity_raw_source_raw_source", "raw_source_id"),
+    )
+
+
+class SignalEvent(Base):
+    """M2M link: RiskSignal ↔ Event — proper FK replacing JSONB event_ids."""
+
+    __tablename__ = "signal_event"
+
+    signal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("risk_signal.id", ondelete="CASCADE")
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("event.id", ondelete="CASCADE")
+    )
+
+    signal: Mapped["RiskSignal"] = relationship()
+    event: Mapped["Event"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("signal_id", "event_id", name="uq_signal_event"),
+        Index("ix_signal_event_signal", "signal_id"),
+        Index("ix_signal_event_event", "event_id"),
+    )
+
+
+class SignalEntity(Base):
+    """M2M link: RiskSignal ↔ Entity — proper FK replacing JSONB entity_ids."""
+
+    __tablename__ = "signal_entity"
+
+    signal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("risk_signal.id", ondelete="CASCADE")
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity.id", ondelete="CASCADE")
+    )
+
+    signal: Mapped["RiskSignal"] = relationship()
+    entity: Mapped["Entity"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("signal_id", "entity_id", name="uq_signal_entity"),
+        Index("ix_signal_entity_signal", "signal_id"),
+        Index("ix_signal_entity_entity", "entity_id"),
+    )
+
+
 class ReferenceData(Base):
     __tablename__ = "reference_data"
 

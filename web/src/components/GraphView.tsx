@@ -36,9 +36,9 @@ const NODE_SIZE: Record<string, number> = {
 };
 
 const DIAGNOSTIC_REASON_LABELS: Record<string, string> = {
-  no_events_for_entity: "A entidade ainda nao possui eventos associados",
-  no_coparticipants_or_er_not_run: "Nao foram encontrados co-participantes nos eventos analisados",
-  er_not_materialized: "O grafo ainda nao foi materializado pelo processo de resolucao de entidades",
+  no_events_for_entity: "A entidade ainda não possui eventos associados",
+  no_coparticipants_or_er_not_run: "Não foram encontrados co-participantes nos eventos analisados",
+  er_not_materialized: "O grafo ainda não foi materializado pelo processo de resolução de entidades",
   graph_available: "Grafo materializado",
 };
 
@@ -172,7 +172,7 @@ export function GraphView({ entityId, height = 400, className }: GraphViewProps)
     const coParticipants = data?.co_participants || [];
     const reasonLabel = diagnostics
       ? (DIAGNOSTIC_REASON_LABELS[diagnostics.reason] || diagnostics.reason)
-      : "Sem diagnostico disponivel";
+      : "Sem diagnóstico disponível";
     return (
       <div className={cn("p-4 bg-surface-card", className)}>
         <div className="rounded-lg border border-border bg-surface-subtle p-4">
@@ -184,11 +184,11 @@ export function GraphView({ entityId, height = 400, className }: GraphViewProps)
             </div>
             <div>
               <p className="text-sm font-semibold text-primary">
-                Nenhuma conexao materializada para esta entidade
+                Nenhuma conexão materializada para esta entidade
               </p>
               <p className="mt-1 text-xs text-secondary">
-                Isso pode ocorrer quando o processo de resolucao de entidades/arestas ainda nao foi executado
-                ou quando os eventos nao possuem co-participantes suficientes.
+                Isso pode ocorrer quando o processo de resolução de entidades/arestas ainda não foi executado
+                ou quando os eventos não possuem co-participantes suficientes.
               </p>
             </div>
           </div>
@@ -260,7 +260,7 @@ export function GraphView({ entityId, height = 400, className }: GraphViewProps)
 
       {/* Stats */}
       <div className="absolute right-2 top-2 z-10 rounded-md bg-surface-card/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur-sm">
-        {data.nodes.length} nos, {data.edges.length} arestas
+        {data.nodes.length} nós, {data.edges.length} arestas
         {data.truncated && (
           <span className="ml-1 text-severity-medium">(truncado)</span>
         )}

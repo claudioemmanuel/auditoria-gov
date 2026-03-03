@@ -87,7 +87,7 @@ class QueridoDiarioConnector(BaseConnector):
                 break
             else:
                 response.raise_for_status()  # raise the 429 after all retries
-            data = response.json()
+            data = {} if response.status_code == 204 else response.json()
 
         gazettes = data.get("gazettes", [])
         total = data.get("total_gazettes", 0)
