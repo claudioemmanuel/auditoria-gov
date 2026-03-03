@@ -1,42 +1,83 @@
-# Python
+# ── Python ───────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
+*.egg
+.eggs/
 dist/
 build/
-.eggs/
-*.egg
 .venv/
 venv/
 env/
+.Python
 
-# Node
+# uv
+.uv/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.lcov
+
+# MyPy / Pyright / Ruff
+.mypy_cache/
+.pyright/
+.ruff_cache/
+
+# ── Node / Next.js ───────────────────────────────────────────────────
 node_modules/
 .next/
 out/
+.vercel/
+*.tsbuildinfo
 
-# Environment
+# ── Environment ──────────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
+# Keep .env.example tracked
+!.env.example
 
-# IDE
+# ── Docker ───────────────────────────────────────────────────────────
+*.log
+docker-compose.override.yml
+
+# ── Data directories (large bulk downloads) ──────────────────────────
+data/
+/data/
+
+# ── IDE ──────────────────────────────────────────────────────────────
 .vscode/
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*.swn
+*~
 
-# OS
+# ── OS ───────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Docker
-*.log
+# ── Secrets / Keys ───────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
 
-# Alembic
+# ── Alembic ──────────────────────────────────────────────────────────
 api/alembic/versions/__pycache__/
 
-# Coverage
-htmlcov/
-.coverage
+# ── Misc ─────────────────────────────────────────────────────────────
+*.bak
+*.tmp
+.hypothesis/
