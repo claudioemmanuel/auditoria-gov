@@ -10,25 +10,25 @@ const CARDS = [
     key: "critical" as const,
     label: "Criticos",
     accent: "text-severity-critical",
-    bg: "border-l-severity-critical",
+    bg: "border-l-red-600",
   },
   {
     key: "high" as const,
     label: "Altos",
     accent: "text-severity-high",
-    bg: "border-l-severity-high",
+    bg: "border-l-orange-600",
   },
   {
     key: "medium" as const,
     label: "Medios",
     accent: "text-severity-medium",
-    bg: "border-l-severity-medium",
+    bg: "border-l-yellow-600",
   },
   {
     key: "low" as const,
     label: "Baixos",
     accent: "text-severity-low",
-    bg: "border-l-severity-low",
+    bg: "border-l-blue-600",
   },
 ] as const;
 
@@ -39,11 +39,11 @@ export function SeverityCountCards({ counts }: SeverityCountCardsProps) {
         <div
           key={card.key}
           className={cn(
-            "rounded-lg border border-border bg-surface-card p-4 border-l-4",
+            "rounded-lg border border-gov-gray-200 bg-white p-4 shadow-sm border-l-4",
             card.bg,
           )}
         >
-          <p className="text-xs font-medium uppercase tracking-wide text-secondary">
+          <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-600">
             {card.label}
           </p>
           <p

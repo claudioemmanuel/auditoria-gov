@@ -66,11 +66,11 @@ export function RadarFilterPanel({
 
       {/* Tipologia */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-secondary">Tipologia</label>
+        <label className="text-xs font-medium text-gov-gray-600">Tipologia</label>
         <select
           value={typology}
           onChange={(e) => onTypologyChange(e.target.value)}
-          className="w-full rounded-md border border-border bg-surface-card px-2.5 py-2 text-xs text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full rounded-md border border-gov-gray-200 bg-white px-2.5 py-2 text-xs text-gov-gray-900 outline-none focus:border-gov-blue-700 focus:ring-1 focus:ring-gov-blue-700"
         >
           <option value="">Todas</option>
           {Object.entries(TYPOLOGY_LABELS).map(([code, label]) => (
@@ -83,7 +83,7 @@ export function RadarFilterPanel({
 
       {/* Severidade */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-secondary">Severidade</label>
+        <label className="text-xs font-medium text-gov-gray-600">Severidade</label>
         <div className="flex flex-col gap-1">
           {severities.map((sev) => {
             const dotMap: Record<string, string> = {
@@ -101,8 +101,8 @@ export function RadarFilterPanel({
                 className={cn(
                   "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition",
                   isSelected
-                    ? "bg-accent-subtle text-accent font-medium"
-                    : "text-primary hover:bg-surface-subtle",
+                    ? "bg-gov-blue-50 text-gov-blue-700 font-medium"
+                    : "text-gov-gray-900 hover:bg-gov-gray-50",
                 )}
               >
                 <span className={cn("h-2 w-2 rounded-full flex-shrink-0", dotMap[sev])} />
@@ -115,7 +115,7 @@ export function RadarFilterPanel({
 
       {/* Periodo */}
       <div className="flex flex-col gap-1.5">
-        <label className="flex items-center gap-1.5 text-xs font-medium text-secondary">
+        <label className="flex items-center gap-1.5 text-xs font-medium text-gov-gray-600">
           <CalendarRange className="h-3.5 w-3.5" />
           Período
         </label>
@@ -124,27 +124,27 @@ export function RadarFilterPanel({
           value={periodFrom}
           onChange={(e) => onPeriodFromChange(e.target.value)}
           placeholder="De"
-          className="w-full rounded-md border border-border bg-surface-card px-2.5 py-1.5 text-xs text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full rounded-md border border-gov-gray-200 bg-white px-2.5 py-1.5 text-xs text-gov-gray-900 outline-none focus:border-gov-blue-700 focus:ring-1 focus:ring-gov-blue-700"
         />
         <input
           type="date"
           value={periodTo}
           onChange={(e) => onPeriodToChange(e.target.value)}
           placeholder="Até"
-          className="w-full rounded-md border border-border bg-surface-card px-2.5 py-1.5 text-xs text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full rounded-md border border-gov-gray-200 bg-white px-2.5 py-1.5 text-xs text-gov-gray-900 outline-none focus:border-gov-blue-700 focus:ring-1 focus:ring-gov-blue-700"
         />
       </div>
 
       {/* Tipo de Corrupção */}
       <div className="flex flex-col gap-1.5">
-        <label className="flex items-center gap-1.5 text-xs font-medium text-secondary">
+        <label className="flex items-center gap-1.5 text-xs font-medium text-gov-gray-600">
           <Scale className="h-3.5 w-3.5" />
           Tipo de Corrupção
         </label>
         <select
           value={corruptionType}
           onChange={(e) => onCorruptionTypeChange(e.target.value)}
-          className="w-full rounded-md border border-border bg-surface-card px-2.5 py-2 text-xs text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full rounded-md border border-gov-gray-200 bg-white px-2.5 py-2 text-xs text-gov-gray-900 outline-none focus:border-gov-blue-700 focus:ring-1 focus:ring-gov-blue-700"
         >
           <option value="">Todos</option>
           {Object.entries(CORRUPTION_TYPE_LABELS).map(([key, label]) => (
@@ -157,14 +157,14 @@ export function RadarFilterPanel({
 
       {/* Esfera */}
       <div className="flex flex-col gap-1.5">
-        <label className="flex items-center gap-1.5 text-xs font-medium text-secondary">
+        <label className="flex items-center gap-1.5 text-xs font-medium text-gov-gray-600">
           <Globe className="h-3.5 w-3.5" />
           Esfera
         </label>
         <select
           value={sphere}
           onChange={(e) => onSphereChange(e.target.value)}
-          className="w-full rounded-md border border-border bg-surface-card px-2.5 py-2 text-xs text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full rounded-md border border-gov-gray-200 bg-white px-2.5 py-2 text-xs text-gov-gray-900 outline-none focus:border-gov-blue-700 focus:ring-1 focus:ring-gov-blue-700"
         >
           <option value="">Todas</option>
           {Object.entries(SPHERE_LABELS).map(([key, label]) => (
@@ -179,7 +179,7 @@ export function RadarFilterPanel({
         <button
           type="button"
           onClick={onClearAll}
-          className="mt-1 w-full rounded-md border border-border bg-surface-subtle py-2 text-xs font-medium text-secondary transition hover:bg-surface-base"
+          className="mt-1 w-full rounded-md border border-gov-gray-200 bg-gov-gray-50 py-2 text-xs font-medium text-gov-gray-600 transition hover:bg-gov-gray-100"
         >
           Limpar filtros
         </button>

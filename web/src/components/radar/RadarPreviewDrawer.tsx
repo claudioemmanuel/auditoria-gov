@@ -33,19 +33,19 @@ export function RadarPreviewDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-      <div className="h-full w-full max-w-2xl overflow-y-auto bg-surface-card p-4 shadow-2xl">
+      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white p-4 shadow-2xl">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+        <div className="flex items-start justify-between gap-3 border-b border-gov-gray-200 pb-3">
           <div>
-            <h3 className="text-lg font-semibold text-primary">
+            <h3 className="text-lg font-semibold text-gov-gray-900">
               {type === "signal" ? "Previa do sinal" : "Previa do caso"}
             </h3>
-            <p className="text-xs text-muted">Entenda o padrão sem sair do Radar.</p>
+            <p className="text-xs text-gov-gray-400">Entenda o padrão sem sair do Radar.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-muted hover:bg-surface-subtle"
+            className="rounded-md p-1 text-gov-gray-400 hover:bg-gov-gray-50"
           >
             <X className="h-4 w-4" />
           </button>

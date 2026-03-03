@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { AppSidebar } from "@/components/AppSidebar";
+import { Header } from "@/components/Header";
 import { SiteFooter } from "@/components/SiteFooter";
 
 const inter = Inter({
@@ -30,13 +30,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} flex min-h-screen bg-surface-base`}
+        className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen flex flex-col bg-gov-gray-50`}
       >
-        <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </div>
+        <Header />
+        <main className="flex-1">{children}</main>
+        <SiteFooter />
       </body>
     </html>
   );
