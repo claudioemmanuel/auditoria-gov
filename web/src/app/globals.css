@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gov-blue-50: #eff6ff;
+  --color-gov-blue-100: #dbeafe;
+  --color-gov-blue-500: #3b82f6;
+  --color-gov-blue-600: #2563eb;
+  --color-gov-blue-700: #1d4ed8;
+  --color-gov-blue-800: #1e40af;
+  --color-gov-blue-900: #1e3a8a;
+
+  --color-gov-gray-50: #f9fafb;
+  --color-gov-gray-100: #f3f4f6;
+  --color-gov-gray-200: #e5e7eb;
+  --color-gov-gray-300: #d1d5db;
+  --color-gov-gray-400: #9ca3af;
+  --color-gov-gray-500: #6b7280;
+  --color-gov-gray-700: #374151;
+  --color-gov-gray-900: #111827;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--color-gov-gray-900);
+  background-color: var(--color-gov-gray-50);
+}
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-gov-blue-500);
+  outline-offset: 2px;
+}
+
+/* Investigation page — light background */
+.investigation-bg {
+  background-color: var(--color-gov-gray-50);
+}
+
+/* Investigation sidebar slide animation */
+.investigation-sidebar {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* React Flow overrides */
+.investigation-bg .react-flow__pane {
+  cursor: grab;
+}
+.investigation-bg .react-flow__pane:active {
+  cursor: grabbing;
+}
+.investigation-bg .react-flow__minimap {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.investigation-bg .react-flow__controls {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+}
+.investigation-bg .react-flow__controls button {
+  border-radius: 0;
+  border-color: var(--color-gov-gray-100);
+}
+.investigation-bg .react-flow__controls button:hover {
+  background-color: var(--color-gov-gray-50);
+}
+.investigation-bg .react-flow__edge-textbg {
+  fill: transparent;
+}
+.investigation-bg .react-flow__node {
+  transition: filter 150ms ease;
+}
+.investigation-bg .react-flow__node.selected {
+  filter: drop-shadow(0 4px 12px rgb(59 130 246 / 0.15));
+}

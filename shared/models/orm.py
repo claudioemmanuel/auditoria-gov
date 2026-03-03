@@ -1,0 +1,401 @@
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from shared.models.base import Base
+
+
+class RawRun(Base):
+    __tablename__ = "raw_run"
+
+    connector: Mapped[str] = mapped_column(String(100))
+    job: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    cursor_start: Mapped[Optional[str]] = mapped_column(String(255))
+    cursor_end: Mapped[Optional[str]] = mapped_column(String(255))
+    items_fetched: Mapped[int] = mapped_column(Integer, default=0)
+    items_normalized: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[Optional[dict]] = mapped_column(JSONB)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    sources: Mapped[list["RawSource"]] = relationship(back_populates="run")
+
+
+class RawSource(Base):
+    __tablename__ = "raw_source"
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("raw_run.id")
+    )
+    connector: Mapped[str] = mapped_column(String(100))
+    job: Mapped[str] = mapped_column(String(100))
+    raw_id: Mapped[str] = mapped_column(String(255))
+    raw_data: Mapped[dict] = mapped_column(JSONB)
+    normalized: Mapped[bool] = mapped_column(default=False)
+
+    run: Mapped["RawRun"] = relationship(back_populates="sources")
+
+
+class Entity(Base):
+    __tablename__ = "entity"
+
+    type: Mapped[str] = mapped_column(String(50))  # person, company, org
+    name: Mapped[str] = mapped_column(String(500))
+    name_normalized: Mapped[str] = mapped_column(String(500))
+    identifiers: Mapped[dict] = mapped_column(JSONB, default=dict)
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+    cluster_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    er_processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    aliases: Mapped[list["EntityAlias"]] = relationship(back_populates="entity")
+
+    __table_args__ = (
+        Index("ix_entity_identifiers_cnpj", identifiers["cnpj"].as_string()),
+        Index("ix_entity_type_name_norm", "type", "name_normalized"),
+        Index("ix_entity_cluster_id", "cluster_id", postgresql_where="cluster_id IS NOT NULL"),
+    )
+
+
+class EntityAlias(Base):
+    __tablename__ = "entity_alias"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity.id")
+    )
+    alias_type: Mapped[str] = mapped_column(String(50))
+    value: Mapped[str] = mapped_column(String(500))
+    source: Mapped[str] = mapped_column(String(100))
+
+    entity: Mapped["Entity"] = relationship(back_populates="aliases")
+
+
+class Event(Base):
+    __tablename__ = "event"
+
+    type: Mapped[str] = mapped_column(String(100))
+    subtype: Mapped[Optional[str]] = mapped_column(String(100))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    occurred_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    source_connector: Mapped[str] = mapped_column(String(100))
+    source_id: Mapped[str] = mapped_column(String(255))
+    value_brl: Mapped[Optional[float]] = mapped_column(Float)
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    participants: Mapped[list["EventParticipant"]] = relationship(
+        back_populates="event"
+    )
+
+    __table_args__ = (
+        Index("ix_event_type_occurred_at", "type", "occurred_at"),
+        UniqueConstraint("source_connector", "source_id", name="uq_event_source"),
+    )
+
+
+class EventParticipant(Base):
+    __tablename__ = "event_participant"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("event.id")
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity.id")
+    )
+    role: Mapped[str] = mapped_column(String(50))
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    event: Mapped["Event"] = relationship(back_populates="participants")
+    entity: Mapped["Entity"] = relationship()
+
+    __table_args__ = (
+        Index("ix_event_participant_entity_role", "entity_id", "role"),
+        Index("ix_event_participant_event_role", "event_id", "role"),
+        UniqueConstraint("event_id", "entity_id", "role", name="uq_event_participant_triplet"),
+    )
+
+
+class GraphNode(Base):
+    __tablename__ = "graph_node"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity.id"), unique=True
+    )
+    label: Mapped[str] = mapped_column(String(500))
+    node_type: Mapped[str] = mapped_column(String(50))
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    entity: Mapped["Entity"] = relationship()
+
+
+class GraphEdge(Base):
+    __tablename__ = "graph_edge"
+
+    from_node_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("graph_node.id")
+    )
+    to_node_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("graph_node.id")
+    )
+    type: Mapped[str] = mapped_column(String(100))
+    weight: Mapped[float] = mapped_column(Float, default=1.0)
+    edge_strength: Mapped[str] = mapped_column(String(20), default="weak")
+    verification_method: Mapped[Optional[str]] = mapped_column(String(100))
+    verification_confidence: Mapped[Optional[float]] = mapped_column(Float)
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    from_node: Mapped["GraphNode"] = relationship(foreign_keys=[from_node_id])
+    to_node: Mapped["GraphNode"] = relationship(foreign_keys=[to_node_id])
+
+    __table_args__ = (
+        Index("ix_graph_edge_from", "from_node_id"),
+        Index("ix_graph_edge_to", "to_node_id"),
+        Index("ix_graph_edge_type", "type"),
+        Index("ix_graph_edge_strength", "edge_strength"),
+        UniqueConstraint("from_node_id", "to_node_id", "type", name="uq_graph_edge_triplet"),
+    )
+
+
+class TextCorpus(Base):
+    __tablename__ = "text_corpus"
+
+    source_type: Mapped[str] = mapped_column(String(100))
+    source_id: Mapped[str] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text)
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class TextEmbedding(Base):
+    __tablename__ = "text_embedding"
+
+    corpus_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("text_corpus.id")
+    )
+    model: Mapped[str] = mapped_column(String(100))
+    embedding: Mapped[list] = mapped_column(Vector(1536))
+
+    corpus: Mapped["TextCorpus"] = relationship()
+
+    __table_args__ = (
+        Index(
+            "ix_text_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+
+class Typology(Base):
+    __tablename__ = "typology"
+
+    code: Mapped[str] = mapped_column(String(10), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    required_domains: Mapped[list] = mapped_column(JSONB, default=list)
+    active: Mapped[bool] = mapped_column(default=True)
+
+
+class EvidencePackage(Base):
+    __tablename__ = "evidence_package"
+
+    source_url: Mapped[Optional[str]] = mapped_column(Text)
+    source_hash: Mapped[Optional[str]] = mapped_column(String(128))
+    captured_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    parser_version: Mapped[Optional[str]] = mapped_column(String(100))
+    model_version: Mapped[Optional[str]] = mapped_column(String(100))
+    raw_snapshot_uri: Mapped[Optional[str]] = mapped_column(Text)
+    normalized_snapshot_uri: Mapped[Optional[str]] = mapped_column(Text)
+    signature: Mapped[Optional[str]] = mapped_column(String(128))
+
+    __table_args__ = (
+        Index("ix_evidence_package_captured_at", "captured_at"),
+        Index("ix_evidence_package_signature", "signature"),
+    )
+
+
+class RiskSignal(Base):
+    __tablename__ = "risk_signal"
+
+    typology_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("typology.id")
+    )
+    severity: Mapped[str] = mapped_column(String(20))
+    confidence: Mapped[float] = mapped_column(Float)
+    title: Mapped[str] = mapped_column(String(500))
+    summary: Mapped[Optional[str]] = mapped_column(Text)
+    explanation_md: Mapped[Optional[str]] = mapped_column(Text)
+    completeness_score: Mapped[float] = mapped_column(Float, default=0.0)
+    completeness_status: Mapped[str] = mapped_column(String(20), default="insufficient")
+    evidence_package_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("evidence_package.id")
+    )
+    factors: Mapped[dict] = mapped_column(JSONB, default=dict)
+    evidence_refs: Mapped[list] = mapped_column(JSONB, default=list)
+    entity_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    event_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    period_start: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Dedup key: hash(typology_code, sorted(entity_ids), period_start, period_end).
+    # Prevents duplicate signals for the same scope+window across runs.
+    dedup_key: Mapped[Optional[str]] = mapped_column(String(64), unique=True)
+
+    typology: Mapped["Typology"] = relationship()
+    evidence_package: Mapped[Optional["EvidencePackage"]] = relationship()
+
+    __table_args__ = (
+        Index("ix_risk_signal_typology_severity", "typology_id", "severity", "created_at"),
+        Index("ix_risk_signal_completeness", "completeness_status", "completeness_score"),
+    )
+
+
+class Case(Base):
+    __tablename__ = "case"
+
+    title: Mapped[str] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    severity: Mapped[str] = mapped_column(String(20))
+    summary: Mapped[Optional[str]] = mapped_column(Text)
+    attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    items: Mapped[list["CaseItem"]] = relationship(back_populates="case")
+
+
+class CaseItem(Base):
+    __tablename__ = "case_item"
+
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("case.id")
+    )
+    signal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("risk_signal.id")
+    )
+
+    case: Mapped["Case"] = relationship(back_populates="items")
+    signal: Mapped["RiskSignal"] = relationship()
+
+
+class Contestation(Base):
+    __tablename__ = "contestation"
+
+    signal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("risk_signal.id")
+    )
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    requester_name: Mapped[str] = mapped_column(String(255))
+    requester_email: Mapped[Optional[str]] = mapped_column(String(255))
+    reason: Mapped[str] = mapped_column(Text)
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    resolution: Mapped[Optional[str]] = mapped_column(Text)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    signal: Mapped[Optional["RiskSignal"]] = relationship()
+
+    __table_args__ = (
+        Index("ix_contestation_signal_status", "signal_id", "status"),
+        Index("ix_contestation_created_at", "created_at"),
+    )
+
+
+class IngestState(Base):
+    __tablename__ = "ingest_state"
+
+    connector: Mapped[str] = mapped_column(String(100))
+    job: Mapped[str] = mapped_column(String(100))
+    last_cursor: Mapped[Optional[str]] = mapped_column(String(255))
+    last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    __table_args__ = (
+        UniqueConstraint("connector", "job", name="uq_ingest_state_connector_job"),
+    )
+
+
+class CoverageRegistry(Base):
+    __tablename__ = "coverage_registry"
+
+    connector: Mapped[str] = mapped_column(String(100))
+    job: Mapped[str] = mapped_column(String(100))
+    domain: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    last_success_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    freshness_lag_hours: Mapped[Optional[float]] = mapped_column(Float)
+    total_items: Mapped[int] = mapped_column(BigInteger, default=0)
+    period_start: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "connector", "job", name="uq_coverage_registry_connector_job"
+        ),
+    )
+
+
+class BaselineSnapshot(Base):
+    __tablename__ = "baseline_snapshot"
+
+    baseline_type: Mapped[str] = mapped_column(String(50))
+    scope_key: Mapped[str] = mapped_column(String(255))
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sample_size: Mapped[int] = mapped_column(Integer)
+    metrics: Mapped[dict] = mapped_column(JSONB)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "baseline_type",
+            "scope_key",
+            "window_start",
+            "window_end",
+            name="uq_baseline_snapshot",
+        ),
+    )
+
+
+class ERRunState(Base):
+    __tablename__ = "er_run_state"
+
+    status: Mapped[str] = mapped_column(String(20))
+    entities_processed: Mapped[int] = mapped_column(Integer, default=0)
+    deterministic_matches: Mapped[int] = mapped_column(Integer, default=0)
+    probabilistic_matches: Mapped[int] = mapped_column(Integer, default=0)
+    clusters_formed: Mapped[int] = mapped_column(Integer, default=0)
+    edges_created: Mapped[int] = mapped_column(Integer, default=0)
+    watermark_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class TypologyRunLog(Base):
+    __tablename__ = "typology_run_log"
+
+    typology_code: Mapped[str] = mapped_column(String(10))
+    status: Mapped[str] = mapped_column(String(20))  # running, success, error
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    duration_ms: Mapped[Optional[int]] = mapped_column(Integer)
+    candidates: Mapped[int] = mapped_column(Integer, default=0)
+    signals_created: Mapped[int] = mapped_column(Integer, default=0)
+    signals_deduped: Mapped[int] = mapped_column(Integer, default=0)
+    signals_blocked: Mapped[int] = mapped_column(Integer, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text)
+    dry_run: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_typology_run_log_code_started", "typology_code", "started_at"),
+    )
