@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   getCoverageV2Analytics,
-  getCoverageV2Map,
   getCoverageV2SourcePreview,
   getCoverageV2Sources,
   getCoverageV2Summary,
@@ -12,14 +11,12 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { CoverageAnalyticsPanel } from "@/components/coverage/CoverageAnalyticsPanel";
 import { CoverageFilterBar, type CoverageFilterState } from "@/components/coverage/CoverageFilterBar";
 import { CoverageHeader } from "@/components/coverage/CoverageHeader";
-import { CoverageMapPanel } from "@/components/coverage/CoverageMapPanel";
 import { CoveragePipelinePanel } from "@/components/coverage/CoveragePipelinePanel";
 import { CoverageSourcePreviewDrawer } from "@/components/coverage/CoverageSourcePreviewDrawer";
 import { CoverageSourcesList } from "@/components/coverage/CoverageSourcesList";
 import { CoverageSummaryStrip } from "@/components/coverage/CoverageSummaryStrip";
 import type {
   CoverageV2AnalyticsResponse,
-  CoverageV2MapResponse,
   CoverageV2SourcePreviewResponse,
   CoverageV2SourcesResponse,
   CoverageV2SummaryResponse,
@@ -51,23 +48,18 @@ const DOMAIN_OPTIONS = [
 export default function CoveragePage() {
   const [summary, setSummary] = useState<CoverageV2SummaryResponse | null>(null);
   const [sources, setSources] = useState<CoverageV2SourcesResponse | null>(null);
-  const [mapData, setMapData] = useState<CoverageV2MapResponse | null>(null);
   const [analytics, setAnalytics] = useState<CoverageV2AnalyticsResponse | null>(null);
 
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [sourcesError, setSourcesError] = useState<string | null>(null);
-  const [mapError, setMapError] = useState<string | null>(null);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [sourcesLoading, setSourcesLoading] = useState(true);
-  const [mapLoading, setMapLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const [filters, setFilters] = useState<CoverageFilterState>(DEFAULT_FILTERS);
   const [offset, setOffset] = useState(0);
-  const [mapMetric, setMapMetric] = useState<"coverage" | "freshness" | "risk">("coverage");
-
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -126,27 +118,6 @@ export default function CoveragePage() {
   }, [filters, offset]);
 
   useEffect(() => {
-    let active = true;
-    setMapLoading(true);
-    setMapError(null);
-    getCoverageV2Map({ layer: "uf", metric: mapMetric })
-      .then((payload) => {
-        if (!active) return;
-        setMapData(payload);
-      })
-      .catch(() => {
-        if (!active) return;
-        setMapError("Nao foi possivel carregar o mapa de cobertura.");
-      })
-      .finally(() => {
-        if (active) setMapLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [mapMetric]);
-
-  useEffect(() => {
     if (!analyticsOpen || analytics || analyticsLoading) {
       return;
     }
@@ -196,31 +167,50 @@ export default function CoveragePage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <Breadcrumb items={[{ label: "Cobertura" }]} />
+    <div className="pt-14 lg:pt-0">
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <Breadcrumb items={[{ label: "Cobertura" }]} />
 
-      <CoverageHeader snapshotAt={summary?.snapshot_at} />
-      {summaryError && (
-        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {summaryError}
-        </div>
-      )}
-      <CoverageSummaryStrip summary={summary} loading={summaryLoading} />
+        {/* Page title + snapshot */}
+        <CoverageHeader snapshotAt={summary?.snapshot_at} />
 
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="space-y-4 xl:col-span-4">
+        {summaryError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {summaryError}
+          </div>
+        )}
+
+        {/* Summary KPI strip */}
+        <CoverageSummaryStrip summary={summary} loading={summaryLoading} />
+
+        {/* Pipeline step indicator */}
+        <div className="mt-6">
           <CoveragePipelinePanel summary={summary} loading={summaryLoading} />
-          <CoverageMapPanel
-            map={mapData}
-            metric={mapMetric}
-            loading={mapLoading}
-            onMetricChange={setMapMetric}
-          />
-          {mapError && (
+        </div>
+
+        {/* Sources table */}
+        <div className="mt-6 space-y-3">
+          <CoverageFilterBar value={filters} domains={domains} onChange={handleFiltersChange} />
+
+          {sourcesError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {mapError}
+              {sourcesError}
             </div>
           )}
+
+          <CoverageSourcesList
+            loading={sourcesLoading}
+            items={sources?.items ?? []}
+            total={sources?.total ?? 0}
+            offset={sources?.offset ?? 0}
+            limit={sources?.limit ?? PAGE_LIMIT}
+            onOffsetChange={setOffset}
+            onPreview={(item) => handlePreview(item.connector)}
+          />
+        </div>
+
+        {/* Typology analytics (collapsible) */}
+        <div className="mt-6">
           <CoverageAnalyticsPanel
             open={analyticsOpen}
             loading={analyticsLoading}
@@ -228,28 +218,10 @@ export default function CoveragePage() {
             onToggle={() => setAnalyticsOpen((prev) => !prev)}
           />
           {analyticsError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {analyticsError}
             </div>
           )}
-        </div>
-
-        <div className="space-y-3 xl:col-span-8">
-          <CoverageFilterBar value={filters} domains={domains} onChange={handleFiltersChange} />
-          {sourcesError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {sourcesError}
-            </div>
-          )}
-          <CoverageSourcesList
-            loading={sourcesLoading}
-            items={sources?.items || []}
-            total={sources?.total || 0}
-            offset={sources?.offset || 0}
-            limit={sources?.limit || PAGE_LIMIT}
-            onOffsetChange={setOffset}
-            onPreview={(item) => handlePreview(item.connector)}
-          />
         </div>
       </div>
 

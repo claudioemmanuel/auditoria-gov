@@ -33,10 +33,10 @@ export function formatDateTime(dateStr: string): string {
 
 export function severityColor(severity: SignalSeverity): string {
   const map: Record<SignalSeverity, string> = {
-    low: "bg-blue-100 text-blue-800",
-    medium: "bg-yellow-100 text-yellow-800",
-    high: "bg-orange-100 text-orange-800",
-    critical: "bg-red-100 text-red-800",
+    low: "bg-severity-low-bg text-severity-low",
+    medium: "bg-severity-medium-bg text-severity-medium",
+    high: "bg-severity-high-bg text-severity-high",
+    critical: "bg-severity-critical-bg text-severity-critical",
   };
   return map[severity];
 }
@@ -58,12 +58,27 @@ export function formatNumber(value: number): string {
 
 export function severityDotColor(severity: SignalSeverity): string {
   const map: Record<SignalSeverity, string> = {
-    low: "bg-blue-500",
-    medium: "bg-yellow-500",
-    high: "bg-orange-500",
-    critical: "bg-red-500",
+    low: "bg-severity-low",
+    medium: "bg-severity-medium",
+    high: "bg-severity-high",
+    critical: "bg-severity-critical",
   };
   return map[severity];
+}
+
+export function relativeTime(dateStr: string): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const abs = Math.abs(diff);
+    const rtf = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
+    if (abs < 60_000) return "agora";
+    if (abs < 3_600_000) return rtf.format(-Math.round(diff / 60_000), "minute");
+    if (abs < 86_400_000) return rtf.format(-Math.round(diff / 3_600_000), "hour");
+    if (abs < 2_592_000_000) return rtf.format(-Math.round(diff / 86_400_000), "day");
+    return rtf.format(-Math.round(diff / 2_592_000_000), "month");
+  } catch {
+    return dateStr;
+  }
 }
 
 export function normalizeUnknownDisplay(

@@ -235,6 +235,8 @@ export default function SignalGraphPage() {
                 selectedNodeId={selectedNode?.id ?? null}
                 onNodeClick={(node) => setSelectedNode(node)}
                 onBackgroundClick={() => setSelectedNode(null)}
+                onClearSelected={() => setSelectedNode(null)}
+                onExpandSelected={() => {}}
               />
             </div>
           ) : (
