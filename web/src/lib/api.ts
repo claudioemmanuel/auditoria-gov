@@ -1,12 +1,13 @@
 import type {
-  AnalyticalCoverageItem,
   CaseDetail,
   CaseGraphResponse,
-  CoverageItem,
-  CoverageMapResponse,
+  CoverageV2AnalyticsResponse,
+  CoverageV2MapResponse,
+  CoverageV2SourcePreviewResponse,
+  CoverageV2SourcesResponse,
+  CoverageV2SummaryResponse,
   EntityDetail,
   IngestRunDetailResponse,
-  IngestStatusResponse,
   NeighborhoodResponse,
   OrgSummary,
   PaginatedResponse,
@@ -32,31 +33,58 @@ async function fetchJSON<T>(path: string): Promise<T> {
   return res.json();
 }
 
-export function getCoverage(): Promise<CoverageItem[]> {
-  return fetchJSON("/public/coverage");
+export function getIngestRunDetail(runId: string): Promise<IngestRunDetailResponse> {
+  return fetchJSON(`/public/coverage/v2/run/${runId}`);
 }
 
-export function getCoverageMap(params?: {
+export function getCoverageV2Summary(): Promise<CoverageV2SummaryResponse> {
+  return fetchJSON("/public/coverage/v2/summary");
+}
+
+export function getCoverageV2Sources(params?: {
+  offset?: number;
+  limit?: number;
+  status?: "ok" | "warning" | "stale" | "error" | "pending";
+  domain?: string;
+  enabled_only?: boolean;
+  q?: string;
+  sort?: "status_desc" | "name_asc" | "freshness_desc" | "jobs_desc";
+}): Promise<CoverageV2SourcesResponse> {
+  const search = new URLSearchParams();
+  if (params?.offset != null) search.set("offset", String(params.offset));
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.status) search.set("status", params.status);
+  if (params?.domain) search.set("domain", params.domain);
+  if (params?.enabled_only != null) search.set("enabled_only", String(params.enabled_only));
+  if (params?.q) search.set("q", params.q);
+  if (params?.sort) search.set("sort", params.sort);
+  const qs = search.toString();
+  return fetchJSON(`/public/coverage/v2/sources${qs ? `?${qs}` : ""}`);
+}
+
+export function getCoverageV2SourcePreview(
+  connector: string,
+  params?: { runs_limit?: number },
+): Promise<CoverageV2SourcePreviewResponse> {
+  const search = new URLSearchParams();
+  if (params?.runs_limit != null) search.set("runs_limit", String(params.runs_limit));
+  const qs = search.toString();
+  return fetchJSON(`/public/coverage/v2/source/${connector}/preview${qs ? `?${qs}` : ""}`);
+}
+
+export function getCoverageV2Map(params?: {
   layer?: "uf" | "municipio";
   metric?: "coverage" | "freshness" | "risk";
-}): Promise<CoverageMapResponse> {
+}): Promise<CoverageV2MapResponse> {
   const search = new URLSearchParams();
   if (params?.layer) search.set("layer", params.layer);
   if (params?.metric) search.set("metric", params.metric);
   const qs = search.toString();
-  return fetchJSON(`/public/coverage/map${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/public/coverage/v2/map${qs ? `?${qs}` : ""}`);
 }
 
-export function getAnalyticalCoverage(): Promise<AnalyticalCoverageItem[]> {
-  return fetchJSON("/public/coverage/analytics");
-}
-
-export function getIngestStatus(): Promise<IngestStatusResponse> {
-  return fetchJSON("/internal/ingest/status");
-}
-
-export function getIngestRunDetail(runId: string): Promise<IngestRunDetailResponse> {
-  return fetchJSON(`/internal/ingest/run/${runId}`);
+export function getCoverageV2Analytics(): Promise<CoverageV2AnalyticsResponse> {
+  return fetchJSON("/public/coverage/v2/analytics");
 }
 
 export function getRadarV2Summary(params?: {

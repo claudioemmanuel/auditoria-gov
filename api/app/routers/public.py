@@ -7,7 +7,14 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from api.app.deps import DbSession, Pagination
-from shared.models.coverage import CoverageItem, CoverageMapResponse
+from shared.models.coverage_v2 import (
+    CoverageV2AnalyticsResponse,
+    CoverageV2MapResponse,
+    CoverageV2RunDetailResponse,
+    CoverageV2SourcePreviewResponse,
+    CoverageV2SourcesResponse,
+    CoverageV2SummaryResponse,
+)
 from shared.models.graph import CaseGraphResponse, NeighborhoodResponse, SignalGraphResponse
 from shared.models.orm import Contestation
 from shared.models.radar import (
@@ -20,11 +27,14 @@ from shared.models.radar import (
 )
 from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
 from shared.repo.queries import (
-    get_analytical_coverage,
     get_case_by_id,
     get_case_graph,
-    get_coverage_list,
-    get_coverage_map,
+    get_coverage_v2_analytics,
+    get_coverage_v2_map,
+    get_coverage_v2_run_detail,
+    get_coverage_v2_source_preview,
+    get_coverage_v2_sources,
+    get_coverage_v2_summary,
     get_evidence_package_by_id,
     get_entity_by_id,
     get_graph_neighborhood,
@@ -45,30 +55,74 @@ from shared.repo.queries import (
 router = APIRouter()
 
 
-@router.get("/coverage", response_model=list[CoverageItem])
-async def coverage(session: DbSession):
-    """Coverage registry — freshness status of all data sources."""
-    return await get_coverage_list(session)
+@router.get("/coverage/v2/summary", response_model=CoverageV2SummaryResponse)
+async def coverage_v2_summary(
+    session: DbSession,
+):
+    return await get_coverage_v2_summary(session)
 
 
-@router.get("/coverage/map", response_model=CoverageMapResponse)
-async def coverage_map(
+@router.get("/coverage/v2/sources", response_model=CoverageV2SourcesResponse)
+async def coverage_v2_sources(
+    session: DbSession,
+    pagination: Pagination,
+    status: Optional[str] = Query(None, pattern="^(ok|warning|stale|error|pending)$"),
+    domain: Optional[str] = Query(None),
+    enabled_only: bool = Query(False),
+    q: Optional[str] = Query(None),
+    sort: str = Query("status_desc", pattern="^(status_desc|name_asc|freshness_desc|jobs_desc)$"),
+):
+    return await get_coverage_v2_sources(
+        session,
+        offset=pagination.offset,
+        limit=pagination.limit,
+        status=status,
+        domain=domain,
+        enabled_only=enabled_only,
+        q=q,
+        sort=sort,
+    )
+
+
+@router.get("/coverage/v2/source/{connector}/preview", response_model=CoverageV2SourcePreviewResponse)
+async def coverage_v2_source_preview(
+    connector: str,
+    session: DbSession,
+    runs_limit: int = Query(10, ge=3, le=50),
+):
+    preview = await get_coverage_v2_source_preview(
+        session,
+        connector=connector,
+        runs_limit=runs_limit,
+    )
+    if preview is None:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    return preview
+
+
+@router.get("/coverage/v2/map", response_model=CoverageV2MapResponse)
+async def coverage_v2_map(
     session: DbSession,
     layer: str = Query("uf", pattern="^(uf|municipio)$"),
     metric: str = Query("coverage", pattern="^(coverage|freshness|risk)$"),
 ):
-    """Coverage map aggregates by UF or municipality."""
-    return await get_coverage_map(session, layer=layer, metric=metric)
+    return await get_coverage_v2_map(session, layer=layer, metric=metric)
 
 
-@router.get("/coverage/analytics")
-async def coverage_analytics(session: DbSession):
-    """Analytical coverage — per-typology execution status.
+@router.get("/coverage/v2/analytics", response_model=CoverageV2AnalyticsResponse)
+async def coverage_v2_analytics(session: DbSession):
+    return await get_coverage_v2_analytics(session)
 
-    Shows which typologies are apt to run with available data,
-    which actually produced signals, and which domains are missing.
-    """
-    return await get_analytical_coverage(session)
+
+@router.get("/coverage/v2/run/{run_id}", response_model=CoverageV2RunDetailResponse)
+async def coverage_v2_run_detail(
+    run_id: uuid.UUID,
+    session: DbSession,
+):
+    detail = await get_coverage_v2_run_detail(session, run_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return detail
 
 
 

@@ -190,19 +190,127 @@ export interface RadarV2CoverageResponse {
   items: AnalyticalCoverageItem[];
 }
 
-export interface CoverageItem {
+export interface CoverageV2StatusCounts {
+  ok: number;
+  warning: number;
+  stale: number;
+  error: number;
+  pending: number;
+}
+
+export interface CoverageV2RuntimeTotals {
+  running: number;
+  stuck: number;
+  failed_or_stuck: number;
+}
+
+export interface CoverageV2SummaryResponse {
+  snapshot_at: string;
+  totals: {
+    connectors: number;
+    jobs: number;
+    jobs_enabled: number;
+    signals_total: number;
+    status_counts: CoverageV2StatusCounts;
+    runtime: CoverageV2RuntimeTotals;
+  };
+  pipeline: {
+    overall_status: "healthy" | "attention" | "blocked";
+    stages: {
+      code: "ingest" | "entity_resolution" | "baselines" | "signals" | string;
+      label: string;
+      status: "done" | "processing" | "warning" | "error" | "pending";
+      reason: string;
+    }[];
+  };
+  schedule_windows_brt: {
+    job_code: string;
+    window: string;
+  }[];
+}
+
+export interface CoverageV2SourceRuntime {
+  running_jobs: number;
+  stuck_jobs: number;
+  error_jobs: number;
+}
+
+export interface CoverageV2SourceItem {
   connector: string;
-  job: string;
-  domain: string;
-  status: CoverageStatus;
-  description?: string;
-  enabled_in_mvp?: boolean;
-  last_success_at?: string;
-  freshness_lag_hours?: number;
-  total_items: number;
-  last_run_error?: boolean;
-  period_start?: string;
-  period_end?: string;
+  connector_label: string;
+  job_count: number;
+  enabled_job_count: number;
+  worst_status: CoverageStatus;
+  status_counts: CoverageV2StatusCounts;
+  runtime: CoverageV2SourceRuntime;
+  last_success_at?: string | null;
+  max_freshness_lag_hours?: number | null;
+}
+
+export interface CoverageV2SourcesResponse {
+  items: CoverageV2SourceItem[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface CoverageV2LatestRun {
+  id: string;
+  status: string;
+  is_stuck: boolean;
+  started_at?: string | null;
+  finished_at?: string | null;
+  items_fetched: number;
+  items_normalized: number;
+  error_message?: string | null;
+}
+
+export interface CoverageV2SourcePreviewResponse {
+  connector: {
+    connector: string;
+    connector_label: string;
+    worst_status: CoverageStatus;
+    job_count: number;
+    enabled_job_count: number;
+    status_counts: CoverageV2StatusCounts;
+  };
+  jobs: {
+    job: string;
+    domain: string;
+    description?: string | null;
+    enabled_in_mvp: boolean;
+    status: CoverageStatus;
+    total_items: number;
+    last_success_at?: string | null;
+    freshness_lag_hours?: number | null;
+    latest_run?: CoverageV2LatestRun | null;
+  }[];
+  recent_runs: CoverageV2LatestRun[];
+  insights: string[];
+}
+
+export interface CoverageV2MapResponse {
+  layer: "uf" | "municipio";
+  metric: "coverage" | "freshness" | "risk";
+  generated_at: string;
+  date_ref: string;
+  national: {
+    regions_with_data: number;
+    regions_without_data: number;
+    total_events: number;
+    total_signals: number;
+  };
+  items: CoverageMapItem[];
+}
+
+export interface CoverageV2AnalyticsResponse {
+  summary: {
+    total_typologies: number;
+    apt_count: number;
+    blocked_count: number;
+    with_signals_30d: number;
+  };
+  items: AnalyticalCoverageItem[];
 }
 
 export interface CoverageMapItem {
@@ -215,39 +323,6 @@ export interface CoverageMapItem {
   freshness_hours?: number;
   risk_score: number;
   status: CoverageStatus;
-}
-
-export interface CoverageMapResponse {
-  layer: "uf" | "municipio";
-  metric: "coverage" | "freshness" | "risk";
-  date_ref: string;
-  generated_at: string;
-  items: CoverageMapItem[];
-}
-
-export interface IngestStateItem {
-  connector: string;
-  job: string;
-  last_cursor?: string | null;
-  last_run_at?: string | null;
-  last_run_id?: string | null;
-}
-
-export interface IngestRun {
-  id: string;
-  connector: string;
-  job: string;
-  status: string;
-  items_fetched: number;
-  items_normalized: number;
-  started_at?: string | null;
-  finished_at?: string | null;
-  errors?: Record<string, unknown> | null;
-}
-
-export interface IngestStatusResponse {
-  ingest_states: IngestStateItem[];
-  recent_runs: IngestRun[];
 }
 
 export interface IngestRunFieldProfile {
