@@ -5,6 +5,7 @@ Auth: header `chave-api-dados` with registered token.
 Pagination: `pagina` (1-based), responses return list of items.
 """
 
+import asyncio
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -238,6 +239,13 @@ class PortalTransparenciaConnector(BaseConnector):
                     status=response.status_code,
                 )
                 return [], None
+            if response.status_code == 302:
+                log.warning(
+                    "portal_transparencia.rate_limited",
+                    job=job.name,
+                    page=page,
+                )
+                return [], str(page)
             response.raise_for_status()
             data = response.json()
 
@@ -346,6 +354,28 @@ class PortalTransparenciaConnector(BaseConnector):
                 if window_idx + 1 < total_windows:
                     return [], f"w{window_idx + 1}p1"
                 return [], None
+            if response.status_code == 400:
+                # Some endpoints reject old date ranges (e.g., /viagens for 2021).
+                # Skip to next window instead of failing the entire run.
+                log.warning(
+                    "portal_transparencia.windowed_bad_request",
+                    job=job.name,
+                    window=window_idx,
+                    page=page,
+                )
+                if window_idx + 1 < total_windows:
+                    return [], f"w{window_idx + 1}p1"
+                return [], None
+            if response.status_code == 302:
+                # PT API rate limit: 302 redirect to bloqueio-acesso.
+                # Return current cursor so ingest resumes after cooldown.
+                log.warning(
+                    "portal_transparencia.windowed_rate_limited",
+                    job=job.name,
+                    window=window_idx,
+                    page=page,
+                )
+                return [], f"w{window_idx}p{page}"
             response.raise_for_status()
             data = response.json()
 
@@ -504,6 +534,7 @@ class PortalTransparenciaConnector(BaseConnector):
                     window_idx += 1
                     page = 1
                     skips += 1
+                    await asyncio.sleep(0.3)
                     continue
 
                 if response.status_code == 400:
@@ -518,7 +549,20 @@ class PortalTransparenciaConnector(BaseConnector):
                     window_idx = 0
                     page = 1
                     skips += 1
+                    await asyncio.sleep(0.3)
                     continue
+
+                if response.status_code == 302:
+                    # PT API rate limit: 302 redirect to bloqueio-acesso.
+                    # Return current position as cursor so ingest resumes later.
+                    log.warning(
+                        "portal_transparencia.dimension_rate_limited",
+                        job=job.name,
+                        dim_idx=dim_idx,
+                        window=window_idx,
+                        page=page,
+                    )
+                    return [], f"d{dim_idx}w{window_idx}p{page}"
 
                 response.raise_for_status()
                 data = response.json()
@@ -530,6 +574,8 @@ class PortalTransparenciaConnector(BaseConnector):
                 window_idx += 1
                 page = 1
                 skips += 1
+                # Throttle skip-ahead to avoid triggering rate limits
+                await asyncio.sleep(0.3)
                 continue
 
             # Found data — build items and cursor
