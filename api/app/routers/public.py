@@ -23,7 +23,6 @@ from shared.repo.queries import (
     get_analytical_coverage,
     get_case_by_id,
     get_case_graph,
-    get_cases_paginated,
     get_coverage_list,
     get_coverage_map,
     get_evidence_package_by_id,
@@ -40,7 +39,6 @@ from shared.repo.queries import (
     get_signal_detail,
     get_signal_graph,
     get_signal_evidence_page,
-    get_signals_paginated,
     replay_signal,
 )
 
@@ -72,38 +70,6 @@ async def coverage_analytics(session: DbSession):
     """
     return await get_analytical_coverage(session)
 
-
-@router.get("/radar")
-async def radar(
-    session: DbSession,
-    pagination: Pagination,
-    typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
-    sort: str = Query("analysis_date", pattern="^(analysis_date|ingestion_date)$", description="Sort by analysis_date (period_end) or ingestion_date (created_at)"),
-    period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
-    period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
-    corruption_type: Optional[str] = Query(None, description="Filter by corruption type (e.g. fraude_licitatoria)"),
-    sphere: Optional[str] = Query(None, description="Filter by sphere (e.g. administrativa)"),
-):
-    """Risk signal radar — paginated, filtered list of signals."""
-    signals, total = await get_signals_paginated(
-        session,
-        offset=pagination.offset,
-        limit=pagination.limit,
-        typology_code=typology,
-        severity=severity,
-        sort=sort,
-        period_from=period_from,
-        period_to=period_to,
-        corruption_type=corruption_type,
-        sphere=sphere,
-    )
-    return {
-        "items": signals,
-        "total": total,
-        "offset": pagination.offset,
-        "limit": pagination.limit,
-    }
 
 
 @router.get("/radar/v2/summary", response_model=RadarV2SummaryResponse)
@@ -215,38 +181,6 @@ async def radar_v2_case_preview(
 @router.get("/radar/v2/coverage", response_model=RadarV2CoverageResponse)
 async def radar_v2_coverage(session: DbSession):
     return await get_radar_v2_coverage(session)
-
-
-@router.get("/cases")
-async def cases(
-    session: DbSession,
-    pagination: Pagination,
-    severity: Optional[str] = Query(None, description="Filter by severity"),
-):
-    """List aggregated cases with pagination."""
-    case_list, total = await get_cases_paginated(
-        session,
-        offset=pagination.offset,
-        limit=pagination.limit,
-        severity=severity,
-    )
-    return {
-        "items": [
-            {
-                "id": c.id,
-                "title": c.title,
-                "status": c.status,
-                "severity": c.severity,
-                "summary": c.summary,
-                "signal_count": len(c.items),
-                "created_at": c.created_at,
-            }
-            for c in case_list
-        ],
-        "total": total,
-        "offset": pagination.offset,
-        "limit": pagination.limit,
-    }
 
 
 @router.get("/case/{case_id}")

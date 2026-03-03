@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getCoverage, getCoverageMap, getIngestStatus, getRadar } from "@/lib/api";
+import { getCoverage, getCoverageMap, getIngestStatus, getRadarV2Summary } from "@/lib/api";
 import { CoveragePanel } from "@/components/CoveragePanel";
 import { ProcessingStatus } from "@/components/ProcessingStatus";
 import { GridSkeleton } from "@/components/Skeleton";
@@ -92,7 +92,7 @@ export default function CoveragePage() {
   useEffect(() => {
     let active = true;
 
-    Promise.allSettled([getCoverage(), getRadar({ limit: 1 }), getIngestStatus(), getCoverageMap({ layer: "uf", metric: mapMetric })])
+    Promise.allSettled([getCoverage(), getRadarV2Summary(), getIngestStatus(), getCoverageMap({ layer: "uf", metric: mapMetric })])
       .then(([coverageResult, radarResult, ingestResult, mapResult]) => {
         if (!active) return;
 
@@ -103,7 +103,7 @@ export default function CoveragePage() {
         }
 
         if (radarResult.status === "fulfilled") {
-          setSignalCount(radarResult.value.total);
+          setSignalCount(radarResult.value.totals.signals);
         }
 
         if (ingestResult.status === "fulfilled") {
