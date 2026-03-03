@@ -7,4 +7,5 @@ from worker.tasks import (
     ai_tasks,
     coverage_tasks,
     maintenance_tasks,
+    reference_tasks,
 )

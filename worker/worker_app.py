@@ -24,6 +24,7 @@ app.conf.update(
         "worker.tasks.ai_tasks.*": {"queue": "ai"},
         "worker.tasks.coverage_tasks.*": {"queue": "default"},
         "worker.tasks.maintenance_tasks.*": {"queue": "default"},
+        "worker.tasks.reference_tasks.*": {"queue": "default"},
     },
     # ── Performance tuning ───────────────────────────────────────────
     # Fetch one task at a time so long-running ingest doesn't starve

@@ -126,7 +126,8 @@ async def seed_siape_orgaos(session) -> int:
                 )
                 count += 1
 
-            if len(items) < 100:
+            # PT API returns 15 items per page for this endpoint
+            if len(items) < 15:
                 break
             page += 1
 
