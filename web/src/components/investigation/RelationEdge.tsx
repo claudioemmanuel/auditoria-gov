@@ -1,12 +1,13 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
   type EdgeProps,
 } from "@xyflow/react";
+import { tokens } from "@/lib/design-tokens";
 
 const EDGE_LABELS: Record<string, string> = {
   contrato: "Contrato",
@@ -52,12 +53,14 @@ function RelationEdgeComponent({
   selected,
   style,
 }: EdgeProps) {
+  const [hovered, setHovered] = useState(false);
+
   const edgeType = (data?.type as string) ?? "";
   const weight = (data?.weight as number) ?? 1;
   const isFocused = Boolean(data?.isFocused);
   const edgeStrength = (data?.edge_strength as string) ?? "weak";
   const baseColor = EDGE_COLORS[edgeType] ?? "#94a3b8";
-  const color = selected ? "#2563eb" : isFocused ? "#1d4ed8" : baseColor;
+  const color = selected ? tokens.accent : isFocused ? "#1d4ed8" : baseColor;
   const label = EDGE_LABELS[edgeType] ?? edgeType.replace(/_/g, " ");
   const isDashed = edgeType === "socio_oculto" || edgeType === "vinculo_familiar";
 
@@ -71,8 +74,24 @@ function RelationEdgeComponent({
     curvature: 0.25,
   });
 
+  // Invisible wider hit area for hover detection
+  const hitAreaStyle: React.CSSProperties = {
+    stroke: "transparent",
+    strokeWidth: 16,
+    fill: "none",
+    cursor: "pointer",
+  };
+
   return (
     <>
+      {/* Hit area (invisible, wider stroke for easy hover) */}
+      <path
+        d={edgePath}
+        style={hitAreaStyle}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+
       <BaseEdge
         id={id}
         path={edgePath}
@@ -87,11 +106,13 @@ function RelationEdgeComponent({
           opacity: selected ? 1 : isFocused ? 0.9 : edgeStrength === "strong" ? 0.7 : 0.45,
           strokeDasharray: isDashed ? "6 3" : undefined,
           transition: "stroke 150ms, opacity 150ms, stroke-width 150ms",
+          pointerEvents: "none",
         }}
         markerEnd={`url(#arrow-${selected || isFocused ? "selected" : "default"})`}
       />
-      {/* Only show label on selected edges to keep canvas clean */}
-      {selected && (
+
+      {/* Label: only visible on hover or when selected */}
+      {(hovered || selected) && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan pointer-events-none absolute"
@@ -99,7 +120,7 @@ function RelationEdgeComponent({
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             }}
           >
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-semibold leading-none text-blue-700 shadow-sm">
+            <span className="rounded-full border border-accent-subtle bg-accent-subtle px-2 py-0.5 text-[9px] font-semibold leading-none text-accent shadow-sm">
               {label}
             </span>
           </div>
