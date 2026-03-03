@@ -11,6 +11,12 @@ import type {
   OrgSummary,
   PaginatedResponse,
   PriceComparisonResult,
+  RadarV2CaseItem,
+  RadarV2CasePreviewResponse,
+  RadarV2CoverageResponse,
+  RadarV2SignalItem,
+  RadarV2SignalPreviewResponse,
+  RadarV2SummaryResponse,
   RiskSignal,
   SignalEvidencePage,
   SignalDetail,
@@ -77,6 +83,91 @@ export function getRadar(params?: {
   if (params?.sphere) search.set("sphere", params.sphere);
   const qs = search.toString();
   return fetchJSON(`/public/radar${qs ? `?${qs}` : ""}`);
+}
+
+export function getRadarV2Summary(params?: {
+  typology?: string;
+  severity?: string;
+  period_from?: string;
+  period_to?: string;
+  corruption_type?: string;
+  sphere?: string;
+}): Promise<RadarV2SummaryResponse> {
+  const search = new URLSearchParams();
+  if (params?.typology) search.set("typology", params.typology);
+  if (params?.severity) search.set("severity", params.severity);
+  if (params?.period_from) search.set("period_from", params.period_from);
+  if (params?.period_to) search.set("period_to", params.period_to);
+  if (params?.corruption_type) search.set("corruption_type", params.corruption_type);
+  if (params?.sphere) search.set("sphere", params.sphere);
+  const qs = search.toString();
+  return fetchJSON(`/public/radar/v2/summary${qs ? `?${qs}` : ""}`);
+}
+
+export function getRadarV2Signals(params?: {
+  offset?: number;
+  limit?: number;
+  typology?: string;
+  severity?: string;
+  sort?: "analysis_date" | "ingestion_date";
+  period_from?: string;
+  period_to?: string;
+  corruption_type?: string;
+  sphere?: string;
+}): Promise<PaginatedResponse<RadarV2SignalItem>> {
+  const search = new URLSearchParams();
+  if (params?.offset != null) search.set("offset", String(params.offset));
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.typology) search.set("typology", params.typology);
+  if (params?.severity) search.set("severity", params.severity);
+  if (params?.sort) search.set("sort", params.sort);
+  if (params?.period_from) search.set("period_from", params.period_from);
+  if (params?.period_to) search.set("period_to", params.period_to);
+  if (params?.corruption_type) search.set("corruption_type", params.corruption_type);
+  if (params?.sphere) search.set("sphere", params.sphere);
+  const qs = search.toString();
+  return fetchJSON(`/public/radar/v2/signals${qs ? `?${qs}` : ""}`);
+}
+
+export function getRadarV2Cases(params?: {
+  offset?: number;
+  limit?: number;
+  typology?: string;
+  severity?: string;
+  period_from?: string;
+  period_to?: string;
+  corruption_type?: string;
+  sphere?: string;
+}): Promise<PaginatedResponse<RadarV2CaseItem>> {
+  const search = new URLSearchParams();
+  if (params?.offset != null) search.set("offset", String(params.offset));
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.typology) search.set("typology", params.typology);
+  if (params?.severity) search.set("severity", params.severity);
+  if (params?.period_from) search.set("period_from", params.period_from);
+  if (params?.period_to) search.set("period_to", params.period_to);
+  if (params?.corruption_type) search.set("corruption_type", params.corruption_type);
+  if (params?.sphere) search.set("sphere", params.sphere);
+  const qs = search.toString();
+  return fetchJSON(`/public/radar/v2/cases${qs ? `?${qs}` : ""}`);
+}
+
+export function getRadarV2SignalPreview(
+  signalId: string,
+  params?: { limit?: number },
+): Promise<RadarV2SignalPreviewResponse> {
+  const search = new URLSearchParams();
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  return fetchJSON(`/public/radar/v2/signal/${signalId}/preview${qs ? `?${qs}` : ""}`);
+}
+
+export function getRadarV2CasePreview(caseId: string): Promise<RadarV2CasePreviewResponse> {
+  return fetchJSON(`/public/radar/v2/case/${caseId}/preview`);
+}
+
+export function getRadarV2Coverage(): Promise<RadarV2CoverageResponse> {
+  return fetchJSON("/public/radar/v2/coverage");
 }
 
 export function getSignal(id: string): Promise<SignalDetail> {
