@@ -133,9 +133,9 @@ class PortalTransparenciaConnector(BaseConnector):
             ),
             JobSpec(
                 name="pt_servidores_remuneracao",
-                description="Federal civil servants (bulk by organ + period)",
+                description="Federal civil servants — requires organ code (codigoOrgaoExercicioSiape); disabled for bulk ingest",
                 domain="remuneracao",
-                enabled=True,
+                enabled=False,  # /servidores requires organ or CPF param — not bulk-fetchable
             ),
             JobSpec(
                 name="pt_viagens",
@@ -157,9 +157,9 @@ class PortalTransparenciaConnector(BaseConnector):
             ),
             JobSpec(
                 name="pt_beneficios",
-                description="Social benefits by municipality (Bolsa Família, BPC, etc.)",
+                description="Social benefits by municipality — requires codigoIbge param; disabled for bulk ingest",
                 domain="beneficio",
-                enabled=True,
+                enabled=False,  # /bolsa-familia-por-municipio requires codigoIbge — per-municipality only
             ),
             JobSpec(
                 name="pt_emendas",
@@ -280,6 +280,10 @@ class PortalTransparenciaConnector(BaseConnector):
             query_params["pagina"] = page
             query_params[start_key] = window_start.strftime("%d/%m/%Y")
             query_params[end_key] = window_end.strftime("%d/%m/%Y")
+            # /viagens also requires return-date filters (mandatory by the API)
+            if job.name == "pt_viagens":
+                query_params["dataRetornoDe"] = window_start.strftime("%d/%m/%Y")
+                query_params["dataRetornoAte"] = window_end.strftime("%d/%m/%Y")
 
         else:
             # _WINDOWED_MESANO_JOBS: single mesAno param (YYYYMM), one month per window

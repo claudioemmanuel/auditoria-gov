@@ -1,8 +1,7 @@
 # AuditorIA Gov
 
-> Plataforma de auditoria pública de dados do governo federal brasileiro.
-> Ingere dados abertos, resolve entidades, detecta indicadores de corrupção e
-> apresenta evidências reproduzíveis com explicações em linguagem natural.
+Plataforma de auditoria pública de dados do governo federal brasileiro.
+Ingere dados abertos, resolve entidades, detecta indicadores de corrupção e apresenta evidências reproduzíveis com explicações em linguagem natural.
 
 ---
 
