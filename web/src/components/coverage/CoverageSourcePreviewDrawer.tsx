@@ -28,7 +28,7 @@ export function CoverageSourcePreviewDrawer({
       <div className="h-full w-full max-w-2xl overflow-y-auto bg-surface-card p-4 shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Diagnostico da fonte</h3>
+            <h3 className="text-lg font-semibold text-primary">Diagnóstico da fonte</h3>
             <p className="text-xs text-muted">Drill-down operacional sem sair da cobertura.</p>
           </div>
           <button
@@ -90,12 +90,12 @@ export function CoverageSourcePreviewDrawer({
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted">
-                      Ultimo sucesso: {job.last_success_at ? formatDateTime(job.last_success_at) : "Nao informado"}
+                      Ultimo sucesso: {job.last_success_at ? formatDateTime(job.last_success_at) : "Não informado"}
                     </p>
                     {job.latest_run && (
                       <div className="mt-2 rounded border border-border bg-surface-card p-2 text-xs text-secondary">
                         <p>
-                          Execucao mais recente:{" "}
+                          Execução mais recente:{" "}
                           <span className="font-medium">{job.latest_run.status}</span>
                           {job.latest_run.is_stuck ? " (travada)" : ""}
                         </p>
@@ -108,7 +108,7 @@ export function CoverageSourcePreviewDrawer({
                             href={`/coverage/run/${job.latest_run.id}`}
                             className="text-accent underline"
                           >
-                            Abrir detalhe da execucao
+                            Abrir detalhe da execução
                           </Link>
                         </div>
                       </div>
@@ -120,7 +120,7 @@ export function CoverageSourcePreviewDrawer({
 
             {/* Recent runs */}
             <div className="rounded-lg border border-border p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Execucoes recentes</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Execuções recentes</p>
               <div className="mt-2 space-y-2">
                 {data.recent_runs.map((run) => (
                   <div key={run.id} className="rounded-md bg-surface-subtle p-2 text-xs text-secondary">
@@ -128,7 +128,7 @@ export function CoverageSourcePreviewDrawer({
                       {run.status}
                       {run.is_stuck ? " (travada)" : ""}
                     </p>
-                    <p>Inicio: {run.started_at ? formatDateTime(run.started_at) : "Nao informado"}</p>
+                    <p>Inicio: {run.started_at ? formatDateTime(run.started_at) : "Não informado"}</p>
                     <p>Fim: {run.finished_at ? formatDateTime(run.finished_at) : "Em andamento"}</p>
                   </div>
                 ))}

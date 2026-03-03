@@ -65,7 +65,7 @@ async def test_get_coverage_v2_summary_marks_blocked_when_runtime_stuck(monkeypa
                             connector="portal_transparencia",
                             job="pt_emendas",
                             status="running",
-                            created_at=now - timedelta(minutes=40),
+                            created_at=now - timedelta(minutes=130),
                             finished_at=None,
                             items_fetched=10,
                             items_normalized=0,
@@ -188,7 +188,7 @@ async def test_get_coverage_v2_sources_groups_by_connector(monkeypatch):
                         connector="portal_transparencia",
                         job="pt_emendas",
                         status="running",
-                        created_at=now - timedelta(minutes=30),
+                        created_at=now - timedelta(minutes=130),
                     ),
                     SimpleNamespace(
                         connector="portal_transparencia",

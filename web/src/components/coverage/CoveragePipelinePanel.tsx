@@ -10,8 +10,8 @@ interface CoveragePipelinePanelProps {
 }
 
 const STATIC_STEPS = [
-  { code: "ingest", label: "Ingestao" },
-  { code: "normalization", label: "Normalizacao" },
+  { code: "ingest", label: "Ingestão" },
+  { code: "normalization", label: "Normalização" },
   { code: "entity_resolution", label: "Entidade Res." },
   { code: "signals", label: "Sinais" },
 ];
@@ -112,10 +112,10 @@ export function CoveragePipelinePanel({ summary, loading }: CoveragePipelinePane
           )}
         >
           {summary.pipeline.overall_status === "healthy"
-            ? "Saudavel"
+            ? "Saudável"
             : summary.pipeline.overall_status === "blocked"
               ? "Bloqueado"
-              : "Atencao"}
+              : "Atenção"}
         </span>
       </div>
 

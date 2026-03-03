@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
-  { id: "principios", label: "Principios" },
+  { id: "principios", label: "Princípios" },
   { id: "pipeline", label: "Pipeline" },
   { id: "tipologias", label: "Tipologias" },
-  { id: "scores", label: "Scores de Avaliacao" },
+  { id: "scores", label: "Scores de Avaliação" },
   { id: "escopo", label: "Escopo" },
   { id: "base-legal", label: "Base Legal" },
 ];
@@ -43,9 +43,9 @@ export function TableOfContents() {
   }, []);
 
   return (
-    <nav aria-label="Tabela de Conteudo" className="sticky top-8 self-start w-44 shrink-0">
+    <nav aria-label="Tabela de Conteúdo" className="sticky top-8 self-start w-44 shrink-0">
       <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-3">
-        Conteudo
+        Conteúdo
       </p>
       <ol className="space-y-1">
         {SECTIONS.map(({ id, label }, i) => (

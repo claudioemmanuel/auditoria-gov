@@ -52,7 +52,7 @@ export default async function HomePage() {
       {/* ── Error banner if everything failed ────────────────────── */}
       {!summary && !signals && !coverage && !sources && (
         <div className="rounded-lg border border-border bg-surface-card px-4 py-6 text-center text-sm text-secondary">
-          Nao foi possivel carregar os dados. Verifique a conectividade com a
+          Não foi possível carregar os dados. Verifique a conectividade com a
           API.
         </div>
       )}
@@ -62,7 +62,7 @@ export default async function HomePage() {
         <SeverityCountCards counts={summary.severity_counts} />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {["Criticos", "Altos", "Medios", "Baixos"].map((label) => (
+          {["Críticos", "Altos", "Médios", "Baixos"].map((label) => (
             <div
               key={label}
               className="rounded-lg border border-border bg-surface-card p-4"
@@ -87,7 +87,7 @@ export default async function HomePage() {
           <TypologyCoverageBar items={coverage.items.slice(0, 8)} />
         ) : (
           <div className="rounded-lg border border-border bg-surface-card px-4 py-8 text-center text-sm text-secondary">
-            Cobertura indisponivel.
+            Cobertura indisponível.
           </div>
         )}
 
@@ -95,7 +95,7 @@ export default async function HomePage() {
           <SourceHealthChips items={sources.items} />
         ) : (
           <div className="rounded-lg border border-border bg-surface-card px-4 py-8 text-center text-sm text-secondary">
-            Fontes indisponiveis.
+            Fontes indisponíveis.
           </div>
         )}
       </div>

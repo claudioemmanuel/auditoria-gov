@@ -19,7 +19,7 @@ interface CoverageFilterBarProps {
 const STATUS_OPTIONS: Array<{ value: "" | CoverageStatus; label: string }> = [
   { value: "", label: "Todos os status" },
   { value: "ok", label: "OK" },
-  { value: "warning", label: "Atencao" },
+  { value: "warning", label: "Atenção" },
   { value: "stale", label: "Desatualizado" },
   { value: "error", label: "Erro" },
   { value: "pending", label: "Pendente" },
@@ -36,7 +36,7 @@ export function CoverageFilterBar({ value, domains, onChange }: CoverageFilterBa
           type="text"
           value={value.q}
           onChange={(event) => onChange({ ...value, q: event.target.value })}
-          placeholder="Buscar fonte, job ou dominio..."
+          placeholder="Buscar fonte, job ou domínio..."
           className="rounded-lg border border-border bg-surface-base px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
         />
         <select
@@ -57,7 +57,7 @@ export function CoverageFilterBar({ value, domains, onChange }: CoverageFilterBa
           onChange={(event) => onChange({ ...value, domain: event.target.value })}
           className={selectCls}
         >
-          <option value="">Todos os dominios</option>
+          <option value="">Todos os domínios</option>
           {domains.map((domain) => (
             <option key={domain} value={domain}>
               {domain}

@@ -6,6 +6,7 @@ from shared.config import settings
 
 # Timeouts: 30s connect, 60s read
 DEFAULT_TIMEOUT = httpx.Timeout(connect=30.0, read=60.0, write=30.0, pool=30.0)
+PORTAL_TIMEOUT = httpx.Timeout(connect=30.0, read=120.0, write=30.0, pool=30.0)
 DEFAULT_PAGE_SIZE = 100
 
 
@@ -14,7 +15,7 @@ def portal_transparencia_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         base_url="https://api.portaldatransparencia.gov.br/api-de-dados",
         headers={"chave-api-dados": settings.PORTAL_TRANSPARENCIA_TOKEN},
-        timeout=DEFAULT_TIMEOUT,
+        timeout=PORTAL_TIMEOUT,
     )
 
 

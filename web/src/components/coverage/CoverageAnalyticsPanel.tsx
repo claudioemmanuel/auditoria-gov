@@ -26,7 +26,7 @@ export function CoverageAnalyticsPanel({
       >
         <div>
           <h2 className="text-sm font-semibold text-primary">Cobertura por Tipologia</h2>
-          <p className="text-xs text-muted">Aptidao das tipologias e bloqueios de dominio</p>
+          <p className="text-xs text-muted">Aptidão das tipologias e bloqueios de domínio</p>
         </div>
         {open ? (
           <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted" />
@@ -40,7 +40,7 @@ export function CoverageAnalyticsPanel({
           {loading ? (
             <div className="h-24 animate-pulse rounded-lg bg-surface-subtle" />
           ) : !data ? (
-            <p className="text-sm text-muted">Nao foi possivel carregar os indicadores analiticos.</p>
+            <p className="text-sm text-muted">Não foi possível carregar os indicadores analíticos.</p>
           ) : (
             <>
               {/* Summary counters */}

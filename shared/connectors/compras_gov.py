@@ -121,7 +121,7 @@ class ComprasGovConnector(BaseConnector):
                     timeout=_PRIMARY_TIMEOUT,
                 )
                 response.raise_for_status()
-                records = _extract_records(response.json())
+                records = _extract_records([] if response.status_code == 204 else response.json())
         except httpx.HTTPError:
             if job.name != "compras_licitacoes_by_period":
                 raise
@@ -182,7 +182,7 @@ class ComprasGovConnector(BaseConnector):
         async with pncp_client() as client:
             response = await client.get("/contratacoes/publicacao", params=query)
             response.raise_for_status()
-            rows = _extract_records(response.json())
+            rows = _extract_records([] if response.status_code == 204 else response.json())
 
         records = [_map_pncp_notice_to_compras(row) for row in rows]
         items = [

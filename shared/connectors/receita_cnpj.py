@@ -311,7 +311,19 @@ class ReceitaCNPJConnector(BaseConnector):
             )
             entities.append(partner_entity)
 
-            # Create partnership event
+            # Create/reference the company entity for the partnership.
+            # source_id matches _normalize_empresas so upsert merges them.
+            company_entity = CanonicalEntity(
+                source_connector="receita_cnpj",
+                source_id=f"empresa:{cnpj_basico}",
+                type="company",
+                name=f"Empresa {cnpj_basico}",
+                identifiers={"cnpj_basico": cnpj_basico},
+            )
+            entities.append(company_entity)
+
+            # Create partnership event with BOTH company and partner
+            # so build_structural_edges() can create Company↔Owner edges.
             events.append(
                 CanonicalEvent(
                     source_connector="receita_cnpj",
@@ -326,6 +338,10 @@ class ReceitaCNPJConnector(BaseConnector):
                         "tipo_socio": tipo_socio,
                     },
                     participants=[
+                        CanonicalEventParticipant(
+                            entity_ref=company_entity,
+                            role="company",
+                        ),
                         CanonicalEventParticipant(
                             entity_ref=partner_entity,
                             role="partner",

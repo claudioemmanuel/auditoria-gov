@@ -2,7 +2,7 @@
 
 Data source: https://dadosabertos.tse.jus.br/
 Auth: None (public data, CSV/ZIP downloads).
-Download URL: https://cdn.tse.jus.br/estatistica/sead/odsele/{slug}/{slug}_{year}.zip
+Download URL: https://cdn.tse.jus.br/estatistica/sead/odsele/{zip_dir}/{zip_prefix}_{year}.zip
 Encoding: ISO-8859-1, semicolon-delimited CSV.
 
 Cursor format: "{year_idx}:{byte_offset}"
@@ -14,6 +14,7 @@ import csv
 import io
 import os
 import zipfile
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -30,47 +31,81 @@ from shared.models.canonical import (
 from shared.models.raw import RawItem
 
 _TSE_CDN_BASE = "https://cdn.tse.jus.br/estatistica/sead/odsele"
-_ELECTION_YEARS = [2024, 2022, 2020]
+_ELECTION_YEARS = [2024]  # Limit to latest election to manage DB volume
 _CHUNK_SIZE = 10_000
 
-# Job → (slug_prefix, years)
-_JOB_CONFIG: dict[str, tuple[str, list[int]]] = {
-    "tse_candidatos": ("consulta_cand", _ELECTION_YEARS),
-    "tse_bens_candidatos": ("bem_candidato", _ELECTION_YEARS),
-    "tse_receitas_candidatos": ("receitas_candidatos_prestacao_contas_final", _ELECTION_YEARS),
-    "tse_despesas_candidatos": ("despesas_contratadas_candidatos_prestacao_contas_final", _ELECTION_YEARS),
+
+@dataclass
+class _TSEJobCfg:
+    zip_dir: str        # CDN subdirectory
+    zip_prefix: str     # ZIP filename prefix (before _{year}.zip)
+    csv_prefix: str     # CSV filename prefix to look for after extraction
+    years: list[int] = field(default_factory=lambda: list(_ELECTION_YEARS))
+
+
+_JOB_CONFIG: dict[str, _TSEJobCfg] = {
+    "tse_candidatos": _TSEJobCfg("consulta_cand", "consulta_cand", "consulta_cand"),
+    "tse_bens_candidatos": _TSEJobCfg("bem_candidato", "bem_candidato", "bem_candidato"),
+    "tse_receitas_candidatos": _TSEJobCfg(
+        "prestacao_contas", "prestacao_de_contas_eleitorais_candidatos", "receitas_candidatos",
+    ),
+    "tse_despesas_candidatos": _TSEJobCfg(
+        "prestacao_contas", "prestacao_de_contas_eleitorais_candidatos", "despesas_contratadas_candidatos",
+    ),
 }
 
 
-async def _download_tse_dataset(slug_prefix: str, year: int, data_dir: str) -> str:
-    """Download and extract TSE dataset ZIP. Returns path to first extracted CSV.
+async def _download_tse_dataset(cfg: _TSEJobCfg, year: int, data_dir: str) -> str:
+    """Download and extract TSE dataset ZIP. Returns path to target CSV.
 
     Idempotent: skips download/extraction if CSV already present.
+    Uses cfg.csv_prefix to locate the correct CSV inside the ZIP.
+    Prefers the _BRASIL.csv (national aggregate) when available.
+
+    Raises FileNotFoundError if the CDN returns 404 for this year.
     """
     os.makedirs(data_dir, exist_ok=True)
 
-    zip_filename = f"{slug_prefix}_{year}.zip"
+    zip_filename = f"{cfg.zip_prefix}_{year}.zip"
     zip_path = os.path.join(data_dir, zip_filename)
 
+    def _find_csv() -> Optional[str]:
+        """Find target CSV in data_dir matching csv_prefix + year."""
+        matches = sorted(
+            f for f in os.listdir(data_dir)
+            if f.startswith(f"{cfg.csv_prefix}_{year}") and f.endswith(".csv")
+        )
+        if not matches:
+            return None
+        # Prefer _BRASIL.csv (national aggregate) over per-state files
+        for m in matches:
+            if "_BRASIL" in m or "_BR" in m:
+                return os.path.join(data_dir, m)
+        return os.path.join(data_dir, matches[0])
+
     # Check if already extracted
-    existing_csvs = sorted(
-        f for f in os.listdir(data_dir)
-        if f.startswith(f"{slug_prefix}_{year}") and f.endswith(".csv")
-    )
-    if existing_csvs:
-        return os.path.join(data_dir, existing_csvs[0])
+    existing = _find_csv()
+    if existing:
+        return existing
 
     # Download ZIP if not present
     if not os.path.exists(zip_path):
-        url = f"{_TSE_CDN_BASE}/{slug_prefix}/{zip_filename}"
+        url = f"{_TSE_CDN_BASE}/{cfg.zip_dir}/{zip_filename}"
         log.info("tse.downloading", file=zip_filename, url=url)
-        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
-            async with client.stream("GET", url) as response:
-                response.raise_for_status()
-                with open(zip_path, "wb") as f:
-                    async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):
-                        f.write(chunk)
-        log.info("tse.downloaded", file=zip_filename)
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+                async with client.stream("GET", url) as response:
+                    response.raise_for_status()
+                    with open(zip_path, "wb") as f:
+                        async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):
+                            f.write(chunk)
+            log.info("tse.downloaded", file=zip_filename)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                raise FileNotFoundError(
+                    f"TSE CDN returned 404 for {url}"
+                ) from exc
+            raise
 
     # Extract ZIP
     log.info("tse.extracting", file=zip_filename)
@@ -78,16 +113,12 @@ async def _download_tse_dataset(slug_prefix: str, year: int, data_dir: str) -> s
         z.extractall(data_dir)
     log.info("tse.extracted", file=zip_filename)
 
-    # Find extracted CSV(s)
-    extracted_csvs = sorted(
-        f for f in os.listdir(data_dir)
-        if f.startswith(f"{slug_prefix}_{year}") and f.endswith(".csv")
-    )
-    if not extracted_csvs:
+    extracted = _find_csv()
+    if not extracted:
         raise FileNotFoundError(
-            f"No CSV found for {slug_prefix}_{year} after extracting {zip_filename} in {data_dir}"
+            f"No CSV matching {cfg.csv_prefix}_{year} after extracting {zip_filename} in {data_dir}"
         )
-    return os.path.join(data_dir, extracted_csvs[0])
+    return extracted
 
 
 def _read_csv_chunk(
@@ -215,7 +246,7 @@ class TSEConnector(BaseConnector):
         if job.name not in _JOB_CONFIG:
             raise ValueError(f"Unknown TSE job: {job.name}")
 
-        slug_prefix, years = _JOB_CONFIG[job.name]
+        cfg = _JOB_CONFIG[job.name]
 
         # Parse cursor: "year_idx:byte_offset"
         year_idx = 0
@@ -225,13 +256,19 @@ class TSEConnector(BaseConnector):
             year_idx = int(parts[0])
             byte_offset = int(parts[1])
 
-        if year_idx >= len(years):
+        if year_idx >= len(cfg.years):
             return [], None
 
-        year = years[year_idx]
+        year = cfg.years[year_idx]
         data_dir = os.environ.get("TSE_DATA_DIR", "/data/tse")
 
-        csv_path = await _download_tse_dataset(slug_prefix, year, data_dir)
+        try:
+            csv_path = await _download_tse_dataset(cfg, year, data_dir)
+        except FileNotFoundError:
+            # File not available for this year — skip to next
+            log.warning("tse.year_not_available", job=job.name, year=year)
+            next_cursor = f"{year_idx + 1}:0" if year_idx + 1 < len(cfg.years) else None
+            return [], next_cursor
 
         rows, new_offset, finished = _read_csv_chunk(csv_path, byte_offset)
 
@@ -244,7 +281,7 @@ class TSEConnector(BaseConnector):
         ]
 
         if finished:
-            next_cursor = f"{year_idx + 1}:0" if year_idx + 1 < len(years) else None
+            next_cursor = f"{year_idx + 1}:0" if year_idx + 1 < len(cfg.years) else None
         else:
             next_cursor = f"{year_idx}:{new_offset}"
 

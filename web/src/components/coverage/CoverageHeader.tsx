@@ -17,7 +17,7 @@ export function CoverageHeader({ snapshotAt }: CoverageHeaderProps) {
         <div>
           <h1 className="text-2xl font-bold text-primary">Cobertura de Dados</h1>
           <p className="text-sm text-muted">
-            Visao investigativa da saude do pipeline e da qualidade operacional por fonte.
+            Visão investigativa da saúde do pipeline e da qualidade operacional por fonte.
           </p>
         </div>
       </div>

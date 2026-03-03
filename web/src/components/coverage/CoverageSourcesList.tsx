@@ -88,7 +88,7 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
         setData(payload);
       })
       .catch(() => {
-        setError("Nao foi possivel carregar execucoes recentes.");
+        setError("Não foi possível carregar execuções recentes.");
       })
       .finally(() => {
         setLoading(false);
@@ -99,7 +99,7 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
     return (
       <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Carregando execucoes...
+        Carregando execuções...
       </div>
     );
   }
@@ -109,12 +109,12 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
   }
 
   if (!data || data.recent_runs.length === 0) {
-    return <div className="px-4 py-3 text-xs text-muted">Nenhuma execucao recente encontrada.</div>;
+    return <div className="px-4 py-3 text-xs text-muted">Nenhuma execução recente encontrada.</div>;
   }
 
   return (
     <div className="space-y-1.5 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">Ultimas execucoes</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">Últimas execuções</p>
       {data.recent_runs.slice(0, 3).map((run) => (
         <div key={run.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-surface-subtle px-3 py-2 text-xs">
           <span
@@ -267,7 +267,7 @@ export function CoverageSourcesList({
                       type="button"
                       onClick={() => toggleExpand(item.connector)}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-secondary hover:bg-surface-subtle"
-                      aria-label={isExpanded ? "Recolher" : "Expandir execucoes"}
+                      aria-label={isExpanded ? "Recolher" : "Expandir execuções"}
                     >
                       {isExpanded ? (
                         <ChevronUp className="h-3.5 w-3.5" />
@@ -320,7 +320,7 @@ export function CoverageSourcesList({
             onClick={() => onOffsetChange(nextOffset)}
             className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-secondary disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Proxima
+            Próxima
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>

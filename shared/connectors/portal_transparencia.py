@@ -55,6 +55,7 @@ _WINDOWED_MESANO_JOBS: set[str] = {"pt_beneficios"}
 _DIMENSION_KEYED_JOBS: dict[str, tuple[str, str]] = {
     "pt_servidores_remuneracao": ("siape_orgao", "orgaoServidorExercicio"),
     "pt_beneficios": ("ibge_municipio", "codigoIbge"),
+    "pt_viagens": ("siape_orgao", "codigoOrgao"),
 }
 
 
@@ -247,7 +248,7 @@ class PortalTransparenciaConnector(BaseConnector):
                 )
                 return [], str(page)
             response.raise_for_status()
-            data = response.json()
+            data = [] if response.status_code == 204 else response.json()
 
         # Portal Transparência returns a list; empty list means no more pages
         records = _extract_records(data)
@@ -261,6 +262,69 @@ class PortalTransparenciaConnector(BaseConnector):
         next_cursor = str(page + 1) if len(records) >= DEFAULT_PAGE_SIZE else None
         return items, next_cursor
 
+    def _build_windowed_windows(
+        self, job: JobSpec, params: dict
+    ) -> tuple[list, str | None, str | None]:
+        """Build the list of time windows for a windowed job.
+
+        Returns (windows, window_type, error_message).
+        window_type is one of 'month_range', 'day_range', 'mesano'.
+        """
+        if job.name in _WINDOWED_MONTH_RANGES:
+            start_key, end_key = _WINDOWED_MONTH_RANGES[job.name]
+            default_end = date.today().replace(day=1) - timedelta(days=1)
+            default_start = _add_months(default_end.replace(day=1), -59)
+            start_month = _parse_mm_yyyy(params[start_key]) if start_key in params else default_start
+            end_month = _parse_mm_yyyy(params[end_key]) if end_key in params else default_end.replace(day=1)
+            if start_month > end_month:
+                raise ValueError(f"Invalid date range for {job.name}: {start_month} > {end_month}")
+            return _build_month_windows(start_month, end_month, months_per_window=12), "month_range", None
+
+        if job.name in _WINDOWED_DAY_RANGES:
+            start_key, end_key = _WINDOWED_DAY_RANGES[job.name]
+            default_end = date.today()
+            default_start = _add_months(default_end.replace(day=1), -59)
+            start_date = _parse_dd_mm_yyyy(params[start_key]) if start_key in params else default_start
+            end_date = _parse_dd_mm_yyyy(params[end_key]) if end_key in params else default_end
+            if start_date > end_date:
+                raise ValueError(f"Invalid date range for {job.name}: {start_date} > {end_date}")
+            return _build_calendar_month_windows(start_date, end_date), "day_range", None
+
+        # _WINDOWED_MESANO_JOBS: single mesAno param (YYYYMM), one month per window
+        default_end = date.today().replace(day=1) - timedelta(days=1)
+        default_start = _add_months(default_end.replace(day=1), -59)
+        months: list[date] = []
+        current = default_start.replace(day=1)
+        end_month = default_end.replace(day=1)
+        while current <= end_month:
+            months.append(current)
+            current = _add_months(current, 1)
+        return months, "mesano", None
+
+    def _apply_windowed_query_params(
+        self, job: JobSpec, windows: list, window_idx: int,
+        window_type: str, query_params: dict, page: int,
+    ) -> None:
+        """Set query params for the given window index."""
+        if window_type == "month_range":
+            start_key, end_key = _WINDOWED_MONTH_RANGES[job.name]
+            window_start, window_end = windows[window_idx]
+            query_params["pagina"] = page
+            query_params[start_key] = window_start.strftime("%m/%Y")
+            query_params[end_key] = window_end.strftime("%m/%Y")
+        elif window_type == "day_range":
+            start_key, end_key = _WINDOWED_DAY_RANGES[job.name]
+            window_start, window_end = windows[window_idx]
+            query_params["pagina"] = page
+            query_params[start_key] = window_start.strftime("%d/%m/%Y")
+            query_params[end_key] = window_end.strftime("%d/%m/%Y")
+            if job.name == "pt_viagens":
+                query_params["dataRetornoDe"] = window_start.strftime("%d/%m/%Y")
+                query_params["dataRetornoAte"] = window_end.strftime("%d/%m/%Y")
+        else:  # mesano
+            query_params["mesAno"] = windows[window_idx].strftime("%Y%m")
+            query_params["pagina"] = page
+
     async def _fetch_windowed(
         self,
         job: JobSpec,
@@ -268,133 +332,81 @@ class PortalTransparenciaConnector(BaseConnector):
         cursor: Optional[str],
         params: dict,
     ) -> tuple[list[RawItem], Optional[str]]:
-        """Fetch window-constrained endpoints using cursor format 'w{window}p{page}'."""
+        """Fetch window-constrained endpoints using cursor format 'w{window}p{page}'.
+
+        Skips windows that return 400 (e.g., old date ranges rejected by the API)
+        internally, so the ingest loop doesn't stop on the first empty window.
+        """
         window_idx, page = _parse_window_cursor(cursor)
-        query_params = {k: v for k, v in params.items() if k != "pagina"}
+        base_params = {k: v for k, v in params.items() if k != "pagina"}
 
-        if job.name in _WINDOWED_MONTH_RANGES:
-            start_key, end_key = _WINDOWED_MONTH_RANGES[job.name]
-
-            # Default: last 60 months (5 years of historical data).
-            default_end = date.today().replace(day=1) - timedelta(days=1)
-            default_start = _add_months(default_end.replace(day=1), -59)
-
-            start_month = _parse_mm_yyyy(query_params[start_key]) if start_key in query_params else default_start
-            end_month = _parse_mm_yyyy(query_params[end_key]) if end_key in query_params else default_end.replace(day=1)
-            if start_month > end_month:
-                raise ValueError(f"Invalid date range for {job.name}: {start_month} > {end_month}")
-
-            windows = _build_month_windows(start_month, end_month, months_per_window=12)
-            if window_idx >= len(windows):
-                return [], None
-
-            window_start, window_end = windows[window_idx]
-            query_params["pagina"] = page
-            query_params[start_key] = window_start.strftime("%m/%Y")
-            query_params[end_key] = window_end.strftime("%m/%Y")
-
-        elif job.name in _WINDOWED_DAY_RANGES:
-            start_key, end_key = _WINDOWED_DAY_RANGES[job.name]
-
-            # Default: last 60 months (5 years of historical data).
-            default_end = date.today()
-            default_start = _add_months(default_end.replace(day=1), -59)
-
-            start_date = _parse_dd_mm_yyyy(query_params[start_key]) if start_key in query_params else default_start
-            end_date = _parse_dd_mm_yyyy(query_params[end_key]) if end_key in query_params else default_end
-            if start_date > end_date:
-                raise ValueError(f"Invalid date range for {job.name}: {start_date} > {end_date}")
-
-            windows = _build_calendar_month_windows(start_date, end_date)
-            if window_idx >= len(windows):
-                return [], None
-
-            window_start, window_end = windows[window_idx]
-            query_params["pagina"] = page
-            query_params[start_key] = window_start.strftime("%d/%m/%Y")
-            query_params[end_key] = window_end.strftime("%d/%m/%Y")
-            # /viagens also requires return-date filters (mandatory by the API)
-            if job.name == "pt_viagens":
-                query_params["dataRetornoDe"] = window_start.strftime("%d/%m/%Y")
-                query_params["dataRetornoAte"] = window_end.strftime("%d/%m/%Y")
-
-        else:
-            # _WINDOWED_MESANO_JOBS: single mesAno param (YYYYMM), one month per window
-            default_end = date.today().replace(day=1) - timedelta(days=1)
-            default_start = _add_months(default_end.replace(day=1), -59)
-
-            months: list[date] = []
-            current = default_start.replace(day=1)
-            end_month = default_end.replace(day=1)
-            while current <= end_month:
-                months.append(current)
-                current = _add_months(current, 1)
-
-            if window_idx >= len(months):
-                return [], None
-
-            query_params["mesAno"] = months[window_idx].strftime("%Y%m")
-            query_params["pagina"] = page
-            windows = months  # type: ignore[assignment]  # unified variable for len() check below
-
+        windows, window_type, _ = self._build_windowed_windows(job, base_params)
         total_windows = len(windows)
 
-        async with portal_transparencia_client() as client:
-            response = await client.get(endpoint, params=query_params)
-            # Portal da Transparência returns 405 when pagination depth is exceeded.
-            # Move to next window (if any) instead of failing the entire run.
-            if response.status_code in (405, 403):
-                log.warning(
-                    "portal_transparencia.pagination_limit_windowed",
-                    job=job.name,
-                    window=window_idx,
-                    page=page,
-                    status=response.status_code,
-                )
-                if window_idx + 1 < total_windows:
-                    return [], f"w{window_idx + 1}p1"
-                return [], None
-            if response.status_code == 400:
-                # Some endpoints reject old date ranges (e.g., /viagens for 2021).
-                # Skip to next window instead of failing the entire run.
-                log.warning(
-                    "portal_transparencia.windowed_bad_request",
-                    job=job.name,
-                    window=window_idx,
-                    page=page,
-                )
-                if window_idx + 1 < total_windows:
-                    return [], f"w{window_idx + 1}p1"
-                return [], None
-            if response.status_code == 302:
-                # PT API rate limit: 302 redirect to bloqueio-acesso.
-                # Return current cursor so ingest resumes after cooldown.
-                log.warning(
-                    "portal_transparencia.windowed_rate_limited",
-                    job=job.name,
-                    window=window_idx,
-                    page=page,
-                )
-                return [], f"w{window_idx}p{page}"
-            response.raise_for_status()
-            data = response.json()
-
-        records = _extract_records(data)
-        items = [
-            RawItem(
-                raw_id=f"{job.name}:w{window_idx}p{page}:{i}",
-                data=item,
+        # Skip through windows that return 400 (old date ranges, etc.)
+        while window_idx < total_windows:
+            query_params = dict(base_params)
+            self._apply_windowed_query_params(
+                job, windows, window_idx, window_type, query_params, page
             )
-            for i, item in enumerate(records)
-        ]
 
-        if len(records) >= DEFAULT_PAGE_SIZE:
-            next_cursor = f"w{window_idx}p{page + 1}"
-        elif window_idx + 1 < total_windows:
-            next_cursor = f"w{window_idx + 1}p1"
-        else:
-            next_cursor = None
-        return items, next_cursor
+            async with portal_transparencia_client() as client:
+                response = await client.get(endpoint, params=query_params)
+
+                if response.status_code in (405, 403):
+                    log.warning(
+                        "portal_transparencia.pagination_limit_windowed",
+                        job=job.name,
+                        window=window_idx,
+                        page=page,
+                        status=response.status_code,
+                    )
+                    window_idx += 1
+                    page = 1
+                    continue
+
+                if response.status_code == 400:
+                    log.warning(
+                        "portal_transparencia.windowed_bad_request",
+                        job=job.name,
+                        window=window_idx,
+                        page=page,
+                    )
+                    window_idx += 1
+                    page = 1
+                    continue
+
+                if response.status_code == 302:
+                    log.warning(
+                        "portal_transparencia.windowed_rate_limited",
+                        job=job.name,
+                        window=window_idx,
+                        page=page,
+                    )
+                    return [], f"w{window_idx}p{page}"
+
+                response.raise_for_status()
+                data = [] if response.status_code == 204 else response.json()
+
+            records = _extract_records(data)
+            items = [
+                RawItem(
+                    raw_id=f"{job.name}:w{window_idx}p{page}:{i}",
+                    data=item,
+                )
+                for i, item in enumerate(records)
+            ]
+
+            if len(records) >= DEFAULT_PAGE_SIZE:
+                next_cursor = f"w{window_idx}p{page + 1}"
+            elif window_idx + 1 < total_windows:
+                next_cursor = f"w{window_idx + 1}p1"
+            else:
+                next_cursor = None
+            return items, next_cursor
+
+        # All windows exhausted
+        return [], None
 
     def _get_dimension_keys(self, category: str) -> list[str]:
         """Load dimension keys from reference_data table (cached on self)."""
@@ -565,7 +577,7 @@ class PortalTransparenciaConnector(BaseConnector):
                     return [], f"d{dim_idx}w{window_idx}p{page}"
 
                 response.raise_for_status()
-                data = response.json()
+                data = [] if response.status_code == 204 else response.json()
 
             records = _extract_records(data)
 

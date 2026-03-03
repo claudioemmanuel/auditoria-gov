@@ -38,7 +38,7 @@ class _FakeConnectorB:
 
 
 def test_ingest_all_incremental_dispatches_only_enabled_jobs(monkeypatch):
-    """All enabled jobs are dispatched regardless of supports_incremental."""
+    """Only enabled incremental jobs are dispatched."""
     dispatched: list[tuple[str, str]] = []
 
     def _fake_delay(connector_name: str, job_name: str):
@@ -60,12 +60,113 @@ def test_ingest_all_incremental_dispatches_only_enabled_jobs(monkeypatch):
     result = ingest_tasks.ingest_all_incremental()
 
     assert result["status"] == "dispatched"
-    # enabled_job (A) + full_dump_enabled (B) = 2; disabled_job (A) is skipped
-    assert result["count"] == 2
+    # Only enabled_job (A) qualifies: incremental + enabled.
+    # disabled_job (A) is disabled; full_dump_enabled (B) is non-incremental.
+    assert result["count"] == 1
     assert set(dispatched) == {
         ("connector_a", "enabled_job"),
-        ("connector_b", "full_dump_enabled"),
     }
+
+
+def test_ingest_all_incremental_skips_non_incremental(monkeypatch):
+    """ingest_all_incremental does NOT dispatch jobs with supports_incremental=False."""
+    dispatched: list[tuple[str, str]] = []
+
+    def _fake_delay(connector_name: str, job_name: str):
+        dispatched.append((connector_name, job_name))
+
+    monkeypatch.setattr(ingest_tasks.ingest_connector, "delay", _fake_delay)
+
+    import shared.connectors as connectors_module
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "connector_a": _FakeConnectorA,
+            "connector_b": _FakeConnectorB,
+        },
+    )
+
+    result = ingest_tasks.ingest_all_incremental()
+
+    # full_dump_enabled from ConnectorB is enabled but non-incremental — must be excluded.
+    assert ("connector_b", "full_dump_enabled") not in dispatched
+    assert result["count"] == 1
+
+
+def test_ingest_all_bulk_dispatches_only_non_incremental(monkeypatch):
+    """ingest_all_bulk dispatches ONLY jobs where supports_incremental=False and enabled=True."""
+    dispatched_calls: list[dict] = []
+
+    def _fake_apply_async(*args, **kwargs):
+        dispatched_calls.append({"args": kwargs.get("args"), "queue": kwargs.get("queue")})
+
+    monkeypatch.setattr(ingest_tasks.ingest_connector, "apply_async", _fake_apply_async)
+
+    import shared.connectors as connectors_module
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "connector_a": _FakeConnectorA,
+            "connector_b": _FakeConnectorB,
+        },
+    )
+
+    result = ingest_tasks.ingest_all_bulk()
+
+    assert result["status"] == "dispatched"
+    # Only full_dump_enabled (B): non-incremental + enabled.
+    assert result["count"] == 1
+    assert len(dispatched_calls) == 1
+    assert dispatched_calls[0]["args"] == ["connector_b", "full_dump_enabled"]
+    assert dispatched_calls[0]["queue"] == "bulk"
+
+
+class _FakeConnectorC:
+    def list_jobs(self):
+        return [
+            JobSpec(
+                name="full_dump_disabled",
+                description="Full dump, disabled",
+                domain="test",
+                supports_incremental=False,
+                enabled=False,
+            )
+        ]
+
+
+def test_ingest_all_bulk_skips_disabled(monkeypatch):
+    """ingest_all_bulk does NOT dispatch disabled non-incremental jobs."""
+    dispatched_calls: list[dict] = []
+
+    def _fake_apply_async(*args, **kwargs):
+        dispatched_calls.append({"args": kwargs.get("args"), "queue": kwargs.get("queue")})
+
+    monkeypatch.setattr(ingest_tasks.ingest_connector, "apply_async", _fake_apply_async)
+
+    import shared.connectors as connectors_module
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "connector_a": _FakeConnectorA,
+            "connector_b": _FakeConnectorB,
+            "connector_c": _FakeConnectorC,
+        },
+    )
+
+    result = ingest_tasks.ingest_all_bulk()
+
+    # ConnectorC's full_dump_disabled is non-incremental but disabled — must be excluded.
+    assert ("connector_c", "full_dump_disabled") not in [
+        (c["args"][0], c["args"][1]) for c in dispatched_calls
+    ]
+    # Only ConnectorB's full_dump_enabled should be dispatched.
+    assert result["count"] == 1
 
 
 def test_format_error_uses_repr_when_exception_message_is_empty():

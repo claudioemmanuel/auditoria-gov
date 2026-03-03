@@ -7,8 +7,8 @@ sync_engine = create_engine(
     settings.DATABASE_URL_SYNC,
     # Only echo SQL in development — production logging has severe overhead.
     echo=(settings.APP_ENV == "development"),
-    pool_size=5,
-    max_overflow=10,
+    pool_size=15,
+    max_overflow=25,
     # Validate connections before checkout to handle Postgres restarts gracefully.
     pool_pre_ping=True,
     # Recycle connections after 30 minutes to avoid stale-connection issues

@@ -63,6 +63,7 @@ async def test_get_signal_graph_orders_timeline_and_sets_story_bounds(monkeypatc
         type="org",
         identifiers={"cnpj": "00000000000191"},
         attrs={"url_foto": "https://example.org/prefeitura.png", "uf": "MG"},
+        cluster_id=None,
     )
     supplier_entity = SimpleNamespace(
         id=supplier_id,
@@ -70,6 +71,7 @@ async def test_get_signal_graph_orders_timeline_and_sets_story_bounds(monkeypatc
         type="company",
         identifiers={"cnpj": "11111111000191"},
         attrs={},
+        cluster_id=None,
     )
 
     class _FakeSession:
@@ -143,6 +145,8 @@ async def test_get_signal_graph_orders_timeline_and_sets_story_bounds(monkeypatc
                     ),
                 ]
                 return _ExecResult(rows=rows)
+            if self._calls == 3:
+                return _ExecResult(scalar_values=[])
             raise AssertionError(f"Unexpected execute call {self._calls}")
 
     graph = await queries.get_signal_graph(_FakeSession(), signal_id)
@@ -199,8 +203,8 @@ async def test_get_signal_graph_preview_mode_truncates_timeline(monkeypatch):
         )
         for idx, event_id in enumerate(event_ids)
     ]
-    org_entity = SimpleNamespace(id=org_id, name="Orgao", type="org", identifiers={}, attrs={})
-    supplier_entity = SimpleNamespace(id=supplier_id, name="Fornecedor", type="company", identifiers={}, attrs={})
+    org_entity = SimpleNamespace(id=org_id, name="Orgao", type="org", identifiers={}, attrs={}, cluster_id=None)
+    supplier_entity = SimpleNamespace(id=supplier_id, name="Fornecedor", type="company", identifiers={}, attrs={}, cluster_id=None)
 
     participant_rows = []
     for event_id in event_ids:
@@ -227,6 +231,8 @@ async def test_get_signal_graph_preview_mode_truncates_timeline(monkeypatch):
                 return _ExecResult(scalar_values=event_rows)
             if self.calls == 2:
                 return _ExecResult(rows=participant_rows)
+            if self.calls == 3:
+                return _ExecResult(scalar_values=[])
             raise AssertionError("Unexpected execute call")
 
     preview = await queries.get_signal_graph(_FakeSession(), signal_id, mode="preview")

@@ -21,10 +21,10 @@ export function RadarCoveragePanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-      <div className="h-full w-full max-w-xl overflow-y-auto bg-white p-4 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[1px]">
+      <div className="h-full w-full max-w-xl overflow-y-auto border-l border-gov-gray-200 bg-white p-4 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gov-gray-900">
+          <h3 className="text-xl font-bold text-gov-gray-900">
             Confiabilidade da analise
           </h3>
           <button
@@ -46,13 +46,13 @@ export function RadarCoveragePanel({
         {data && (
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-3">
+              <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50/80 p-3">
                 <p className="text-xs text-gov-gray-500">Tipologias aptas</p>
                 <p className="mt-1 text-xl font-semibold text-gov-gray-900">
                   {data.summary.apt_count}/{data.summary.total_typologies}
                 </p>
               </div>
-              <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-3">
+              <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50/80 p-3">
                 <p className="text-xs text-gov-gray-500">Com sinais em 30d</p>
                 <p className="mt-1 text-xl font-semibold text-gov-gray-900">
                   {data.summary.with_signals_30d}

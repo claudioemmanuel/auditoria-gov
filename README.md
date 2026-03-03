@@ -11,11 +11,11 @@ AuditorIA Gov ingests public datasets from procurement, spending, legislative, e
 
 The scoring and detection layer is deterministic (statistics + graph analysis). Optional LLM support is used only for narrative explanations, not for risk scoring.
 
-## Em Portugues (resumo)
+## Em Português (resumo)
 
-O AuditorIA Gov e uma plataforma de auditoria cidada para dados publicos federais do Brasil. O sistema ingere multiplas bases abertas, cruza entidades, detecta sinais de risco de corrupcao por regras deterministicas e mostra evidencias reproduziveis no portal web.
+O AuditorIA Gov é uma plataforma de auditoria cidadã para dados públicos federais do Brasil. O sistema ingere múltiplas bases abertas, cruza entidades, detecta sinais de risco de corrupção por regras determinísticas e mostra evidências reproduzíveis no portal web.
 
-A camada analitica nao depende de modelo generativo para pontuacao. IA generativa e opcional e usada apenas para explicacoes em linguagem natural.
+A camada analítica não depende de modelo generativo para pontuação. IA generativa é opcional e usada apenas para explicações em linguagem natural.
 
 ## Architecture Overview
 
@@ -50,13 +50,13 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 
 | # | Source | Connector / Jobs | Access |
 |---|--------|-------------------|--------|
-| 1 | Portal da Transparencia - sanctions (CEIS/CNEP) | `portal_transparencia` / `pt_sancoes_ceis_cnep` | Token required |
-| 2 | Portal da Transparencia - spending/transfers | `portal_transparencia` / `pt_*` expense, travel, card, benefits, amendments, transfers | Token required |
+| 1 | Portal da Transparência - sanctions (CEIS/CNEP) | `portal_transparencia` / `pt_sancoes_ceis_cnep` | Token required |
+| 2 | Portal da Transparência - spending/transfers | `portal_transparencia` / `pt_*` expense, travel, card, benefits, amendments, transfers | Token required |
 | 3 | PNCP | `pncp` / `pncp_contracting_notices`, `pncp_contracts`, `pncp_arp` | Public |
-| 4 | Compras.gov.br | `compras_gov` / licitacoes + CATMAT/CATSER catalogs | Public |
+| 4 | Compras.gov.br | `compras_gov` / licitações + CATMAT/CATSER catalogs | Public |
 | 5 | ComprasNet contracts | `comprasnet_contratos` / `cnet_contracts` | Public |
 | 6 | TransfereGov | `transferegov` / convenio and transfer jobs | Public |
-| 7 | Camara dos Deputados | `camara` / deputies, quota expenses, organs | Public |
+| 7 | Câmara dos Deputados | `camara` / deputies, quota expenses, organs | Public |
 | 8 | Senado Federal | `senado` / senators, CEAPS expenses | Public |
 | 9 | TSE electoral data | `tse` / candidates, assets, campaign revenues, campaign expenses | Public (bulk downloads) |
 | 10 | Receita Federal CNPJ | `receita_cnpj` / companies, partners, establishments | Public (bulk downloads) |
@@ -130,14 +130,14 @@ curl -X POST http://localhost:8000/internal/coverage/update
 | `POSTGRES_PASSWORD` | PostgreSQL container password | Docker local |
 | `POSTGRES_DB` | PostgreSQL container database name | Docker local |
 | `REDIS_URL` | Redis URL for cache and app services | Yes |
-| `PORTAL_TRANSPARENCIA_TOKEN` | API token for CGU Portal da Transparencia | Yes (for `pt_*` jobs) |
+| `PORTAL_TRANSPARENCIA_TOKEN` | API token for CGU Portal da Transparência | Yes (for `pt_*` jobs) |
 | `TSE_DATA_DIR` | Local directory for TSE bulk files | Optional |
 | `RECEITA_CNPJ_DATA_DIR` | Local directory for Receita CNPJ bulk files | Optional |
 | `LLM_PROVIDER` | `none` (default) or `openai` | Optional |
 | `OPENAI_API_KEY` | OpenAI API key when `LLM_PROVIDER=openai` | Conditional |
 | `OPENAI_MODEL` | OpenAI chat model for explanations | Optional |
 | `EMBEDDING_MODEL` | Embedding model for retrieval/explanations | Optional |
-| `RATE_LIMIT_PORTAL_TRANSPARENCIA_RPS` | Outgoing RPS cap for Portal da Transparencia | Optional |
+| `RATE_LIMIT_PORTAL_TRANSPARENCIA_RPS` | Outgoing RPS cap for Portal da Transparência | Optional |
 | `RATE_LIMIT_COMPRAS_GOV_RPS` | Outgoing RPS cap for Compras.gov | Optional |
 | `RATE_LIMIT_PNCP_RPS` | Outgoing RPS cap for PNCP | Optional |
 | `RATE_LIMIT_DEFAULT_RPS` | Default outgoing RPS cap for connectors | Optional |
@@ -186,6 +186,6 @@ See [LICENSE](./LICENSE).
 
 ## Acknowledgments
 
-- Brazilian federal open data providers: CGU Portal da Transparencia, PNCP, Compras.gov.br, TransfereGov, Camara dos Deputados, Senado Federal, TSE, Receita Federal
+- Brazilian federal open data providers: CGU Portal da Transparência, PNCP, Compras.gov.br, TransfereGov, Câmara dos Deputados, Senado Federal, TSE, Receita Federal
 - Querido Diario project for public gazette access
 - Core open-source ecosystem: FastAPI, Celery, PostgreSQL, SQLAlchemy, Next.js, React, and many other OSS libraries

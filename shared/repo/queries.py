@@ -55,7 +55,10 @@ from shared.models.graph import (
     CaseFocusSignalSummary,
     CaseGraphResponse,
     CaseSignalBrief,
+    ClusterEntityOut,
     CoParticipantOut,
+    ExpandedNodeOut,
+    ExpansionEdgeOut,
     GraphDiagnosticsOut,
     GraphEdgeOut,
     GraphNodeOut,
@@ -158,7 +161,7 @@ _COVERAGE_PROFILE_SAMPLE_LIMIT = 200
 _COVERAGE_RECORD_SAMPLE_LIMIT = 12
 _COVERAGE_MAX_RAW_DATA_CHARS = 2400
 _COVERAGE_MAX_PREVIEW_VALUE_CHARS = 160
-_COVERAGE_STUCK_MINUTES = 20
+_COVERAGE_STUCK_MINUTES = 120
 
 _COVERAGE_PREVIEW_KEYS = (
     "id",
@@ -2114,6 +2117,84 @@ async def get_signal_graph(
         _TARGET_ROLES,
     )
 
+    # BFS expansion: discover connected entities via GraphNode/GraphEdge
+    expanded_nodes: list[ExpandedNodeOut] = []
+    expansion_edges: list[ExpansionEdgeOut] = []
+    direct_entity_ids = set(entity_profiles.keys())
+
+    if direct_entity_ids:
+        gn_stmt = select(GraphNode).where(GraphNode.entity_id.in_(direct_entity_ids))
+        direct_graph_nodes = list((await session.execute(gn_stmt)).scalars().all())
+        direct_node_ids = {gn.id for gn in direct_graph_nodes}
+
+        if direct_node_ids:
+            edge_stmt = select(GraphEdge).where(
+                or_(
+                    GraphEdge.from_node_id.in_(direct_node_ids),
+                    GraphEdge.to_node_id.in_(direct_node_ids),
+                )
+            ).limit(100)
+            bfs_edges = list((await session.execute(edge_stmt)).scalars().all())
+
+            discovered_node_ids: set[uuid.UUID] = set()
+            for edge in bfs_edges:
+                if edge.from_node_id not in direct_node_ids:
+                    discovered_node_ids.add(edge.from_node_id)
+                if edge.to_node_id not in direct_node_ids:
+                    discovered_node_ids.add(edge.to_node_id)
+
+            disc_node_map: dict[uuid.UUID, 'GraphNode'] = {}
+            if discovered_node_ids:
+                disc_stmt = select(GraphNode).where(GraphNode.id.in_(discovered_node_ids))
+                disc_nodes = list((await session.execute(disc_stmt)).scalars().all())
+                disc_node_map = {gn.id: gn for gn in disc_nodes}
+
+                disc_entity_ids = {gn.entity_id for gn in disc_nodes}
+                disc_ent_stmt = select(Entity).where(Entity.id.in_(disc_entity_ids))
+                disc_entities = {e.id: e for e in (await session.execute(disc_ent_stmt)).scalars().all()}
+
+                for gn in disc_nodes:
+                    entity = disc_entities.get(gn.entity_id)
+                    expanded_nodes.append(ExpandedNodeOut(
+                        id=gn.id,
+                        entity_id=gn.entity_id,
+                        label=gn.label,
+                        node_type=gn.node_type,
+                        source_connector=(entity.attrs or {}).get("source_connector") if entity else None,
+                        attrs=gn.attrs or {},
+                        is_direct_participant=False,
+                    ))
+
+            all_node_map = {gn.id: gn for gn in direct_graph_nodes}
+            all_node_map.update(disc_node_map)
+
+            for edge in bfs_edges:
+                from_gn = all_node_map.get(edge.from_node_id)
+                to_gn = all_node_map.get(edge.to_node_id)
+                if from_gn and to_gn:
+                    expansion_edges.append(ExpansionEdgeOut(
+                        id=edge.id,
+                        from_entity_id=from_gn.entity_id,
+                        to_entity_id=to_gn.entity_id,
+                        edge_type=edge.type,
+                        weight=edge.weight,
+                        attrs=edge.attrs or {},
+                    ))
+
+    # Cluster expansion: find entities sharing cluster_id
+    cluster_map: dict[uuid.UUID, list[ClusterEntityOut]] = defaultdict(list)
+    cluster_ids = {e.cluster_id for e in entity_profiles.values() if e.cluster_id is not None}
+    if cluster_ids:
+        cluster_stmt = select(Entity).where(
+            Entity.cluster_id.in_(cluster_ids),
+            ~Entity.id.in_(direct_entity_ids),
+        ).limit(50)
+        cluster_entities_list = list((await session.execute(cluster_stmt)).scalars().all())
+        for ce in cluster_entities_list:
+            cluster_map[ce.cluster_id].append(ClusterEntityOut(
+                entity_id=ce.id, name=ce.name, node_type=ce.type,
+            ))
+
     involved_profiles = [
         SignalInvolvedEntityProfileOut(
             entity_id=entity.id,
@@ -2134,6 +2215,8 @@ async def get_signal_graph(
                 )
             ],
             event_count=len(entity_event_sets.get(entity.id, set())),
+            is_direct_participant=True,
+            cluster_entities=cluster_map.get(entity.cluster_id, []) if entity.cluster_id else [],
         )
         for entity in involved_entities
     ]
@@ -2164,7 +2247,12 @@ async def get_signal_graph(
             flow_targets=flow_targets,
             why_flagged=why_flagged,
         ),
-        overview=SignalGraphOverviewOut(nodes=nodes, edges=edges),
+        overview=SignalGraphOverviewOut(
+            nodes=nodes,
+            edges=edges,
+            expanded_nodes=expanded_nodes,
+            expansion_edges=expansion_edges,
+        ),
         timeline=timeline,
         involved_entities=involved_profiles,
         diagnostics=SignalGraphDiagnosticsOut(

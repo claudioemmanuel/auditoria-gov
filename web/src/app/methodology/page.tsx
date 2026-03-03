@@ -4,16 +4,16 @@ import { TableOfContents } from "./TableOfContents";
 // ── Local data maps ────────────────────────────────────────────────────────────
 
 const TYPOLOGY_DESCRIPTIONS: Record<string, string> = {
-  T01: "Orgao direciona parcela desproporcional do gasto a um unico fornecedor ao longo do periodo analisado.",
-  T02: "Licitacoes com numero de participantes abaixo do esperado para o segmento e faixa de valor.",
-  T03: "Despesas particionadas sistematicamente abaixo de limiares legais de modalidade licitatoria.",
-  T04: "Aditivos contratuais com valor ou extensao fora do intervalo historico para o tipo de contrato.",
-  T05: "Preco unitario contratado desvia significativamente da mediana de mercado para o mesmo item/servico.",
-  T06: "Empresa apresenta indicadores associados a sociedade de fachada: capital minimo, CNAE inconsistente, endereco compartilhado.",
-  T07: "Conjunto de empresas apresenta padrao de propostas coordenadas compativel com cartel em multiplas licitacoes.",
+  T01: "Órgão direciona parcela desproporcional do gasto a um único fornecedor ao longo do período analisado.",
+  T02: "Licitações com número de participantes abaixo do esperado para o segmento e faixa de valor.",
+  T03: "Despesas particionadas sistematicamente abaixo de limiares legais de modalidade licitatória.",
+  T04: "Aditivos contratuais com valor ou extensão fora do intervalo histórico para o tipo de contrato.",
+  T05: "Preço unitário contratado desvia significativamente da mediana de mercado para o mesmo item/serviço.",
+  T06: "Empresa apresenta indicadores associados a sociedade de fachada: capital mínimo, CNAE inconsistente, endereço compartilhado.",
+  T07: "Conjunto de empresas apresenta padrão de propostas coordenadas compatível com cartel em múltiplas licitações.",
   T08: "Fornecedor com contrato ativo consta em cadastro de sancionados (CEIS, CNEP, CEPIM) vigente.",
-  T09: "Servidores com vinculo ativo nao localizaveis na folha de pagamento do periodo ou com remuneracao inconsistente.",
-  T10: "Contratacao terceirizada paralela a quadro proprio com sobreposicao de funcao e orgao.",
+  T09: "Servidores com vínculo ativo não localizáveis na folha de pagamento do período ou com remuneração inconsistente.",
+  T10: "Contratação terceirizada paralela a quadro próprio com sobreposição de função e órgão.",
 };
 
 const TYPOLOGY_SOURCES: Record<string, string[]> = {
@@ -24,9 +24,9 @@ const TYPOLOGY_SOURCES: Record<string, string[]> = {
   T05: ["PNCP", "Compras.gov.br"],
   T06: ["Receita Federal (CNPJ)"],
   T07: ["PNCP", "Compras.gov.br", "ComprasNet Contratos"],
-  T08: ["Portal da Transparencia", "PNCP"],
-  T09: ["Portal da Transparencia"],
-  T10: ["Portal da Transparencia", "Compras.gov.br"],
+  T08: ["Portal da Transparência", "PNCP"],
+  T09: ["Portal da Transparência"],
+  T10: ["Portal da Transparência", "Compras.gov.br"],
 };
 
 // ── Static content ─────────────────────────────────────────────────────────────
@@ -34,89 +34,89 @@ const TYPOLOGY_SOURCES: Record<string, string[]> = {
 const PRINCIPLES = [
   {
     title: "Sinal de Risco != Prova",
-    body: "A plataforma produz hipoteses investigaveis para triagem tecnica e controle social, nao conclusoes definitivas. Severidade alta indica prioridade de analise, nao culpabilidade.",
+    body: "A plataforma produz hipóteses investigáveis para triagem técnica e controle social, não conclusões definitivas. Severidade alta indica prioridade de análise, não culpabilidade.",
   },
   {
-    title: "Evidencia Reproduzivel",
-    body: "Cada sinal registra os fatores numericos, contexto de execucao e referencias de origem. Qualquer auditor pode replicar o calculo a partir das fontes publicas citadas.",
+    title: "Evidência Reproduzível",
+    body: "Cada sinal registra os fatores numéricos, contexto de execução e referências de origem. Qualquer auditor pode replicar o cálculo a partir das fontes públicas citadas.",
   },
   {
-    title: "Transparencia de Cobertura",
-    body: "O painel de Confiabilidade no Radar informa quando cada tipologia executou, quantos candidatos avaliou e se produziu sinais — distinguindo 'nao encontrou' de 'nao pode rodar'.",
+    title: "Transparência de Cobertura",
+    body: "O painel de Confiabilidade no Radar informa quando cada tipologia executou, quantos candidatos avaliou e se produziu sinais — distinguindo 'não encontrou' de 'não pode rodar'.",
   },
   {
     title: "LGPD-by-Design",
-    body: "Tratamento orientado por finalidade publica, minimizacao de dados pessoais e boa pratica de governanca. CPFs sao hasheados e nunca persistidos em claro.",
+    body: "Tratamento orientado por finalidade pública, minimização de dados pessoais e boa prática de governança. CPFs são hasheados e nunca persistidos em claro.",
   },
 ];
 
 const PIPELINE_STEPS = [
   {
     n: 1,
-    title: "Ingestao e Catalogacao",
-    desc: "Coleta automatica em fontes publicas com metadados de recencia e status por job.",
+    title: "Ingestão e Catalogação",
+    desc: "Coleta automática em fontes públicas com metadados de recência e status por job.",
   },
   {
     n: 2,
-    title: "Normalizacao Canonica",
-    desc: "Padronizacao de contratos, participantes, valores, periodos e identificadores.",
+    title: "Normalização Canônica",
+    desc: "Padronização de contratos, participantes, valores, períodos e identificadores.",
   },
   {
     n: 3,
-    title: "Resolucao de Entidades",
-    desc: "Matching deterministico e probabilistico para consolidar pessoas, empresas e orgaos.",
+    title: "Resolução de Entidades",
+    desc: "Matching determinístico e probabilístico para consolidar pessoas, empresas e órgãos.",
   },
   {
     n: 4,
     title: "Baselines e Scores",
-    desc: "Calculo de distribuicoes historicas, percentis e thresholds com fallback de escopo.",
+    desc: "Cálculo de distribuições históricas, percentis e thresholds com fallback de escopo.",
   },
   {
     n: 5,
-    title: "Deteccao e Explicacao",
-    desc: "Aplicacao das tipologias com registro de execucao (candidatos, criados, deduplicados, bloqueados), classificacao de risco e producao de explicacao interpretavel.",
+    title: "Detecção e Explicação",
+    desc: "Aplicação das tipologias com registro de execução (candidatos, criados, deduplicados, bloqueados), classificação de risco e produção de explicação interpretável.",
   },
 ];
 
 const SCORE_DIMENSIONS = [
   {
     name: "Severidade",
-    desc: "Mede impacto potencial e magnitude do desvio observado. Baseada em desvio estatistico e relevancia financeira/operacional. Classificada em Baixo, Medio, Alto e Critico. Nao define culpabilidade, apenas prioridade de analise.",
+    desc: "Mede impacto potencial e magnitude do desvio observado. Baseada em desvio estatístico e relevância financeira/operacional. Classificada em Baixo, Médio, Alto e Crítico. Não define culpabilidade, apenas prioridade de análise.",
   },
   {
-    name: "Confianca",
-    desc: "Mede o quanto o padrao observado e consistente nos dados disponiveis. Considera volume amostral, estabilidade e coerencia entre fatores. Confianca baixa exige verificacao adicional antes de escalar o caso.",
+    name: "Confiança",
+    desc: "Mede o quanto o padrão observado é consistente nos dados disponíveis. Considera volume amostral, estabilidade e coerência entre fatores. Confiança baixa exige verificação adicional antes de escalar o caso.",
   },
   {
     name: "Completude",
-    desc: "Mede qualidade e disponibilidade de evidencia para sustentar a leitura. Avalia quantidade e qualidade das fontes vinculadas ao sinal. Sinais com baixa completude devem ser tratados como observacao preliminar.",
+    desc: "Mede qualidade e disponibilidade de evidência para sustentar a leitura. Avalia quantidade e qualidade das fontes vinculadas ao sinal. Sinais com baixa completude devem ser tratados como observação preliminar.",
   },
 ];
 
 const SCOPE_CURRENT = [
-  "Uniao Federal (orcamento federal direto)",
-  "Contratos e licitacoes via PNCP e ComprasNet",
+  "União Federal (orçamento federal direto)",
+  "Contratos e licitações via PNCP e ComprasNet",
   "Folha de pagamento do Executivo Federal",
   "Empresas com CNPJ ativo na Receita Federal",
   "Sancionados nos cadastros CEIS, CNEP e CEPIM",
 ];
 
 const SCOPE_ROADMAP = [
-  "Estados e municipios com maior volume de contratacao",
-  "Transferencias voluntarias via Transfere.gov",
-  "Dados do TSE para cruzamento politico-contratual",
-  "Diarios oficiais via Querido Diario (OCR)",
-  "Historico de precos de referencia por categoria CATMAT/CATSER",
+  "Estados e municípios com maior volume de contratação",
+  "Transferências voluntárias via Transfere.gov",
+  "Dados do TSE para cruzamento político-contratual",
+  "Diários oficiais via Querido Diário (OCR)",
+  "Histórico de preços de referência por categoria CATMAT/CATSER",
 ];
 
 const LEGAL_REFS = [
-  ["Fraude em Licitacao", "Lei 14.133/2021"],
-  ["Corrupcao Passiva", "art. 317 CP"],
-  ["Corrupcao Ativa", "art. 333 CP"],
+  ["Fraude em Licitação", "Lei 14.133/2021"],
+  ["Corrupção Passiva", "art. 317 CP"],
+  ["Corrupção Ativa", "art. 333 CP"],
   ["Peculato", "art. 312 CP"],
   ["Lavagem de Dinheiro", "Lei 9.613/98"],
-  ["Prevaricacao", "art. 319 CP"],
-  ["Concussao", "art. 316 CP"],
+  ["Prevaricação", "art. 319 CP"],
+  ["Concussão", "art. 316 CP"],
   ["Nepotismo/Clientelismo", "Decreto 7.203/2010"],
 ];
 
@@ -144,12 +144,12 @@ export default function MethodologyPage() {
           Metodologia AuditorIA Gov
         </h1>
         <p className="mt-2 text-sm text-secondary leading-relaxed max-w-2xl">
-          Como o sistema transforma dados publicos em sinais de risco, como interpretar os scores
+          Como o sistema transforma dados públicos em sinais de risco, como interpretar os scores
           e quais limites considerar na leitura.
         </p>
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 max-w-2xl">
-          <strong>Leitura obrigatoria:</strong> sinais indicam risco tecnico para priorizacao de
-          analise. Nao constituem acusacao, prova definitiva ou decisao administrativa/judicial.
+          <strong>Leitura obrigatória:</strong> sinais indicam risco técnico para priorização de
+          análise. Não constituem acusação, prova definitiva ou decisão administrativa/judicial.
         </div>
 
         {/* Two-column layout */}
@@ -162,8 +162,8 @@ export default function MethodologyPage() {
           {/* Main content */}
           <div className="min-w-0 flex-1 max-w-2xl">
 
-            {/* ── Principios ── */}
-            <SectionHeading id="principios">Principios</SectionHeading>
+            {/* ── Princípios ── */}
+            <SectionHeading id="principios">Princípios</SectionHeading>
             <div className="space-y-4">
               {PRINCIPLES.map((p) => (
                 <div key={p.title}>
@@ -192,10 +192,10 @@ export default function MethodologyPage() {
             {/* ── Tipologias ── */}
             <SectionHeading id="tipologias">Tipologias</SectionHeading>
             <p className="text-sm text-secondary leading-relaxed mb-6">
-              O motor aplica 10 tipologias com thresholds especificos por contexto e baseline.
-              A leitura de cada codigo deve considerar o nivel de evidencia: direto (viola regra
-              legal especifica), indireto (anomalia estatistica) ou proxy (indicador associado ao
-              veiculo de risco).
+              O motor aplica 10 tipologias com thresholds específicos por contexto e baseline.
+              A leitura de cada código deve considerar o nível de evidência: direto (viola regra
+              legal específica), indireto (anomalia estatística) ou proxy (indicador associado ao
+              veículo de risco).
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {Object.entries(TYPOLOGY_LABELS).map(([code, name]) => {
@@ -244,10 +244,10 @@ export default function MethodologyPage() {
             </div>
 
             {/* ── Scores ── */}
-            <SectionHeading id="scores">Scores de Avaliacao</SectionHeading>
+            <SectionHeading id="scores">Scores de Avaliação</SectionHeading>
             <p className="text-sm text-secondary leading-relaxed mb-6">
-              A leitura correta exige considerar os tres eixos em conjunto. Severidade alta sem
-              completude adequada indica prioridade de verificacao, nao conclusao final.
+              A leitura correta exige considerar os três eixos em conjunto. Severidade alta sem
+              completude adequada indica prioridade de verificação, não conclusão final.
             </p>
             <div className="space-y-3">
               {SCORE_DIMENSIONS.map((dim) => (
@@ -291,8 +291,8 @@ export default function MethodologyPage() {
             {/* ── Base Legal ── */}
             <SectionHeading id="base-legal">Base Legal</SectionHeading>
             <p className="text-sm text-secondary leading-relaxed mb-6">
-              Cada tipologia mapeia para tipos de corrupcao com artigos legais especificos e esferas
-              de atuacao. Esses filtros estao disponiveis no Radar para busca por categoria juridica.
+              Cada tipologia mapeia para tipos de corrupção com artigos legais específicos e esferas
+              de atuação. Esses filtros estão disponíveis no Radar para busca por categoria jurídica.
             </p>
             <div className="border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
@@ -302,7 +302,7 @@ export default function MethodologyPage() {
                       Tipo
                     </th>
                     <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                      Referencia
+                      Referência
                     </th>
                   </tr>
                 </thead>
@@ -317,9 +317,9 @@ export default function MethodologyPage() {
               </table>
             </div>
             <p className="mt-6 text-xs text-muted leading-relaxed">
-              A metodologia evolui conforme expansao de cobertura nacional e melhoria de evidencia
-              por UF/municipio. Ajustes de threshold, score e tipologias sao versionados para
-              rastreabilidade tecnica.
+              A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência
+              por UF/município. Ajustes de threshold, score e tipologias são versionados para
+              rastreabilidade técnica.
             </p>
 
           </div>

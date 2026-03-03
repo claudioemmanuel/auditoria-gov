@@ -142,7 +142,7 @@ function KpiCard({
   tooltip: string;
 }) {
   return (
-    <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
+    <div className="metric-card">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-gov-gray-500">{label}</p>
         <span className="group relative">
@@ -274,7 +274,7 @@ export default function CoverageRunDetailPage() {
   /* ── Loading ────────────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="page-wrap">
         <Breadcrumb
           items={[
             { label: "Cobertura", href: "/coverage" },
@@ -291,7 +291,7 @@ export default function CoverageRunDetailPage() {
   /* ── Error ──────────────────────────────────────────────────── */
   if (error || !detail) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="page-wrap">
         <Breadcrumb
           items={[
             { label: "Cobertura", href: "/coverage" },
@@ -331,7 +331,7 @@ export default function CoverageRunDetailPage() {
   const globalOffset = samplesPage * SAMPLES_PER_PAGE;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="page-wrap">
       <Breadcrumb
         items={[
           { label: "Cobertura", href: "/coverage" },
@@ -344,14 +344,14 @@ export default function CoverageRunDetailPage() {
       {/* Back link */}
       <Link
         href="/coverage"
-        className="mt-3 inline-flex items-center gap-1 text-xs text-gov-gray-500 transition hover:text-gov-blue-600"
+        className="mt-3 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-xs text-gov-gray-500 transition hover:bg-gov-gray-100 hover:text-gov-blue-600"
       >
         <ArrowLeft className="h-3 w-3" />
         Voltar para Cobertura
       </Link>
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <section className="mt-4 rounded-lg border border-gov-gray-200 bg-white p-5">
+      <section className="surface-card mt-4 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -388,7 +388,7 @@ export default function CoverageRunDetailPage() {
         </div>
 
         {/* Status explanation */}
-        <div className="mt-3 flex items-start gap-2 rounded-md bg-gov-gray-50 px-3 py-2">
+        <div className="mt-3 flex items-start gap-2 rounded-md bg-gov-gray-50/80 px-3 py-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-gov-blue-500" />
           <p className="text-xs text-gov-gray-600">{statusCfg.desc}</p>
         </div>
@@ -400,14 +400,13 @@ export default function CoverageRunDetailPage() {
       </section>
 
       {/* ── KPI Grid ───────────────────────────────────────────── */}
-      <section className="mt-6">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
-          <BarChart3 className="h-5 w-5 text-gov-blue-600" />
-          Numeros da Execucao
-        </h2>
-        <p className="mt-1 text-xs text-gov-gray-500">
-          Metricas quantitativas do processamento. O pipeline busca dados brutos na fonte,
-          normaliza para o modelo canonico e persiste com deduplicacao automatica.
+      <section className="surface-card mt-6 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-gov-blue-600" />
+          <h2 className="panel-title">Numeros da execucao</h2>
+        </div>
+        <p className="text-xs text-gov-gray-500">
+          Metricas quantitativas do processamento para validar volume, normalizacao e persistencia.
         </p>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -442,11 +441,8 @@ export default function CoverageRunDetailPage() {
       </section>
 
       {/* ── Timeline ───────────────────────────────────────────── */}
-      <section className="mt-6">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
-          <Clock className="h-5 w-5 text-gov-blue-600" />
-          Linha do Tempo
-        </h2>
+      <section className="surface-card mt-6 p-4">
+        <h2 className="panel-title">Linha do tempo</h2>
         <p className="mt-1 text-xs text-gov-gray-500">
           Janela temporal da execucao e dos registros processados.
         </p>
@@ -503,7 +499,7 @@ export default function CoverageRunDetailPage() {
       </section>
 
       {/* ── How it works ───────────────────────────────────────── */}
-      <section className="mt-6 rounded-lg border border-gov-blue-100 bg-gov-blue-50/40 p-4">
+      <section className="mt-6 rounded-xl border border-gov-blue-100 bg-gov-blue-50/40 p-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-900">
           <Info className="h-4 w-4 text-gov-blue-600" />
           Como funciona este processamento?
@@ -555,7 +551,7 @@ export default function CoverageRunDetailPage() {
 
       {/* ── Errors (if any) ────────────────────────────────────── */}
       {detail.run.errors && Object.keys(detail.run.errors).length > 0 && (
-        <section className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+        <section className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-red-800">
             <CircleX className="h-4 w-4" />
             Erros registrados
@@ -568,7 +564,7 @@ export default function CoverageRunDetailPage() {
 
       {/* ── Field Profile ──────────────────────────────────────── */}
       {detail.field_profile.length > 0 && (
-        <section className="mt-6 rounded-lg border border-gov-gray-200 bg-white">
+        <section className="surface-card mt-6">
           <button
             type="button"
             onClick={() => setFieldProfileOpen((o) => !o)}
@@ -632,7 +628,7 @@ export default function CoverageRunDetailPage() {
       )}
 
       {/* ── Samples ────────────────────────────────────────────── */}
-      <section className="mt-6 rounded-lg border border-gov-gray-200 bg-white">
+      <section className="surface-card mt-6">
         <button
           type="button"
           onClick={() => setSamplesSectionOpen((o) => !o)}
@@ -791,7 +787,7 @@ export default function CoverageRunDetailPage() {
       </section>
 
       {/* ── Transparency footer ────────────────────────────────── */}
-      <div className="mt-6 rounded-lg border border-gov-gray-100 bg-gov-gray-50 p-3">
+      <div className="surface-muted mt-6 p-3">
         <p className="text-xs text-gov-gray-500">
           <strong>Transparencia:</strong> Esta pagina exibe o detalhe tecnico de uma
           execucao de ingestao de dados publicos. Os registros sao obtidos exclusivamente

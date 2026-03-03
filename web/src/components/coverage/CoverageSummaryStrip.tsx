@@ -11,12 +11,12 @@ interface CoverageSummaryStripProps {
 
 function overallBadge(status?: string) {
   if (status === "healthy") {
-    return { label: "Saudavel", cls: "border-green-200 bg-green-50 text-green-700", Icon: CheckCircle2 };
+    return { label: "Saudável", cls: "border-green-200 bg-green-50 text-green-700", Icon: CheckCircle2 };
   }
   if (status === "blocked") {
     return { label: "Bloqueado", cls: "border-red-200 bg-red-50 text-red-700", Icon: AlertTriangle };
   }
-  return { label: "Atencao", cls: "border-yellow-200 bg-yellow-50 text-yellow-700", Icon: Loader2 };
+  return { label: "Atenção", cls: "border-yellow-200 bg-yellow-50 text-yellow-700", Icon: Loader2 };
 }
 
 export function CoverageSummaryStrip({ summary, loading }: CoverageSummaryStripProps) {
@@ -61,7 +61,7 @@ export function CoverageSummaryStrip({ summary, loading }: CoverageSummaryStripP
 
       <div className="rounded-xl border border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">Execucao</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Execução</p>
           <Activity className="h-4 w-4 text-accent" />
         </div>
         <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-primary">
@@ -84,7 +84,7 @@ export function CoverageSummaryStrip({ summary, loading }: CoverageSummaryStripP
 
       <div className={cn("rounded-xl border p-4", badge.cls)}>
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide">Saude do pipeline</p>
+          <p className="text-xs font-medium uppercase tracking-wide">Saúde do pipeline</p>
           <BadgeIcon className="h-4 w-4" />
         </div>
         <p className="mt-2 text-2xl font-semibold">{badge.label}</p>
