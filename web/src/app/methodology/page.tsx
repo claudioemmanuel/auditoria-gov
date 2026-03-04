@@ -1,4 +1,6 @@
+import { BookOpen } from "lucide-react";
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
+import { PageHero } from "@/components/PageHero";
 import { TableOfContents } from "./TableOfContents";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
@@ -140,17 +142,12 @@ export default function MethodologyPage() {
     <div>
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         {/* Page title */}
-        <h1 className="text-2xl font-bold text-gov-gray-900 tracking-tight">
-          Metodologia AuditorIA Gov
-        </h1>
-        <p className="mt-2 text-sm text-gov-gray-600 leading-relaxed max-w-2xl">
-          Como o sistema transforma dados públicos em sinais de risco, como interpretar os scores
-          e quais limites considerar na leitura.
-        </p>
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 max-w-2xl">
-          <strong>Leitura obrigatória:</strong> sinais indicam risco técnico para priorização de
-          análise. Não constituem acusação, prova definitiva ou decisão administrativa/judicial.
-        </div>
+        <PageHero
+          icon={BookOpen}
+          title="Metodologia AuditorIA Gov"
+          description="Como o sistema transforma dados públicos em sinais de risco, como interpretar os scores e quais limites considerar na leitura."
+          note="sinais indicam risco técnico para priorização de análise. Não constituem acusação, prova definitiva ou decisão administrativa/judicial."
+        />
 
         {/* Two-column layout */}
         <div className="mt-10 flex gap-12">

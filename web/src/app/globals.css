@@ -58,11 +58,25 @@ body {
 .page-wrap {
   padding-left: 1rem;
   padding-right: 1rem;
-  padding-top: 2rem;
+  padding-top: 1.5rem;
   padding-bottom: 2rem;
   max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* ── Shared card utility classes ─────────────────────────── */
+.surface-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+.metric-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
 }
 
 /* Focus ring for accessibility */

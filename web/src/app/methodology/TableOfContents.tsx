@@ -43,8 +43,8 @@ export function TableOfContents() {
   }, []);
 
   return (
-    <nav aria-label="Tabela de Conteúdo" className="sticky top-8 self-start w-44 shrink-0">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-3">
+    <nav aria-label="Tabela de Conteúdo" className="sticky top-20 self-start w-48 flex-shrink-0">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gov-gray-500 mb-3">
         Conteúdo
       </p>
       <ol className="space-y-1">
@@ -59,11 +59,11 @@ export function TableOfContents() {
               className={cn(
                 "flex items-start gap-2 rounded px-2 py-1 text-xs leading-snug transition-colors",
                 activeId === id
-                  ? "text-accent font-medium"
-                  : "text-secondary hover:text-primary"
+                  ? "text-gov-blue-700 font-medium"
+                  : "text-gov-gray-600 hover:text-gov-blue-700"
               )}
             >
-              <span className="font-mono tabular-nums text-muted shrink-0 w-4 text-right">
+              <span className="font-mono tabular-nums text-gov-gray-400 shrink-0 w-4 text-right">
                 {i + 1}.
               </span>
               <span>{label}</span>

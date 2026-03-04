@@ -19,7 +19,7 @@ export function RadarViewTabs({ value, onChange }: RadarViewTabsProps) {
             : "text-gov-gray-600 hover:bg-gov-gray-50"
         }`}
       >
-        Visao por Sinais
+        Visão por Sinais
       </button>
       <button
         type="button"
@@ -30,7 +30,7 @@ export function RadarViewTabs({ value, onChange }: RadarViewTabsProps) {
             : "text-gov-gray-600 hover:bg-gov-gray-50"
         }`}
       >
-        Visao por Casos
+        Visão por Casos
       </button>
     </div>
   );

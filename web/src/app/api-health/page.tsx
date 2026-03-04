@@ -207,7 +207,7 @@ export default function ApiHealthPage() {
             <Activity className="h-4 w-4 text-gov-blue-600" />
             <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">API</p>
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">{checks[0]?.status === "ok" ? "OK" : "Falha"}</p>
+          <p className="mt-2 text-3xl font-bold text-gov-gray-900">{checks[0]?.status === "ok" ? "OK" : "Falha"}</p>
           <p className="mt-1 text-xs text-gov-gray-500">{checks[0]?.endpoint}</p>
         </article>
 
@@ -216,7 +216,7 @@ export default function ApiHealthPage() {
             <Workflow className="h-4 w-4 text-gov-blue-600" />
             <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">Pipeline</p>
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">
+          <p className="mt-2 text-3xl font-bold text-gov-gray-900">
             {coverageSummary?.pipeline.overall_status || "indisponivel"}
           </p>
           <p className="mt-1 text-xs text-gov-gray-500">Estado operacional geral</p>
@@ -227,7 +227,7 @@ export default function ApiHealthPage() {
             <Cpu className="h-4 w-4 text-gov-blue-600" />
             <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">Workers</p>
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">
+          <p className="mt-2 text-3xl font-bold text-gov-gray-900">
             {coverageSummary?.totals.runtime.failed_or_stuck ?? "-"}
           </p>
           <p className="mt-1 text-xs text-gov-gray-500">falha/travamento</p>
@@ -235,7 +235,7 @@ export default function ApiHealthPage() {
       </section>
 
       <section className="surface-card mt-6 p-4">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gov-gray-600">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-gov-gray-600">
           <DatabaseZap className="h-4 w-4 text-gov-blue-600" />
           Checklist técnico
         </h2>

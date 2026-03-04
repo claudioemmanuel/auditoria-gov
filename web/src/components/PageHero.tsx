@@ -26,7 +26,7 @@ export function PageHero({
             <Icon className="h-6 w-6 text-gov-blue-700" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-4xl font-bold tracking-tight text-gov-gray-900">{title}</h1>
+            <h1 className="text-2xl font-bold text-gov-gray-900">{title}</h1>
             <p className="mt-2 max-w-4xl text-[0.96rem] leading-relaxed text-gov-gray-600">{description}</p>
           </div>
         </div>

@@ -26,18 +26,18 @@ const STATUS_OPTIONS: Array<{ value: "" | CoverageStatus; label: string }> = [
 ];
 
 const selectCls =
-  "rounded-lg border border-border bg-surface-base px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none";
+  "rounded-lg border border-gov-gray-200 bg-gov-gray-50 px-3 py-2 text-sm text-gov-gray-900 focus:border-gov-blue-700 focus:outline-none";
 
 export function CoverageFilterBar({ value, domains, onChange }: CoverageFilterBarProps) {
   return (
-    <div className="rounded-xl border border-border bg-surface-card p-3">
+    <div className="rounded-xl border border-gov-gray-200 bg-white p-3">
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
         <input
           type="text"
           value={value.q}
           onChange={(event) => onChange({ ...value, q: event.target.value })}
           placeholder="Buscar fonte, job ou domínio..."
-          className="rounded-lg border border-border bg-surface-base px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
+          className="rounded-lg border border-gov-gray-200 bg-gov-gray-50 px-3 py-2 text-sm text-gov-gray-900 placeholder:text-gov-gray-500 focus:border-gov-blue-700 focus:outline-none"
         />
         <select
           value={value.status}
@@ -76,12 +76,12 @@ export function CoverageFilterBar({ value, domains, onChange }: CoverageFilterBa
           <option value="freshness_desc">Maior defasagem</option>
           <option value="jobs_desc">Mais jobs</option>
         </select>
-        <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-base px-3 py-2 text-sm text-secondary">
+        <label className="flex items-center gap-2 rounded-lg border border-gov-gray-200 bg-gov-gray-50 px-3 py-2 text-sm text-gov-gray-600">
           <input
             type="checkbox"
             checked={value.enabledOnly}
             onChange={(event) => onChange({ ...value, enabledOnly: event.target.checked })}
-            className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+            className="h-4 w-4 rounded border-gov-gray-200 text-gov-blue-700 focus:ring-gov-blue-700"
           />
           Apenas jobs habilitados
         </label>
