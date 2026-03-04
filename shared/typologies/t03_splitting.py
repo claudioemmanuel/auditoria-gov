@@ -15,8 +15,12 @@ from shared.typologies.base import BaseTypology
 
 
 # Thresholds for dispensa de licitação (Lei 14.133/2021)
-_DISPENSA_GOODS_THRESHOLD = 50_000.0  # R$ 50k for goods
-_DISPENSA_SERVICES_THRESHOLD = 100_000.0  # R$ 100k for services
+# Updated by Decreto 12.343/2024 (effective 2024)
+# Previous values (Decreto 10.922/2021): R$ 50,000 goods/services, R$ 100,000 public works/engineering
+# Source: https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2024/decreto/D12343.htm
+_DISPENSA_GOODS_THRESHOLD = 62_725.59      # R$ 62,725.59 — goods/services (Decreto 12.343/2024)
+_DISPENSA_ENGINEERING_THRESHOLD = 125_451.15  # R$ 125,451.15 — public works/engineering (Decreto 12.343/2024)
+_DISPENSA_SERVICES_THRESHOLD = _DISPENSA_ENGINEERING_THRESHOLD  # alias
 _DEFAULT_THRESHOLD = _DISPENSA_GOODS_THRESHOLD
 _MAX_GAP_DAYS = 30  # Max days between purchases to be considered a cluster
 
