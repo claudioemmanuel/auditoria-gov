@@ -291,8 +291,9 @@ def _build_semantic_matches(session, entities: list[dict], matched_ids: set) -> 
     return matches
 
 
-_ER_BATCH_SIZE = 50_000       # entities per matching batch
-_ER_EDGE_BATCH_SIZE = 100_000  # participants per edge-building batch
+_ER_BATCH_SIZE = 50_000      # entities per matching batch
+_ER_EDGE_BATCH_SIZE = 10_000  # participants per edge-building batch (keep IN params < 65535)
+_IN_CHUNK = 5_000             # max IDs per IN clause
 
 
 @shared_task(name="worker.tasks.er_tasks.run_entity_resolution")
@@ -536,18 +537,21 @@ def run_entity_resolution():
                 entity_ids_in_edges.add(edge.from_entity_id)
                 entity_ids_in_edges.add(edge.to_entity_id)
 
-            existing_nodes: dict = {
-                node.entity_id: node
+            entity_ids_list = list(entity_ids_in_edges)
+            existing_nodes: dict = {}
+            for _i in range(0, len(entity_ids_list), _IN_CHUNK):
+                _chunk = entity_ids_list[_i : _i + _IN_CHUNK]
                 for node in session.execute(
-                    select(GraphNode).where(GraphNode.entity_id.in_(entity_ids_in_edges))
-                ).scalars().all()
-            }
-            entity_map: dict = {
-                e.id: e
+                    select(GraphNode).where(GraphNode.entity_id.in_(_chunk))
+                ).scalars().all():
+                    existing_nodes[node.entity_id] = node
+            entity_map: dict = {}
+            for _i in range(0, len(entity_ids_list), _IN_CHUNK):
+                _chunk = entity_ids_list[_i : _i + _IN_CHUNK]
                 for e in session.execute(
-                    select(Entity).where(Entity.id.in_(entity_ids_in_edges))
-                ).scalars().all()
-            }
+                    select(Entity).where(Entity.id.in_(_chunk))
+                ).scalars().all():
+                    entity_map[e.id] = e
 
             node_by_entity_id: dict = {}
             for entity_id in entity_ids_in_edges:
@@ -630,19 +634,20 @@ def run_entity_resolution():
             if not edge_payloads:
                 return 0
 
-            from_ids = {k[0] for k in edge_payloads}
-            to_ids = {k[1] for k in edge_payloads}
-            edge_types = {k[2] for k in edge_payloads}
-            existing_edges: dict = {
-                (e.from_node_id, e.to_node_id, e.type): e
+            from_ids = list({k[0] for k in edge_payloads})
+            to_ids = list({k[1] for k in edge_payloads})
+            edge_types = list({k[2] for k in edge_payloads})
+            existing_edges: dict = {}
+            for _i in range(0, len(from_ids), _IN_CHUNK):
+                _from_chunk = from_ids[_i : _i + _IN_CHUNK]
                 for e in session.execute(
                     select(GraphEdge).where(
-                        GraphEdge.from_node_id.in_(from_ids),
+                        GraphEdge.from_node_id.in_(_from_chunk),
                         GraphEdge.to_node_id.in_(to_ids),
                         GraphEdge.type.in_(edge_types),
                     )
-                ).scalars().all()
-            }
+                ).scalars().all():
+                    existing_edges[(e.from_node_id, e.to_node_id, e.type)] = e
 
             created = 0
             for key, payload in edge_payloads.items():
