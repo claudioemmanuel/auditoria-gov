@@ -695,22 +695,26 @@ def run_entity_resolution():
             session.commit()
             return created
 
-        for row in session.execute(
-            select(*_part_cols).execution_options(yield_per=_ER_EDGE_BATCH_SIZE)
-        ).mappings():
-            part_batch.append(
-                {
-                    "event_id": row["event_id"],
-                    "entity_id": row["entity_id"],
-                    "role": row["role"],
-                    "value_brl": (row["attrs"] or {}).get("value_brl"),
-                    "occurred_at": event_occurred_map.get(row["event_id"]),
-                }
-            )
-            if len(part_batch) >= _ER_EDGE_BATCH_SIZE:
-                edges_created += _flush_edges(part_batch)
-                log.info("er.edge_batch_done", total_edges=edges_created)
-                part_batch = []
+        # Use a dedicated read session for participant streaming so that
+        # session.commit() calls inside _flush_edges don't invalidate the
+        # server-side cursor created by yield_per on the write session.
+        with SyncSession() as read_session:
+            for row in read_session.execute(
+                select(*_part_cols).execution_options(yield_per=_ER_EDGE_BATCH_SIZE)
+            ).mappings():
+                part_batch.append(
+                    {
+                        "event_id": row["event_id"],
+                        "entity_id": row["entity_id"],
+                        "role": row["role"],
+                        "value_brl": (row["attrs"] or {}).get("value_brl"),
+                        "occurred_at": event_occurred_map.get(row["event_id"]),
+                    }
+                )
+                if len(part_batch) >= _ER_EDGE_BATCH_SIZE:
+                    edges_created += _flush_edges(part_batch)
+                    log.info("er.edge_batch_done", total_edges=edges_created)
+                    part_batch = []
 
         if part_batch:
             edges_created += _flush_edges(part_batch)
