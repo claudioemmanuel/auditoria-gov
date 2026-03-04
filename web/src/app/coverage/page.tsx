@@ -23,14 +23,13 @@ import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Database,
   FileText,
   Lightbulb,
   Package,
   Search,
+  X,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -257,19 +256,246 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
   );
 }
 
-// ── Source card (self-expanding with inline diagnostic) ───────────────────────
+// ── Source diagnostic modal ───────────────────────────────────────────────────
+
+function SourceDiagnosticModal({
+  item,
+  preview,
+  loading,
+  error,
+  onClose,
+}: {
+  item: CoverageV2SourceItem;
+  preview: CoverageV2SourcePreviewResponse | null;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  const cfg = STATUS_CFG[item.worst_status] ?? STATUS_CFG.pending;
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div className="relative z-10 flex w-full max-w-3xl max-h-[88vh] flex-col rounded-2xl border border-border bg-surface-card shadow-2xl overflow-hidden">
+
+        {/* ── Modal header ────────────────────────────────── */}
+        <div className={`flex items-start justify-between gap-4 border-b border-border px-6 py-4 ${cfg.bg}`}>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-display text-base font-bold text-primary capitalize">
+                {item.connector_label}
+              </h2>
+              <StatusBadge status={item.worst_status} />
+            </div>
+            <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-base text-muted transition hover:bg-surface-subtle hover:text-primary"
+            aria-label="Fechar diagnóstico"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* ── Summary strip ───────────────────────────────── */}
+        <div className="grid grid-cols-4 gap-3 border-b border-border px-6 py-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Jobs</p>
+            <p className="font-mono text-lg font-bold text-primary leading-none">{item.job_count}</p>
+            <p className="font-mono text-[10px] text-muted mt-0.5">{item.enabled_job_count} habilitados</p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Em execução</p>
+            <p className={`font-mono text-lg font-bold leading-none ${item.runtime.running_jobs > 0 ? "text-accent" : "text-primary"}`}>
+              {item.runtime.running_jobs}
+            </p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Com erro</p>
+            <p className={`font-mono text-lg font-bold leading-none ${item.runtime.error_jobs > 0 ? "text-error" : "text-primary"}`}>
+              {item.runtime.error_jobs}
+            </p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Defasagem</p>
+            <p className={`font-mono text-lg font-bold leading-none ${
+              item.max_freshness_lag_hours == null ? "text-muted" :
+              item.max_freshness_lag_hours > 48 ? "text-error" :
+              item.max_freshness_lag_hours > 24 ? "text-amber" : "text-success"
+            }`}>
+              {formatLag(item.max_freshness_lag_hours)}
+            </p>
+            {item.last_success_at && (
+              <p className="font-mono text-[9px] text-muted mt-0.5">
+                {new Date(item.last_success_at).toLocaleString("pt-BR")}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Scrollable body ─────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 bg-surface-base">
+
+          {loading && (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-xl border border-border animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-start gap-2 rounded-xl border border-error/20 bg-error/5 p-4 text-sm text-error">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              {error}
+            </div>
+          )}
+
+          {preview && (
+            <>
+              {/* Stuck warning */}
+              {item.runtime.stuck_jobs > 0 && (
+                <div className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {item.runtime.stuck_jobs} job(s) travado(s) — restart recomendado
+                </div>
+              )}
+
+              {/* Insights */}
+              {preview.insights.length > 0 && (
+                <section>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">
+                    Insights ({preview.insights.length})
+                  </p>
+                  <div className="space-y-2">
+                    {preview.insights.map((insight, i) => (
+                      <div key={i} className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent-subtle/30 px-4 py-3">
+                        <Lightbulb className="h-4 w-4 shrink-0 text-accent mt-0.5" />
+                        <p className="text-sm text-secondary leading-relaxed">{insight}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Jobs */}
+              <section>
+                <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">
+                  Jobs ({preview.jobs.length})
+                </p>
+                <div className="space-y-4">
+                  {preview.jobs.map((job) => {
+                    const scfg = STATUS_CFG[job.status] ?? STATUS_CFG.pending;
+                    return (
+                      <div key={job.job} className={`rounded-xl border ${scfg.border} bg-surface-card p-4 space-y-4`}>
+                        {/* Job header */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="font-mono text-sm font-bold text-primary">{job.job}</span>
+                              {!job.enabled_in_mvp && (
+                                <span className="rounded-full border border-border bg-surface-subtle px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted">
+                                  Desabilitado
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-mono text-xs text-accent">{job.domain}</p>
+                            {job.description && (
+                              <p className="text-xs text-secondary mt-1 leading-relaxed">{job.description}</p>
+                            )}
+                          </div>
+                          <StatusBadge status={job.status} />
+                        </div>
+
+                        {/* Job metrics */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Itens totais</p>
+                            <p className="font-mono text-sm font-bold text-primary">{job.total_items.toLocaleString("pt-BR")}</p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Defasagem</p>
+                            <p className={`font-mono text-sm font-bold ${
+                              job.freshness_lag_hours == null ? "text-muted" :
+                              job.freshness_lag_hours > 48 ? "text-error" :
+                              job.freshness_lag_hours > 24 ? "text-amber" : "text-success"
+                            }`}>
+                              {formatLag(job.freshness_lag_hours)}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Último sucesso</p>
+                            <p className="font-mono text-xs text-primary">
+                              {job.last_success_at ? fmtDate(job.last_success_at) : "Não registrado"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Latest run */}
+                        {job.latest_run && (
+                          <div>
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-2">Execução mais recente</p>
+                            <RunCard run={job.latest_run} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          )}
+        </div>
+
+        {/* ── Modal footer ────────────────────────────────── */}
+        <div className="flex items-center justify-between border-t border-border px-6 py-3 bg-surface-card">
+          <p className="font-mono text-[10px] text-muted">
+            Último sucesso:{" "}
+            <span className="text-primary">
+              {item.last_success_at ? new Date(item.last_success_at).toLocaleString("pt-BR") : "—"}
+            </span>
+          </p>
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-border bg-surface-base px-4 py-1.5 text-xs font-semibold text-secondary transition hover:bg-surface-subtle hover:text-primary"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Source card ───────────────────────────────────────────────────────────────
 
 function SourceCard({ item }: { item: CoverageV2SourceItem }) {
   const cfg = STATUS_CFG[item.worst_status] ?? STATUS_CFG.pending;
   const totalJobs = Object.values(item.status_counts).reduce((a, b) => a + b, 0);
 
-  const [expanded, setExpanded] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [preview, setPreview] = useState<CoverageV2SourcePreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  function handleToggle() {
-    if (!expanded && preview === null && !previewLoading) {
+  function handleOpenModal() {
+    setModalOpen(true);
+    if (preview === null && !previewLoading) {
       setPreviewLoading(true);
       setPreviewError(null);
       getCoverageV2SourcePreview(item.connector, { runs_limit: 5 })
@@ -277,7 +503,6 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
         .catch(() => setPreviewError("Não foi possível carregar o diagnóstico."))
         .finally(() => setPreviewLoading(false));
     }
-    setExpanded((v) => !v);
   }
 
   const statusBar = [
@@ -382,124 +607,24 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
         )}
       </div>
 
-      {/* ── Expand/collapse toggle ────────────────────────────── */}
+      {/* ── Modal trigger ─────────────────────────────────────── */}
       <button
-        onClick={handleToggle}
+        onClick={handleOpenModal}
         className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-[11px] font-semibold text-muted transition hover:bg-surface-subtle hover:text-primary"
       >
-        {expanded ? (
-          <>
-            <ChevronUp className="h-3.5 w-3.5" />
-            Ocultar diagnóstico
-          </>
-        ) : (
-          <>
-            <ChevronDown className="h-3.5 w-3.5" />
-            Ver diagnóstico detalhado
-          </>
-        )}
+        <FileText className="h-3.5 w-3.5" />
+        Ver diagnóstico detalhado
       </button>
 
-      {/* ── Inline diagnostic ────────────────────────────────── */}
-      {expanded && (
-        <div className="border-t border-border bg-surface-base rounded-b-xl px-4 py-4 space-y-5">
-
-          {previewLoading && (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 rounded-lg border border-border animate-pulse" />
-              ))}
-            </div>
-          )}
-
-          {previewError && (
-            <div className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-3 text-xs text-error">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              {previewError}
-            </div>
-          )}
-
-          {preview && (
-            <>
-              {/* Insights */}
-              {preview.insights.length > 0 && (
-                <section>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">Insights</p>
-                  <div className="space-y-1.5">
-                    {preview.insights.map((insight, i) => (
-                      <div key={i} className="flex items-start gap-2 rounded-lg border border-accent/20 bg-accent-subtle/30 px-3 py-2">
-                        <Lightbulb className="h-3.5 w-3.5 shrink-0 text-accent mt-0.5" />
-                        <p className="text-xs text-secondary leading-relaxed">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Jobs */}
-              <section>
-                <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">
-                  Jobs ({preview.jobs.length})
-                </p>
-                <div className="space-y-3">
-                  {preview.jobs.map((job) => {
-                    const scfg = STATUS_CFG[job.status] ?? STATUS_CFG.pending;
-                    return (
-                      <div key={job.job} className={`rounded-xl border ${scfg.border} bg-surface-card p-3 space-y-3`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                              <span className="font-mono text-xs font-bold text-primary truncate">{job.job}</span>
-                              {!job.enabled_in_mvp && (
-                                <span className="rounded-full border border-border bg-surface-subtle px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted">
-                                  Desab.
-                                </span>
-                              )}
-                            </div>
-                            <p className="font-mono text-[10px] text-accent">{job.domain}</p>
-                            {job.description && (
-                              <p className="text-[11px] text-secondary mt-1 leading-snug">{job.description}</p>
-                            )}
-                          </div>
-                          <StatusBadge status={job.status} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-[10px]">
-                          <div>
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Itens totais</p>
-                            <p className="font-mono font-bold text-primary">{job.total_items.toLocaleString("pt-BR")}</p>
-                          </div>
-                          <div>
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Defasagem</p>
-                            <p className={`font-mono font-bold ${
-                              job.freshness_lag_hours == null ? "text-muted" :
-                              job.freshness_lag_hours > 48 ? "text-error" :
-                              job.freshness_lag_hours > 24 ? "text-amber" : "text-success"
-                            }`}>
-                              {formatLag(job.freshness_lag_hours)}
-                            </p>
-                          </div>
-                          <div className="col-span-2">
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Último sucesso</p>
-                            <p className="font-mono text-primary">
-                              {job.last_success_at ? fmtDate(job.last_success_at) : "Não registrado"}
-                            </p>
-                          </div>
-                        </div>
-                        {job.latest_run && (
-                          <div>
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-1.5">Execução mais recente</p>
-                            <RunCard run={job.latest_run} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-            </>
-          )}
-        </div>
+      {/* ── Diagnostic modal ──────────────────────────────────── */}
+      {modalOpen && (
+        <SourceDiagnosticModal
+          item={item}
+          preview={preview}
+          loading={previewLoading}
+          error={previewError}
+          onClose={() => setModalOpen(false)}
+        />
       )}
     </div>
   );
@@ -745,7 +870,7 @@ export default function CoveragePage() {
               <p className="text-sm font-semibold text-primary mt-0.5">
                 {filteredSources.length} de {sources.length} fontes
               </p>
-              <p className="text-xs text-secondary mt-0.5">Expanda cada card para ver jobs, execuções e insights detalhados</p>
+              <p className="text-xs text-secondary mt-0.5">Clique em "Ver diagnóstico detalhado" para abrir o painel completo de cada fonte</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
