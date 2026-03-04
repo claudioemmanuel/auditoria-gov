@@ -2,7 +2,7 @@ FROM python:3.12-slim AS base
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl ntpdate && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl ntpsec-ntpdate && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
 COPY shared/ shared/
