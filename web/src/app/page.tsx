@@ -22,7 +22,7 @@ export default function HomePage() {
 
       {/* ── Hero / System Identity ─────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
               <Shield className="h-6 w-6 text-accent" />
@@ -72,7 +72,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Mission navigation ─────────────────────────────────────── */}
-      <div className="flex-1 mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 space-y-8">
+      <div className="flex-1 mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-6 space-y-8">
 
         <section>
           <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">

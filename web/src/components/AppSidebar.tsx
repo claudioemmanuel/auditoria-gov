@@ -22,7 +22,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const STORAGE_KEY = "ui:sidebar-collapsed";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, shortcut: "D" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true, shortcut: "D" },
   { href: "/radar", label: "Radar", icon: Radar, exact: false, shortcut: "R" },
   { href: "/coverage", label: "Cobertura", icon: Database, exact: false, shortcut: "C" },
   { href: "/methodology", label: "Metodologia", icon: BookOpen, exact: false, shortcut: "M" },

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   getCoverageV2Analytics,
@@ -7,11 +8,11 @@ import {
   getCoverageV2Sources,
   getCoverageV2Summary,
 } from "@/lib/api";
-import { CoverageSourcePreviewDrawer } from "@/components/coverage/CoverageSourcePreviewDrawer";
 import type {
   AnalyticalCoverageItem,
   CoverageStatus,
   CoverageV2AnalyticsResponse,
+  CoverageV2LatestRun,
   CoverageV2SourceItem,
   CoverageV2SourcePreviewResponse,
   CoverageV2SummaryResponse,
@@ -20,11 +21,15 @@ import { formatNumber } from "@/lib/utils";
 import {
   Activity,
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle2,
-  ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Database,
   FileText,
+  Lightbulb,
+  Package,
   Search,
   XCircle,
   Zap,
@@ -38,6 +43,14 @@ const STATUS_CFG: Record<CoverageStatus, { label: string; dot: string; text: str
   stale:   { label: "Defasado", dot: "bg-yellow-500",  text: "text-yellow-600",  border: "border-yellow-500/30",  bg: "bg-yellow-500/5"  },
   error:   { label: "Erro",     dot: "bg-error",       text: "text-error",       border: "border-error/30",       bg: "bg-error/5"       },
   pending: { label: "Pendente", dot: "bg-muted/60",    text: "text-muted",       border: "border-border",         bg: "bg-surface-base"  },
+};
+
+const RUN_STATUS_CFG: Record<string, { dot: string; text: string; label: string }> = {
+  completed: { dot: "bg-success",    text: "text-success",    label: "Concluído"  },
+  running:   { dot: "bg-accent",     text: "text-accent",     label: "Executando" },
+  failed:    { dot: "bg-error",      text: "text-error",      label: "Falhou"     },
+  stuck:     { dot: "bg-amber",      text: "text-amber",      label: "Travado"    },
+  pending:   { dot: "bg-muted/60",   text: "text-muted",      label: "Pendente"   },
 };
 
 function StatusBadge({ status }: { status: CoverageStatus }) {
@@ -58,6 +71,82 @@ function formatLag(hours: number | null | undefined): string {
   return `${Math.round(hours / 24 / 30)}m`;
 }
 
+function formatDuration(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start || !end) return "—";
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3600000) return `${Math.round(ms / 60000)}min`;
+  return `${(ms / 3600000).toFixed(1)}h`;
+}
+
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("pt-BR", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+// ── Run card ─────────────────────────────────────────────────────────────────
+
+function RunCard({ run }: { run: CoverageV2LatestRun }) {
+  const key = run.is_stuck ? "stuck" : run.status;
+  const cfg = RUN_STATUS_CFG[key] ?? RUN_STATUS_CFG.pending;
+
+  return (
+    <div className="rounded-lg border border-border bg-surface-base p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
+          <span className={`font-mono text-xs font-bold ${cfg.text}`}>
+            {run.is_stuck ? "Travado" : (RUN_STATUS_CFG[run.status]?.label ?? run.status)}
+          </span>
+          <span className="font-mono text-[10px] text-muted">
+            {formatDuration(run.started_at, run.finished_at)}
+          </span>
+        </div>
+        <Link
+          href={`/coverage/run/${run.id}`}
+          className="flex items-center gap-1 font-mono text-[10px] text-accent hover:underline"
+        >
+          Detalhar
+          <ArrowUpRight className="h-2.5 w-2.5" />
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-[10px] text-muted">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wide mb-0.5">Início</p>
+          <p className="text-primary font-mono">{fmtDate(run.started_at)}</p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wide mb-0.5">Fim</p>
+          <p className="text-primary font-mono">{fmtDate(run.finished_at)}</p>
+        </div>
+      </div>
+      {(run.items_fetched > 0 || run.items_normalized > 0) && (
+        <div className="flex items-center gap-4 text-[10px]">
+          <span className="flex items-center gap-1 text-muted">
+            <Package className="h-3 w-3 shrink-0" />
+            <span className="font-mono font-bold text-primary">{run.items_fetched.toLocaleString("pt-BR")}</span>
+            <span>coletados</span>
+          </span>
+          <span className="flex items-center gap-1 text-muted">
+            <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
+            <span className="font-mono font-bold text-primary">{run.items_normalized.toLocaleString("pt-BR")}</span>
+            <span>normalizados</span>
+          </span>
+        </div>
+      )}
+      {run.error_message && (
+        <div className="flex items-start gap-1.5 rounded border border-error/20 bg-error/5 px-2 py-1.5">
+          <AlertTriangle className="h-3 w-3 shrink-0 text-error mt-0.5" />
+          <p className="font-mono text-[10px] text-error leading-snug">{run.error_message}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── KPI Strip ────────────────────────────────────────────────────────────────
 
 function KpiStrip({ summary, loading }: { summary: CoverageV2SummaryResponse | null; loading: boolean }) {
@@ -76,14 +165,14 @@ function KpiStrip({ summary, loading }: { summary: CoverageV2SummaryResponse | n
   const rt = t?.runtime;
 
   const kpis = [
-    { label: "Fontes",      value: t?.connectors ?? 0,                    sub: null,                            dot: null              },
-    { label: "Jobs",        value: t?.jobs ?? 0,                           sub: `${t?.jobs_enabled ?? 0} ativos`, dot: null              },
-    { label: "Sinais",      value: formatNumber(t?.signals_total ?? 0),    sub: null,                            dot: null              },
-    { label: "OK",          value: sc?.ok ?? 0,                            sub: null,                            dot: "bg-success"      },
-    { label: "Atenção",     value: sc?.warning ?? 0,                       sub: null,                            dot: "bg-amber"        },
-    { label: "Defasado",    value: sc?.stale ?? 0,                         sub: null,                            dot: "bg-yellow-500"   },
-    { label: "Erro",        value: sc?.error ?? 0,                         sub: null,                            dot: "bg-error"        },
-    { label: "Travados",    value: rt?.failed_or_stuck ?? 0,               sub: null,                            dot: rt?.failed_or_stuck ? "bg-error" : "bg-muted/40" },
+    { label: "Fontes",   value: t?.connectors ?? 0,                  sub: null,                            dot: null              },
+    { label: "Jobs",     value: t?.jobs ?? 0,                         sub: `${t?.jobs_enabled ?? 0} ativos`, dot: null              },
+    { label: "Sinais",   value: formatNumber(t?.signals_total ?? 0),  sub: null,                            dot: null              },
+    { label: "OK",       value: sc?.ok ?? 0,                          sub: null,                            dot: "bg-success"      },
+    { label: "Atenção",  value: sc?.warning ?? 0,                     sub: null,                            dot: "bg-amber"        },
+    { label: "Defasado", value: sc?.stale ?? 0,                       sub: null,                            dot: "bg-yellow-500"   },
+    { label: "Erro",     value: sc?.error ?? 0,                       sub: null,                            dot: "bg-error"        },
+    { label: "Travados", value: rt?.failed_or_stuck ?? 0,             sub: null,                            dot: rt?.failed_or_stuck ? "bg-error" : "bg-muted/40" },
   ] as { label: string; value: number | string; sub: string | null; dot: string | null }[];
 
   return (
@@ -109,11 +198,11 @@ function KpiStrip({ summary, loading }: { summary: CoverageV2SummaryResponse | n
 // ── Pipeline stages ──────────────────────────────────────────────────────────
 
 const STAGE_STATUS: Record<string, { label: string; icon: React.ReactNode; ring: string; bg: string; text: string }> = {
-  done:       { label: "Concluído",    icon: <CheckCircle2 className="h-4 w-4" />, ring: "border-success",     bg: "bg-success/10",      text: "text-success"     },
-  processing: { label: "Processando",  icon: <Activity className="h-4 w-4" />,     ring: "border-accent",      bg: "bg-accent/10",       text: "text-accent"      },
-  warning:    { label: "Atenção",      icon: <AlertTriangle className="h-4 w-4" />, ring: "border-amber",       bg: "bg-amber/10",        text: "text-amber"       },
-  error:      { label: "Erro",         icon: <XCircle className="h-4 w-4" />,       ring: "border-error",       bg: "bg-error/10",        text: "text-error"       },
-  pending:    { label: "Pendente",     icon: <Clock className="h-4 w-4" />,         ring: "border-border",      bg: "bg-surface-subtle",  text: "text-muted"       },
+  done:       { label: "Concluído",   icon: <CheckCircle2 className="h-5 w-5" />, ring: "border-success",    bg: "bg-success/10",     text: "text-success"  },
+  processing: { label: "Processando", icon: <Activity className="h-5 w-5" />,     ring: "border-accent",     bg: "bg-accent/10",      text: "text-accent"   },
+  warning:    { label: "Atenção",     icon: <AlertTriangle className="h-5 w-5" />, ring: "border-amber",      bg: "bg-amber/10",       text: "text-amber"    },
+  error:      { label: "Erro",        icon: <XCircle className="h-5 w-5" />,       ring: "border-error",      bg: "bg-error/10",       text: "text-error"    },
+  pending:    { label: "Pendente",    icon: <Clock className="h-5 w-5" />,         ring: "border-border",     bg: "bg-surface-subtle", text: "text-muted"    },
 };
 
 const OVERALL_CFG: Record<string, { label: string; cls: string }> = {
@@ -128,35 +217,38 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
   const ocfg = OVERALL_CFG[summary.pipeline.overall_status] ?? OVERALL_CFG.healthy;
 
   return (
-    <div className="rounded-xl border border-border bg-surface-card p-5">
-      <div className="flex items-center justify-between mb-5">
+    <div className="rounded-xl border border-border bg-surface-card p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Pipeline de Ingestão</p>
-          <p className="text-xs text-secondary mt-0.5">Estado atual de cada etapa de processamento</p>
+          <p className="text-sm font-semibold text-primary mt-0.5">Estado atual de cada etapa de processamento</p>
         </div>
-        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${ocfg.cls}`}>
+        <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${ocfg.cls}`}>
           {ocfg.label}
         </span>
       </div>
 
-      <div className="flex items-start gap-0 overflow-x-auto pb-1">
+      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
         {stages.map((stage, i) => {
           const scfg = STAGE_STATUS[stage.status] ?? STAGE_STATUS.pending;
           return (
-            <div key={stage.code} className="flex items-center shrink-0">
-              <div className="flex flex-col items-center gap-1.5 min-w-[100px] px-2">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 ${scfg.ring} ${scfg.bg} ${scfg.text}`}>
+            <div key={stage.code} className="relative">
+              {/* Connector line */}
+              {i < stages.length - 1 && (
+                <div className="absolute top-6 left-[calc(50%+1.5rem)] right-[-calc(50%-1.5rem)] h-px bg-border z-0" />
+              )}
+              <div className={`relative z-10 rounded-xl border-2 ${scfg.ring} ${scfg.bg} p-4 flex flex-col items-center gap-3 text-center`}>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-surface-card shadow-sm ${scfg.text}`}>
                   {scfg.icon}
                 </div>
-                <p className="font-mono text-[10px] text-center text-primary font-semibold leading-tight">{stage.label}</p>
-                <p className={`font-mono text-[9px] font-bold uppercase ${scfg.text}`}>{scfg.label}</p>
-                {stage.reason && stage.status !== "done" && (
-                  <p className="text-[9px] text-secondary text-center leading-tight max-w-[90px]">{stage.reason}</p>
-                )}
+                <div>
+                  <p className="font-display text-xs font-bold text-primary leading-snug">{stage.label}</p>
+                  <p className={`font-mono text-[10px] font-bold uppercase mt-0.5 ${scfg.text}`}>{scfg.label}</p>
+                  {stage.reason && stage.status !== "done" && (
+                    <p className="text-[10px] text-secondary mt-1.5 leading-snug">{stage.reason}</p>
+                  )}
+                </div>
               </div>
-              {i < stages.length - 1 && (
-                <ChevronRight className="h-4 w-4 text-border shrink-0 mx-1" />
-              )}
             </div>
           );
         })}
@@ -165,11 +257,28 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
   );
 }
 
-// ── Source card (fully expanded) ─────────────────────────────────────────────
+// ── Source card (self-expanding with inline diagnostic) ───────────────────────
 
-function SourceCard({ item, onDiagnose }: { item: CoverageV2SourceItem; onDiagnose: (item: CoverageV2SourceItem) => void }) {
+function SourceCard({ item }: { item: CoverageV2SourceItem }) {
   const cfg = STATUS_CFG[item.worst_status] ?? STATUS_CFG.pending;
   const totalJobs = Object.values(item.status_counts).reduce((a, b) => a + b, 0);
+
+  const [expanded, setExpanded] = useState(false);
+  const [preview, setPreview] = useState<CoverageV2SourcePreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  function handleToggle() {
+    if (!expanded && preview === null && !previewLoading) {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      getCoverageV2SourcePreview(item.connector, { runs_limit: 5 })
+        .then(setPreview)
+        .catch(() => setPreviewError("Não foi possível carregar o diagnóstico."))
+        .finally(() => setPreviewLoading(false));
+    }
+    setExpanded((v) => !v);
+  }
 
   const statusBar = [
     { key: "ok"      as CoverageStatus, count: item.status_counts.ok,      color: "bg-success"    },
@@ -180,104 +289,231 @@ function SourceCard({ item, onDiagnose }: { item: CoverageV2SourceItem; onDiagno
   ].filter((s) => s.count > 0);
 
   return (
-    <div className={`rounded-xl border ${cfg.border} bg-surface-card flex flex-col gap-4 p-4`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-display text-sm font-bold text-primary capitalize leading-snug">
-            {item.connector_label}
-          </h3>
-          <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
-        </div>
-        <StatusBadge status={item.worst_status} />
-      </div>
-
-      {/* Counts row */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-        <span className="flex items-center gap-1">
-          <FileText className="h-3 w-3 shrink-0" />
-          <span className="font-mono font-bold text-primary">{item.job_count}</span>
-          <span>jobs</span>
-        </span>
-        <span className="flex items-center gap-1 text-accent">
-          <Zap className="h-3 w-3 shrink-0" />
-          <span className="font-mono font-bold">{item.enabled_job_count}</span>
-          <span>habilitados</span>
-        </span>
-        {item.runtime.running_jobs > 0 && (
-          <span className="flex items-center gap-1 text-accent">
-            <Activity className="h-3 w-3 shrink-0" />
-            {item.runtime.running_jobs} em exec.
-          </span>
-        )}
-        {item.runtime.error_jobs > 0 && (
-          <span className="flex items-center gap-1 text-error">
-            <AlertTriangle className="h-3 w-3 shrink-0" />
-            {item.runtime.error_jobs} com erro
-          </span>
-        )}
-      </div>
-
-      {/* Status distribution */}
-      {totalJobs > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex h-2 rounded-full overflow-hidden gap-px">
-            {statusBar.map((s) => (
-              <div
-                key={s.key}
-                className={`${s.color}`}
-                style={{ width: `${(s.count / totalJobs) * 100}%` }}
-                title={`${STATUS_CFG[s.key]?.label}: ${s.count}`}
-              />
-            ))}
+    <div className={`rounded-xl border ${cfg.border} bg-surface-card flex flex-col`}>
+      {/* ── Card summary ─────────────────────────────────────── */}
+      <div className="flex flex-col gap-4 p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="font-display text-sm font-bold text-primary capitalize leading-snug">
+              {item.connector_label}
+            </h3>
+            <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {statusBar.map((s) => (
-              <span key={s.key} className="flex items-center gap-1 text-[10px] text-muted">
-                <span className={`h-1.5 w-1.5 rounded-full ${s.color}`} />
-                {STATUS_CFG[s.key]?.label}: <span className="font-mono font-bold text-primary">{s.count}</span>
-              </span>
-            ))}
-          </div>
+          <StatusBadge status={item.worst_status} />
         </div>
-      )}
 
-      {/* Freshness */}
-      <div className="rounded-lg border border-border bg-surface-base px-3 py-2 space-y-1">
-        <div className="flex items-center justify-between text-[10px] text-muted">
+        {/* Counts row */}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
           <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            Último sucesso
+            <FileText className="h-3 w-3 shrink-0" />
+            <span className="font-mono font-bold text-primary">{item.job_count}</span>
+            <span>jobs</span>
           </span>
-          {item.max_freshness_lag_hours != null && (
-            <span className={`font-mono font-bold ${item.max_freshness_lag_hours > 48 ? "text-error" : item.max_freshness_lag_hours > 24 ? "text-amber" : "text-success"}`}>
-              {formatLag(item.max_freshness_lag_hours)} defasagem
+          <span className="flex items-center gap-1 text-accent">
+            <Zap className="h-3 w-3 shrink-0" />
+            <span className="font-mono font-bold">{item.enabled_job_count}</span>
+            <span>habilitados</span>
+          </span>
+          {item.runtime.running_jobs > 0 && (
+            <span className="flex items-center gap-1 text-accent">
+              <Activity className="h-3 w-3 shrink-0" />
+              {item.runtime.running_jobs} em exec.
+            </span>
+          )}
+          {item.runtime.error_jobs > 0 && (
+            <span className="flex items-center gap-1 text-error">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              {item.runtime.error_jobs} com erro
             </span>
           )}
         </div>
-        <p className="font-mono text-xs text-primary">
-          {item.last_success_at
-            ? new Date(item.last_success_at).toLocaleString("pt-BR")
-            : "Sem execução registrada"}
-        </p>
+
+        {/* Status distribution */}
+        {totalJobs > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex h-2 rounded-full overflow-hidden gap-px">
+              {statusBar.map((s) => (
+                <div
+                  key={s.key}
+                  className={s.color}
+                  style={{ width: `${(s.count / totalJobs) * 100}%` }}
+                  title={`${STATUS_CFG[s.key]?.label}: ${s.count}`}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {statusBar.map((s) => (
+                <span key={s.key} className="flex items-center gap-1 text-[10px] text-muted">
+                  <span className={`h-1.5 w-1.5 rounded-full ${s.color}`} />
+                  {STATUS_CFG[s.key]?.label}: <span className="font-mono font-bold text-primary">{s.count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Freshness */}
+        <div className="rounded-lg border border-border bg-surface-base px-3 py-2 space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-muted">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Último sucesso
+            </span>
+            {item.max_freshness_lag_hours != null && (
+              <span className={`font-mono font-bold ${item.max_freshness_lag_hours > 48 ? "text-error" : item.max_freshness_lag_hours > 24 ? "text-amber" : "text-success"}`}>
+                {formatLag(item.max_freshness_lag_hours)} defasagem
+              </span>
+            )}
+          </div>
+          <p className="font-mono text-xs text-primary">
+            {item.last_success_at
+              ? new Date(item.last_success_at).toLocaleString("pt-BR")
+              : "Sem execução registrada"}
+          </p>
+        </div>
+
+        {/* Stuck warning */}
+        {item.runtime.stuck_jobs > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
+            <AlertTriangle className="h-3 w-3 shrink-0" />
+            {item.runtime.stuck_jobs} job(s) travado(s) — restart recomendado
+          </div>
+        )}
       </div>
 
-      {/* Stuck warning */}
-      {item.runtime.stuck_jobs > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
-          <AlertTriangle className="h-3 w-3 shrink-0" />
-          {item.runtime.stuck_jobs} job(s) travado(s) — restart recomendado
+      {/* ── Expand/collapse toggle ────────────────────────────── */}
+      <button
+        onClick={handleToggle}
+        className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-[11px] font-semibold text-muted transition hover:bg-surface-subtle hover:text-primary"
+      >
+        {expanded ? (
+          <>
+            <ChevronUp className="h-3.5 w-3.5" />
+            Ocultar diagnóstico
+          </>
+        ) : (
+          <>
+            <ChevronDown className="h-3.5 w-3.5" />
+            Ver diagnóstico detalhado
+          </>
+        )}
+      </button>
+
+      {/* ── Inline diagnostic ────────────────────────────────── */}
+      {expanded && (
+        <div className="border-t border-border bg-surface-base rounded-b-xl px-4 py-4 space-y-5">
+
+          {previewLoading && (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 rounded-lg border border-border animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {previewError && (
+            <div className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-3 text-xs text-error">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              {previewError}
+            </div>
+          )}
+
+          {preview && (
+            <>
+              {/* Insights */}
+              {preview.insights.length > 0 && (
+                <section>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">Insights</p>
+                  <div className="space-y-1.5">
+                    {preview.insights.map((insight, i) => (
+                      <div key={i} className="flex items-start gap-2 rounded-lg border border-accent/20 bg-accent-subtle/30 px-3 py-2">
+                        <Lightbulb className="h-3.5 w-3.5 shrink-0 text-accent mt-0.5" />
+                        <p className="text-xs text-secondary leading-relaxed">{insight}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Jobs */}
+              <section>
+                <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">
+                  Jobs ({preview.jobs.length})
+                </p>
+                <div className="space-y-3">
+                  {preview.jobs.map((job) => {
+                    const scfg = STATUS_CFG[job.status] ?? STATUS_CFG.pending;
+                    return (
+                      <div key={job.job} className={`rounded-xl border ${scfg.border} bg-surface-card p-3 space-y-3`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className="font-mono text-xs font-bold text-primary truncate">{job.job}</span>
+                              {!job.enabled_in_mvp && (
+                                <span className="rounded-full border border-border bg-surface-subtle px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted">
+                                  Desab.
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-mono text-[10px] text-accent">{job.domain}</p>
+                            {job.description && (
+                              <p className="text-[11px] text-secondary mt-1 leading-snug">{job.description}</p>
+                            )}
+                          </div>
+                          <StatusBadge status={job.status} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+                          <div>
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Itens totais</p>
+                            <p className="font-mono font-bold text-primary">{job.total_items.toLocaleString("pt-BR")}</p>
+                          </div>
+                          <div>
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Defasagem</p>
+                            <p className={`font-mono font-bold ${
+                              job.freshness_lag_hours == null ? "text-muted" :
+                              job.freshness_lag_hours > 48 ? "text-error" :
+                              job.freshness_lag_hours > 24 ? "text-amber" : "text-success"
+                            }`}>
+                              {formatLag(job.freshness_lag_hours)}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Último sucesso</p>
+                            <p className="font-mono text-primary">
+                              {job.last_success_at ? fmtDate(job.last_success_at) : "Não registrado"}
+                            </p>
+                          </div>
+                        </div>
+                        {job.latest_run && (
+                          <div>
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-1.5">Execução mais recente</p>
+                            <RunCard run={job.latest_run} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Recent runs */}
+              {preview.recent_runs.length > 0 && (
+                <section>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">
+                    Execuções recentes ({preview.recent_runs.length})
+                  </p>
+                  <div className="space-y-2">
+                    {preview.recent_runs.map((run) => (
+                      <RunCard key={run.id} run={run} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
         </div>
       )}
-
-      {/* Diagnose CTA */}
-      <button
-        onClick={() => onDiagnose(item)}
-        className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface-base px-3 py-2 text-xs font-semibold text-secondary transition hover:border-accent/40 hover:bg-accent-subtle/20 hover:text-accent"
-      >
-        <Search className="h-3.5 w-3.5" />
-        Diagnosticar fonte
-      </button>
     </div>
   );
 }
@@ -293,7 +529,6 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
 
   return (
     <div className={`rounded-xl border ${borderColor} bg-surface-card p-4 space-y-3`}>
-      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -319,7 +554,6 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
         <span className="font-mono text-sm font-bold text-primary shrink-0">{pct}%</span>
       </div>
 
-      {/* Domain coverage bar */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <p className="font-mono text-[10px] text-muted">Domínios cobertos</p>
@@ -330,7 +564,6 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
         </div>
       </div>
 
-      {/* Domain tags */}
       {(item.domains_available.length > 0 || item.domains_missing.length > 0) && (
         <div className="flex flex-wrap gap-1">
           {item.domains_available.map((d) => (
@@ -346,7 +579,6 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
         </div>
       )}
 
-      {/* Execution stats */}
       {(item.last_run_at || item.last_run_candidates != null || item.signals_30d > 0) && (
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-border pt-2">
           {item.signals_30d > 0 && (
@@ -389,7 +621,6 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
         </div>
       )}
 
-      {/* Evidence level + corruption types */}
       {(item.evidence_level || (item.corruption_types && item.corruption_types.length > 0)) && (
         <div className="flex flex-wrap gap-1 border-t border-border pt-2">
           {item.evidence_level && (
@@ -421,11 +652,6 @@ export default function CoveragePage() {
 
   const [analytics, setAnalytics] = useState<CoverageV2AnalyticsResponse | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
-
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewData, setPreviewData] = useState<CoverageV2SourcePreviewResponse | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | CoverageStatus>("");
@@ -459,17 +685,6 @@ export default function CoveragePage() {
       .finally(() => { if (active) setAnalyticsLoading(false); });
     return () => { active = false; };
   }, []);
-
-  function handleDiagnose(item: CoverageV2SourceItem) {
-    setPreviewOpen(true);
-    setPreviewLoading(true);
-    setPreviewError(null);
-    setPreviewData(null);
-    getCoverageV2SourcePreview(item.connector, { runs_limit: 12 })
-      .then(setPreviewData)
-      .catch(() => setPreviewError("Não foi possível carregar o diagnóstico detalhado desta fonte."))
-      .finally(() => setPreviewLoading(false));
-  }
 
   const filteredSources = useMemo(() => {
     return sources
@@ -543,7 +758,7 @@ export default function CoveragePage() {
               <p className="text-sm font-semibold text-primary mt-0.5">
                 {filteredSources.length} de {sources.length} fontes
               </p>
-              <p className="text-xs text-secondary mt-0.5">Cada card mostra o estado completo de uma fonte pública</p>
+              <p className="text-xs text-secondary mt-0.5">Expanda cada card para ver jobs, execuções e insights detalhados</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
@@ -600,7 +815,7 @@ export default function CoveragePage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredSources.map((item) => (
-                <SourceCard key={item.connector} item={item} onDiagnose={handleDiagnose} />
+                <SourceCard key={item.connector} item={item} />
               ))}
             </div>
           )}
@@ -619,8 +834,8 @@ export default function CoveragePage() {
             {analytics && (
               <div className="flex gap-2 flex-wrap">
                 {[
-                  { label: `${analytics.summary.apt_count} aptas`,             cls: "text-success border-success/30 bg-success/5"   },
-                  { label: `${analytics.summary.blocked_count} bloqueadas`,    cls: "text-error   border-error/30   bg-error/5"     },
+                  { label: `${analytics.summary.apt_count} aptas`,             cls: "text-success border-success/30 bg-success/5"    },
+                  { label: `${analytics.summary.blocked_count} bloqueadas`,    cls: "text-error   border-error/30   bg-error/5"      },
                   { label: `${analytics.summary.with_signals_30d} c/ sinais`,  cls: "text-accent  border-accent/30  bg-accent-subtle" },
                 ].map((s) => (
                   <span key={s.label} className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-bold ${s.cls}`}>
@@ -646,15 +861,6 @@ export default function CoveragePage() {
           ) : null}
         </section>
       </div>
-
-      {/* ── Preview drawer ───────────────────────────────────────── */}
-      <CoverageSourcePreviewDrawer
-        open={previewOpen}
-        loading={previewLoading}
-        error={previewError}
-        data={previewData}
-        onClose={() => setPreviewOpen(false)}
-      />
     </div>
   );
 }
