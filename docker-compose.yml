@@ -71,9 +71,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    cap_add:
+      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+      - /etc/localtime:/etc/localtime:ro
     deploy:
       resources:
         limits:
@@ -96,9 +99,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    cap_add:
+      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+      - /etc/localtime:/etc/localtime:ro
     deploy:
       resources:
         limits:
@@ -121,9 +127,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    cap_add:
+      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+      - /etc/localtime:/etc/localtime:ro
     deploy:
       resources:
         limits:
@@ -146,9 +155,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    cap_add:
+      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+      - /etc/localtime:/etc/localtime:ro
     deploy:
       resources:
         limits:
@@ -171,9 +183,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    cap_add:
+      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+      - /etc/localtime:/etc/localtime:ro
     deploy:
       resources:
         limits:
@@ -195,9 +210,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    cap_add:
+      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
+      - /etc/localtime:/etc/localtime:ro
 
   # Celery monitoring dashboard: queue backlog, task latency, worker status.
   flower:

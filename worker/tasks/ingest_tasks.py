@@ -226,6 +226,26 @@ def ingest_connector(
 
                 normalize_run.delay(str(raw_run.id))
 
+                # Auto-trigger recompute after full ingestion of heavy jobs
+                if next_cursor is None and connector_name in {
+                    "portal_transparencia",
+                    "senado",
+                    "camara",
+                    "pncp",
+                }:
+                    from worker.tasks.maintenance_tasks import trigger_post_ingest_recompute
+                    trigger_post_ingest_recompute.apply_async(
+                        kwargs={"connector": connector_name, "job": job_name},
+                        countdown=120,  # 2-minute delay to let normalization start
+                        queue="default",
+                    )
+                    log.info(
+                        "ingest_connector.post_ingest_recompute_scheduled",
+                        connector=connector_name,
+                        job=job_name,
+                        countdown=120,
+                    )
+
             return {
                 "connector": connector_name,
                 "job": job_name,

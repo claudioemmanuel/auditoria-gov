@@ -110,13 +110,33 @@ class SenadoConnector(BaseConnector):
         codigo = senator_codes[senator_idx]
         ano = years[year_idx]
 
+        # Compute next_cursor before any early returns so it is always defined.
+        if year_idx + 1 < len(years):
+            next_cursor = f"s{senator_idx}y{year_idx + 1}"
+        elif senator_idx + 1 < len(senator_codes):
+            next_cursor = f"s{senator_idx + 1}y0"
+        else:
+            next_cursor = None
+
         async with senado_client() as client:
             response = await client.get(
                 f"/senador/{codigo}/ceaps",
                 params={"ano": ano},
             )
-            response.raise_for_status()
-            body = _parse_response(response)
+
+        if response.status_code == 404:
+            log.warning(
+                "senado.ceaps_not_found",
+                senator_codigo=codigo,
+                ano=ano,
+                status=404,
+            )
+            # No data for this senator/year — advance to next cursor.
+            return [], next_cursor
+        if response.status_code == 204:
+            return [], next_cursor
+        response.raise_for_status()
+        body = _parse_response(response)
 
         # Extract CEAPS records — handle both JSON structures
         ceaps = (
@@ -135,22 +155,21 @@ class SenadoConnector(BaseConnector):
             for i, record in enumerate(ceaps)
         ]
 
-        # Advance cursor: next year, then next senator
-        if year_idx + 1 < len(years):
-            next_cursor = f"s{senator_idx}y{year_idx + 1}"
-        elif senator_idx + 1 < len(senator_codes):
-            next_cursor = f"s{senator_idx + 1}y0"
-        else:
-            next_cursor = None
-
         return items, next_cursor
 
     async def _get_senator_codes(self) -> list[str]:
         """Fetch current senator codes from /senador/lista/atual."""
         async with senado_client() as client:
             response = await client.get("/senador/lista/atual")
-            response.raise_for_status()
-            body = {} if response.status_code == 204 else response.json()
+
+        if response.status_code in (404, 204):
+            log.warning(
+                "senado.senator_list_empty",
+                status=response.status_code,
+            )
+            return []
+        response.raise_for_status()
+        body = response.json()
 
         parlamentares = (
             body.get("ListaParlamentarEmExercicio", {})

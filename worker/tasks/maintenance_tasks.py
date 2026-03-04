@@ -339,6 +339,43 @@ def backfill_signal_clarity(max_events: int = 20000):
     return result
 
 
+@shared_task(
+    name="worker.tasks.maintenance_tasks.trigger_post_ingest_recompute",
+    bind=False,
+)
+def trigger_post_ingest_recompute(connector: str = "", job: str = "") -> dict:
+    """Re-run baselines and signals after a major ingest completes.
+
+    Called automatically after pt_beneficios (and other heavy jobs) finish
+    full ingestion to ensure risk signals use the latest data.
+    """
+    from worker.tasks.baseline_tasks import compute_all_baselines
+    from worker.tasks.signal_tasks import run_all_signals
+
+    log.info(
+        "trigger_post_ingest_recompute.start",
+        connector=connector,
+        job=job,
+    )
+
+    # Dispatch baseline recomputation
+    compute_all_baselines.apply_async(queue="default")
+
+    # Dispatch signal recomputation
+    run_all_signals.apply_async(queue="signals")
+
+    log.info(
+        "trigger_post_ingest_recompute.dispatched",
+        connector=connector,
+        job=job,
+    )
+    return {
+        "status": "dispatched",
+        "connector": connector,
+        "job": job,
+    }
+
+
 @shared_task(name="worker.tasks.maintenance_tasks.backfill_public_profile_photos", soft_time_limit=1800, time_limit=1900, max_retries=1)
 def backfill_public_profile_photos(limit: int = 1000):
     """Populate missing public-profile photos for political entities."""

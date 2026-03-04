@@ -31,7 +31,7 @@ from shared.models.canonical import (
 from shared.models.raw import RawItem
 
 _TSE_CDN_BASE = "https://cdn.tse.jus.br/estatistica/sead/odsele"
-_ELECTION_YEARS = [2024]  # Limit to latest election to manage DB volume
+_ELECTION_YEARS = [2024, 2022, 2020]  # Cover 5-year window (federal: 2022/2024; municipal: 2020/2024)
 _CHUNK_SIZE = 10_000
 
 

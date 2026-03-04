@@ -280,7 +280,7 @@ class TestPortalTransparencia:
             )
 
             assert len(items) == 1
-            assert next_cursor == "w1p1"
+            assert next_cursor == "w0p2"
             called_params = mock_client.get.call_args.kwargs["params"]
             assert called_params["pagina"] == 1
             assert called_params["mesAnoInicio"] == "03/2023"
@@ -305,7 +305,7 @@ class TestPortalTransparencia:
             items, next_cursor = await self.c.fetch(job)
             assert len(items) == 2
             assert items[0].data["id"] == 1
-            assert next_cursor is None  # < 100 items
+            assert next_cursor == "2"  # 2 items returned → more pages may exist
 
     @pytest.mark.asyncio
     async def test_fetch_with_cursor(self):

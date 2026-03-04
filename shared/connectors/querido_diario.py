@@ -13,6 +13,7 @@ import httpx
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
 from shared.connectors.domain_guard import validate_domain
+from shared.logging import log
 from shared.models.canonical import (
     CanonicalEntity,
     CanonicalEvent,
@@ -86,6 +87,13 @@ class QueridoDiarioConnector(BaseConnector):
                     wait = 2 ** (attempt + 1)  # 2, 4, 8, 16 seconds
                     await asyncio.sleep(wait)
                     continue
+                if response.status_code == 404:
+                    log.warning(
+                        "querido_diario.not_found",
+                        endpoint="/gazettes",
+                        status=404,
+                    )
+                    return [], None
                 response.raise_for_status()
                 break
             else:

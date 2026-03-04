@@ -15,6 +15,7 @@ from typing import Optional
 import httpx
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
+from shared.logging import log
 from shared.connectors.http_client import (
     DEFAULT_PAGE_SIZE,
     compras_gov_client,
@@ -120,6 +121,13 @@ class ComprasGovConnector(BaseConnector):
                     params=query_params,
                     timeout=_PRIMARY_TIMEOUT,
                 )
+                if response.status_code == 404:
+                    log.warning(
+                        "compras_gov.not_found",
+                        endpoint=endpoint,
+                        status=404,
+                    )
+                    return [], None
                 response.raise_for_status()
                 records = _extract_records([] if response.status_code == 204 else response.json())
         except httpx.HTTPError:
@@ -181,6 +189,13 @@ class ComprasGovConnector(BaseConnector):
 
         async with pncp_client() as client:
             response = await client.get("/contratacoes/publicacao", params=query)
+            if response.status_code == 404:
+                log.warning(
+                    "compras_gov.not_found",
+                    endpoint="/contratacoes/publicacao",
+                    status=404,
+                )
+                return [], None
             response.raise_for_status()
             rows = _extract_records([] if response.status_code == 204 else response.json())
 

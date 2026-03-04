@@ -259,7 +259,7 @@ class PortalTransparenciaConnector(BaseConnector):
             )
             for i, item in enumerate(records)
         ]
-        next_cursor = str(page + 1) if len(records) >= DEFAULT_PAGE_SIZE else None
+        next_cursor = str(page + 1) if len(records) > 0 else None
         return items, next_cursor
 
     def _build_windowed_windows(
@@ -273,7 +273,7 @@ class PortalTransparenciaConnector(BaseConnector):
         if job.name in _WINDOWED_MONTH_RANGES:
             start_key, end_key = _WINDOWED_MONTH_RANGES[job.name]
             default_end = date.today().replace(day=1) - timedelta(days=1)
-            default_start = _add_months(default_end.replace(day=1), -59)
+            default_start = _add_months(default_end.replace(day=1), -60)
             start_month = _parse_mm_yyyy(params[start_key]) if start_key in params else default_start
             end_month = _parse_mm_yyyy(params[end_key]) if end_key in params else default_end.replace(day=1)
             if start_month > end_month:
@@ -283,7 +283,7 @@ class PortalTransparenciaConnector(BaseConnector):
         if job.name in _WINDOWED_DAY_RANGES:
             start_key, end_key = _WINDOWED_DAY_RANGES[job.name]
             default_end = date.today()
-            default_start = _add_months(default_end.replace(day=1), -59)
+            default_start = _add_months(default_end.replace(day=1), -60)
             start_date = _parse_dd_mm_yyyy(params[start_key]) if start_key in params else default_start
             end_date = _parse_dd_mm_yyyy(params[end_key]) if end_key in params else default_end
             if start_date > end_date:
@@ -292,7 +292,7 @@ class PortalTransparenciaConnector(BaseConnector):
 
         # _WINDOWED_MESANO_JOBS: single mesAno param (YYYYMM), one month per window
         default_end = date.today().replace(day=1) - timedelta(days=1)
-        default_start = _add_months(default_end.replace(day=1), -59)
+        default_start = _add_months(default_end.replace(day=1), -60)
         months: list[date] = []
         current = default_start.replace(day=1)
         end_month = default_end.replace(day=1)
@@ -397,7 +397,7 @@ class PortalTransparenciaConnector(BaseConnector):
                 for i, item in enumerate(records)
             ]
 
-            if len(records) >= DEFAULT_PAGE_SIZE:
+            if len(records) > 0:
                 next_cursor = f"w{window_idx}p{page + 1}"
             elif window_idx + 1 < total_windows:
                 next_cursor = f"w{window_idx + 1}p1"
@@ -443,11 +443,11 @@ class PortalTransparenciaConnector(BaseConnector):
         """Build time windows for a job (reuses windowed logic)."""
         if job.name in _WINDOWED_MONTH_RANGES:
             default_end = date.today().replace(day=1) - timedelta(days=1)
-            default_start = _add_months(default_end.replace(day=1), -59)
+            default_start = _add_months(default_end.replace(day=1), -60)
             return _build_month_windows(default_start, default_end.replace(day=1), months_per_window=12)
         if job.name in _WINDOWED_MESANO_JOBS:
             default_end = date.today().replace(day=1) - timedelta(days=1)
-            default_start = _add_months(default_end.replace(day=1), -59)
+            default_start = _add_months(default_end.replace(day=1), -60)
             months: list[date] = []
             current = default_start.replace(day=1)
             end_month = default_end.replace(day=1)
@@ -457,7 +457,7 @@ class PortalTransparenciaConnector(BaseConnector):
             return months
         if job.name in _WINDOWED_DAY_RANGES:
             default_end = date.today()
-            default_start = _add_months(default_end.replace(day=1), -59)
+            default_start = _add_months(default_end.replace(day=1), -60)
             return _build_calendar_month_windows(default_start, default_end)
         return []
 
@@ -600,7 +600,7 @@ class PortalTransparenciaConnector(BaseConnector):
             ]
 
             # 3D cursor advancement: page -> window -> dimension
-            if len(records) >= DEFAULT_PAGE_SIZE:
+            if len(records) > 0:
                 next_cursor = f"d{dim_idx}w{window_idx}p{page + 1}"
             elif window_idx + 1 < total_windows:
                 next_cursor = f"d{dim_idx}w{window_idx + 1}p1"

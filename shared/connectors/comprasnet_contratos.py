@@ -13,6 +13,7 @@ from typing import Optional
 import httpx
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
+from shared.logging import log
 from shared.connectors.http_client import (
     DEFAULT_PAGE_SIZE,
     comprasnet_contratos_client,
@@ -99,6 +100,13 @@ class ComprasNetContratosConnector(BaseConnector):
                     params=query_params,
                     timeout=_PRIMARY_TIMEOUT,
                 )
+                if response.status_code == 404:
+                    log.warning(
+                        "comprasnet_contratos.not_found",
+                        endpoint="/contratos/v1/contratos.json",
+                        status=404,
+                    )
+                    return [], None
                 response.raise_for_status()
                 records = _extract_records([] if response.status_code == 204 else response.json())
         except httpx.HTTPError:
@@ -158,6 +166,13 @@ class ComprasNetContratosConnector(BaseConnector):
 
         async with pncp_client() as client:
             resp = await client.get("/contratos", params=query)
+            if resp.status_code == 404:
+                log.warning(
+                    "comprasnet_contratos.not_found",
+                    endpoint="/contratos",
+                    status=404,
+                )
+                return [], None
             resp.raise_for_status()
             rows = _extract_records([] if resp.status_code == 204 else resp.json())
 
