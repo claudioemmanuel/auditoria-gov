@@ -26,11 +26,11 @@ function truncate(str: string, max: number): string {
 
 export function RecentSignalsFeed({ signals }: RecentSignalsFeedProps) {
   return (
-    <div className="linear-card rounded-lg border border-border bg-surface-card">
+    <div className="surface-card rounded-lg border border-border bg-surface-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-primary">
-          Últimos Sinais{" "}
-          <span className="ml-1 font-normal text-secondary">(últimas 24h)</span>
+        <h2 className="font-display text-sm font-semibold text-primary">
+          Ultimos Sinais{" "}
+          <span className="ml-1 font-normal text-secondary">(ultimas 24h)</span>
         </h2>
         <Link
           href="/radar"

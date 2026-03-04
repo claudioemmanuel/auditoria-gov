@@ -14,9 +14,9 @@ function coveragePct(item: AnalyticalCoverageItem): number {
 
 export function TypologyCoverageBar({ items }: TypologyCoverageBarProps) {
   return (
-    <div className="linear-card rounded-lg border border-border bg-surface-card">
+    <div className="surface-card rounded-lg border border-border bg-surface-card">
       <div className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-primary">Cobertura de Tipologias</h2>
+        <h2 className="font-display text-sm font-semibold text-primary">Cobertura de Tipologias</h2>
       </div>
       <ul className="divide-y divide-border">
         {items.map((item) => {

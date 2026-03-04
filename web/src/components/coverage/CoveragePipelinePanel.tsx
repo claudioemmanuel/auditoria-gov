@@ -19,37 +19,37 @@ const STATIC_STEPS = [
 function stepConfig(status: string) {
   if (status === "done") {
     return {
-      dot: "bg-green-500",
-      ring: "ring-green-200",
+      dot: "bg-success",
+      ring: "ring-success/30",
       icon: CheckCircle2,
-      iconCls: "text-green-600",
+      iconCls: "text-success",
       labelCls: "text-primary",
     };
   }
   if (status === "processing") {
     return {
-      dot: "bg-blue-500",
-      ring: "ring-blue-200",
+      dot: "bg-accent",
+      ring: "ring-accent/30",
       icon: Loader2,
-      iconCls: "text-blue-600 animate-spin",
+      iconCls: "text-accent animate-spin",
       labelCls: "text-primary",
     };
   }
   if (status === "error") {
     return {
-      dot: "bg-red-500",
-      ring: "ring-red-200",
+      dot: "bg-error",
+      ring: "ring-error/30",
       icon: AlertTriangle,
-      iconCls: "text-red-600",
+      iconCls: "text-error",
       labelCls: "text-primary",
     };
   }
   if (status === "warning") {
     return {
-      dot: "bg-yellow-500",
-      ring: "ring-yellow-200",
+      dot: "bg-amber",
+      ring: "ring-amber/30",
       icon: AlertTriangle,
-      iconCls: "text-yellow-600",
+      iconCls: "text-amber",
       labelCls: "text-primary",
     };
   }
@@ -105,10 +105,10 @@ export function CoveragePipelinePanel({ summary, loading }: CoveragePipelinePane
           className={cn(
             "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
             summary.pipeline.overall_status === "healthy"
-              ? "bg-green-100 text-green-700"
+              ? "status-ok"
               : summary.pipeline.overall_status === "blocked"
-                ? "bg-red-100 text-red-700"
-                : "bg-yellow-100 text-yellow-700",
+                ? "status-error"
+                : "status-warning",
           )}
         >
           {summary.pipeline.overall_status === "healthy"
@@ -133,12 +133,12 @@ export function CoveragePipelinePanel({ summary, loading }: CoveragePipelinePane
                     step.status === "pending"
                       ? "bg-surface-base"
                       : step.status === "done"
-                        ? "bg-green-50"
+                        ? "bg-success-subtle"
                         : step.status === "error"
-                          ? "bg-red-50"
+                          ? "bg-error-subtle"
                           : step.status === "warning"
-                            ? "bg-yellow-50"
-                            : "bg-blue-50",
+                            ? "bg-amber-subtle"
+                            : "bg-accent-subtle",
                   )}
                 >
                   <Icon className={cn("h-4 w-4", cfg.iconCls)} />

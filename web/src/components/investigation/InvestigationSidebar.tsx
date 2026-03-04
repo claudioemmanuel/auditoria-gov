@@ -181,11 +181,11 @@ export function InvestigationSidebar({
         {/* Divider */}
         <div className="my-4 h-px bg-border" />
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
-          <p className="text-[11px] font-semibold text-amber-800">
+        <div className="rounded-lg border border-amber/20 bg-amber-subtle p-2.5">
+          <p className="text-[11px] font-semibold text-amber">
             Por que esta entidade está ligada ao padrão
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-amber-700">
+          <p className="mt-1 text-[11px] leading-relaxed text-amber/80">
             {whyLinked}
           </p>
         </div>

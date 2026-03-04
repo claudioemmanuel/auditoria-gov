@@ -102,7 +102,7 @@ export default function ProvenanceDrawer({
 
         {error && (
           <div className="p-5">
-            <div className="p-4 rounded-lg bg-red-50 text-red-800 text-sm">
+            <div className="p-4 rounded-lg bg-error-subtle text-error text-sm">
               Erro ao carregar dados brutos: {error}
             </div>
           </div>

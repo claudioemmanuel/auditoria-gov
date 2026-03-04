@@ -36,7 +36,7 @@ export default function ProvenanceChain({ data, loading, error, onViewRawSource 
 
   if (error) {
     return (
-      <div className="p-4 rounded-lg bg-red-50 text-red-800 text-sm flex items-center gap-2">
+      <div className="p-4 rounded-lg bg-error-subtle text-error text-sm flex items-center gap-2">
         <AlertTriangle className="w-4 h-4" />
         {error}
       </div>
@@ -79,7 +79,7 @@ export default function ProvenanceChain({ data, loading, error, onViewRawSource 
           <div key={event.event_id} className="flex items-start gap-3">
             <div className="flex flex-col items-center">
               <div className="w-0.5 h-3 bg-border" />
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-100" />
+              <div className="w-2.5 h-2.5 rounded-full bg-amber ring-2 ring-amber/20" />
               {(!isLast || (isExpanded && event.raw_sources.length > 0)) && (
                 <div className="w-0.5 flex-1 bg-border mt-1" />
               )}

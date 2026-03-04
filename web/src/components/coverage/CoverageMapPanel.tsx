@@ -29,20 +29,20 @@ const UF_REGION: Record<string, string> = {
 function cellClass(item?: CoverageMapItem, metric: "coverage" | "freshness" | "risk" = "coverage"): string {
   if (!item) return "bg-surface-subtle text-muted border-border";
   if (metric === "risk") {
-    if (item.risk_score >= 0.75) return "bg-red-100 text-red-700 border-red-200";
-    if (item.risk_score >= 0.5) return "bg-amber-100 text-amber-700 border-amber-200";
-    if (item.risk_score > 0) return "bg-blue-100 text-blue-700 border-blue-200";
+    if (item.risk_score >= 0.75) return "bg-error-subtle text-error border-error/20";
+    if (item.risk_score >= 0.5) return "bg-amber-subtle text-amber border-amber/20";
+    if (item.risk_score > 0) return "bg-accent-subtle text-accent border-accent/20";
     return "bg-surface-subtle text-muted border-border";
   }
   if (metric === "freshness") {
     if (item.freshness_hours == null) return "bg-surface-subtle text-muted border-border";
-    if (item.freshness_hours < 24) return "bg-emerald-100 text-emerald-700 border-emerald-200";
-    if (item.freshness_hours < 72) return "bg-amber-100 text-amber-700 border-amber-200";
-    return "bg-red-100 text-red-700 border-red-200";
+    if (item.freshness_hours < 24) return "bg-success-subtle text-success border-success/20";
+    if (item.freshness_hours < 72) return "bg-amber-subtle text-amber border-amber/20";
+    return "bg-error-subtle text-error border-error/20";
   }
-  if (item.coverage_score >= 0.75) return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (item.coverage_score >= 0.45) return "bg-amber-100 text-amber-700 border-amber-200";
-  if (item.coverage_score > 0) return "bg-blue-100 text-blue-700 border-blue-200";
+  if (item.coverage_score >= 0.75) return "bg-success-subtle text-success border-success/20";
+  if (item.coverage_score >= 0.45) return "bg-amber-subtle text-amber border-amber/20";
+  if (item.coverage_score > 0) return "bg-accent-subtle text-accent border-accent/20";
   return "bg-surface-subtle text-muted border-border";
 }
 

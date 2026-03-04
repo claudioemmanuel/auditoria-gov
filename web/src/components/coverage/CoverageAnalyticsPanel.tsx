@@ -25,7 +25,7 @@ export function CoverageAnalyticsPanel({
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
       >
         <div>
-          <h2 className="text-sm font-semibold text-primary">Cobertura por Tipologia</h2>
+          <h2 className="font-display text-sm font-semibold text-primary">Cobertura por Tipologia</h2>
           <p className="text-xs text-muted">Aptidão das tipologias e bloqueios de domínio</p>
         </div>
         {open ? (
@@ -51,11 +51,11 @@ export function CoverageAnalyticsPanel({
                 </div>
                 <div className="rounded-lg border border-border bg-surface-subtle p-3">
                   <p className="text-xs uppercase tracking-wide text-muted">Aptas</p>
-                  <p className="mt-1 text-lg font-semibold text-green-600">{data.summary.apt_count}</p>
+                  <p className="mt-1 text-lg font-semibold text-success">{data.summary.apt_count}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-surface-subtle p-3">
                   <p className="text-xs uppercase tracking-wide text-muted">Bloqueadas</p>
-                  <p className="mt-1 text-lg font-semibold text-red-600">{data.summary.blocked_count}</p>
+                  <p className="mt-1 text-lg font-semibold text-error">{data.summary.blocked_count}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-surface-subtle p-3">
                   <p className="text-xs uppercase tracking-wide text-muted">Sinais (30d)</p>
@@ -92,7 +92,7 @@ export function CoverageAnalyticsPanel({
                         <div
                           className={cn(
                             "h-2 rounded-full transition-all",
-                            item.apt ? "bg-green-500" : pct > 0 ? "bg-yellow-500" : "bg-red-400",
+                            item.apt ? "bg-success" : pct > 0 ? "bg-amber" : "bg-error",
                           )}
                           style={{ width: `${pct}%` }}
                         />
@@ -100,13 +100,13 @@ export function CoverageAnalyticsPanel({
                       <span
                         className={cn(
                           "w-8 flex-shrink-0 text-right font-mono tabular-nums text-xs",
-                          item.apt ? "text-green-600" : "text-yellow-600",
+                          item.apt ? "text-success" : "text-amber",
                         )}
                       >
                         {pct}%
                       </span>
                       {!item.apt && (
-                        <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+                        <span className="rounded-full bg-error-subtle px-1.5 py-0.5 text-[10px] font-medium text-error">
                           bloq.
                         </span>
                       )}

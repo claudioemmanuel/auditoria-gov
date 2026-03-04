@@ -21,10 +21,10 @@ export function RadarCoveragePanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[1px]">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-[1px]">
       <div className="h-full w-full max-w-xl overflow-y-auto border-l border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-primary">
+          <h3 className="font-display text-xl font-bold text-primary">
             Confiabilidade da analise
           </h3>
           <button
@@ -40,7 +40,7 @@ export function RadarCoveragePanel({
           <p className="mt-4 text-sm text-secondary">Carregando cobertura...</p>
         )}
         {error && (
-          <p className="mt-4 text-sm text-red-600">{error}</p>
+          <p className="mt-4 text-sm text-error">{error}</p>
         )}
 
         {data && (
@@ -83,7 +83,7 @@ export function RadarCoveragePanel({
                       Apta: {item.apt ? "sim" : "nao"} | Sinais 30d: {item.signals_30d}
                     </p>
                     {item.domains_missing?.length > 0 && (
-                      <p className="mt-1 text-xs text-amber-700">
+                      <p className="mt-1 text-xs text-amber">
                         Faltam: {item.domains_missing.join(", ")}
                       </p>
                     )}

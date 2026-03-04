@@ -211,7 +211,7 @@ export default function InvestigationPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Voltar ao caso
               </Link>
-              <h1 className="text-lg font-semibold text-primary">
+              <h1 className="font-display text-lg font-semibold text-primary">
                 {raw.case_title}
               </h1>
             </div>
@@ -221,14 +221,14 @@ export default function InvestigationPage() {
           </div>
 
           {/* ER pending banner */}
-          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="mt-6 rounded-lg border border-amber/20 bg-amber-subtle p-4">
             <div className="flex items-start gap-2">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
               <div>
-                <p className="text-sm font-medium text-amber-800">
+                <p className="text-sm font-medium text-amber">
                   Grafo de relacionamentos pendente
                 </p>
-                <p className="mt-1 text-xs text-amber-700">
+                <p className="mt-1 text-xs text-amber/80">
                   As entidades deste caso ainda não possuem conexões mapeadas no grafo.
                   Execute a resolucao de entidades para enriquecer o grafo com relacionamentos
                   derivados de contratos, licitações e participações em eventos compartilhados.
@@ -263,7 +263,7 @@ export default function InvestigationPage() {
           )}
 
           {/* Entity cards grid */}
-          <h2 className="mt-6 flex items-center gap-2 text-sm font-semibold text-secondary">
+          <h2 className="font-display mt-6 flex items-center gap-2 text-sm font-semibold text-secondary">
             <Building2 className="h-4 w-4 text-accent" />
             Entidades identificadas ({graphData.nodes.length})
           </h2>
@@ -378,8 +378,8 @@ export default function InvestigationPage() {
         <div className="relative flex-1 overflow-hidden">
           {/* ER pending banner overlay */}
           {erPending && (
-            <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 shadow-md">
-              <p className="text-xs text-amber-700">
+            <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-lg border border-amber/20 bg-amber-subtle px-4 py-2 shadow-md">
+              <p className="text-xs text-amber">
                 O grafo de relacionamentos sera enriquecido apos a resolucao de entidades ser executada.
               </p>
             </div>

@@ -7,10 +7,9 @@ import {
   getCoverageV2Sources,
   getCoverageV2Summary,
 } from "@/lib/api";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
 import { CoverageAnalyticsPanel } from "@/components/coverage/CoverageAnalyticsPanel";
 import { CoverageFilterBar, type CoverageFilterState } from "@/components/coverage/CoverageFilterBar";
-import { CoverageHeader } from "@/components/coverage/CoverageHeader";
 import { CoveragePipelinePanel } from "@/components/coverage/CoveragePipelinePanel";
 import { CoverageSourcePreviewDrawer } from "@/components/coverage/CoverageSourcePreviewDrawer";
 import { CoverageSourcesList } from "@/components/coverage/CoverageSourcesList";
@@ -169,13 +168,21 @@ export default function CoveragePage() {
   return (
     <div>
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
-        <Breadcrumb items={[{ label: "Cobertura" }]} />
-
-        {/* Page title + snapshot */}
-        <CoverageHeader snapshotAt={summary?.snapshot_at} />
+        <PageHeader
+          title="Cobertura de Dados"
+          subtitle="Visão investigativa da saúde do pipeline e da qualidade operacional por fonte."
+          actions={
+            <div className="rounded-lg border border-border bg-surface-card px-3 py-2 text-right">
+              <p className="font-display text-xs font-medium uppercase tracking-wide text-muted">Snapshot</p>
+              <p className="mt-1 font-mono tabular-nums text-sm font-medium text-primary">
+                {summary?.snapshot_at ? new Date(summary.snapshot_at).toLocaleString("pt-BR") : "Aguardando dados"}
+              </p>
+            </div>
+          }
+        />
 
         {summaryError && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mt-3 rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error">
             {summaryError}
           </div>
         )}
@@ -193,7 +200,7 @@ export default function CoveragePage() {
           <CoverageFilterBar value={filters} domains={domains} onChange={handleFiltersChange} />
 
           {sourcesError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error">
               {sourcesError}
             </div>
           )}
@@ -218,7 +225,7 @@ export default function CoveragePage() {
             onToggle={() => setAnalyticsOpen((prev) => !prev)}
           />
           {analyticsError && (
-            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-2 rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error">
               {analyticsError}
             </div>
           )}

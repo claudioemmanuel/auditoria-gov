@@ -45,7 +45,7 @@ export function SignalEvidenceSection({
 
   if (error) {
     return (
-      <p className="mt-6 text-sm text-red-600">{error}</p>
+      <p className="mt-6 text-sm text-error">{error}</p>
     );
   }
 

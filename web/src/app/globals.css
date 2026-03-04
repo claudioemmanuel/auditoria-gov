@@ -135,6 +135,41 @@ body {
   padding: 1rem;
 }
 
+.surface-muted {
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* ── Status badge utilities (dark-mode safe) ─────────── */
+.status-ok {
+  background-color: var(--color-success-subtle);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
+}
+.status-warning {
+  background-color: var(--color-amber-subtle);
+  color: var(--color-amber);
+  border: 1px solid color-mix(in srgb, var(--color-amber) 20%, transparent);
+}
+.status-error {
+  background-color: var(--color-error-subtle);
+  color: var(--color-error);
+  border: 1px solid color-mix(in srgb, var(--color-error) 20%, transparent);
+}
+.status-pending {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+}
+
 /* ── Focus ring (accessibility) ──────────────────────── */
 *:focus-visible {
   outline: 2px solid var(--color-accent);

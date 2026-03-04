@@ -84,14 +84,14 @@ export function PriceResults({ result }: PriceResultsProps) {
               <div
                 key={p.label}
                 className={`flex items-center justify-between rounded-md p-3 ${
-                  isAlert ? "bg-orange-50 border border-orange-200" : "bg-surface-base"
+                  isAlert ? "bg-severity-high-bg border border-severity-high/20" : "bg-surface-base"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span
                     className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${
                       isAlert
-                        ? "bg-orange-100 text-orange-700"
+                        ? "bg-severity-high-bg text-severity-high"
                         : "bg-surface-hover text-secondary"
                     }`}
                   >
@@ -99,7 +99,7 @@ export function PriceResults({ result }: PriceResultsProps) {
                   </span>
                   <span className="text-sm text-secondary">{p.desc}</span>
                 </div>
-                <span className={`font-semibold ${isAlert ? "text-orange-700" : "text-primary"}`}>
+                <span className={`font-semibold ${isAlert ? "text-severity-high" : "text-primary"}`}>
                   {p.value}
                 </span>
               </div>

@@ -8,7 +8,7 @@ import type { SignalGraphResponse, SignalInvolvedEntityProfile } from "@/lib/typ
 import type { GNode, GLink } from "@/hooks/useCaseGraph";
 import { CONNECTOR_COLORS, CONNECTOR_LABELS } from "@/lib/constants";
 import { InvestigationCanvas } from "@/components/investigation/InvestigationCanvas";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
 import { DetailSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { severityColor, formatDate, formatBRL } from "@/lib/utils";
@@ -203,21 +203,17 @@ export default function SignalGraphPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[
+      <PageHeader
+        title={data.signal.title}
+        subtitle={`${data.signal.typology_code} - ${data.signal.typology_name}`}
+        breadcrumbs={[
           { label: "Radar", href: "/radar" },
-          { label: data.signal.title, href: `/signal/${data.signal.id}` },
+          { label: "Sinal", href: `/signal/${data.signal.id}` },
           { label: "Teia investigativa" },
         ]}
       />
 
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">{data.signal.title}</h1>
-          <p className="mt-1 text-sm text-secondary">
-            {data.signal.typology_code} - {data.signal.typology_name}
-          </p>
-        </div>
+      <div className="mt-4 flex flex-wrap items-end justify-end gap-2">
         <div className="flex items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${severityColor(data.signal.severity)}`}>
             {SEVERITY_LABELS[data.signal.severity]}
@@ -271,7 +267,7 @@ export default function SignalGraphPage() {
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[2fr,1fr]">
         <div className="rounded-lg border border-border bg-surface-card p-3">
           <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary">
               <Network className="h-4 w-4 text-accent" />
               Teia de conexões
             </h2>
@@ -319,9 +315,9 @@ export default function SignalGraphPage() {
               />
             </div>
           ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-medium text-amber-800">Teia insuficiente para desenhar conexões</p>
-              <p className="mt-1 text-xs text-amber-700">
+            <div className="rounded-lg border border-amber/20 bg-amber-subtle p-4">
+              <p className="text-sm font-medium text-amber">Teia insuficiente para desenhar conexões</p>
+              <p className="mt-1 text-xs text-amber/80">
                 Motivo: {data.diagnostics.fallback_reason || "sem detalhes"}.
                 Eventos carregados: {data.diagnostics.events_loaded}/{data.diagnostics.events_total}.
               </p>
@@ -330,7 +326,7 @@ export default function SignalGraphPage() {
         </div>
 
         <div className="rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary">
             <Users className="h-4 w-4 text-accent" />
             Entidade selecionada
           </h2>
@@ -358,7 +354,7 @@ export default function SignalGraphPage() {
               </div>
 
               {selectedEntity.is_direct_participant === false && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-subtle px-2 py-0.5 text-xs text-amber">
                   <Waypoints className="h-3 w-3" />
                   Descoberto via expansão de rede
                 </span>
@@ -427,7 +423,7 @@ export default function SignalGraphPage() {
 
       <div className="mt-6 rounded-lg border border-border bg-surface-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary">
             <FileText className="h-4 w-4 text-accent" />
             Eventos e evidências ({filteredTimeline.length})
           </h2>

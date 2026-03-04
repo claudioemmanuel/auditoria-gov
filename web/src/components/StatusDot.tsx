@@ -19,11 +19,11 @@ const SIZE_CLASSES: Record<StatusDotSize, string> = {
 };
 
 const STATUS_CLASSES: Record<StatusDotStatus, string> = {
-  ok: "bg-green-500",
-  warning: "bg-amber-500",
-  error: "bg-red-500",
-  stale: "bg-yellow-500",
-  pending: "bg-gray-400",
+  ok: "bg-success",
+  warning: "bg-amber",
+  error: "bg-error",
+  stale: "bg-amber",
+  pending: "bg-placeholder",
   critical: "bg-severity-critical",
   high: "bg-severity-high",
   medium: "bg-severity-medium",

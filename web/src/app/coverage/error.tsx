@@ -11,12 +11,12 @@ export default function CoverageError({
 }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+      <div className="rounded-2xl border border-error/20 bg-error-subtle p-6">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 text-red-600" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 text-error" />
           <div>
-            <h1 className="text-lg font-semibold text-red-800">Falha ao carregar Cobertura</h1>
-            <p className="mt-1 text-sm text-red-700">
+            <h1 className="font-display text-lg font-semibold text-error">Falha ao carregar Cobertura</h1>
+            <p className="mt-1 text-sm text-error/80">
               Detectamos um problema na comunicação com a API. A tela não foi interrompida:
               tente novamente ou abra a Saúde da API para diagnóstico.
             </p>
@@ -24,7 +24,7 @@ export default function CoverageError({
               <button
                 type="button"
                 onClick={() => reset()}
-                className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-surface-card px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                className="inline-flex items-center gap-1 rounded-md border border-error/20 bg-surface-card px-3 py-1.5 text-sm font-medium text-error hover:bg-error-subtle"
               >
                 <RefreshCw className="h-4 w-4" />
                 Tentar novamente

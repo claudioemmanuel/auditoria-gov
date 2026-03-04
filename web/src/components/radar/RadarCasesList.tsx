@@ -39,7 +39,7 @@ export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
               <tr
                 key={item.id}
                 onClick={() => onOpenPreview(item.id)}
-                className="linear-row cursor-pointer transition-colors hover:bg-surface-subtle"
+                className="row-hover cursor-pointer transition-colors hover:bg-surface-subtle"
               >
                 {/* Severity dot + badge */}
                 <td className="px-3 py-2">

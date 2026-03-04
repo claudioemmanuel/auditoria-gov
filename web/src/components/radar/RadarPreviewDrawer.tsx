@@ -37,7 +37,7 @@ export function RadarPreviewDrawer({
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
           <div>
-            <h3 className="text-lg font-semibold text-primary">
+            <h3 className="font-display text-lg font-semibold text-primary">
               {type === "signal" ? "Previa do sinal" : "Previa do caso"}
             </h3>
             <p className="text-xs text-muted">Entenda o padrão sem sair do Radar.</p>
@@ -55,7 +55,7 @@ export function RadarPreviewDrawer({
           <p className="mt-4 text-sm text-secondary">Carregando previa...</p>
         )}
         {error && (
-          <p className="mt-4 text-sm text-red-600">{error}</p>
+          <p className="mt-4 text-sm text-error">{error}</p>
         )}
 
         {/* Signal preview */}

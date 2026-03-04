@@ -1,4 +1,5 @@
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
+import { PageHeader } from "@/components/PageHeader";
 import { TableOfContents } from "./TableOfContents";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
@@ -142,7 +143,7 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
   return (
     <h2
       id={id}
-      className="text-xl font-semibold text-primary mb-4 mt-10 pb-2 border-b border-border scroll-mt-8"
+      className="font-display text-xl font-semibold text-primary mb-4 mt-10 pb-2 border-b border-border scroll-mt-8"
     >
       {children}
     </h2>
@@ -154,14 +155,10 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 export default function MethodologyPage() {
   return (
     <div className="page-wrap">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-primary">Metodologia</h1>
-        <p className="mt-1 text-sm text-secondary">
-          Como o sistema transforma dados publicos em sinais de risco, como interpretar os scores e
-          quais limites considerar na leitura.
-        </p>
-      </div>
+      <PageHeader
+        title="Metodologia"
+        subtitle="Como o sistema transforma dados publicos em sinais de risco, como interpretar os scores e quais limites considerar na leitura."
+      />
 
       {/* Two-column layout */}
       <div className="flex gap-12">
@@ -178,7 +175,7 @@ export default function MethodologyPage() {
           <div className="space-y-4">
             {PRINCIPLES.map((p) => (
               <div key={p.title}>
-                <h3 className="text-base font-semibold text-primary mb-1">{p.title}</h3>
+                <h3 className="font-display text-base font-semibold text-primary mb-1">{p.title}</h3>
                 <p className="text-sm text-secondary leading-relaxed">{p.body}</p>
               </div>
             ))}
@@ -193,7 +190,7 @@ export default function MethodologyPage() {
                   {step.n}.
                 </span>
                 <div>
-                  <h3 className="text-base font-semibold text-primary mb-1">{step.title}</h3>
+                  <h3 className="font-display text-base font-semibold text-primary mb-1">{step.title}</h3>
                   <p className="text-sm text-secondary leading-relaxed">{step.desc}</p>
                 </div>
               </li>
@@ -242,7 +239,7 @@ export default function MethodologyPage() {
           </div>
 
           {/* Fontes de dados */}
-          <h3 className="text-base font-semibold text-primary mt-8 mb-3">Fontes de Dados</h3>
+          <h3 className="font-display text-base font-semibold text-primary mt-8 mb-3">Fontes de Dados</h3>
           <div className="flex flex-wrap gap-2">
             {DATA_SOURCES.map((src) => (
               <span
@@ -266,7 +263,7 @@ export default function MethodologyPage() {
                 key={dim.name}
                 className="border border-border rounded-lg p-4 bg-surface-card"
               >
-                <h3 className="text-base font-semibold text-primary mb-1">{dim.name}</h3>
+                <h3 className="font-display text-base font-semibold text-primary mb-1">{dim.name}</h3>
                 <p className="text-sm text-secondary leading-relaxed">{dim.desc}</p>
               </div>
             ))}

@@ -26,6 +26,8 @@ import { RadarSignalsList } from "@/components/radar/RadarSignalsList";
 import { RadarCasesList } from "@/components/radar/RadarCasesList";
 import { RadarPreviewDrawer } from "@/components/radar/RadarPreviewDrawer";
 import { RadarCoveragePanel } from "@/components/radar/RadarCoveragePanel";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/Button";
 import { AlertTriangle, ArrowUpDown, ChevronLeft, ChevronRight, Search, ShieldCheck } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -194,32 +196,23 @@ function RadarPageInner() {
 
   return (
     <div className="page-wrap mx-auto max-w-[1280px]">
-      {/* Page header */}
-      <div className="border-b border-border bg-surface-card px-4 py-4 lg:px-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-primary">Radar de Riscos</h1>
-            <p className="mt-0.5 text-xs text-muted">
-              Monitoramento de sinais e casos de risco em tempo real
-            </p>
-          </div>
+      <PageHeader
+        title="Radar de Riscos"
+        subtitle="Monitoramento de sinais e casos de risco em tempo real"
+        actions={
           <div className="flex items-center gap-3">
             {!summaryLoading && summary && (
               <span className="font-mono text-sm font-semibold tabular-nums text-secondary">
                 {formatNumber(summary.totals.signals)} sinais
               </span>
             )}
-            <button
-              type="button"
-              onClick={openCoverage}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-subtle px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-subtle/80"
-            >
+            <Button variant="secondary" size="sm" onClick={openCoverage}>
               <ShieldCheck className="h-3.5 w-3.5" />
               Confiabilidade
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2-column body */}
       <div className="flex min-h-0 flex-col gap-4 p-4 lg:flex-row lg:items-start lg:gap-6 lg:p-6">
@@ -284,9 +277,9 @@ function RadarPageInner() {
           {loading ? (
             <TableSkeleton rows={8} />
           ) : error ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 py-12">
-              <AlertTriangle className="h-8 w-8 text-red-400" />
-              <p className="mt-2 text-sm text-red-600">{error}</p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-error/20 bg-error-subtle py-12">
+              <AlertTriangle className="h-8 w-8 text-error" />
+              <p className="mt-2 text-sm text-error">{error}</p>
             </div>
           ) : hasData ? (
             view === "signals" ? (
@@ -309,27 +302,27 @@ function RadarPageInner() {
                 {offsetParam + 1}–{Math.min(offsetParam + PAGE_SIZE, total)} de {formatNumber(total)}
               </p>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={offsetParam === 0}
                   onClick={() => setOffset(Math.max(0, offsetParam - PAGE_SIZE))}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle disabled:opacity-50"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Anterior
-                </button>
+                </Button>
                 <span className="text-xs text-muted">
                   Pg <span className="font-mono tabular-nums">{currentPage}</span>/<span className="font-mono tabular-nums">{totalPages}</span>
                 </span>
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={offsetParam + PAGE_SIZE >= total}
                   onClick={() => setOffset(offsetParam + PAGE_SIZE)}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle disabled:opacity-50"
                 >
                   Próxima
                   <ChevronRight className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
             </div>
           )}

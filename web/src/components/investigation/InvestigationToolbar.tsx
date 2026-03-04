@@ -78,7 +78,7 @@ export function InvestigationToolbar({
 
         {/* Status indicators */}
         {truncated && (
-          <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-600">
+          <span className="flex items-center gap-1 rounded-full border border-amber/20 bg-amber-subtle px-2 py-0.5 text-[10px] font-medium text-amber">
             <AlertTriangle className="h-2.5 w-2.5" />
             Truncado
           </span>

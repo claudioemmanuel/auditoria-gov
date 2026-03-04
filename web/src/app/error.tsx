@@ -13,12 +13,12 @@ export default function GlobalError({
     <html lang="pt-BR">
       <body className="min-h-screen bg-surface-base">
         <div className="mx-auto flex min-h-screen max-w-3xl items-center px-4 py-12">
-          <div className="w-full rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+          <div className="w-full rounded-2xl border border-error/20 bg-error-subtle p-6 shadow-sm">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-red-600" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-error" />
               <div>
-                <h1 className="text-lg font-semibold text-red-800">Erro inesperado na aplicacao</h1>
-                <p className="mt-1 text-sm text-red-700">
+                <h1 className="font-display text-lg font-semibold text-error">Erro inesperado na aplicacao</h1>
+                <p className="mt-1 text-sm text-error/80">
                   Encontramos uma falha em tempo de execucao. O front manteve uma rota segura para
                   voce retomar o uso sem tela quebrada.
                 </p>
@@ -26,7 +26,7 @@ export default function GlobalError({
                   <button
                     type="button"
                     onClick={() => reset()}
-                    className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                    className="inline-flex items-center gap-1 rounded-md border border-error/20 bg-surface-card px-3 py-1.5 text-sm font-medium text-error hover:bg-error-subtle"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Tentar novamente

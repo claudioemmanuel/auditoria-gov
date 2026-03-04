@@ -11,12 +11,12 @@ interface CoverageSummaryStripProps {
 
 function overallBadge(status?: string) {
   if (status === "healthy") {
-    return { label: "Saudável", cls: "border-green-200 bg-green-50 text-green-700", Icon: CheckCircle2 };
+    return { label: "Saudável", cls: "status-ok", Icon: CheckCircle2 };
   }
   if (status === "blocked") {
-    return { label: "Bloqueado", cls: "border-red-200 bg-red-50 text-red-700", Icon: AlertTriangle };
+    return { label: "Bloqueado", cls: "status-error", Icon: AlertTriangle };
   }
-  return { label: "Atenção", cls: "border-yellow-200 bg-yellow-50 text-yellow-700", Icon: Loader2 };
+  return { label: "Atenção", cls: "status-warning", Icon: Loader2 };
 }
 
 export function CoverageSummaryStrip({ summary, loading }: CoverageSummaryStripProps) {

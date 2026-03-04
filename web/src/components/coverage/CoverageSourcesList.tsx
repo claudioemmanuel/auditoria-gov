@@ -20,18 +20,18 @@ interface CoverageSourcesListProps {
 type SortKey = "status" | "name" | "freshness";
 
 const STATUS_DOT: Record<CoverageStatus, string> = {
-  ok: "bg-green-500",
-  warning: "bg-yellow-500",
-  stale: "bg-yellow-600",
-  error: "bg-red-500",
-  pending: "bg-gray-400",
+  ok: "bg-success",
+  warning: "bg-amber",
+  stale: "bg-amber",
+  error: "bg-error",
+  pending: "bg-placeholder",
 };
 
 const STATUS_TEXT: Record<CoverageStatus, string> = {
-  ok: "text-green-600",
-  warning: "text-yellow-600",
-  stale: "text-yellow-600",
-  error: "text-red-600",
+  ok: "text-success",
+  warning: "text-amber",
+  stale: "text-amber",
+  error: "text-error",
   pending: "text-muted",
 };
 
@@ -105,7 +105,7 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
   }
 
   if (error) {
-    return <div className="px-4 py-3 text-xs text-red-600">{error}</div>;
+    return <div className="px-4 py-3 text-xs text-error">{error}</div>;
   }
 
   if (!data || data.recent_runs.length === 0) {
@@ -121,9 +121,9 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
             className={cn(
               "font-medium",
               run.status === "success"
-                ? "text-green-600"
+                ? "text-success"
                 : run.status === "error" || run.is_stuck
-                  ? "text-red-600"
+                  ? "text-error"
                   : "text-muted",
             )}
           >
@@ -185,7 +185,7 @@ export function CoverageSourcesList({
     <div className="rounded-xl border border-border bg-surface-card shadow-sm">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-        <h2 className="flex-1 text-sm font-semibold text-primary">Fontes de Dados</h2>
+        <h2 className="font-display flex-1 text-sm font-semibold text-primary">Fontes de Dados</h2>
         <span className="font-mono tabular-nums text-xs text-muted">{total} fonte(s)</span>
 
         {/* Inline search */}

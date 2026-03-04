@@ -83,12 +83,12 @@ export function RadarSummaryStrip({
         {(["critical", "high", "medium", "low"] as const).map((severity) => {
           const isActive = activeSeverity === severity;
           const severityTone = severity === "critical"
-            ? "text-red-700"
+            ? "text-severity-critical"
             : severity === "high"
-              ? "text-orange-700"
+              ? "text-severity-high"
               : severity === "medium"
-                ? "text-amber-700"
-                : "text-blue-700";
+                ? "text-severity-medium"
+                : "text-severity-low";
           return (
             <button
               key={severity}

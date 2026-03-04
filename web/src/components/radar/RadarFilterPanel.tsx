@@ -50,7 +50,7 @@ export function RadarFilterPanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Filter className="h-3.5 w-3.5 text-accent" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-secondary">Filtros</span>
+          <span className="font-display text-xs font-semibold uppercase tracking-wider text-secondary">Filtros</span>
         </div>
         {hasFilters && (
           <button

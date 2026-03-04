@@ -39,7 +39,7 @@ export function SeverityCountCards({ counts }: SeverityCountCardsProps) {
         <div
           key={card.key}
           className={cn(
-            "linear-card rounded-lg border border-border bg-surface-card p-4 border-l-4",
+            "surface-card rounded-lg border border-border bg-surface-card p-4 border-l-4",
             card.bg,
           )}
         >

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/Button";
 import { getApiHeartbeat, getCoverageV2Summary } from "@/lib/api";
 import type { CoverageV2SummaryResponse } from "@/lib/types";
 import {
@@ -10,7 +11,6 @@ import {
   CheckCircle2,
   Cpu,
   DatabaseZap,
-  Loader2,
   RefreshCw,
   ServerCrash,
   Workflow,
@@ -31,28 +31,28 @@ function statusBadge(tone: HealthTone) {
   if (tone === "healthy") {
     return {
       label: "Saudavel",
-      cls: "bg-green-100 text-green-700 border-green-200",
+      cls: "status-ok",
       Icon: CheckCircle2,
     };
   }
   if (tone === "blocked") {
     return {
       label: "Bloqueado",
-      cls: "bg-red-100 text-red-700 border-red-200",
+      cls: "status-error",
       Icon: ServerCrash,
     };
   }
   return {
     label: "Atencao",
-    cls: "bg-amber-100 text-amber-700 border-amber-200",
+    cls: "status-warning",
     Icon: AlertTriangle,
   };
 }
 
 function checkBadge(status: CheckStatus) {
-  if (status === "ok") return "bg-green-100 text-green-700 border-green-200";
-  if (status === "attention") return "bg-amber-100 text-amber-700 border-amber-200";
-  return "bg-red-100 text-red-700 border-red-200";
+  if (status === "ok") return "status-ok";
+  if (status === "attention") return "status-warning";
+  return "status-error";
 }
 
 function overallFromChecks(checks: ServiceCheck[]): HealthTone {
@@ -169,32 +169,29 @@ export default function ApiHealthPage() {
 
   return (
     <div className="page-wrap">
-      <Breadcrumb items={[{ label: "Saude API" }]} />
-
-      {/* Page header */}
-      <div className="mb-6 mt-2 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-primary">Saude da Plataforma</h1>
-          <p className="mt-1 text-sm text-secondary">
-            Monitor rapido de disponibilidade tecnica dos servicos essenciais.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm font-semibold ${badge.cls}`}>
-            <BadgeIcon className="h-4 w-4" />
-            {badge.label}
-          </span>
-          <button
-            type="button"
-            onClick={() => void loadHealth()}
-            disabled={refreshing}
-            className="inline-flex items-center gap-1 rounded-xl border border-border bg-surface-card px-3 py-1.5 text-sm text-secondary hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Atualizar
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Saude da Plataforma"
+        subtitle="Monitor rapido de disponibilidade tecnica dos servicos essenciais."
+        breadcrumbs={[{ label: "Saude API" }]}
+        actions={
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold ${badge.cls}`}>
+              <BadgeIcon className="h-4 w-4" />
+              {badge.label}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void loadHealth()}
+              disabled={refreshing}
+              loading={refreshing}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Atualizar
+            </Button>
+          </div>
+        }
+      />
 
       <p className="text-xs text-muted">
         Ultima verificacao: {checkedAt ? new Date(checkedAt).toLocaleString("pt-BR") : "Aguardando"}
@@ -204,18 +201,18 @@ export default function ApiHealthPage() {
         <article className="metric-card">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-accent" />
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">API</p>
+            <p className="font-display text-xs font-medium uppercase tracking-wide text-muted">API</p>
           </div>
-          <p className="mt-2 text-3xl font-bold text-primary">{checks[0]?.status === "ok" ? "OK" : "Falha"}</p>
+          <p className="mt-2 font-mono tabular-nums text-3xl font-bold text-primary">{checks[0]?.status === "ok" ? "OK" : "Falha"}</p>
           <p className="mt-1 text-xs text-muted">{checks[0]?.endpoint}</p>
         </article>
 
         <article className="metric-card">
           <div className="flex items-center gap-2">
             <Workflow className="h-4 w-4 text-accent" />
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">Pipeline</p>
+            <p className="font-display text-xs font-medium uppercase tracking-wide text-muted">Pipeline</p>
           </div>
-          <p className="mt-2 text-3xl font-bold text-primary">
+          <p className="mt-2 font-mono tabular-nums text-3xl font-bold text-primary">
             {coverageSummary?.pipeline.overall_status || "indisponivel"}
           </p>
           <p className="mt-1 text-xs text-muted">Estado operacional geral</p>
@@ -224,9 +221,9 @@ export default function ApiHealthPage() {
         <article className="metric-card">
           <div className="flex items-center gap-2">
             <Cpu className="h-4 w-4 text-accent" />
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">Workers</p>
+            <p className="font-display text-xs font-medium uppercase tracking-wide text-muted">Workers</p>
           </div>
-          <p className="mt-2 text-3xl font-bold text-primary">
+          <p className="mt-2 font-mono tabular-nums text-3xl font-bold text-primary">
             {coverageSummary?.totals.runtime.failed_or_stuck ?? "-"}
           </p>
           <p className="mt-1 text-xs text-muted">falha/travamento</p>
@@ -234,7 +231,7 @@ export default function ApiHealthPage() {
       </section>
 
       <section className="surface-card mt-6 p-4">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-secondary">
+        <h2 className="font-display flex items-center gap-2 text-base font-semibold text-primary">
           <DatabaseZap className="h-4 w-4 text-accent" />
           Checklist tecnico
         </h2>
@@ -250,7 +247,7 @@ export default function ApiHealthPage() {
                     <p className="text-sm font-semibold text-primary">{check.name}</p>
                     <p className="text-xs text-muted">{check.endpoint}</p>
                   </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${checkBadge(check.status)}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${checkBadge(check.status)}`}>
                     {check.status}
                   </span>
                 </div>
@@ -262,9 +259,9 @@ export default function ApiHealthPage() {
       </section>
 
       {overallTone !== "healthy" && (
-        <section className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-semibold">Acoes recomendadas</p>
-          <ul className="mt-2 list-disc space-y-1 pl-4">
+        <section className="mt-6 rounded-[10px] border border-amber/20 bg-amber-subtle p-4 text-sm">
+          <p className="font-display font-semibold text-primary">Acoes recomendadas</p>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-secondary">
             <li>Verifique se os containers `api`, `worker` e `beat` estao ativos.</li>
             <li>Valide conexao com Redis/Postgres e logs de inicializacao.</li>
             <li>Reexecute a verificacao apos estabilizar os servicos.</li>

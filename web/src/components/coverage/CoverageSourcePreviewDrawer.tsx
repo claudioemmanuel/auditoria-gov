@@ -28,7 +28,7 @@ export function CoverageSourcePreviewDrawer({
       <div className="h-full w-full max-w-2xl overflow-y-auto bg-surface-card p-4">
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Diagnóstico da fonte</h3>
+            <h3 className="font-display text-lg font-semibold text-primary">Diagnóstico da fonte</h3>
             <p className="text-xs text-muted">Drill-down operacional sem sair da cobertura.</p>
           </div>
           <button
@@ -44,7 +44,7 @@ export function CoverageSourcePreviewDrawer({
           <p className="mt-4 text-sm text-muted">Carregando preview da fonte...</p>
         )}
         {error && (
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+          <p className="mt-4 rounded-md border border-error/20 bg-error-subtle p-3 text-sm text-error">{error}</p>
         )}
 
         {!loading && !error && data && (

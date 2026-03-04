@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getIngestRunDetail } from "@/lib/api";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/Button";
 import { DetailSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { formatDateTime, formatNumber } from "@/lib/utils";
@@ -39,19 +40,19 @@ import {
 const STATUS_CONFIG: Record<string, { label: string; cls: string; Icon: typeof CheckCircle2; desc: string }> = {
   completed: {
     label: "Concluído",
-    cls: "bg-green-100 text-green-800 border-green-200",
+    cls: "status-ok",
     Icon: CheckCircle2,
     desc: "A execução foi finalizada com sucesso. Todos os registros foram processados.",
   },
   running: {
     label: "Em execução",
-    cls: "bg-blue-100 text-blue-800 border-blue-200",
+    cls: "status-pending",
     Icon: Loader2,
     desc: "Esta execução ainda está em andamento. Os números podem mudar.",
   },
   error: {
     label: "Erro",
-    cls: "bg-red-100 text-red-800 border-red-200",
+    cls: "status-error",
     Icon: CircleX,
     desc: "A execução encontrou um erro durante o processamento.",
   },
@@ -120,10 +121,10 @@ function formatStructuredValue(value: unknown): string {
 }
 
 function coverageColor(pctValue: number): string {
-  if (pctValue >= 90) return "bg-green-500";
-  if (pctValue >= 70) return "bg-emerald-400";
-  if (pctValue >= 50) return "bg-amber-400";
-  return "bg-red-400";
+  if (pctValue >= 90) return "bg-success";
+  if (pctValue >= 70) return "bg-success/70";
+  if (pctValue >= 50) return "bg-amber";
+  return "bg-error";
 }
 
 /* ── KPI Card ──────────────────────────────────────────────────── */
@@ -147,7 +148,7 @@ function KpiCard({
         <p className="text-xs font-medium text-muted">{label}</p>
         <span className="group relative">
           <HelpCircle className="h-3.5 w-3.5 text-placeholder transition hover:text-muted" />
-          <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-1 hidden w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs font-normal text-white group-hover:block">
+          <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-1 hidden w-56 rounded-lg bg-primary px-3 py-2 text-xs font-normal text-surface-card group-hover:block">
             {tooltip}
           </span>
         </span>
@@ -275,11 +276,9 @@ export default function CoverageRunDetailPage() {
   if (loading) {
     return (
       <div className="page-wrap">
-        <Breadcrumb
-          items={[
-            { label: "Cobertura", href: "/coverage" },
-            { label: "Detalhe da Execução" },
-          ]}
+        <PageHeader
+          title="Detalhe da Execução"
+          breadcrumbs={[{ label: "Cobertura", href: "/coverage" }, { label: "Detalhe" }]}
         />
         <div className="mt-4">
           <DetailSkeleton />
@@ -292,11 +291,9 @@ export default function CoverageRunDetailPage() {
   if (error || !detail) {
     return (
       <div className="page-wrap">
-        <Breadcrumb
-          items={[
-            { label: "Cobertura", href: "/coverage" },
-            { label: "Detalhe da Execução" },
-          ]}
+        <PageHeader
+          title="Detalhe da Execução"
+          breadcrumbs={[{ label: "Cobertura", href: "/coverage" }, { label: "Detalhe" }]}
         />
         <div className="mt-6">
           <EmptyState
@@ -305,13 +302,10 @@ export default function CoverageRunDetailPage() {
             description={error ?? "Detalhe da execução indisponível."}
           />
           <div className="mt-4 text-center">
-            <button
-              onClick={fetchDetail}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
-            >
+            <Button onClick={fetchDetail}>
               <RefreshCw className="h-4 w-4" />
               Tentar novamente
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -332,13 +326,9 @@ export default function CoverageRunDetailPage() {
 
   return (
     <div className="page-wrap">
-      <Breadcrumb
-        items={[
-          { label: "Cobertura", href: "/coverage" },
-          {
-            label: `${detail.run.connector} / ${detail.run.job}`,
-          },
-        ]}
+      <PageHeader
+        title={`${detail.run.connector} / ${detail.run.job}`}
+        breadcrumbs={[{ label: "Cobertura", href: "/coverage" }, { label: "Detalhe" }]}
       />
 
       {/* Back link */}
@@ -359,7 +349,7 @@ export default function CoverageRunDetailPage() {
                 <Database className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-primary">
+                <h1 className="font-display text-xl font-bold tracking-tight text-primary">
                   {detail.run.connector} / {detail.run.job}
                 </h1>
                 {detail.job.domain && (
@@ -551,12 +541,12 @@ export default function CoverageRunDetailPage() {
 
       {/* ── Errors (if any) ────────────────────────────────────── */}
       {detail.run.errors && Object.keys(detail.run.errors).length > 0 && (
-        <section className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-red-800">
+        <section className="mt-6 rounded-xl border border-error/20 bg-error-subtle p-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-error">
             <CircleX className="h-4 w-4" />
             Erros registrados
           </h2>
-          <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-surface-card p-3 font-mono text-xs text-red-700">
+          <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-surface-card p-3 font-mono text-xs text-error">
             {stringifyJson(detail.run.errors)}
           </pre>
         </section>

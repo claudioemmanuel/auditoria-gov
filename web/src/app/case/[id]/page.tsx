@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCase } from "@/lib/api";
-import { Badge } from "@/components/Badge"
+import { Badge } from "@/components/Badge";
 import { DetailSkeleton } from "@/components/Skeleton";
+import { DetailPageLayout } from "@/components/DetailPageLayout";
+import { DetailHeader } from "@/components/DetailHeader";
 import { Suspense } from "react";
 import { formatBRL, formatDate, severityDotColor, cn } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
-import { ArrowLeft, Network, Radar, Building2, User, Landmark } from "lucide-react";
+import { Network, Radar, Building2, User, Landmark, ExternalLink } from "lucide-react";
 import type { SignalSeverity, CaseDetail, CaseSignal } from "@/lib/types";
 
 const SEVERITY_ORDER: Record<SignalSeverity, number> = {
@@ -52,155 +54,196 @@ async function CaseContent({ id }: { id: string }) {
       ? `${caseData.period_start ? formatDate(caseData.period_start) : "---"} → ${caseData.period_end ? formatDate(caseData.period_end) : "---"}`
       : null;
 
-  return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-muted" aria-label="Breadcrumb">
-        <Link
-          href="/radar"
-          className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Radar
-        </Link>
-        <span className="text-placeholder">/</span>
-        <span className="text-secondary">Caso #{shortId}</span>
-      </nav>
+  // ── Aside ────────────────────────────────────────────────────────
+  const aside = (
+    <>
+      {/* Severity + Period + Value */}
+      <div className="rounded-lg border border-border bg-surface-card p-4 space-y-3">
+        <Badge severity={caseData.severity} />
 
-      {/* Header */}
-      <div className="mt-4">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-2xl font-bold text-primary leading-snug">
-            {caseData.title}
-          </h1>
-          <Badge severity={caseData.severity} className="shrink-0 mt-1" />
+        {periodLabel && (
+          <div className="border-t border-border pt-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted mb-1">Período</p>
+            <p className="font-mono tabular-nums text-xs text-primary">{periodLabel}</p>
+          </div>
+        )}
+
+        {caseData.total_value_brl != null && caseData.total_value_brl > 0 && (
+          <div className="border-t border-border pt-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted mb-1">Valor Total</p>
+            <p className="font-mono tabular-nums text-sm font-bold text-primary">
+              {formatBRL(caseData.total_value_brl)}
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-4 border-t border-border pt-3 text-xs text-secondary">
+          <span>
+            <span className="font-mono tabular-nums font-semibold text-primary">
+              {caseData.signals.length}
+            </span>{" "}
+            {caseData.signals.length === 1 ? "sinal" : "sinais"}
+          </span>
+          <span>
+            <span className="font-mono tabular-nums font-semibold text-primary">
+              {entityNames.length}
+            </span>{" "}
+            {entityNames.length === 1 ? "entidade" : "entidades"}
+          </span>
         </div>
-
-        {/* Sub-header meta line */}
-        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-secondary">
-          {periodLabel && (
-            <span className="font-mono tabular-nums">{periodLabel}</span>
-          )}
-          {caseData.total_value_brl != null && caseData.total_value_brl > 0 && (
-            <>
-              {periodLabel && <span className="text-placeholder">·</span>}
-              <span className="font-mono tabular-nums">
-                {formatBRL(caseData.total_value_brl)} total
-              </span>
-            </>
-          )}
-          {entityNames.length > 0 && (
-            <>
-              <span className="text-placeholder">·</span>
-              <span>
-                <span className="font-mono tabular-nums">{entityNames.length}</span>{" "}
-                {entityNames.length === 1 ? "entidade" : "entidades"}
-              </span>
-            </>
-          )}
-          {caseData.signals.length > 0 && (
-            <>
-              <span className="text-placeholder">·</span>
-              <span>
-                <span className="font-mono tabular-nums">{caseData.signals.length}</span>{" "}
-                {caseData.signals.length === 1 ? "sinal" : "sinais"}
-              </span>
-            </>
-          )}
-        </p>
       </div>
 
-      {/* Summary */}
-      {caseData.summary && (
-        <section className="mt-6 rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-2">Resumo do Caso</h2>
-          <p className="text-sm text-secondary leading-relaxed">{caseData.summary}</p>
-        </section>
+      {/* Signals compact list */}
+      {sortedSignals.length > 0 && (
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+            Sinais ({sortedSignals.length})
+          </h3>
+          <ul className="space-y-1.5">
+            {sortedSignals.map((signal) => (
+              <li key={signal.id} className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    severityDotColor(signal.severity),
+                  )}
+                />
+                <span className="font-mono tabular-nums text-[10px] text-secondary w-7 shrink-0">
+                  {signal.typology_code}
+                </span>
+                <span className="flex-1 truncate text-xs text-secondary" title={TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}>
+                  {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
+                </span>
+                <span className="font-mono tabular-nums text-[10px] text-muted shrink-0">
+                  {signal.confidence.toFixed(2)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      {/* Two-column grid: Signals + Entities */}
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Signals */}
-        <section className="rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">
-            Sinais{" "}
-            <span className="font-mono tabular-nums text-muted">
-              ({caseData.signals.length})
-            </span>
-          </h2>
-          {sortedSignals.length === 0 ? (
-            <p className="text-sm text-muted">Nenhum sinal associado</p>
-          ) : (
-            <ul className="space-y-2">
-              {sortedSignals.map((signal) => (
-                <li
-                  key={signal.id}
-                  className="flex items-center gap-2.5"
-                >
-                  <span
-                    className={cn(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      severityDotColor(signal.severity),
-                    )}
-                  />
-                  <span className="font-mono tabular-nums text-xs text-secondary w-8 shrink-0">
-                    {signal.typology_code}
-                  </span>
-                  <span className="flex-1 truncate text-xs text-secondary" title={TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}>
-                    {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
-                  </span>
-                  <span className="font-mono tabular-nums text-xs text-muted shrink-0">
-                    {signal.confidence.toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* Entities */}
-        <section className="rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">
-            Entidades{" "}
-            <span className="font-mono tabular-nums text-muted">
-              ({entityNames.length})
-            </span>
-          </h2>
-          {entityNames.length === 0 ? (
-            <p className="text-sm text-muted">Nenhuma entidade identificada</p>
-          ) : (
-            <ul className="space-y-2">
-              {entityNames.map((name, i) => (
-                <li key={i} className="flex items-center gap-2.5">
-                  <EntityTypeIcon type="company" />
-                  <span className="flex-1 truncate text-xs text-secondary" title={name}>
-                    {name}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* Action buttons */}
-      <div className="mt-6 flex flex-wrap gap-3">
+      {/* Actions */}
+      <div className="rounded-lg border border-border bg-surface-card p-4 space-y-2">
         <Link
           href={`/investigation/${caseData.id}`}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-accent-subtle text-accent px-4 py-2 text-sm font-medium transition hover:opacity-80"
+          className="flex items-center gap-2 rounded-md bg-accent-subtle text-accent px-3 py-2 text-xs font-medium transition hover:opacity-80 w-full"
         >
-          <Network className="h-4 w-4" />
+          <Network className="h-3.5 w-3.5" />
           Investigar no Grafo
         </Link>
         <Link
           href="/radar"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-4 py-2 text-sm font-medium text-secondary transition hover:bg-surface-subtle"
+          className="flex items-center gap-2 rounded-md border border-border bg-surface-base px-3 py-2 text-xs font-medium text-secondary transition hover:bg-surface-subtle w-full"
         >
-          <Radar className="h-4 w-4" />
+          <Radar className="h-3.5 w-3.5" />
           Ver no Radar
         </Link>
       </div>
-    </div>
+
+      {/* Case ID */}
+      <div className="rounded-lg border border-border bg-surface-card p-4">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted mb-1">ID do Caso</p>
+        <p className="font-mono text-xs text-primary break-all">{shortId}</p>
+      </div>
+    </>
+  );
+
+  // ── Main ─────────────────────────────────────────────────────────
+  const main = (
+    <>
+      {/* Summary */}
+      {caseData.summary && (
+        <section className="rounded-lg border border-border bg-surface-card p-4">
+          <h2 className="font-display text-sm font-semibold text-primary mb-2">Resumo do Caso</h2>
+          <p className="text-sm text-secondary leading-relaxed">{caseData.summary}</p>
+        </section>
+      )}
+
+      {/* Entities expanded */}
+      {entityNames.length > 0 && (
+        <section className="rounded-lg border border-border bg-surface-card p-4">
+          <h2 className="font-display text-sm font-semibold text-primary mb-3">
+            Entidades{" "}
+            <span className="font-mono tabular-nums text-muted">({entityNames.length})</span>
+          </h2>
+          <ul className="space-y-2">
+            {entityNames.map((name, i) => (
+              <li key={i} className="flex items-center gap-2.5 rounded-md bg-surface-base px-3 py-2">
+                <EntityTypeIcon type="company" />
+                <span className="flex-1 text-sm text-secondary truncate" title={name}>
+                  {name}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Detailed Signals */}
+      {sortedSignals.length > 0 && (
+        <section>
+          <h2 className="font-display text-sm font-semibold text-primary mb-3">
+            Sinais Detalhados
+          </h2>
+          <div className="space-y-2">
+            {sortedSignals.map((signal) => {
+              const pct = Math.round(signal.confidence * 100);
+              return (
+                <Link
+                  key={signal.id}
+                  href={`/signal/${signal.id}`}
+                  className="flex items-start gap-3 rounded-lg border border-border bg-surface-card p-3 transition hover:border-accent/30 hover:bg-accent-subtle/10"
+                >
+                  <span
+                    className={cn(
+                      "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
+                      severityDotColor(signal.severity),
+                    )}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono tabular-nums text-xs font-bold text-accent">
+                        {signal.typology_code}
+                      </span>
+                      <span className="text-xs text-secondary truncate">
+                        {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 rounded-full bg-surface-base">
+                        <div
+                          className="h-1.5 rounded-full bg-accent"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="font-mono tabular-nums text-xs text-muted shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+                  </div>
+                  <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </>
+  );
+
+  return (
+    <DetailPageLayout
+      header={
+        <DetailHeader
+          breadcrumbs={[{ label: "Radar", href: "/radar" }, { label: `Caso #${shortId}` }]}
+          title={caseData.title}
+          badge={<Badge severity={caseData.severity} className="shrink-0" />}
+        />
+      }
+      aside={aside}
+      main={main}
+    />
   );
 }
 
@@ -212,16 +255,14 @@ export default async function CaseDetailPage({
   const { id } = await params;
 
   return (
-    <main className="flex-1">
-      <Suspense
-        fallback={
-          <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-            <DetailSkeleton />
-          </div>
-        }
-      >
-        <CaseContent id={id} />
-      </Suspense>
-    </main>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+          <DetailSkeleton />
+        </div>
+      }
+    >
+      <CaseContent id={id} />
+    </Suspense>
   );
 }

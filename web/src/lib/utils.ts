@@ -43,11 +43,11 @@ export function severityColor(severity: SignalSeverity): string {
 
 export function coverageStatusColor(status: CoverageStatus): string {
   const map: Record<CoverageStatus, string> = {
-    ok: "bg-green-100 text-green-800",
-    warning: "bg-amber-100 text-amber-800",
-    stale: "bg-yellow-100 text-yellow-800",
-    error: "bg-red-100 text-red-800",
-    pending: "bg-gray-100 text-gray-800",
+    ok: "status-ok",
+    warning: "status-warning",
+    stale: "status-warning",
+    error: "status-error",
+    pending: "status-pending",
   };
   return map[status];
 }

@@ -7,11 +7,11 @@ interface SourceHealthChipsProps {
 
 function statusDotClass(status: CoverageStatus): string {
   const map: Record<CoverageStatus, string> = {
-    ok: "bg-green-500",
-    warning: "bg-amber-400",
-    stale: "bg-yellow-400",
-    error: "bg-red-500",
-    pending: "bg-gray-400",
+    ok: "bg-success",
+    warning: "bg-amber",
+    stale: "bg-amber",
+    error: "bg-error",
+    pending: "bg-placeholder",
   };
   return map[status];
 }
@@ -39,9 +39,9 @@ function relativeTimeFrom(dateStr: string | null | undefined): string {
 
 export function SourceHealthChips({ items }: SourceHealthChipsProps) {
   return (
-    <div className="linear-card rounded-lg border border-border bg-surface-card">
+    <div className="surface-card rounded-lg border border-border bg-surface-card">
       <div className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-primary">Fontes de Dados</h2>
+        <h2 className="font-display text-sm font-semibold text-primary">Fontes de Dados</h2>
       </div>
       <ul className="divide-y divide-border">
         {items.map((item) => (

@@ -54,8 +54,8 @@ function ApiHealthDot() {
     <span
       className={cn(
         "inline-block h-2 w-2 rounded-full",
-        status === "ok" && "bg-green-500",
-        status === "error" && "bg-red-500",
+        status === "ok" && "bg-success",
+        status === "error" && "bg-error",
         status === "loading" && "bg-sidebar-text animate-pulse",
       )}
     />
@@ -156,10 +156,10 @@ export function AppSidebar() {
       {/* ── Search trigger (Cmd+K) ─────────────────────── */}
       {(!collapsed || isMobile) && (
         <div className="px-3 pt-3 pb-1">
-          <button className="flex w-full items-center gap-2 rounded-[10px] border border-sidebar-border bg-sidebar-hover/50 px-2.5 py-1.5 text-xs text-sidebar-text hover:bg-sidebar-hover">
-            <Search className="h-3.5 w-3.5" />
+          <button className="flex w-full items-center gap-2 rounded-[10px] border border-sidebar-border bg-sidebar-hover px-2.5 py-2 text-xs text-sidebar-text transition-colors hover:bg-sidebar-active hover:text-sidebar-text-active">
+            <Search className="h-3.5 w-3.5 shrink-0" />
             <span className="flex-1 text-left">Buscar...</span>
-            <kbd className="rounded-[6px] border border-sidebar-border bg-sidebar-bg px-1 py-0.5 font-mono text-[10px] text-sidebar-text">
+            <kbd className="rounded-[4px] border border-sidebar-border bg-sidebar-bg px-1 py-0.5 font-mono text-[10px] text-sidebar-text/70">
               ⌘K
             </kbd>
           </button>
@@ -167,7 +167,13 @@ export function AppSidebar() {
       )}
 
       {/* ── Navigation ─────────────────────────────────── */}
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pt-2">
+      <nav className="flex-1 overflow-y-auto px-2 pt-2 pb-2">
+        {(!collapsed || isMobile) && (
+          <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-text/50">
+            Menu
+          </p>
+        )}
+        <div className="space-y-0.5">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item);
           return (
@@ -208,6 +214,7 @@ export function AppSidebar() {
             </Link>
           );
         })}
+        </div>
       </nav>
 
       {/* ── Footer: theme toggle + API health ──────────── */}

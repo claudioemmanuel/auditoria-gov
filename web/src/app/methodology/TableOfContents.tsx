@@ -44,7 +44,7 @@ export function TableOfContents() {
 
   return (
     <nav aria-label="Tabela de Conteudo" className="sticky top-20 self-start w-48 flex-shrink-0">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3">
+      <p className="font-display text-xs font-semibold uppercase tracking-wider text-muted mb-3">
         Conteudo
       </p>
       <ol className="space-y-1">
