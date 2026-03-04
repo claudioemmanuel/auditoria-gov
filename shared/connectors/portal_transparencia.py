@@ -506,9 +506,11 @@ class PortalTransparenciaConnector(BaseConnector):
             total_windows = 1
 
         # Skip forward through empty dimension/window combinations.
-        # Budget must be large enough to skip legacy/inactive dimension keys
-        # (e.g., first ~200 SIAPE codes × 5 windows = 1000 empty slots).
-        max_empty_skips = 500
+        # 400 (invalid key) advances dim_idx without counting against the budget —
+        # so all N dimension keys can be iterated regardless of how many are invalid.
+        # Only truly empty-data responses (valid key, no records) count against the
+        # budget to avoid hammering the API when a whole date range is legitimately empty.
+        max_empty_skips = max(1000, len(dim_keys) * 3)
         skips = 0
 
         while skips < max_empty_skips:
@@ -550,7 +552,8 @@ class PortalTransparenciaConnector(BaseConnector):
                     continue
 
                 if response.status_code == 400:
-                    # Invalid dimension key — skip to next
+                    # Invalid dimension key — skip to next dim without counting
+                    # against empty-data budget (these are structural, not data gaps).
                     log.warning(
                         "portal_transparencia.dimension_invalid_key",
                         job=job.name,
@@ -560,8 +563,8 @@ class PortalTransparenciaConnector(BaseConnector):
                     dim_idx += 1
                     window_idx = 0
                     page = 1
-                    skips += 1
-                    await asyncio.sleep(0.3)
+                    # Do NOT increment skips — invalid keys are not empty-data skips
+                    await asyncio.sleep(0.1)
                     continue
 
                 if response.status_code == 302:
