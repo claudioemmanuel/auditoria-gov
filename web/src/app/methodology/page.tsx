@@ -1,6 +1,4 @@
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
-import { DetailPageLayout } from "@/components/DetailPageLayout";
-import { DetailHeader } from "@/components/DetailHeader";
 import { TableOfContents } from "./TableOfContents";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 
@@ -292,21 +290,34 @@ export default function MethodologyPage() {
   );
 
   return (
-    <DetailPageLayout
-      header={
-        <DetailHeader
-          breadcrumbs={[{ label: "Metodologia" }]}
-          title="Metodologia"
-          badge={
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
-              <BookOpen className="h-4 w-4 text-accent" />
+    <div className="min-h-screen">
+
+      {/* ── Page header ────────────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card">
+        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
+              <BookOpen className="h-6 w-6 text-accent" />
             </div>
-          }
-        />
-      }
-      aside={aside}
-      main={main}
-      maxWidth="6xl"
-    />
+            <div>
+              <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Metodologia</h1>
+              <p className="mt-1.5 text-sm text-secondary leading-relaxed">Fundamentos técnicos e legais das tipologias, fatores de risco e critérios de classificação de evidência</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Body: TOC aside + content ───────────────────────────── */}
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <aside className="w-full lg:w-72 lg:shrink-0 lg:sticky lg:top-6">
+            {aside}
+          </aside>
+          <div className="flex-1 min-w-0">
+            {main}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

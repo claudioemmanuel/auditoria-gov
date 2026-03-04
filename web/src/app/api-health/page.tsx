@@ -155,15 +155,15 @@ export default function ApiHealthPage() {
 
       {/* ── Page Header ────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
-                <ShieldCheck className="h-5 w-5 text-accent" />
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
+                <ShieldCheck className="h-6 w-6 text-accent" />
               </div>
               <div>
-                <h1 className="font-display text-xl font-bold text-primary">Saúde da Plataforma</h1>
-                <p className="text-xs text-muted">Monitor de disponibilidade técnica dos serviços essenciais</p>
+                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Saúde da Plataforma</h1>
+                <p className="mt-1.5 text-sm text-secondary leading-relaxed">Monitor de disponibilidade técnica dos serviços essenciais</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
@@ -197,7 +197,7 @@ export default function ApiHealthPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 space-y-6">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-6">
 
         {/* ── Status board ─────────────────────────────────────── */}
         <section>
