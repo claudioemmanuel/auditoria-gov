@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RadarV2CasePreviewResponse, RadarV2SignalPreviewResponse } from "@/lib/types";
 import { formatBRL, formatDate, normalizeUnknownDisplay } from "@/lib/utils";
 import { SEVERITY_LABELS } from "@/lib/constants";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/Badge"
 import { X } from "lucide-react";
 
 interface RadarPreviewDrawerProps {

@@ -1,34 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Linear-style surfaces ─────────────────────────── */
-  --color-surface-base: #f9f9fb;
-  --color-surface-card: #ffffff;
-  --color-surface-subtle: #f3f3f6;
-  --color-surface-hover: #ebebef;
-  --color-border: #e1e1e6;
-  --color-border-subtle: #ececf0;
+  /* ── Semantic surfaces ──────────────────────────────── */
+  --color-surface-base: #F5F7FA;
+  --color-surface-card: #FFFFFF;
+  --color-surface-subtle: #EDF2F7;
+  --color-surface-hover: #E2E8F0;
 
-  /* Sidebar (dark) */
-  --color-sidebar-bg: #1a1a2e;
-  --color-sidebar-hover: #252540;
-  --color-sidebar-active: #2d2d4a;
-  --color-sidebar-text: #a0a0b8;
-  --color-sidebar-text-active: #ffffff;
-  --color-sidebar-border: #2a2a42;
+  /* ── Borders ────────────────────────────────────────── */
+  --color-border: #D7E0E8;
+  --color-border-subtle: #E2E8F0;
 
-  /* Text */
-  --color-primary: #1a1a2e;
-  --color-secondary: #5c5c72;
-  --color-muted: #8b8ba0;
-  --color-placeholder: #b0b0c0;
+  /* ── Text hierarchy (flat names → text-primary etc.) ── */
+  --color-primary: #10212B;
+  --color-secondary: #425466;
+  --color-muted: #7B8FA2;
+  --color-placeholder: #A0AEC0;
 
-  /* Accent (Linear violet-blue) */
-  --color-accent: #5e6ad2;
-  --color-accent-hover: #4e5bc2;
-  --color-accent-subtle: #eef0ff;
+  /* ── Accent (petrol blue) ───────────────────────────── */
+  --color-accent: #0F4C5C;
+  --color-accent-hover: #0B3D4A;
+  --color-accent-subtle: #E6F0F2;
 
-  /* Severity (keep — domain-specific) */
+  /* ── Sidebar ────────────────────────────────────────── */
+  --color-sidebar-bg: #0E171D;
+  --color-sidebar-hover: #1B2B35;
+  --color-sidebar-active: #223540;
+  --color-sidebar-text: #A8BBC9;
+  --color-sidebar-text-active: #E7EEF3;
+  --color-sidebar-border: #2A3A45;
+
+  /* ── Severity (domain-specific) ─────────────────────── */
   --color-severity-critical: #dc2626;
   --color-severity-critical-bg: #fef2f2;
   --color-severity-high: #ea580c;
@@ -38,94 +40,125 @@
   --color-severity-low: #2563eb;
   --color-severity-low-bg: #eff6ff;
 
-  /* Typography */
-  --font-sans: var(--font-inter, system-ui, -apple-system, sans-serif);
+  /* ── Investigative amber (alerts/context) ───────────── */
+  --color-amber: #D97706;
+  --color-amber-subtle: #FEF3C7;
+
+  /* ── Status ─────────────────────────────────────────── */
+  --color-success: #059669;
+  --color-success-subtle: #ECFDF5;
+  --color-error: #DC2626;
+  --color-error-subtle: #FEF2F2;
+
+  /* ── Typography ─────────────────────────────────────── */
+  --font-sans: var(--font-manrope, system-ui, -apple-system, sans-serif);
+  --font-display: var(--font-space-grotesk, system-ui, -apple-system, sans-serif);
   --font-mono: var(--font-jetbrains-mono, "Courier New", monospace);
 
-  /* ── Legacy tokens — remapped to Linear values ────── */
-  --color-gov-blue-50: #eef0ff;
-  --color-gov-blue-100: #e0e3ff;
-  --color-gov-blue-200: #c7cbff;
-  --color-gov-blue-500: #6b73d6;
-  --color-gov-blue-600: #5e6ad2;
-  --color-gov-blue-700: #4e5bc2;
-  --color-gov-blue-800: #3e4aad;
-  --color-gov-blue-900: #1a1a2e;
-
-  --color-gov-gray-50: #f9f9fb;
-  --color-gov-gray-100: #f3f3f6;
-  --color-gov-gray-200: #e1e1e6;
-  --color-gov-gray-300: #d0d0d8;
-  --color-gov-gray-400: #8b8ba0;
-  --color-gov-gray-500: #5c5c72;
-  --color-gov-gray-600: #4a4a5e;
-  --color-gov-gray-700: #3a3a4e;
-  --color-gov-gray-800: #2a2a3e;
-  --color-gov-gray-900: #1a1a2e;
+  /* ── Radius (spec: 10/14) ───────────────────────────── */
+  --radius-sm: 10px;
+  --radius-md: 14px;
 }
 
+/* ── Dark mode overrides ─────────────────────────────── */
+.dark {
+  --color-surface-base: #0E171D;
+  --color-surface-card: #142129;
+  --color-surface-subtle: #1B2B35;
+  --color-surface-hover: #223540;
+
+  --color-border: #2A3A45;
+  --color-border-subtle: #1F3040;
+
+  --color-primary: #E7EEF3;
+  --color-secondary: #A8BBC9;
+  --color-muted: #6B8295;
+  --color-placeholder: #4A6577;
+
+  --color-accent: #3C8EA2;
+  --color-accent-hover: #57A8BC;
+  --color-accent-subtle: #142E36;
+
+  --color-sidebar-bg: #0A1117;
+  --color-sidebar-hover: #142129;
+  --color-sidebar-active: #1B2B35;
+  --color-sidebar-text: #6B8295;
+  --color-sidebar-text-active: #E7EEF3;
+  --color-sidebar-border: #1F3040;
+
+  --color-severity-critical: #F87171;
+  --color-severity-critical-bg: #371717;
+  --color-severity-high: #FB923C;
+  --color-severity-high-bg: #3B2010;
+  --color-severity-medium: #FACC15;
+  --color-severity-medium-bg: #352A0A;
+  --color-severity-low: #60A5FA;
+  --color-severity-low-bg: #152040;
+
+  --color-amber: #FBBF24;
+  --color-amber-subtle: #352A0A;
+
+  --color-success: #34D399;
+  --color-success-subtle: #0A2920;
+  --color-error: #F87171;
+  --color-error-subtle: #371717;
+}
+
+/* ── Base body ───────────────────────────────────────── */
 body {
   font-family: var(--font-sans);
   color: var(--color-primary);
   background-color: var(--color-surface-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Page container ──────────────────────────────────── */
 .page-wrap {
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 1.5rem;
-  padding-bottom: 2rem;
+  padding: 1.5rem 1rem 2rem;
   max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
 }
 
-/* ── Shared card utility classes ─────────────────────────── */
+/* ── Card utilities ──────────────────────────────────── */
 .surface-card {
   background-color: var(--color-surface-card);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-sm);
 }
 
 .metric-card {
   background-color: var(--color-surface-card);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-sm);
   padding: 1rem;
 }
 
-/* Focus ring for accessibility */
+/* ── Focus ring (accessibility) ──────────────────────── */
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
-/* Linear compact card */
-.linear-card {
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+/* ── Row hover ───────────────────────────────────────── */
+.row-hover {
+  transition: background-color 120ms ease;
 }
-
-/* Linear row hover */
-.linear-row {
-  transition: background-color 100ms;
-}
-.linear-row:hover {
+.row-hover:hover {
   background-color: var(--color-surface-subtle);
 }
 
-/* Investigation page — light background */
+/* ── Investigation canvas ────────────────────────────── */
 .investigation-bg {
   background-color: var(--color-surface-base);
 }
 
-/* Investigation sidebar slide animation */
 .investigation-sidebar {
   transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* React Flow overrides */
+/* ── React Flow overrides ────────────────────────────── */
 .investigation-bg .react-flow__pane {
   cursor: grab;
 }
@@ -133,11 +166,11 @@ body {
   cursor: grabbing;
 }
 .investigation-bg .react-flow__minimap {
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .investigation-bg .react-flow__controls {
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -155,5 +188,16 @@ body {
   transition: filter 150ms ease;
 }
 .investigation-bg .react-flow__node.selected {
-  filter: drop-shadow(0 4px 12px rgb(94 106 210 / 0.15));
+  filter: drop-shadow(0 4px 12px rgba(15, 76, 92, 0.15));
+}
+
+/* ── Motion: reduced-motion preference ───────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

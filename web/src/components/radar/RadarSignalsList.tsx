@@ -2,7 +2,7 @@
 
 import type { RadarV2SignalItem } from "@/lib/types";
 import { cn, formatBRL, severityDotColor, severityColor } from "@/lib/utils";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/Badge"
 import { relativeTime } from "@/lib/utils";
 
 interface RadarSignalsListProps {

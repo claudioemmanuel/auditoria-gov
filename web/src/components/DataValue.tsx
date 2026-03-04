@@ -3,14 +3,12 @@ import { cn } from "@/lib/utils";
 interface DataValueProps {
   children: React.ReactNode;
   className?: string;
-  /** Render as a block (div) instead of inline (span) */
   block?: boolean;
-  /** Muted color for secondary data */
   muted?: boolean;
 }
 
 /**
- * Renders numeric data, IDs, and codes in JetBrains Mono.
+ * Renders numeric data, IDs, and codes in monospace font.
  * Ensures consistent tabular rendering of financial and identifier values.
  */
 export function DataValue({ children, className, block, muted }: DataValueProps) {

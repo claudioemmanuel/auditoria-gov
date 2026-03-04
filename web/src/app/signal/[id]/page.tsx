@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSignal } from "@/lib/api";
 import { Markdown } from "@/components/Markdown";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/Badge"
 import { SignalEvidenceSection } from "@/components/SignalEvidenceSection";
 import { formatBRL, formatDate, normalizeUnknownDisplay } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
