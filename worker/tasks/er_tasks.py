@@ -291,338 +291,437 @@ def _build_semantic_matches(session, entities: list[dict], matched_ids: set) -> 
     return matches
 
 
+_ER_BATCH_SIZE = 50_000       # entities per matching batch
+_ER_EDGE_BATCH_SIZE = 100_000  # participants per edge-building batch
+
+
 @shared_task(name="worker.tasks.er_tasks.run_entity_resolution")
 def run_entity_resolution():
-    """Run incremental entity resolution pipeline.
+    """Run batched entity resolution pipeline.
 
-    Uses watermark from previous run to only process new/changed entities.
-    Falls back to full scan for entities without cluster_id.
+    Processes entities in batches of _ER_BATCH_SIZE to avoid OOM on large
+    datasets. Each batch: load → match → cluster → commit → free memory → next.
 
-    1. Load entities needing resolution (new since watermark OR no cluster_id).
-    2. Phase 1 — Deterministic: match on CNPJ/CPF hash (exact).
-    3. Phase 2 — Probabilistic: Jaro-Winkler on names + secondary signals.
-    4. Phase 3 — Clustering: Union-Find to group matched entities.
-    5. Phase 4 — Edges: Build structural graph edges from event-participant rels.
-    6. Store cluster_id on entities (non-destructive).
-    7. Update watermark for next run.
+    Cross-batch deterministic linking is handled by an in-memory identifier
+    index (cnpj → cluster_id, cpf_hash → cluster_id) so entities sharing a
+    unique identifier across batches still get merged.
+
+    Phases:
+    1. Batched entity matching + clustering (deterministic + probabilistic).
+    2. Batched edge building from event-participant relationships.
+    3. Watermark update for incremental re-runs.
     """
     from sqlalchemy import or_, select, update
 
     from shared.db_sync import SyncSession
     from shared.er.clustering import cluster_entities
     from shared.er.edges import build_structural_edges
+    from shared.er.normalize import normalize_entity_for_matching
     from shared.models.orm import Entity, ERRunState, Event, EventParticipant, GraphEdge, GraphNode
 
     log.info("run_entity_resolution.start")
 
     with SyncSession() as session:
-        # Load last successful ER watermark
-        watermark_stmt = (
+        # Load watermark from last successful run
+        last_run = session.execute(
             select(ERRunState)
             .where(ERRunState.status == "completed")
             .order_by(ERRunState.created_at.desc())
             .limit(1)
-        )
-        last_run = session.execute(watermark_stmt).scalar_one_or_none()
+        ).scalar_one_or_none()
         watermark = last_run.watermark_at if last_run else None
 
-        # Create new ER run record
+        # Create run record and persist independently so progress is visible
         er_run = ERRunState(status="running")
         session.add(er_run)
         session.flush()
+        er_run_id = er_run.id
+        session.commit()
 
-        # Incremental: entities updated since watermark OR still without cluster_id
-        if watermark:
-            stmt = select(Entity).where(
-                or_(
-                    Entity.cluster_id.is_(None),
-                    Entity.updated_at > watermark,
-                    Entity.er_processed_at.is_(None),
+        now = datetime.now(timezone.utc)
+        _er_cols = (Entity.id, Entity.name, Entity.type, Entity.identifiers, Entity.attrs)
+
+        base_filter = (
+            or_(
+                Entity.cluster_id.is_(None),
+                Entity.updated_at > watermark,
+                Entity.er_processed_at.is_(None),
+            )
+            if watermark
+            else Entity.cluster_id.is_(None)
+        )
+
+        # Cross-batch identifier index: maps unique identifier value → cluster_id
+        # so entities in different batches that share a CNPJ/CPF still get merged.
+        cnpj_cluster: dict[str, object] = {}
+        cpf_hash_cluster: dict[str, object] = {}
+
+        total_entities = 0
+        total_det = 0
+        total_prob = 0
+        total_clusters = 0
+        last_id = None  # keyset pagination cursor
+
+        # ── Phase 1: Batched entity matching ─────────────────────────────────
+        while True:
+            batch_stmt = (
+                select(*_er_cols)
+                .where(base_filter)
+                .order_by(Entity.id)
+                .limit(_ER_BATCH_SIZE)
+            )
+            if last_id is not None:
+                batch_stmt = batch_stmt.where(Entity.id > last_id)
+
+            batch = [
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "type": row["type"],
+                    "identifiers": row["identifiers"],
+                    "attrs": row["attrs"],
+                }
+                for row in session.execute(batch_stmt).mappings()
+            ]
+            if not batch:
+                break
+
+            last_id = batch[-1]["id"]
+            total_entities += len(batch)
+            log.info("er.batch_start", batch_size=len(batch), total_so_far=total_entities)
+
+            # Pre-assign cluster_id for entities whose identifier was already seen
+            pre_clustered: dict = {}
+            for entity in batch:
+                norm = normalize_entity_for_matching(
+                    entity.get("name", ""), entity.get("identifiers") or {}
                 )
+                cid = (
+                    cnpj_cluster.get(norm["cnpj"]) if norm["cnpj"]
+                    else cpf_hash_cluster.get(norm["cpf_hash"]) if norm["cpf_hash"]
+                    else None
+                )
+                if cid is not None:
+                    pre_clustered[entity["id"]] = cid
+
+            # Deterministic matching within batch
+            matches = _build_deterministic_matches(batch)
+            det_count = len(matches)
+            total_det += det_count
+
+            # Probabilistic matching within batch
+            matched_ids: set = (
+                {m.entity_a_id for m in matches} | {m.entity_b_id for m in matches}
             )
-        else:
-            # First run: process all entities without cluster_id
-            stmt = select(Entity).where(Entity.cluster_id.is_(None))
+            if _should_run_probabilistic(len(batch)):
+                matches.extend(_build_probabilistic_matches(batch, matched_ids))
+            prob_count = len(matches) - det_count
+            total_prob += prob_count
 
-        entities_orm = session.execute(stmt).scalars().all()
+            # Cluster this batch (Union-Find)
+            clusters = cluster_entities(matches)
+            total_clusters += len(clusters)
 
-        log.info("er.entities_loaded", count=len(entities_orm))
-
-        if len(entities_orm) < 2:
-            log.info("er.skip", reason="fewer than 2 unresolved entities")
-            er_run.status = "skipped"
-            er_run.watermark_at = datetime.now(timezone.utc)
-            session.commit()
-            return {"status": "skipped", "reason": "insufficient entities"}
-
-        # Convert to dicts for matching functions
-        entities = [
-            {
-                "id": e.id,
-                "name": e.name,
-                "type": e.type,
-                "identifiers": e.identifiers,
-                "attrs": e.attrs,
-            }
-            for e in entities_orm
-        ]
-
-        # 2. Deterministic matching (CNPJ/CPF)
-        matches = _build_deterministic_matches(entities)
-
-        det_count = len(matches)
-        log.info("er.deterministic_done", matches=det_count)
-
-        # 3. Probabilistic matching (Jaro-Winkler on names within same type)
-        # Only run on entities NOT already matched deterministically
-        matched_ids = set()
-        for m in matches:
-            matched_ids.add(m.entity_a_id)
-            matched_ids.add(m.entity_b_id)
-
-        if _should_run_probabilistic(len(entities)):
-            matches.extend(_build_probabilistic_matches(entities, matched_ids))
-        else:
-            log.warning(
-                "er.probabilistic_skipped_large_dataset",
-                entity_count=len(entities),
-                limit=_PROBABILISTIC_MAX_ENTITIES,
-            )
-
-        prob_count = len(matches) - det_count
-        log.info("er.probabilistic_done", matches=prob_count)
-
-        # Phase 3 — Semantic pass (pgvector cosine similarity on entity name embeddings)
-        sem_count = 0
-        from shared.config import settings as _settings
-        if _settings.LLM_PROVIDER != "none":
-            sem_matches = _build_semantic_matches(session, entities, matched_ids)
-            matches.extend(sem_matches)
-            sem_count = len(sem_matches)
-            log.info("er.semantic_done", matches=sem_count)
-            for m in sem_matches:
-                matched_ids.add(m.entity_a_id)
-                matched_ids.add(m.entity_b_id)
-
-        # 4. Clustering (Union-Find)
-        clusters = cluster_entities(matches)
-        log.info("er.clusters_formed", count=len(clusters))
-
-        # 5. Update cluster_id on entities (bulk: one UPDATE per cluster)
-        for cluster in clusters:
-            if cluster.entity_ids:
+            # Write cluster_ids — respecting cross-batch pre-assignments
+            clustered_ids: set = set()
+            for cluster in clusters:
+                if not cluster.entity_ids:
+                    continue
+                clustered_ids.update(cluster.entity_ids)
+                # If any member was pre-assigned, use that existing cluster_id
+                assigned = next(
+                    (pre_clustered[eid] for eid in cluster.entity_ids if eid in pre_clustered),
+                    cluster.cluster_id,
+                )
                 session.execute(
                     update(Entity)
                     .where(Entity.id.in_(cluster.entity_ids))
-                    .values(cluster_id=cluster.cluster_id)
+                    .values(cluster_id=assigned)
                 )
 
-        # Mark processed entities with timestamp
-        now = datetime.now(timezone.utc)
-        processed_ids = [e["id"] for e in entities]
-        _STAMP_BATCH = 500
-        for i in range(0, len(processed_ids), _STAMP_BATCH):
-            batch_ids = processed_ids[i : i + _STAMP_BATCH]
-            session.execute(
-                update(Entity)
+            # Pre-assigned entities not in any cluster → assign directly
+            for eid, cid in pre_clustered.items():
+                if eid not in clustered_ids:
+                    session.execute(
+                        update(Entity).where(Entity.id == eid).values(cluster_id=cid)
+                    )
+
+            # Stamp all processed entities in this batch
+            batch_ids = [e["id"] for e in batch]
+            for i in range(0, len(batch_ids), 500):
+                session.execute(
+                    update(Entity)
+                    .where(Entity.id.in_(batch_ids[i : i + 500]))
+                    .values(er_processed_at=now)
+                )
+
+            session.commit()
+
+            # Update cross-batch identifier index from committed cluster_ids
+            for row in session.execute(
+                select(Entity.id, Entity.identifiers, Entity.cluster_id)
                 .where(Entity.id.in_(batch_ids))
-                .values(er_processed_at=now)
-            )
+            ).mappings():
+                if not row["cluster_id"]:
+                    continue
+                norm = normalize_entity_for_matching("", row["identifiers"] or {})
+                if norm["cnpj"]:
+                    cnpj_cluster[norm["cnpj"]] = row["cluster_id"]
+                if norm["cpf_hash"]:
+                    cpf_hash_cluster[norm["cpf_hash"]] = row["cluster_id"]
 
-        # 6. Build structural edges from event-participant relationships
-        # Limit to participants of entities we just processed to avoid full scan.
-        if processed_ids:
-            part_stmt = select(EventParticipant).where(
-                EventParticipant.entity_id.in_(processed_ids)
+            log.info(
+                "er.batch_done",
+                batch_size=len(batch),
+                det=det_count,
+                prob=prob_count,
+                clusters=len(clusters),
             )
-        else:
-            part_stmt = select(EventParticipant)
-        participants_orm = session.execute(part_stmt).scalars().all()
+            del batch, matches, clusters, batch_ids  # free memory before next batch
 
-        event_ids = sorted({p.event_id for p in participants_orm}, key=lambda eid: str(eid))
+        log.info(
+            "er.matching_complete",
+            total_entities=total_entities,
+            total_det=total_det,
+            total_prob=total_prob,
+            total_clusters=total_clusters,
+        )
+
+        if total_entities < 2:
+            session.execute(
+                update(ERRunState)
+                .where(ERRunState.id == er_run_id)
+                .values(status="skipped", watermark_at=now)
+            )
+            session.commit()
+            return {"status": "skipped", "reason": "insufficient entities"}
+
+        # ── Phase 2: Batched edge building ────────────────────────────────────
+        # Pre-build occurred_at map for all events (UUID-only pass is cheap).
+        event_id_set: set = set()
+        for eid in session.execute(
+            select(EventParticipant.event_id).execution_options(yield_per=50_000)
+        ).scalars():
+            event_id_set.add(eid)
+
         event_occurred_map: dict = {}
-        if event_ids:
-            event_stmt = select(Event.id, Event.occurred_at).where(Event.id.in_(event_ids))
-            for event_id, occurred_at in session.execute(event_stmt).all():
+        event_ids_list = list(event_id_set)
+        for i in range(0, len(event_ids_list), 10_000):
+            chunk = event_ids_list[i : i + 10_000]
+            for event_id, occurred_at in session.execute(
+                select(Event.id, Event.occurred_at).where(Event.id.in_(chunk))
+            ).all():
                 event_occurred_map[event_id] = occurred_at
-
-        participant_dicts = []
-        for participant in participants_orm:
-            participant_dicts.append(
-                {
-                    "event_id": participant.event_id,
-                    "entity_id": participant.entity_id,
-                    "role": participant.role,
-                    "value_brl": (participant.attrs or {}).get("value_brl"),
-                    "occurred_at": event_occurred_map.get(participant.event_id),
-                }
-            )
-
-        structural_edges = build_structural_edges(participant_dicts)
-        log.info("er.structural_edges", count=len(structural_edges))
-
-        # 7. Upsert GraphNode + GraphEdge with explainable attrs
-        entity_ids_in_edges = set()
-        for edge in structural_edges:
-            entity_ids_in_edges.add(edge.from_entity_id)
-            entity_ids_in_edges.add(edge.to_entity_id)
-
-        existing_nodes: dict = {}
-        if entity_ids_in_edges:
-            node_stmt = select(GraphNode).where(GraphNode.entity_id.in_(entity_ids_in_edges))
-            for node in session.execute(node_stmt).scalars().all():
-                existing_nodes[node.entity_id] = node
-
-        if entity_ids_in_edges:
-            entity_stmt = select(Entity).where(Entity.id.in_(entity_ids_in_edges))
-            entity_map = {entity.id: entity for entity in session.execute(entity_stmt).scalars().all()}
-        else:
-            entity_map = {}
-
-        node_by_entity_id: dict = {}
-        for entity_id in entity_ids_in_edges:
-            entity = entity_map.get(entity_id)
-            if entity is None:
-                continue
-            snapshot = _node_attrs_snapshot(
-                {
-                    "identifiers": entity.identifiers or {},
-                    "attrs": entity.attrs or {},
-                }
-            )
-            node = existing_nodes.get(entity_id)
-            if node is None:
-                node = GraphNode(
-                    entity_id=entity_id,
-                    label=entity.name,
-                    node_type=entity.type,
-                    attrs=snapshot,
-                )
-                session.add(node)
-            else:
-                node.label = entity.name
-                node.node_type = entity.type
-                node.attrs = snapshot
-            node_by_entity_id[entity_id] = node
-
-        session.flush()
-
-        edge_payloads: dict[tuple, dict] = {}
-        for edge in structural_edges:
-            from_node = node_by_entity_id.get(edge.from_entity_id)
-            to_node = node_by_entity_id.get(edge.to_entity_id)
-            if from_node is None or to_node is None:
-                continue
-
-            key = (from_node.id, to_node.id, edge.edge_type)
-            payload = edge_payloads.setdefault(
-                key,
-                {
-                    "weight": 0.0,
-                    "edge_strength": "weak",
-                    "verification_method": "co_occurrence",
-                    "verification_confidence": 0.2,
-                    "attrs": {
-                        "event_ids": [],
-                        "role_pairs_count": {},
-                        "first_seen_at": None,
-                        "last_seen_at": None,
-                        "source_role": edge.source_role,
-                        "target_role": edge.target_role,
-                        "edge_label": edge.edge_label,
-                    },
-                },
-            )
-
-            payload["weight"] += float(edge.weight or 0.0)
-            edge_type_lower = (edge.edge_type or "").lower()
-            is_strong = (
-                "fornecimento" in edge_type_lower
-                or "favorecido" in edge_type_lower
-                or edge.weight >= 2.0
-            )
-            if is_strong:
-                payload["edge_strength"] = "strong"
-                payload["verification_method"] = "documented_event"
-            payload["verification_confidence"] = min(
-                0.99,
-                max(payload["verification_confidence"], max(0.2, float(edge.weight or 0.0) / 4)),
-            )
-
-            attrs = payload["attrs"]
-            attrs["event_ids"].append(str(edge.event_id))
-            role_pair_key = f"{edge.source_role}__{edge.target_role}"
-            attrs["role_pairs_count"][role_pair_key] = attrs["role_pairs_count"].get(role_pair_key, 0) + 1
-
-            if edge.occurred_at is not None:
-                occurred_iso = edge.occurred_at.isoformat()
-                first_seen = _parse_iso_dt(attrs.get("first_seen_at"))
-                last_seen = _parse_iso_dt(attrs.get("last_seen_at"))
-                if first_seen is None or edge.occurred_at < first_seen:
-                    attrs["first_seen_at"] = occurred_iso
-                if last_seen is None or edge.occurred_at > last_seen:
-                    attrs["last_seen_at"] = occurred_iso
-
-        existing_edges = {}
-        if edge_payloads:
-            from_ids = {key[0] for key in edge_payloads}
-            to_ids = {key[1] for key in edge_payloads}
-            edge_types = {key[2] for key in edge_payloads}
-            existing_stmt = select(GraphEdge).where(
-                GraphEdge.from_node_id.in_(from_ids),
-                GraphEdge.to_node_id.in_(to_ids),
-                GraphEdge.type.in_(edge_types),
-            )
-            for existing_edge in session.execute(existing_stmt).scalars().all():
-                existing_edges[(existing_edge.from_node_id, existing_edge.to_node_id, existing_edge.type)] = existing_edge
+        del event_ids_list
 
         edges_created = 0
-        for key, payload in edge_payloads.items():
-            existing_edge = existing_edges.get(key)
-            incoming_attrs = payload["attrs"]
-            incoming_attrs["event_ids"] = list(dict.fromkeys(incoming_attrs["event_ids"]))
-            if existing_edge is None:
-                new_edge = GraphEdge(
-                    from_node_id=key[0],
-                    to_node_id=key[1],
-                    type=key[2],
-                    weight=payload["weight"],
-                    edge_strength=payload["edge_strength"],
-                    verification_method=payload["verification_method"],
-                    verification_confidence=payload["verification_confidence"],
-                    attrs=incoming_attrs,
-                )
-                session.add(new_edge)
-                edges_created += 1
-            else:
-                existing_edge.weight = float(existing_edge.weight or 0.0) + payload["weight"]
-                if payload["edge_strength"] == "strong":
-                    existing_edge.edge_strength = "strong"
-                existing_edge.verification_method = payload["verification_method"]
-                existing_edge.verification_confidence = max(
-                    float(existing_edge.verification_confidence or 0.0),
-                    payload["verification_confidence"],
-                )
-                existing_edge.attrs = _merge_edge_attrs(existing_edge.attrs or {}, incoming_attrs)
+        _part_cols = (
+            EventParticipant.event_id,
+            EventParticipant.entity_id,
+            EventParticipant.role,
+            EventParticipant.attrs,
+        )
+        part_batch: list = []
 
-        # Update ER run state with watermark
-        er_run.status = "completed"
-        er_run.entities_processed = len(entities)
-        er_run.deterministic_matches = det_count
-        er_run.probabilistic_matches = prob_count
-        er_run.clusters_formed = len(clusters)
-        er_run.edges_created = edges_created
-        er_run.watermark_at = now
+        def _flush_edges(part_batch: list) -> int:
+            """Build and upsert graph edges from one participant batch."""
+            if not part_batch:
+                return 0
+            structural_edges = build_structural_edges(part_batch)
+            if not structural_edges:
+                return 0
 
+            entity_ids_in_edges: set = set()
+            for edge in structural_edges:
+                entity_ids_in_edges.add(edge.from_entity_id)
+                entity_ids_in_edges.add(edge.to_entity_id)
+
+            existing_nodes: dict = {
+                node.entity_id: node
+                for node in session.execute(
+                    select(GraphNode).where(GraphNode.entity_id.in_(entity_ids_in_edges))
+                ).scalars().all()
+            }
+            entity_map: dict = {
+                e.id: e
+                for e in session.execute(
+                    select(Entity).where(Entity.id.in_(entity_ids_in_edges))
+                ).scalars().all()
+            }
+
+            node_by_entity_id: dict = {}
+            for entity_id in entity_ids_in_edges:
+                entity = entity_map.get(entity_id)
+                if entity is None:
+                    continue
+                snapshot = _node_attrs_snapshot(
+                    {"identifiers": entity.identifiers or {}, "attrs": entity.attrs or {}}
+                )
+                node = existing_nodes.get(entity_id)
+                if node is None:
+                    node = GraphNode(
+                        entity_id=entity_id,
+                        label=entity.name,
+                        node_type=entity.type,
+                        attrs=snapshot,
+                    )
+                    session.add(node)
+                else:
+                    node.label = entity.name
+                    node.node_type = entity.type
+                    node.attrs = snapshot
+                node_by_entity_id[entity_id] = node
+            session.flush()
+
+            edge_payloads: dict[tuple, dict] = {}
+            for edge in structural_edges:
+                from_node = node_by_entity_id.get(edge.from_entity_id)
+                to_node = node_by_entity_id.get(edge.to_entity_id)
+                if from_node is None or to_node is None:
+                    continue
+                key = (from_node.id, to_node.id, edge.edge_type)
+                payload = edge_payloads.setdefault(
+                    key,
+                    {
+                        "weight": 0.0,
+                        "edge_strength": "weak",
+                        "verification_method": "co_occurrence",
+                        "verification_confidence": 0.2,
+                        "attrs": {
+                            "event_ids": [],
+                            "role_pairs_count": {},
+                            "first_seen_at": None,
+                            "last_seen_at": None,
+                            "source_role": edge.source_role,
+                            "target_role": edge.target_role,
+                            "edge_label": edge.edge_label,
+                        },
+                    },
+                )
+                payload["weight"] += float(edge.weight or 0.0)
+                edge_type_lower = (edge.edge_type or "").lower()
+                if (
+                    "fornecimento" in edge_type_lower
+                    or "favorecido" in edge_type_lower
+                    or edge.weight >= 2.0
+                ):
+                    payload["edge_strength"] = "strong"
+                    payload["verification_method"] = "documented_event"
+                payload["verification_confidence"] = min(
+                    0.99,
+                    max(
+                        payload["verification_confidence"],
+                        max(0.2, float(edge.weight or 0.0) / 4),
+                    ),
+                )
+                attrs = payload["attrs"]
+                attrs["event_ids"].append(str(edge.event_id))
+                rk = f"{edge.source_role}__{edge.target_role}"
+                attrs["role_pairs_count"][rk] = attrs["role_pairs_count"].get(rk, 0) + 1
+                if edge.occurred_at is not None:
+                    occ_iso = edge.occurred_at.isoformat()
+                    first_seen = _parse_iso_dt(attrs.get("first_seen_at"))
+                    last_seen = _parse_iso_dt(attrs.get("last_seen_at"))
+                    if first_seen is None or edge.occurred_at < first_seen:
+                        attrs["first_seen_at"] = occ_iso
+                    if last_seen is None or edge.occurred_at > last_seen:
+                        attrs["last_seen_at"] = occ_iso
+
+            if not edge_payloads:
+                return 0
+
+            from_ids = {k[0] for k in edge_payloads}
+            to_ids = {k[1] for k in edge_payloads}
+            edge_types = {k[2] for k in edge_payloads}
+            existing_edges: dict = {
+                (e.from_node_id, e.to_node_id, e.type): e
+                for e in session.execute(
+                    select(GraphEdge).where(
+                        GraphEdge.from_node_id.in_(from_ids),
+                        GraphEdge.to_node_id.in_(to_ids),
+                        GraphEdge.type.in_(edge_types),
+                    )
+                ).scalars().all()
+            }
+
+            created = 0
+            for key, payload in edge_payloads.items():
+                existing_edge = existing_edges.get(key)
+                incoming_attrs = payload["attrs"]
+                incoming_attrs["event_ids"] = list(dict.fromkeys(incoming_attrs["event_ids"]))
+                if existing_edge is None:
+                    session.add(
+                        GraphEdge(
+                            from_node_id=key[0],
+                            to_node_id=key[1],
+                            type=key[2],
+                            weight=payload["weight"],
+                            edge_strength=payload["edge_strength"],
+                            verification_method=payload["verification_method"],
+                            verification_confidence=payload["verification_confidence"],
+                            attrs=incoming_attrs,
+                        )
+                    )
+                    created += 1
+                else:
+                    existing_edge.weight = float(existing_edge.weight or 0.0) + payload["weight"]
+                    if payload["edge_strength"] == "strong":
+                        existing_edge.edge_strength = "strong"
+                    existing_edge.verification_method = payload["verification_method"]
+                    existing_edge.verification_confidence = max(
+                        float(existing_edge.verification_confidence or 0.0),
+                        payload["verification_confidence"],
+                    )
+                    existing_edge.attrs = _merge_edge_attrs(
+                        existing_edge.attrs or {}, incoming_attrs
+                    )
+            session.commit()
+            return created
+
+        for row in session.execute(
+            select(*_part_cols).execution_options(yield_per=_ER_EDGE_BATCH_SIZE)
+        ).mappings():
+            part_batch.append(
+                {
+                    "event_id": row["event_id"],
+                    "entity_id": row["entity_id"],
+                    "role": row["role"],
+                    "value_brl": (row["attrs"] or {}).get("value_brl"),
+                    "occurred_at": event_occurred_map.get(row["event_id"]),
+                }
+            )
+            if len(part_batch) >= _ER_EDGE_BATCH_SIZE:
+                edges_created += _flush_edges(part_batch)
+                log.info("er.edge_batch_done", total_edges=edges_created)
+                part_batch = []
+
+        if part_batch:
+            edges_created += _flush_edges(part_batch)
+        log.info("er.structural_edges", count=edges_created)
+
+        # ── Phase 3: Finalize run record ──────────────────────────────────────
+        session.execute(
+            update(ERRunState)
+            .where(ERRunState.id == er_run_id)
+            .values(
+                status="completed",
+                entities_processed=total_entities,
+                deterministic_matches=total_det,
+                probabilistic_matches=total_prob,
+                clusters_formed=total_clusters,
+                edges_created=edges_created,
+                watermark_at=now,
+            )
+        )
         session.commit()
 
     result = {
         "status": "completed",
-        "entities_processed": len(entities),
-        "deterministic_matches": det_count,
-        "probabilistic_matches": prob_count,
-        "semantic_matches": sem_count,
-        "clusters_formed": len(clusters),
+        "entities_processed": total_entities,
+        "deterministic_matches": total_det,
+        "probabilistic_matches": total_prob,
+        "semantic_matches": 0,
+        "clusters_formed": total_clusters,
         "edges_created": edges_created,
         "incremental": watermark is not None,
     }

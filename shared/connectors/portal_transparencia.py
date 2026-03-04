@@ -477,6 +477,12 @@ class PortalTransparenciaConnector(BaseConnector):
             window_start, window_end = windows[window_idx]
             query_params[start_key] = window_start.strftime("%d/%m/%Y")
             query_params[end_key] = window_end.strftime("%d/%m/%Y")
+            # pt_viagens requires return-date range as mandatory params.
+            # Use same window so we capture trips that both departed and returned
+            # within the month; cross-month trips are caught in the next window.
+            if job.name == "pt_viagens":
+                query_params["dataRetornoDe"] = window_start.strftime("%d/%m/%Y")
+                query_params["dataRetornoAte"] = window_end.strftime("%d/%m/%Y")
 
     async def _fetch_dimension_windowed(
         self,
