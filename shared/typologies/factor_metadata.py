@@ -272,6 +272,169 @@ FACTOR_METADATA: dict[str, dict[str, str]] = {
         "description": "Pontuacao de anomalia na folha de pagamento comparada ao baseline",
         "unit": "score",
     },
+    # ── T11 - Jogo de Planilha ────────────────────────────────────────
+    "n_items_overpriced": {
+        "label": "Itens com sobrepreco",
+        "description": "Itens com preco unitario maior ou igual a 2x a referencia SINAPI/Painel de Precos",
+        "unit": "count",
+    },
+    "quantity_increase_value": {
+        "label": "Valor do aumento de quantidade",
+        "description": "Impacto financeiro do aumento de quantidade nos itens sobrepreçados via aditivo",
+        "unit": "brl",
+    },
+    "net_overcharge_brl": {
+        "label": "Sobrepreco liquido estimado",
+        "description": "Delta financeiro total estimado do jogo de planilha (excesso de preco * quantidade aumentada)",
+        "unit": "brl",
+    },
+    "price_ratio_max": {
+        "label": "Razao maxima preco/referencia",
+        "description": "Maior razao entre preco unitario contratado e a referencia SINAPI para um item",
+        "unit": "ratio",
+    },
+    # ── T12 - Edital Direcionado ──────────────────────────────────────
+    "restrictiveness_score": {
+        "label": "Score de restricao",
+        "description": "Pontuacao de especificidade do edital: combina media de licitantes e percentual com participante unico",
+        "unit": "score",
+    },
+    "repeat_winner": {
+        "label": "Vencedor recorrente",
+        "description": "Indica se o mesmo fornecedor venceu 3 ou mais licitacoes nesta entidade e grupo CATMAT",
+        "unit": "boolean",
+    },
+    "single_eligible": {
+        "label": "Unico habilitado",
+        "description": "Indica se 50% ou mais dos processos tiveram apenas um participante habilitado",
+        "unit": "boolean",
+    },
+    "win_count": {
+        "label": "Vitorias do fornecedor",
+        "description": "Numero de licitacoes vencidas pelo mesmo fornecedor no grupo analisado",
+        "unit": "count",
+    },
+    # ── T13 - Conflito de Interesses ──────────────────────────────────
+    "relationship_score": {
+        "label": "Score de relacionamento",
+        "description": "Pontuacao ponderada de vinculos entre o agente publico contratante e o fornecedor vencedor",
+        "unit": "score",
+    },
+    "n_shared_indicators": {
+        "label": "Indicadores compartilhados",
+        "description": "Numero de vinculos identificados (endereco, telefone, socio, parentesco, etc.)",
+        "unit": "count",
+    },
+    "n_contracts_affected": {
+        "label": "Contratos afetados",
+        "description": "Quantidade de contratos/licitacoes com potencial conflito de interesses",
+        "unit": "count",
+    },
+    "kinship_degree": {
+        "label": "Grau de parentesco estimado",
+        "description": "Grau de parentesco estimado via heuristica de nome e endereco (0 = sem parentesco detectado)",
+        "unit": "count",
+    },
+    # ── T14 - Sequencia de Favorecimento Contratual ───────────────────
+    "n_signals_triggered": {
+        "label": "Sinais componentes",
+        "description": "Numero de sinais individuais de tipologias distintas ativados para a mesma entidade",
+        "unit": "count",
+    },
+    "meta_score": {
+        "label": "Score meta-composto",
+        "description": "Pontuacao ponderada dos sinais componentes por severidade (CRITICAL=3, HIGH=2, MEDIUM=1)",
+        "unit": "score",
+    },
+    "sub_typologies": {
+        "label": "Tipologias componentes",
+        "description": "Codigos das tipologias individuais que compoe o sinal composto",
+        "unit": "text",
+    },
+    "n_component_typologies": {
+        "label": "Tipologias distintas ativadas",
+        "description": "Numero de tipologias distintas que contribuiram para o sinal composto",
+        "unit": "count",
+    },
+    # ── T15 - Inexigibilidade Indevida ────────────────────────────────
+    "n_alternative_suppliers": {
+        "label": "Fornecedores alternativos",
+        "description": "Numero de fornecedores qualificados identificados no mesmo grupo CATMAT em licitacoes competitivas",
+        "unit": "count",
+    },
+    "n_inexigibilidade_contracts": {
+        "label": "Contratos por inexigibilidade",
+        "description": "Numero de contratos firmados sem licitacao com o mesmo fornecedor nesta entidade",
+        "unit": "count",
+    },
+    "repeat_inexigibilidade": {
+        "label": "Padrao repetitivo",
+        "description": "Indica se o mesmo fornecedor recebeu 2 ou mais contratos por inexigibilidade na mesma entidade",
+        "unit": "boolean",
+    },
+    # ── T16 - Clientelismo Orcamentario-Contratual ────────────────────
+    "plano_trabalho_registered": {
+        "label": "Plano de trabalho registrado",
+        "description": "Indica se existe plano de trabalho registrado no SICONV dentro de 90 dias da transferencia",
+        "unit": "boolean",
+    },
+    "value_vs_revenue_ratio": {
+        "label": "Emenda / Receita propria",
+        "description": "Razao entre o valor da emenda e a receita propria anual do municipio beneficiario",
+        "unit": "ratio",
+    },
+    "relator_hhi": {
+        "label": "HHI do relator",
+        "description": "Concentracao das emendas do parlamentar por municipio beneficiario (HHI 0-1, quanto maior mais concentrado)",
+        "unit": "number",
+    },
+    "recipient_sanctioned": {
+        "label": "Beneficiario sancionado",
+        "description": "Indica se o municipio/entidade beneficiaria consta no CEIS com sancao ativa",
+        "unit": "boolean",
+    },
+    "n_flags": {
+        "label": "Indicadores de risco",
+        "description": "Total de bandeiras de risco detectadas (sem plano de trabalho, HHI alto, beneficiario sancionado, etc.)",
+        "unit": "count",
+    },
+    # ── T17 - Lavagem via Camadas Societarias ─────────────────────────
+    "cycle_length": {
+        "label": "Comprimento do ciclo",
+        "description": "Numero de saltos no ciclo de retorno dos recursos ao beneficiario original",
+        "unit": "count",
+    },
+    "intra_community_value": {
+        "label": "Valor intra-comunidade",
+        "description": "Volume financeiro transferido dentro do cluster societario suspeito",
+        "unit": "brl",
+    },
+    "ubo_convergence": {
+        "label": "Convergencia de beneficiario final",
+        "description": "Indica se o fluxo financeiro converge para o mesmo beneficiario final em 2 ou menos saltos",
+        "unit": "boolean",
+    },
+    "n_intra_subcontractors": {
+        "label": "Subcontratados intra-comunidade",
+        "description": "Numero de subcontratados pertencentes ao mesmo cluster societario do vencedor",
+        "unit": "count",
+    },
+    # ── T18 - Acumulo Ilegal de Cargos ────────────────────────────────
+    "n_organs": {
+        "label": "Orgaos simultaneos",
+        "description": "Numero de orgaos com vinculo ativo simultaneo para o mesmo servidor",
+        "unit": "count",
+    },
+    "ceaf_match": {
+        "label": "Correspondencia CEAF",
+        "description": "Indica se o CPF do servidor consta no Cadastro de Expulsoes da Administracao Federal (CEAF/CGU)",
+        "unit": "boolean",
+    },
+    "n_overlap_pairs": {
+        "label": "Pares com sobreposicao",
+        "description": "Numero de pares de orgaos com periodo de sobreposicao de vinculo detectado",
+        "unit": "count",
+    },
     # ── Generic / Cross-typology ──────────────────────────────────────
     "gated_by_completeness": {
         "label": "Rebaixado por completude",
@@ -383,6 +546,54 @@ TYPOLOGY_LEGAL_METADATA: dict[str, dict[str, list[str] | str]] = {
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Terceirizacao com concentracao excessiva e aditivos pode ocultar desvio ou sobrepreco sistematico.",
+    },
+    "T11": {
+        "corruption_types": ["fraude_licitatoria", "peculato"],
+        "spheres": ["administrativa", "privada"],
+        "evidence_level": "direct",
+        "description_legal": "Jogo de planilha: manipulacao de precos unitarios para desviar via aditivos (CGU Guia Superfaturamento 2025, Tipo 4; TCU Fiscobras achado #1).",
+    },
+    "T12": {
+        "corruption_types": ["fraude_licitatoria", "corrupcao_ativa_passiva"],
+        "spheres": ["administrativa"],
+        "evidence_level": "indirect",
+        "description_legal": "Edital direcionado: exigencias restritivas eliminam competidores, garantindo vitoria do fornecedor pre-escolhido (Lei 14.133/2021, Art. 9°, IV).",
+    },
+    "T13": {
+        "corruption_types": ["nepotismo_clientelismo", "corrupcao_ativa_passiva"],
+        "spheres": ["administrativa", "politica"],
+        "evidence_level": "indirect",
+        "description_legal": "Conflito de interesses: vinculo familiar, comercial ou societario entre agente publico contratante e fornecedor vencedor (Lei 12.813/2013; TCU Acordao 1798/2024).",
+    },
+    "T14": {
+        "corruption_types": ["corrupcao_ativa_passiva", "fraude_licitatoria"],
+        "spheres": ["administrativa", "sistemica"],
+        "evidence_level": "indirect",
+        "description_legal": "Sequencia de favorecimento: acumulo persistente de sinais T01/T02/T04/T05 para o mesmo par entidade-fornecedor indica captura sistematica (CP Arts. 317/333).",
+    },
+    "T15": {
+        "corruption_types": ["fraude_licitatoria", "prevaricacao"],
+        "spheres": ["administrativa"],
+        "evidence_level": "indirect",
+        "description_legal": "Inexigibilidade indevida: contrato declarado como inexigivel quando existem fornecedores alternativos qualificados (Lei 14.133/2021, Art. 74; Lei 8.429/92, Art. 10, VII).",
+    },
+    "T16": {
+        "corruption_types": ["nepotismo_clientelismo", "peculato"],
+        "spheres": ["politica", "administrativa"],
+        "evidence_level": "indirect",
+        "description_legal": "Clientelismo orcamentario: emendas parlamentares sem plano de trabalho ou desproporcionais a capacidade do municipio (TCU Acordao 518/2023; STF Min. Dino 2024).",
+    },
+    "T17": {
+        "corruption_types": ["lavagem"],
+        "spheres": ["privada", "sistemica"],
+        "evidence_level": "indirect",
+        "description_legal": "Lavagem via camadas societarias: fluxo circular de recursos por estrutura de empresas relacionadas oculta origem (Lei 9.613/1998; FATF Recomendacao 24).",
+    },
+    "T18": {
+        "corruption_types": ["peculato", "nepotismo_clientelismo"],
+        "spheres": ["administrativa"],
+        "evidence_level": "direct",
+        "description_legal": "Acumulo ilegal de cargos: servidor em dois ou mais orgaos simultaneamente (CF/88 Art. 37, XVI-XVII) ou expulso (CEAF) como socio de empresa contratante.",
     },
 }
 
