@@ -193,26 +193,26 @@ function RadarPageInner() {
   const currentPage = Math.floor(offsetParam / PAGE_SIZE) + 1;
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
+    <div className="page-wrap mx-auto max-w-[1280px]">
       {/* Page header */}
-      <div className="border-b border-gov-gray-200 bg-white px-4 py-4 lg:px-6">
+      <div className="border-b border-border bg-surface-card px-4 py-4 lg:px-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gov-gray-900">Radar de Riscos</h1>
-            <p className="mt-0.5 text-xs text-gov-gray-400">
+            <h1 className="text-xl font-bold text-primary">Radar de Riscos</h1>
+            <p className="mt-0.5 text-xs text-muted">
               Monitoramento de sinais e casos de risco em tempo real
             </p>
           </div>
           <div className="flex items-center gap-3">
             {!summaryLoading && summary && (
-              <span className="font-mono text-sm font-semibold tabular-nums text-gov-gray-600">
+              <span className="font-mono text-sm font-semibold tabular-nums text-secondary">
                 {formatNumber(summary.totals.signals)} sinais
               </span>
             )}
             <button
               type="button"
               onClick={openCoverage}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gov-gray-200 bg-gov-blue-50 px-3 py-1.5 text-xs font-medium text-gov-blue-700 hover:bg-gov-blue-50/80"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-subtle px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-subtle/80"
             >
               <ShieldCheck className="h-3.5 w-3.5" />
               Confiabilidade
@@ -252,25 +252,25 @@ function RadarPageInner() {
 
             <div className="ml-auto flex items-center gap-2">
               {/* Search input */}
-              <label className="flex items-center gap-2 rounded-lg border border-gov-gray-200 bg-white px-3 py-1.5 shadow-sm">
-                <Search className="h-3.5 w-3.5 flex-shrink-0 text-gov-gray-400" />
+              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
+                <Search className="h-3.5 w-3.5 flex-shrink-0 text-muted" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar..."
-                  className="w-40 bg-transparent text-xs text-gov-gray-900 outline-none placeholder:text-gov-gray-400"
+                  className="w-40 bg-transparent text-xs text-primary outline-none placeholder:text-placeholder"
                 />
               </label>
 
               {/* Sort — only for signals */}
               {view === "signals" && (
-                <label className="flex items-center gap-2 rounded-lg border border-gov-gray-200 bg-white px-3 py-1.5 shadow-sm">
-                  <ArrowUpDown className="h-3.5 w-3.5 flex-shrink-0 text-gov-gray-400" />
+                <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
+                  <ArrowUpDown className="h-3.5 w-3.5 flex-shrink-0 text-muted" />
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value)}
-                    className="bg-transparent text-xs text-gov-gray-900 outline-none"
+                    className="bg-transparent text-xs text-primary outline-none"
                   >
                     <option value="analysis_date">Data de análise</option>
                     <option value="ingestion_date">Data de ingestão</option>
@@ -304,8 +304,8 @@ function RadarPageInner() {
 
           {/* Pagination */}
           {!loading && !error && total > PAGE_SIZE && (
-            <div className="flex items-center justify-between border-t border-gov-gray-200 pt-3">
-              <p className="font-mono text-xs tabular-nums text-gov-gray-400">
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <p className="font-mono text-xs tabular-nums text-muted">
                 {offsetParam + 1}–{Math.min(offsetParam + PAGE_SIZE, total)} de {formatNumber(total)}
               </p>
               <div className="flex items-center gap-2">
@@ -313,19 +313,19 @@ function RadarPageInner() {
                   type="button"
                   disabled={offsetParam === 0}
                   onClick={() => setOffset(Math.max(0, offsetParam - PAGE_SIZE))}
-                  className="inline-flex items-center gap-1 rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-600 transition hover:bg-gov-gray-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle disabled:opacity-50"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Anterior
                 </button>
-                <span className="text-xs text-gov-gray-400">
+                <span className="text-xs text-muted">
                   Pg <span className="font-mono tabular-nums">{currentPage}</span>/<span className="font-mono tabular-nums">{totalPages}</span>
                 </span>
                 <button
                   type="button"
                   disabled={offsetParam + PAGE_SIZE >= total}
                   onClick={() => setOffset(offsetParam + PAGE_SIZE)}
-                  className="inline-flex items-center gap-1 rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-600 transition hover:bg-gov-gray-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle disabled:opacity-50"
                 >
                   Próxima
                   <ChevronRight className="h-3.5 w-3.5" />

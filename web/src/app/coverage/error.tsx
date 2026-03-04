@@ -11,7 +11,7 @@ export default function CoverageError({
 }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 text-red-600" />
           <div>
@@ -24,14 +24,14 @@ export default function CoverageError({
               <button
                 type="button"
                 onClick={() => reset()}
-                className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-surface-card px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
               >
                 <RefreshCw className="h-4 w-4" />
                 Tentar novamente
               </button>
               <Link
                 href="/api-health"
-                className="inline-flex items-center rounded-md border border-gov-blue-200 bg-gov-blue-50 px-3 py-1.5 text-sm font-medium text-gov-blue-700 hover:bg-gov-blue-100"
+                className="inline-flex items-center rounded-md border border-accent/20 bg-accent-subtle px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-subtle"
               >
                 Abrir Saúde API
               </Link>

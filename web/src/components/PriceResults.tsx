@@ -11,12 +11,12 @@ interface PriceResultsProps {
 export function PriceResults({ result }: PriceResultsProps) {
   if (!result.baseline) {
     return (
-      <div className="rounded-lg border border-gov-gray-200 bg-white p-6 text-center">
-        <Scale className="mx-auto h-8 w-8 text-gov-gray-400" />
-        <h3 className="mt-3 text-sm font-semibold text-gov-gray-900">
+      <div className="rounded-lg border border-border bg-surface-card p-6 text-center">
+        <Scale className="mx-auto h-8 w-8 text-placeholder" />
+        <h3 className="mt-3 text-sm font-semibold text-primary">
           Nenhum baseline disponivel
         </h3>
-        <p className="mt-1 text-sm text-gov-gray-500">
+        <p className="mt-1 text-sm text-muted">
           {result.catmat_code
             ? `Nao ha dados suficientes de precos para o codigo "${result.catmat_code}". Os baselines sao calculados diariamente a partir dos dados ingeridos.`
             : "Informe um codigo CATMAT/CATSER para buscar baselines de precos."}
@@ -47,12 +47,12 @@ export function PriceResults({ result }: PriceResultsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-gov-gray-200 bg-white p-6">
-        <h3 className="flex items-center gap-2 font-semibold text-gov-gray-900">
-          <BarChart3 className="h-5 w-5 text-gov-blue-600" />
+      <div className="rounded-lg border border-border bg-surface-card p-6">
+        <h3 className="flex items-center gap-2 font-semibold text-primary">
+          <BarChart3 className="h-5 w-5 text-accent" />
           Baseline de Precos
           {result.catmat_code && (
-            <span className="ml-2 rounded bg-gov-blue-100 px-2 py-0.5 font-mono text-xs text-gov-blue-700">
+            <span className="ml-2 rounded bg-accent-subtle px-2 py-0.5 font-mono text-xs text-accent">
               {result.catmat_code}
             </span>
           )}
@@ -60,20 +60,20 @@ export function PriceResults({ result }: PriceResultsProps) {
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-lg bg-gov-gray-50 p-3 text-center">
-              <p className="text-xs text-gov-gray-500">{s.label}</p>
-              <p className="mt-1 text-sm font-semibold text-gov-gray-900">{s.value}</p>
+            <div key={s.label} className="rounded-lg bg-surface-base p-3 text-center">
+              <p className="text-xs text-muted">{s.label}</p>
+              <p className="mt-1 text-sm font-semibold text-primary">{s.value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="rounded-lg border border-gov-gray-200 bg-white p-6">
-        <h3 className="flex items-center gap-2 font-semibold text-gov-gray-900">
-          <TrendingUp className="h-5 w-5 text-gov-blue-600" />
+      <div className="rounded-lg border border-border bg-surface-card p-6">
+        <h3 className="flex items-center gap-2 font-semibold text-primary">
+          <TrendingUp className="h-5 w-5 text-accent" />
           Distribuicao de Percentis
         </h3>
-        <p className="mt-1 text-sm text-gov-gray-500">
+        <p className="mt-1 text-sm text-muted">
           Precos acima do P90 podem indicar sobrepreco. Acima do P95 sao sinalizados como criticos.
         </p>
 
@@ -84,7 +84,7 @@ export function PriceResults({ result }: PriceResultsProps) {
               <div
                 key={p.label}
                 className={`flex items-center justify-between rounded-md p-3 ${
-                  isAlert ? "bg-orange-50 border border-orange-200" : "bg-gov-gray-50"
+                  isAlert ? "bg-orange-50 border border-orange-200" : "bg-surface-base"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -92,14 +92,14 @@ export function PriceResults({ result }: PriceResultsProps) {
                     className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${
                       isAlert
                         ? "bg-orange-100 text-orange-700"
-                        : "bg-gov-gray-200 text-gov-gray-700"
+                        : "bg-surface-hover text-secondary"
                     }`}
                   >
                     {p.label}
                   </span>
-                  <span className="text-sm text-gov-gray-600">{p.desc}</span>
+                  <span className="text-sm text-secondary">{p.desc}</span>
                 </div>
-                <span className={`font-semibold ${isAlert ? "text-orange-700" : "text-gov-gray-900"}`}>
+                <span className={`font-semibold ${isAlert ? "text-orange-700" : "text-primary"}`}>
                   {p.value}
                 </span>
               </div>

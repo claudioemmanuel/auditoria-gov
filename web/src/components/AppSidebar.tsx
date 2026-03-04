@@ -13,16 +13,17 @@ import {
   ChevronRight,
   Menu,
   X,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "ui:sidebar-collapsed";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/radar", label: "Radar", icon: Radar, exact: false },
-  { href: "/coverage", label: "Cobertura", icon: Database, exact: false },
-  { href: "/methodology", label: "Metodologia", icon: BookOpen, exact: false },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, shortcut: "D" },
+  { href: "/radar", label: "Radar", icon: Radar, exact: false, shortcut: "R" },
+  { href: "/coverage", label: "Cobertura", icon: Database, exact: false, shortcut: "C" },
+  { href: "/methodology", label: "Metodologia", icon: BookOpen, exact: false, shortcut: "M" },
 ];
 
 function ApiHealthDot() {
@@ -52,7 +53,7 @@ function ApiHealthDot() {
         "inline-block h-2 w-2 rounded-full",
         status === "ok" && "bg-green-500",
         status === "error" && "bg-red-500",
-        status === "loading" && "bg-muted animate-pulse",
+        status === "loading" && "bg-sidebar-text animate-pulse",
       )}
     />
   );
@@ -63,7 +64,6 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Restore collapse state from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -81,12 +81,10 @@ export function AppSidebar() {
     });
   };
 
-  // Close mobile menu on route change
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Close mobile menu on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMobileOpen(false);
@@ -101,50 +99,66 @@ export function AppSidebar() {
   }
 
   const sidebarContent = (isMobile = false) => (
-    <div className="flex h-full flex-col">
-      {/* Logo + collapse toggle */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-3">
-        {(!collapsed || isMobile) && (
+    <div className="flex h-full flex-col bg-sidebar-bg">
+      {/* Workspace header */}
+      <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-3">
+        {(!collapsed || isMobile) ? (
           <Link
             href="/"
-            className="flex items-center gap-2 font-semibold text-primary"
+            className="flex items-center gap-2"
             onClick={() => isMobile && setMobileOpen(false)}
           >
             <Shield className="h-5 w-5 shrink-0 text-accent" />
-            <span className="truncate text-sm">AuditorIA</span>
+            <span className="text-sm font-semibold text-sidebar-text-active">AuditorIA</span>
+            <span className="rounded bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium text-sidebar-text">Gov</span>
           </Link>
-        )}
-        {collapsed && !isMobile && (
-          <Link href="/" className="flex items-center justify-center">
+        ) : (
+          <Link href="/" className="flex w-full items-center justify-center">
             <Shield className="h-5 w-5 text-accent" />
           </Link>
         )}
-        {!isMobile && (
+        {!isMobile && !collapsed && (
           <button
             onClick={toggleCollapsed}
-            className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-surface-subtle hover:text-secondary"
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            className="ml-auto flex h-6 w-6 items-center justify-center rounded text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active"
+            aria-label="Recolher menu"
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {!isMobile && collapsed && (
+          <button
+            onClick={toggleCollapsed}
+            className="ml-auto flex h-6 w-6 items-center justify-center rounded text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active"
+            aria-label="Expandir menu"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
         )}
         {isMobile && (
           <button
             onClick={() => setMobileOpen(false)}
-            className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-surface-subtle"
+            className="ml-auto flex h-6 w-6 items-center justify-center rounded text-sidebar-text hover:bg-sidebar-hover"
             aria-label="Fechar menu"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
+      {/* Search / Cmd+K trigger */}
+      {(!collapsed || isMobile) && (
+        <div className="px-3 pt-3 pb-1">
+          <button className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-hover/50 px-2.5 py-1.5 text-xs text-sidebar-text hover:bg-sidebar-hover">
+            <Search className="h-3.5 w-3.5" />
+            <span className="flex-1 text-left">Buscar...</span>
+            <kbd className="rounded border border-sidebar-border bg-sidebar-bg px-1 py-0.5 font-mono text-[10px] text-sidebar-text">⌘K</kbd>
+          </button>
+        </div>
+      )}
+
       {/* Nav items */}
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pt-2">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item);
           return (
@@ -153,35 +167,45 @@ export function AppSidebar() {
               href={item.href}
               title={collapsed && !isMobile ? item.label : undefined}
               className={cn(
-                "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
-                "border-l-2",
+                "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
                 active
-                  ? "border-accent bg-accent-subtle text-accent"
-                  : "border-transparent text-secondary hover:bg-surface-subtle hover:text-primary",
+                  ? "bg-sidebar-active text-sidebar-text-active"
+                  : "text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active",
               )}
             >
               <item.icon
                 className={cn(
                   "h-4 w-4 shrink-0",
-                  active ? "text-accent" : "text-muted group-hover:text-secondary",
+                  active ? "text-sidebar-text-active" : "text-sidebar-text group-hover:text-sidebar-text-active",
                 )}
               />
               {(!collapsed || isMobile) && (
-                <span className="truncate">{item.label}</span>
+                <>
+                  <span className="flex-1 truncate">{item.label}</span>
+                  <kbd className={cn(
+                    "rounded px-1 py-0.5 font-mono text-[10px] transition-opacity",
+                    active ? "text-sidebar-text" : "text-sidebar-text/50 opacity-0 group-hover:opacity-100",
+                  )}>
+                    {item.shortcut}
+                  </kbd>
+                </>
               )}
             </Link>
           );
         })}
       </nav>
 
+      {/* Separator */}
+      <div className="mx-3 border-t border-sidebar-border" />
+
       {/* API health */}
-      <div className="border-t border-border p-3">
+      <div className="p-3">
         {collapsed && !isMobile ? (
           <div className="flex justify-center">
             <ApiHealthDot />
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-xs text-muted">
+          <div className="flex items-center gap-2 text-xs text-sidebar-text">
             <ApiHealthDot />
             <span>API</span>
           </div>
@@ -195,27 +219,19 @@ export function AppSidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex lg:flex-col",
-          "fixed inset-y-0 left-0 z-30 border-r border-border bg-surface-card",
+          "hidden lg:flex lg:flex-col lg:shrink-0",
+          "border-r border-sidebar-border bg-sidebar-bg",
           "transition-[width] duration-200",
-          collapsed ? "w-14" : "w-56",
+          collapsed ? "w-[48px]" : "w-[220px]",
         )}
       >
         {sidebarContent()}
       </aside>
 
-      {/* Desktop spacer */}
-      <div
-        className={cn(
-          "hidden lg:block shrink-0 transition-[width] duration-200",
-          collapsed ? "w-14" : "w-56",
-        )}
-      />
-
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-3 z-40 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface-card text-secondary shadow-sm lg:hidden"
+        className="fixed left-3 top-3 z-40 flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-bg text-sidebar-text-active shadow-lg lg:hidden"
         aria-label="Abrir menu"
       >
         <Menu className="h-4 w-4" />
@@ -224,14 +240,12 @@ export function AppSidebar() {
       {/* Mobile slide-over */}
       {mobileOpen && (
         <>
-          {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          {/* Drawer */}
-          <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-surface-card lg:hidden">
+          <aside className="fixed inset-y-0 left-0 z-50 w-[260px] lg:hidden">
             {sidebarContent(true)}
           </aside>
         </>

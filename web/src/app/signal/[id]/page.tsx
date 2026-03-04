@@ -80,13 +80,13 @@ function ScorePill({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gov-gray-600">{label}:</span>
-      <span className="font-mono tabular-nums text-xs font-semibold text-gov-gray-900">
+      <span className="text-xs text-secondary">{label}:</span>
+      <span className="font-mono tabular-nums text-xs font-semibold text-primary">
         {pct}%
       </span>
-      <div className="h-1.5 w-16 rounded-full bg-gov-gray-50">
+      <div className="h-1.5 w-16 rounded-full bg-surface-base">
         <div
-          className="h-1.5 rounded-full bg-gov-blue-700"
+          className="h-1.5 rounded-full bg-accent"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -152,37 +152,37 @@ export default async function SignalDetailPage({ params }: PageProps) {
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
 
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-sm text-gov-gray-600" aria-label="Breadcrumb">
+        <nav className="flex items-center gap-1.5 text-sm text-secondary" aria-label="Breadcrumb">
           <Link
             href="/radar"
-            className="inline-flex items-center gap-1 hover:text-gov-gray-900 transition-colors"
+            className="inline-flex items-center gap-1 hover:text-primary transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Radar
           </Link>
-          <span className="text-gov-gray-400">/</span>
-          <span className="text-gov-gray-900 font-mono text-xs">Sinal #{shortId}</span>
+          <span className="text-muted">/</span>
+          <span className="text-primary font-mono text-xs">Sinal #{shortId}</span>
         </nav>
 
         {/* ─── Header card (always visible) ─── */}
-        <div className="mt-4 rounded-lg border border-gov-gray-200 bg-white p-4 lg:p-5">
+        <div className="mt-4 rounded-lg border border-border bg-surface-card p-4 lg:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 
             {/* Left: typology + name + period */}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded bg-gov-blue-50 px-1.5 py-0.5 font-mono text-xs font-bold text-gov-blue-700">
+                <span className="rounded bg-accent-subtle px-1.5 py-0.5 font-mono text-xs font-bold text-accent">
                   {signal.typology_code}
                 </span>
-                <h1 className="text-base font-semibold text-gov-gray-900 sm:text-lg">
+                <h1 className="text-base font-semibold text-primary sm:text-lg">
                   {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
                 </h1>
               </div>
-              <p className="mt-1.5 text-sm font-medium text-gov-gray-900">
+              <p className="mt-1.5 text-sm font-medium text-primary">
                 {sanitizeText(signal.title)}
               </p>
               {(signal.period_start || signal.period_end) && (
-                <p className="mt-1 font-mono tabular-nums text-xs text-gov-gray-600">
+                <p className="mt-1 font-mono tabular-nums text-xs text-secondary">
                   {signal.period_start ? formatDate(signal.period_start) : "—"}
                   {" → "}
                   {signal.period_end ? formatDate(signal.period_end) : "—"}
@@ -203,7 +203,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href={`/signal/${signal.id}/graph`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-900 shadow-sm transition hover:bg-gov-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-surface-subtle"
           >
             <Network className="h-4 w-4" />
             Ver Grafo
@@ -211,12 +211,12 @@ export default async function SignalDetailPage({ params }: PageProps) {
           {signal.case_id && (
             <Link
               href={`/case/${signal.case_id}`}
-              className="inline-flex items-center gap-1.5 rounded-md border border-gov-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-900 shadow-sm transition hover:bg-gov-gray-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-surface-subtle"
             >
               <Briefcase className="h-4 w-4" />
               Investigar Caso
               {signal.case_title && (
-                <span className="text-gov-gray-400">: {signal.case_title}</span>
+                <span className="text-muted">: {signal.case_title}</span>
               )}
             </Link>
           )}
@@ -225,7 +225,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
         {/* ─── Resumo (explanation_md) ─── */}
         {signal.explanation_md && (
           <section className="mt-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gov-gray-600">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary">
               Resumo
             </h2>
             <div className="mt-2">
@@ -237,10 +237,10 @@ export default async function SignalDetailPage({ params }: PageProps) {
         {/* Fallback summary text */}
         {!signal.explanation_md && signal.summary && (
           <section className="mt-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gov-gray-600">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary">
               Resumo
             </h2>
-            <p className="mt-2 text-sm text-gov-gray-900">{sanitizeText(signal.summary)}</p>
+            <p className="mt-2 text-sm text-primary">{sanitizeText(signal.summary)}</p>
           </section>
         )}
 
@@ -249,9 +249,9 @@ export default async function SignalDetailPage({ params }: PageProps) {
 
           {/* Fatores de Risco */}
           {signal.factors && Object.keys(signal.factors).length > 0 && (
-            <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-900">
-                <Layers className="h-4 w-4 text-gov-blue-700" />
+            <div className="rounded-lg border border-border bg-surface-card p-4">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Layers className="h-4 w-4 text-accent" />
                 Fatores de Risco
               </h2>
               <dl className="mt-3 space-y-2">
@@ -263,26 +263,26 @@ export default async function SignalDetailPage({ params }: PageProps) {
                   return (
                     <div
                       key={key}
-                      className="flex items-start justify-between gap-2 rounded-md bg-gov-gray-50 px-3 py-2"
+                      className="flex items-start justify-between gap-2 rounded-md bg-surface-base px-3 py-2"
                     >
-                      <dt className="flex items-center gap-1 text-xs text-gov-gray-600">
+                      <dt className="flex items-center gap-1 text-xs text-secondary">
                         {meta?.label ?? key}
                         {meta?.description && (
                           <span className="group relative">
-                            <HelpCircle className="h-3 w-3 text-gov-gray-400" />
-                            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden w-52 -translate-x-1/2 rounded-lg bg-white border border-gov-gray-200 px-3 py-2 text-xs text-gov-gray-900 shadow-lg group-hover:block">
+                            <HelpCircle className="h-3 w-3 text-muted" />
+                            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden w-52 -translate-x-1/2 rounded-lg bg-surface-card border border-border px-3 py-2 text-xs text-primary group-hover:block">
                               {meta.description}
                             </span>
                           </span>
                         )}
                       </dt>
-                      <dd className="font-mono tabular-nums text-xs font-semibold text-gov-gray-900">
+                      <dd className="font-mono tabular-nums text-xs font-semibold text-primary">
                         {isBoolean ? (
                           <span className="inline-flex items-center gap-1">
                             {boolVal ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
                             ) : (
-                              <XCircle className="h-3.5 w-3.5 text-gov-gray-400" />
+                              <XCircle className="h-3.5 w-3.5 text-muted" />
                             )}
                             {boolVal ? "Sim" : "Nao"}
                           </span>
@@ -299,9 +299,9 @@ export default async function SignalDetailPage({ params }: PageProps) {
 
           {/* Entidades Envolvidas */}
           {(entities.length > 0 || signal.entity_ids.length > 0) && (
-            <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-900">
-                <Building2 className="h-4 w-4 text-gov-blue-700" />
+            <div className="rounded-lg border border-border bg-surface-card p-4">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Building2 className="h-4 w-4 text-accent" />
                 Entidades Envolvidas
               </h2>
               <ul className="mt-3 space-y-2">
@@ -316,17 +316,17 @@ export default async function SignalDetailPage({ params }: PageProps) {
                         <li key={entity.id}>
                           <Link
                             href={`/entity/${entity.id}`}
-                            className="flex items-start gap-2.5 rounded-md border border-gov-gray-200 bg-gov-gray-50 p-2.5 transition hover:border-gov-blue-700/30 hover:bg-gov-blue-50/30"
+                            className="flex items-start gap-2.5 rounded-md border border-border bg-surface-base p-2.5 transition hover:border-accent/30 hover:bg-accent-subtle/30"
                           >
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-gov-gray-200">
-                              <EntityIcon className="h-3.5 w-3.5 text-gov-blue-700" />
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-card border border-border">
+                              <EntityIcon className="h-3.5 w-3.5 text-accent" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-gov-gray-900 truncate">
+                              <p className="text-xs font-semibold text-primary truncate">
                                 {entity.name}
                               </p>
                               {identifierEntries.length > 0 && (
-                                <p className="mt-0.5 font-mono tabular-nums text-xs text-gov-gray-400">
+                                <p className="mt-0.5 font-mono tabular-nums text-xs text-muted">
                                   {identifierEntries
                                     .map(
                                       ([k, v]) =>
@@ -336,7 +336,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
                                 </p>
                               )}
                             </div>
-                            <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-gov-gray-400" />
+                            <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-muted" />
                           </Link>
                         </li>
                       );
@@ -345,7 +345,7 @@ export default async function SignalDetailPage({ params }: PageProps) {
                       <li key={eid}>
                         <Link
                           href={`/entity/${eid}`}
-                          className="flex items-center gap-1.5 rounded-md border border-gov-gray-200 bg-gov-gray-50 px-2.5 py-1.5 font-mono text-xs text-gov-blue-700 transition hover:bg-gov-blue-50/30"
+                          className="flex items-center gap-1.5 rounded-md border border-border bg-surface-base px-2.5 py-1.5 font-mono text-xs text-accent transition hover:bg-accent-subtle/30"
                         >
                           {eid.slice(0, 8)}...
                           <ExternalLink className="h-3 w-3" />
@@ -359,54 +359,54 @@ export default async function SignalDetailPage({ params }: PageProps) {
 
         {/* ─── Investigation summary (contextual box) ─── */}
         {investigation && (
-          <div className="mt-6 rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-4">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-900">
-              <Scale className="h-4 w-4 text-gov-blue-700" />
+          <div className="mt-6 rounded-lg border border-border bg-surface-base p-4">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Scale className="h-4 w-4 text-accent" />
               Por que este sinal existe?
             </h2>
-            <p className="mt-2 text-xs text-gov-gray-600">
+            <p className="mt-2 text-xs text-secondary">
               O motor cruzou dados públicos para identificar um padrão atípico nesta tipologia.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-md bg-white border border-gov-gray-200 px-3 py-2">
-                <p className="text-xs font-semibold text-gov-gray-600">Valor observado</p>
-                <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-gov-gray-900">
+              <div className="rounded-md bg-surface-card border border-border px-3 py-2">
+                <p className="text-xs font-semibold text-secondary">Valor observado</p>
+                <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-primary">
                   {typeof investigation.observed_total_brl === "number"
                     ? formatBRL(investigation.observed_total_brl)
                     : "Nao informado"}
                 </p>
               </div>
-              <div className="rounded-md bg-white border border-gov-gray-200 px-3 py-2">
-                <p className="text-xs font-semibold text-gov-gray-600">Limite de referencia</p>
-                <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-gov-gray-900">
+              <div className="rounded-md bg-surface-card border border-border px-3 py-2">
+                <p className="text-xs font-semibold text-secondary">Limite de referencia</p>
+                <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-primary">
                   {typeof investigation.legal_threshold_brl === "number"
                     ? formatBRL(investigation.legal_threshold_brl)
                     : "Nao informado"}
                 </p>
               </div>
-              <div className="rounded-md bg-white border border-gov-gray-200 px-3 py-2">
-                <p className="text-xs font-semibold text-gov-gray-600">Razao sobre limite</p>
-                <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-gov-gray-900">
+              <div className="rounded-md bg-surface-card border border-border px-3 py-2">
+                <p className="text-xs font-semibold text-secondary">Razao sobre limite</p>
+                <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-primary">
                   {typeof investigation.ratio_over_threshold === "number"
                     ? `${investigation.ratio_over_threshold.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}x`
                     : "Nao informado"}
                 </p>
               </div>
-              <div className="rounded-md bg-white border border-gov-gray-200 px-3 py-2">
-                <p className="text-xs font-semibold text-gov-gray-600">Base legal</p>
-                <p className="mt-0.5 text-xs text-gov-gray-900">
+              <div className="rounded-md bg-surface-card border border-border px-3 py-2">
+                <p className="text-xs font-semibold text-secondary">Base legal</p>
+                <p className="mt-0.5 text-xs text-primary">
                   {investigation.legal_reference ?? "Nao informado"}
                 </p>
               </div>
             </div>
             {investigation.what_crossed.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-semibold text-gov-gray-600">Dados cruzados</p>
+                <p className="text-xs font-semibold text-secondary">Dados cruzados</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {investigation.what_crossed.map((item) => (
                     <span
                       key={item}
-                      className="rounded-full bg-white border border-gov-gray-200 px-2 py-0.5 text-xs text-gov-gray-600"
+                      className="rounded-full bg-surface-card border border-border px-2 py-0.5 text-xs text-secondary"
                     >
                       {WHAT_CROSSED_LABELS[item] ?? item}
                     </span>
@@ -425,9 +425,9 @@ export default async function SignalDetailPage({ params }: PageProps) {
         />
 
         {/* ─── Legal disclaimer ─── */}
-        <div className="mt-6 rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-3">
-          <p className="text-xs text-gov-gray-400">
-            <strong className="text-gov-gray-600">Aviso legal:</strong>{" "}
+        <div className="mt-6 rounded-lg border border-border bg-surface-base p-3">
+          <p className="text-xs text-muted">
+            <strong className="text-secondary">Aviso legal:</strong>{" "}
             Este sinal constitui uma{" "}
             <em>hipótese investigativa</em> baseada em cruzamento automático de
             dados publicos. Nao equivale a acusacao, condenacao ou juizo de

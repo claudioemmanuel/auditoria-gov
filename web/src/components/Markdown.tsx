@@ -9,7 +9,7 @@ interface MarkdownProps {
 
 export function Markdown({ content }: MarkdownProps) {
   return (
-    <div className="prose prose-sm max-w-none prose-headings:text-gov-gray-900 prose-a:text-gov-blue-600">
+    <div className="prose prose-sm max-w-none prose-headings:text-primary prose-a:text-accent">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );

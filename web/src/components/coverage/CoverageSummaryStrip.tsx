@@ -26,7 +26,7 @@ export function CoverageSummaryStrip({ summary, loading }: CoverageSummaryStripP
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={`coverage-summary-skeleton-${index}`}
-            className="h-24 animate-pulse rounded-xl border border-gov-gray-200 bg-white"
+            className="h-24 animate-pulse rounded-xl border border-border bg-surface-card"
           />
         ))}
       </div>
@@ -38,46 +38,46 @@ export function CoverageSummaryStrip({ summary, loading }: CoverageSummaryStripP
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-      <div className="rounded-xl border border-gov-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">Fontes</p>
-          <Database className="h-4 w-4 text-gov-blue-700" />
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Fontes</p>
+          <Database className="h-4 w-4 text-accent" />
         </div>
-        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-gov-gray-900">
+        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-primary">
           {summary.totals.connectors}
         </p>
       </div>
 
-      <div className="rounded-xl border border-gov-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">Jobs</p>
-          <Workflow className="h-4 w-4 text-gov-blue-700" />
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Jobs</p>
+          <Workflow className="h-4 w-4 text-accent" />
         </div>
-        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-gov-gray-900">
+        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-primary">
           {summary.totals.jobs}
         </p>
-        <p className="text-xs text-gov-gray-500">{summary.totals.jobs_enabled} habilitados</p>
+        <p className="text-xs text-muted">{summary.totals.jobs_enabled} habilitados</p>
       </div>
 
-      <div className="rounded-xl border border-gov-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">Execução</p>
-          <Activity className="h-4 w-4 text-gov-blue-700" />
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Execução</p>
+          <Activity className="h-4 w-4 text-accent" />
         </div>
-        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-gov-gray-900">
+        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-primary">
           {summary.totals.runtime.running}
         </p>
-        <p className="text-xs text-gov-gray-500">
+        <p className="text-xs text-muted">
           {summary.totals.runtime.failed_or_stuck} com falha/travamento
         </p>
       </div>
 
-      <div className="rounded-xl border border-gov-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide text-gov-gray-500">Sinais acumulados</p>
-          <AlertTriangle className="h-4 w-4 text-gov-blue-700" />
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Sinais acumulados</p>
+          <AlertTriangle className="h-4 w-4 text-accent" />
         </div>
-        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-gov-gray-900">
+        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-primary">
           {summary.totals.signals_total.toLocaleString("pt-BR")}
         </p>
       </div>

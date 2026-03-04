@@ -25,23 +25,23 @@ export function CoverageSourcePreviewDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white p-4 shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-gov-gray-200 pb-3">
+      <div className="h-full w-full max-w-2xl overflow-y-auto bg-surface-card p-4">
+        <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
           <div>
-            <h3 className="text-lg font-semibold text-gov-gray-900">Diagnóstico da fonte</h3>
-            <p className="text-xs text-gov-gray-500">Drill-down operacional sem sair da cobertura.</p>
+            <h3 className="text-lg font-semibold text-primary">Diagnóstico da fonte</h3>
+            <p className="text-xs text-muted">Drill-down operacional sem sair da cobertura.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-gov-gray-500 hover:bg-gov-gray-50"
+            className="rounded-md p-1 text-muted hover:bg-surface-subtle"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {loading && (
-          <p className="mt-4 text-sm text-gov-gray-500">Carregando preview da fonte...</p>
+          <p className="mt-4 text-sm text-muted">Carregando preview da fonte...</p>
         )}
         {error && (
           <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
@@ -50,11 +50,11 @@ export function CoverageSourcePreviewDrawer({
         {!loading && !error && data && (
           <div className="mt-4 space-y-4">
             {/* Connector summary */}
-            <div className="rounded-lg border border-gov-gray-200 bg-white p-3">
+            <div className="rounded-lg border border-border bg-surface-card p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-base font-semibold text-gov-gray-900">{data.connector.connector_label}</p>
-                  <p className="text-xs text-gov-gray-500">
+                  <p className="text-base font-semibold text-primary">{data.connector.connector_label}</p>
+                  <p className="text-xs text-muted">
                     {data.connector.job_count} jobs ({data.connector.enabled_job_count} habilitados)
                   </p>
                 </div>
@@ -65,9 +65,9 @@ export function CoverageSourcePreviewDrawer({
             </div>
 
             {/* Insights */}
-            <div className="rounded-lg border border-gov-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Insights</p>
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-gov-gray-600">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Insights</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-secondary">
                 {data.insights.map((insight) => (
                   <li key={insight}>{insight}</li>
                 ))}
@@ -75,25 +75,25 @@ export function CoverageSourcePreviewDrawer({
             </div>
 
             {/* Jobs */}
-            <div className="rounded-lg border border-gov-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Jobs</p>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Jobs</p>
               <div className="mt-2 space-y-2">
                 {data.jobs.map((job) => (
-                  <div key={job.job} className="rounded-md bg-gov-gray-50 p-2">
+                  <div key={job.job} className="rounded-md bg-surface-base p-2">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-medium text-gov-gray-900">{job.job}</p>
-                        <p className="text-xs text-gov-gray-500">{job.domain}</p>
+                        <p className="text-sm font-medium text-primary">{job.job}</p>
+                        <p className="text-xs text-muted">{job.domain}</p>
                       </div>
                       <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", coverageStatusColor(job.status))}>
                         {job.status}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-gov-gray-500">
+                    <p className="mt-1 text-xs text-muted">
                       Último sucesso: {job.last_success_at ? formatDateTime(job.last_success_at) : "Não informado"}
                     </p>
                     {job.latest_run && (
-                      <div className="mt-2 rounded border border-gov-gray-200 bg-white p-2 text-xs text-gov-gray-600">
+                      <div className="mt-2 rounded border border-border bg-surface-card p-2 text-xs text-secondary">
                         <p>
                           Execução mais recente:{" "}
                           <span className="font-medium">{job.latest_run.status}</span>
@@ -106,7 +106,7 @@ export function CoverageSourcePreviewDrawer({
                         <div className="mt-1">
                           <Link
                             href={`/coverage/run/${job.latest_run.id}`}
-                            className="text-gov-blue-700 underline"
+                            className="text-accent underline"
                           >
                             Abrir detalhe da execução
                           </Link>
@@ -119,11 +119,11 @@ export function CoverageSourcePreviewDrawer({
             </div>
 
             {/* Recent runs */}
-            <div className="rounded-lg border border-gov-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Execuções recentes</p>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Execuções recentes</p>
               <div className="mt-2 space-y-2">
                 {data.recent_runs.map((run) => (
-                  <div key={run.id} className="rounded-md bg-gov-gray-50 p-2 text-xs text-gov-gray-600">
+                  <div key={run.id} className="rounded-md bg-surface-base p-2 text-xs text-secondary">
                     <p className="font-medium">
                       {run.status}
                       {run.is_stuck ? " (travada)" : ""}

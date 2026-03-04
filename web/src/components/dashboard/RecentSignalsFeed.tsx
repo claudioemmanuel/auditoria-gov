@@ -26,15 +26,15 @@ function truncate(str: string, max: number): string {
 
 export function RecentSignalsFeed({ signals }: RecentSignalsFeedProps) {
   return (
-    <div className="rounded-lg border border-gov-gray-200 bg-white">
-      <div className="flex items-center justify-between border-b border-gov-gray-200 px-4 py-3">
-        <h2 className="text-lg font-semibold text-gov-gray-900">
+    <div className="linear-card rounded-lg border border-border bg-surface-card">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold text-primary">
           Últimos Sinais{" "}
-          <span className="ml-1 font-normal text-gov-gray-600">(últimas 24h)</span>
+          <span className="ml-1 font-normal text-secondary">(últimas 24h)</span>
         </h2>
         <Link
           href="/radar"
-          className="inline-flex items-center gap-1 text-xs font-medium text-gov-blue-700 hover:text-gov-blue-900 hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover hover:underline"
         >
           ver todos
           <ArrowRight className="h-3 w-3" />
@@ -48,12 +48,12 @@ export function RecentSignalsFeed({ signals }: RecentSignalsFeedProps) {
           className="rounded-none border-0"
         />
       ) : (
-        <ul className="divide-y divide-gov-gray-200">
+        <ul className="divide-y divide-border">
           {signals.map((signal) => (
             <li key={signal.id}>
               <Link
                 href={`/signal/${signal.id}`}
-                className="flex items-center gap-3 px-4 py-3 transition hover:bg-gov-gray-50"
+                className="flex items-center gap-3 px-4 py-3 transition hover:bg-surface-subtle"
               >
                 {/* Severity dot */}
                 <span
@@ -67,11 +67,11 @@ export function RecentSignalsFeed({ signals }: RecentSignalsFeedProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <Badge severity={signal.severity} className="shrink-0" />
-                    <span className="font-mono tabular-nums text-xs text-gov-gray-600">
+                    <span className="font-mono tabular-nums text-xs text-secondary">
                       {signal.typology_code}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-gov-gray-900">
+                  <p className="mt-0.5 truncate text-sm text-primary">
                     {truncate(signal.title, 60)}
                   </p>
                 </div>
@@ -79,11 +79,11 @@ export function RecentSignalsFeed({ signals }: RecentSignalsFeedProps) {
                 {/* Value + time */}
                 <div className="shrink-0 text-right">
                   {signal.event_count > 0 && (
-                    <p className="font-mono tabular-nums text-xs text-gov-gray-600">
+                    <p className="font-mono tabular-nums text-xs text-secondary">
                       {signal.event_count} ev.
                     </p>
                   )}
-                  <p className="font-mono tabular-nums text-xs text-gov-gray-400">
+                  <p className="font-mono tabular-nums text-xs text-muted">
                     {relativeTime(signal.created_at)}
                   </p>
                 </div>

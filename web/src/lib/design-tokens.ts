@@ -6,18 +6,30 @@
  */
 export const tokens = {
   surface: {
-    base: "#f7f8fc",
+    base: "#f9f9fb",
     card: "#ffffff",
-    subtle: "#f1f3f8",
+    subtle: "#f3f3f6",
+    hover: "#ebebef",
   },
-  border: "#e4e7ef",
+  border: "#e1e1e6",
+  borderSubtle: "#ececf0",
+  sidebar: {
+    bg: "#1a1a2e",
+    hover: "#252540",
+    active: "#2d2d4a",
+    text: "#a0a0b8",
+    textActive: "#ffffff",
+    border: "#2a2a42",
+  },
   text: {
-    primary: "#0c1329",
-    secondary: "#52607a",
-    muted: "#8896b0",
+    primary: "#1a1a2e",
+    secondary: "#5c5c72",
+    muted: "#8b8ba0",
+    placeholder: "#b0b0c0",
   },
-  accent: "#1d4ed8",
-  accentSubtle: "#dbeafe",
+  accent: "#5e6ad2",
+  accentHover: "#4e5bc2",
+  accentSubtle: "#eef0ff",
   severity: {
     critical: { fg: "#dc2626", bg: "#fef2f2" },
     high: { fg: "#ea580c", bg: "#fff7ed" },

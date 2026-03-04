@@ -27,15 +27,15 @@ const UF_REGION: Record<string, string> = {
 };
 
 function cellClass(item?: CoverageMapItem, metric: "coverage" | "freshness" | "risk" = "coverage"): string {
-  if (!item) return "bg-gov-gray-100 text-gov-gray-400 border-gov-gray-200";
+  if (!item) return "bg-surface-subtle text-muted border-border";
   if (metric === "risk") {
     if (item.risk_score >= 0.75) return "bg-red-100 text-red-700 border-red-200";
     if (item.risk_score >= 0.5) return "bg-amber-100 text-amber-700 border-amber-200";
     if (item.risk_score > 0) return "bg-blue-100 text-blue-700 border-blue-200";
-    return "bg-gov-gray-100 text-gov-gray-500 border-gov-gray-200";
+    return "bg-surface-subtle text-muted border-border";
   }
   if (metric === "freshness") {
-    if (item.freshness_hours == null) return "bg-gov-gray-100 text-gov-gray-500 border-gov-gray-200";
+    if (item.freshness_hours == null) return "bg-surface-subtle text-muted border-border";
     if (item.freshness_hours < 24) return "bg-emerald-100 text-emerald-700 border-emerald-200";
     if (item.freshness_hours < 72) return "bg-amber-100 text-amber-700 border-amber-200";
     return "bg-red-100 text-red-700 border-red-200";
@@ -43,7 +43,7 @@ function cellClass(item?: CoverageMapItem, metric: "coverage" | "freshness" | "r
   if (item.coverage_score >= 0.75) return "bg-emerald-100 text-emerald-700 border-emerald-200";
   if (item.coverage_score >= 0.45) return "bg-amber-100 text-amber-700 border-amber-200";
   if (item.coverage_score > 0) return "bg-blue-100 text-blue-700 border-blue-200";
-  return "bg-gov-gray-100 text-gov-gray-500 border-gov-gray-200";
+  return "bg-surface-subtle text-muted border-border";
 }
 
 function metricLabel(item?: CoverageMapItem, metric: "coverage" | "freshness" | "risk" = "coverage"): string {
@@ -80,11 +80,11 @@ export function CoverageMapPanel({ map, metric, loading, onMetricChange }: Cover
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="panel-title">Visao territorial</h3>
-          <p className="mt-1 text-xs text-gov-gray-500">
+          <p className="mt-1 text-xs text-muted">
             Clique em uma UF para detalhar cobertura, frescor e risco.
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-gov-gray-200 bg-gov-gray-50 p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-base p-1">
           {(["coverage", "freshness", "risk"] as const).map((entry) => (
             <button
               key={entry}
@@ -92,8 +92,8 @@ export function CoverageMapPanel({ map, metric, loading, onMetricChange }: Cover
               onClick={() => onMetricChange(entry)}
               className={`rounded-md px-2 py-1 text-xs font-medium ${
                 metric === entry
-                  ? "bg-gov-blue-100 text-gov-blue-700"
-                  : "text-gov-gray-600 hover:bg-gov-gray-100"
+                  ? "bg-accent-subtle text-accent"
+                  : "text-secondary hover:bg-surface-subtle"
               }`}
             >
               {entry === "coverage" ? "Cobertura" : entry === "freshness" ? "Frescor" : "Risco"}
@@ -103,7 +103,7 @@ export function CoverageMapPanel({ map, metric, loading, onMetricChange }: Cover
       </div>
 
       {loading || !map ? (
-        <div className="h-64 animate-pulse rounded-lg bg-gov-gray-100" />
+        <div className="h-64 animate-pulse rounded-lg bg-surface-subtle" />
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -117,7 +117,7 @@ export function CoverageMapPanel({ map, metric, loading, onMetricChange }: Cover
                     type="button"
                     onClick={() => setSelectedUf(uf)}
                     className={`min-h-[86px] rounded-lg border px-2 py-2 text-left transition ${cellClass(item, metric)} ${
-                      selected ? "ring-2 ring-gov-blue-500" : ""
+                      selected ? "ring-2 ring-accent" : ""
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -135,12 +135,12 @@ export function CoverageMapPanel({ map, metric, loading, onMetricChange }: Cover
           </div>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-            <div className="rounded-xl border border-gov-gray-200 bg-gov-gray-50/70 p-3 lg:col-span-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">UF selecionada</h4>
-              <p className="mt-1 text-base font-semibold text-gov-gray-900">
+            <div className="rounded-xl border border-border bg-surface-base/70 p-3 lg:col-span-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">UF selecionada</h4>
+              <p className="mt-1 text-base font-semibold text-primary">
                 {selectedUf}{selectedItem?.label ? ` - ${selectedItem.label}` : ""}
               </p>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gov-gray-700">
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-secondary">
                 <p>
                   Cobertura:{" "}
                   <span className="font-semibold">
@@ -173,9 +173,9 @@ export function CoverageMapPanel({ map, metric, loading, onMetricChange }: Cover
               </div>
             </div>
 
-            <div className="rounded-xl border border-gov-gray-200 bg-gov-gray-50/70 p-3 lg:col-span-8">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-gov-gray-500">Resumo nacional</h4>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gov-gray-700 sm:grid-cols-4">
+            <div className="rounded-xl border border-border bg-surface-base/70 p-3 lg:col-span-8">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Resumo nacional</h4>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-secondary sm:grid-cols-4">
                 <p>
                   UFs com dados: <span className="font-semibold">{map.national.regions_with_data}</span>
                 </p>

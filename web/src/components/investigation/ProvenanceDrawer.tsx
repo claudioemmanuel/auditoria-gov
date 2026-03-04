@@ -72,22 +72,22 @@ export default function ProvenanceDrawer({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-full w-full sm:w-[480px] z-50 bg-white shadow-2xl border-l border-gov-gray-200 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      className={`fixed top-0 right-0 h-full w-full sm:w-[480px] z-50 bg-surface-card border-l border-border transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         open ? "translate-x-0" : "translate-x-full"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gov-gray-200 bg-gov-gray-50">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-base">
         <div className="flex items-center gap-3">
-          <FileJson className="w-5 h-5 text-gov-blue-600" />
-          <h2 className="font-semibold text-gov-gray-900">Dados Brutos</h2>
+          <FileJson className="w-5 h-5 text-accent" />
+          <h2 className="font-semibold text-primary">Dados Brutos</h2>
           {colors && (
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
               {label}
             </span>
           )}
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-md hover:bg-gov-gray-200 text-gov-gray-500">
+        <button onClick={onClose} className="p-1.5 rounded-md hover:bg-surface-hover text-muted">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -96,7 +96,7 @@ export default function ProvenanceDrawer({
       <div className="h-[calc(100%-65px)] overflow-y-auto">
         {loading && (
           <div className="flex items-center justify-center h-40">
-            <div className="w-6 h-6 border-2 border-gov-blue-200 border-t-gov-blue-600 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-accent/20 border-t-accent rounded-full animate-spin" />
           </div>
         )}
 
@@ -109,10 +109,10 @@ export default function ProvenanceDrawer({
         )}
 
         {!loading && !error && sources.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-40 text-gov-gray-500">
+          <div className="flex flex-col items-center justify-center h-40 text-muted">
             <Database className="w-8 h-8 mb-2 opacity-40" />
             <p className="text-sm">Dados de proveniencia indisponiveis</p>
-            <p className="text-xs mt-1 text-gov-gray-400">Este evento foi criado antes do rastreamento de proveniencia</p>
+            <p className="text-xs mt-1 text-muted">Este evento foi criado antes do rastreamento de proveniencia</p>
           </div>
         )}
 
@@ -130,8 +130,8 @@ export default function ProvenanceDrawer({
                       onClick={() => setActiveTab(i)}
                       className={`flex-shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                         i === activeTab
-                          ? `${srcColors?.bg || "bg-gov-gray-100"} ${srcColors?.text || "text-gov-gray-800"} ring-1 ${srcColors?.ring || "ring-gov-gray-300"}`
-                          : "bg-gov-gray-50 text-gov-gray-600 hover:bg-gov-gray-100"
+                          ? `${srcColors?.bg || "bg-surface-subtle"} ${srcColors?.text || "text-primary"} ring-1 ${srcColors?.ring || "ring-border"}`
+                          : "bg-surface-base text-secondary hover:bg-surface-subtle"
                       }`}
                     >
                       {srcLabel}
@@ -146,23 +146,23 @@ export default function ProvenanceDrawer({
                 {/* Metadata */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
-                    <Database className="w-3.5 h-3.5 text-gov-gray-400" />
-                    <span className="text-gov-gray-600">raw_id:</span>
-                    <code className="text-xs bg-gov-gray-100 px-1.5 py-0.5 rounded font-mono text-gov-gray-800">
+                    <Database className="w-3.5 h-3.5 text-muted" />
+                    <span className="text-secondary">raw_id:</span>
+                    <code className="text-xs bg-surface-subtle px-1.5 py-0.5 rounded font-mono text-primary">
                       {activeSource.raw_id}
                     </code>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gov-gray-600 ml-5.5">job:</span>
-                    <code className="text-xs bg-gov-gray-100 px-1.5 py-0.5 rounded font-mono text-gov-gray-800">
+                    <span className="text-secondary ml-5.5">job:</span>
+                    <code className="text-xs bg-surface-subtle px-1.5 py-0.5 rounded font-mono text-primary">
                       {activeSource.job}
                     </code>
                   </div>
                   {activeSource.created_at && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Clock className="w-3.5 h-3.5 text-gov-gray-400" />
-                      <span className="text-gov-gray-600">Capturado em:</span>
-                      <span className="text-gov-gray-800">{formatDateTime(activeSource.created_at)}</span>
+                      <Clock className="w-3.5 h-3.5 text-muted" />
+                      <span className="text-secondary">Capturado em:</span>
+                      <span className="text-primary">{formatDateTime(activeSource.created_at)}</span>
                     </div>
                   )}
                 </div>
@@ -174,7 +174,7 @@ export default function ProvenanceDrawer({
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleExport}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gov-blue-50 text-gov-blue-700 hover:bg-gov-blue-100 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-accent-subtle text-accent hover:bg-accent-subtle transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Exportar JSON

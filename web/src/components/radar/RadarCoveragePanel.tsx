@@ -22,22 +22,22 @@ export function RadarCoveragePanel({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[1px]">
-      <div className="h-full w-full max-w-xl overflow-y-auto border-l border-gov-gray-200 bg-white p-4 shadow-2xl">
+      <div className="h-full w-full max-w-xl overflow-y-auto border-l border-border bg-surface-card p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gov-gray-900">
+          <h3 className="text-xl font-bold text-primary">
             Confiabilidade da analise
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-gov-gray-500 hover:bg-gov-gray-100"
+            className="rounded-md p-1 text-muted hover:bg-surface-subtle"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {loading && (
-          <p className="mt-4 text-sm text-gov-gray-600">Carregando cobertura...</p>
+          <p className="mt-4 text-sm text-secondary">Carregando cobertura...</p>
         )}
         {error && (
           <p className="mt-4 text-sm text-red-600">{error}</p>
@@ -46,15 +46,15 @@ export function RadarCoveragePanel({
         {data && (
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50/80 p-3">
-                <p className="text-xs text-gov-gray-500">Tipologias aptas</p>
-                <p className="mt-1 text-xl font-semibold text-gov-gray-900">
+              <div className="rounded-lg border border-border bg-surface-base p-3">
+                <p className="text-xs text-muted">Tipologias aptas</p>
+                <p className="mt-1 text-xl font-semibold text-primary">
                   {data.summary.apt_count}/{data.summary.total_typologies}
                 </p>
               </div>
-              <div className="rounded-lg border border-gov-gray-200 bg-gov-gray-50/80 p-3">
-                <p className="text-xs text-gov-gray-500">Com sinais em 30d</p>
-                <p className="mt-1 text-xl font-semibold text-gov-gray-900">
+              <div className="rounded-lg border border-border bg-surface-base p-3">
+                <p className="text-xs text-muted">Com sinais em 30d</p>
+                <p className="mt-1 text-xl font-semibold text-primary">
                   {data.summary.with_signals_30d}
                 </p>
               </div>
@@ -71,15 +71,15 @@ export function RadarCoveragePanel({
                 return (
                   <div
                     key={item.typology_code}
-                    className="rounded-lg border border-gov-gray-200 p-3"
+                    className="rounded-lg border border-border p-3"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-gov-gray-900">
+                      <p className="text-sm font-medium text-primary">
                         {item.typology_code} - {item.typology_name}
                       </p>
-                      <Icon className="h-4 w-4 text-gov-gray-500" />
+                      <Icon className="h-4 w-4 text-muted" />
                     </div>
-                    <p className="mt-1 text-xs text-gov-gray-600">
+                    <p className="mt-1 text-xs text-secondary">
                       Apta: {item.apt ? "sim" : "nao"} | Sinais 30d: {item.signals_30d}
                     </p>
                     {item.domains_missing?.length > 0 && (

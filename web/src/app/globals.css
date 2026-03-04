@@ -1,20 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── New semantic tokens ─────────────────────────────── */
-  --color-surface-base: #f7f8fc;
+  /* ── Linear-style surfaces ─────────────────────────── */
+  --color-surface-base: #f9f9fb;
   --color-surface-card: #ffffff;
-  --color-surface-subtle: #f1f3f8;
-  --color-border: #e4e7ef;
+  --color-surface-subtle: #f3f3f6;
+  --color-surface-hover: #ebebef;
+  --color-border: #e1e1e6;
+  --color-border-subtle: #ececf0;
 
-  --color-primary: #0c1329;
-  --color-secondary: #52607a;
-  --color-muted: #8896b0;
+  /* Sidebar (dark) */
+  --color-sidebar-bg: #1a1a2e;
+  --color-sidebar-hover: #252540;
+  --color-sidebar-active: #2d2d4a;
+  --color-sidebar-text: #a0a0b8;
+  --color-sidebar-text-active: #ffffff;
+  --color-sidebar-border: #2a2a42;
 
-  --color-accent: #1d4ed8;
-  --color-accent-subtle: #dbeafe;
+  /* Text */
+  --color-primary: #1a1a2e;
+  --color-secondary: #5c5c72;
+  --color-muted: #8b8ba0;
+  --color-placeholder: #b0b0c0;
 
-  /* Severity */
+  /* Accent (Linear violet-blue) */
+  --color-accent: #5e6ad2;
+  --color-accent-hover: #4e5bc2;
+  --color-accent-subtle: #eef0ff;
+
+  /* Severity (keep — domain-specific) */
   --color-severity-critical: #dc2626;
   --color-severity-critical-bg: #fef2f2;
   --color-severity-high: #ea580c;
@@ -28,31 +42,32 @@
   --font-sans: var(--font-inter, system-ui, -apple-system, sans-serif);
   --font-mono: var(--font-jetbrains-mono, "Courier New", monospace);
 
-  /* ── Legacy tokens (removed once phases 3-10 complete) ── */
-  --color-gov-blue-50: #eff6ff;
-  --color-gov-blue-100: #dbeafe;
-  --color-gov-blue-500: #3b82f6;
-  --color-gov-blue-600: #2563eb;
-  --color-gov-blue-700: #1d4ed8;
-  --color-gov-blue-800: #1e40af;
-  --color-gov-blue-900: #1e3a8a;
+  /* ── Legacy tokens — remapped to Linear values ────── */
+  --color-gov-blue-50: #eef0ff;
+  --color-gov-blue-100: #e0e3ff;
+  --color-gov-blue-200: #c7cbff;
+  --color-gov-blue-500: #6b73d6;
+  --color-gov-blue-600: #5e6ad2;
+  --color-gov-blue-700: #4e5bc2;
+  --color-gov-blue-800: #3e4aad;
+  --color-gov-blue-900: #1a1a2e;
 
-  --color-gov-gray-50: #f9fafb;
-  --color-gov-gray-100: #f3f4f6;
-  --color-gov-gray-200: #e5e7eb;
-  --color-gov-gray-300: #d1d5db;
-  --color-gov-gray-400: #9ca3af;
-  --color-gov-gray-500: #6b7280;
-  --color-gov-gray-600: #4b5563;
-  --color-gov-gray-700: #374151;
-  --color-gov-gray-800: #1f2937;
-  --color-gov-gray-900: #111827;
+  --color-gov-gray-50: #f9f9fb;
+  --color-gov-gray-100: #f3f3f6;
+  --color-gov-gray-200: #e1e1e6;
+  --color-gov-gray-300: #d0d0d8;
+  --color-gov-gray-400: #8b8ba0;
+  --color-gov-gray-500: #5c5c72;
+  --color-gov-gray-600: #4a4a5e;
+  --color-gov-gray-700: #3a3a4e;
+  --color-gov-gray-800: #2a2a3e;
+  --color-gov-gray-900: #1a1a2e;
 }
 
 body {
   font-family: var(--font-sans);
   color: var(--color-primary);
-  background-color: var(--color-gov-gray-50);
+  background-color: var(--color-surface-base);
 }
 
 .page-wrap {
@@ -67,14 +82,14 @@ body {
 
 /* ── Shared card utility classes ─────────────────────────── */
 .surface-card {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-border);
   border-radius: 0.75rem;
 }
 
 .metric-card {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 1rem;
 }
@@ -82,7 +97,22 @@ body {
 /* Focus ring for accessibility */
 *:focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline-offset: 1px;
+}
+
+/* Linear compact card */
+.linear-card {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+/* Linear row hover */
+.linear-row {
+  transition: background-color 100ms;
+}
+.linear-row:hover {
+  background-color: var(--color-surface-subtle);
 }
 
 /* Investigation page — light background */
@@ -125,5 +155,5 @@ body {
   transition: filter 150ms ease;
 }
 .investigation-bg .react-flow__node.selected {
-  filter: drop-shadow(0 4px 12px rgb(29 78 216 / 0.15));
+  filter: drop-shadow(0 4px 12px rgb(94 106 210 / 0.15));
 }

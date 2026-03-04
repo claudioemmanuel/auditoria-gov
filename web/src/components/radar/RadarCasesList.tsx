@@ -12,7 +12,7 @@ interface RadarCasesListProps {
 
 export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface-card shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface-card">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border bg-surface-subtle">
           <tr>
@@ -39,10 +39,10 @@ export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
               <tr
                 key={item.id}
                 onClick={() => onOpenPreview(item.id)}
-                className="cursor-pointer transition-colors hover:bg-surface-subtle"
+                className="linear-row cursor-pointer transition-colors hover:bg-surface-subtle"
               >
                 {/* Severity dot + badge */}
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-2">
                   <div className="flex items-center gap-1.5">
                     <span
                       className={cn("h-2 w-2 flex-shrink-0 rounded-full", severityDotColor(item.severity))}
@@ -52,35 +52,35 @@ export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
                 </td>
 
                 {/* Signal count */}
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-2">
                   <span className="font-mono text-xs font-bold tabular-nums text-primary">
                     {item.signal_count}
                   </span>
                 </td>
 
                 {/* Title */}
-                <td className="max-w-[20rem] px-3 py-2.5">
+                <td className="max-w-[20rem] px-3 py-2">
                   <span className="block truncate text-xs font-medium text-primary" title={item.title}>
                     {item.title}
                   </span>
                 </td>
 
                 {/* Entity names (first 2) */}
-                <td className="max-w-[12rem] px-3 py-2.5">
+                <td className="max-w-[12rem] px-3 py-2">
                   <span className="block truncate text-xs text-secondary">
                     {entityDisplay}
                   </span>
                 </td>
 
                 {/* Total value */}
-                <td className="px-3 py-2.5 text-right">
+                <td className="px-3 py-2 text-right">
                   <span className="font-mono text-xs tabular-nums text-secondary">
                     {valueDisplay ?? "—"}
                   </span>
                 </td>
 
                 {/* Relative time */}
-                <td className="whitespace-nowrap px-3 py-2.5">
+                <td className="whitespace-nowrap px-3 py-2">
                   <span className="text-xs text-muted">
                     {relativeTime(item.created_at)}
                   </span>

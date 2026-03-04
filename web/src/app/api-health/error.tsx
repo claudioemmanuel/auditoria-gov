@@ -15,10 +15,10 @@ export default function ApiHealthError({
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 text-red-600" />
           <div>
-            <h1 className="text-lg font-semibold text-red-800">Falha ao carregar Saúde da API</h1>
+            <h1 className="text-lg font-semibold text-red-800">Falha ao carregar Saude da API</h1>
             <p className="mt-1 text-sm text-red-700">
               O monitor encontrou um erro inesperado. Isso pode indicar indisponibilidade parcial
-              da API ou instabilidade temporária.
+              da API ou instabilidade temporaria.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -31,7 +31,7 @@ export default function ApiHealthError({
               </button>
               <Link
                 href="/coverage"
-                className="inline-flex items-center rounded-md border border-gov-blue-200 bg-gov-blue-50 px-3 py-1.5 text-sm font-medium text-gov-blue-700 hover:bg-gov-blue-100"
+                className="inline-flex items-center rounded-md border border-accent/20 bg-accent-subtle px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-subtle"
               >
                 Ir para Cobertura
               </Link>

@@ -39,11 +39,11 @@ function relativeTimeFrom(dateStr: string | null | undefined): string {
 
 export function SourceHealthChips({ items }: SourceHealthChipsProps) {
   return (
-    <div className="rounded-lg border border-gov-gray-200 bg-white">
-      <div className="border-b border-gov-gray-200 px-4 py-3">
-        <h2 className="text-lg font-semibold text-gov-gray-900">Fontes de Dados</h2>
+    <div className="linear-card rounded-lg border border-border bg-surface-card">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold text-primary">Fontes de Dados</h2>
       </div>
-      <ul className="divide-y divide-gov-gray-100">
+      <ul className="divide-y divide-border">
         {items.map((item) => (
           <li key={item.connector} className="flex items-center gap-3 px-4 py-3">
             {/* Status dot */}
@@ -55,16 +55,16 @@ export function SourceHealthChips({ items }: SourceHealthChipsProps) {
             />
 
             {/* Name */}
-            <span className="min-w-0 flex-1 truncate text-sm text-gov-gray-900">
+            <span className="min-w-0 flex-1 truncate text-sm text-primary">
               {item.connector_label}
             </span>
 
             {/* Status label + last success */}
             <div className="shrink-0 text-right">
-              <span className="font-mono tabular-nums text-xs text-gov-gray-600">
+              <span className="font-mono tabular-nums text-xs text-secondary">
                 {statusLabel(item.worst_status)}
               </span>
-              <p className="font-mono tabular-nums text-xs text-gov-gray-400">
+              <p className="font-mono tabular-nums text-xs text-muted">
                 {relativeTimeFrom(item.last_success_at)} atrás
               </p>
             </div>

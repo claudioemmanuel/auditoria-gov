@@ -213,8 +213,8 @@ export default function SignalGraphPage() {
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gov-gray-900">{data.signal.title}</h1>
-          <p className="mt-1 text-sm text-gov-gray-600">
+          <h1 className="text-2xl font-bold text-primary">{data.signal.title}</h1>
+          <p className="mt-1 text-sm text-secondary">
             {data.signal.typology_code} - {data.signal.typology_name}
           </p>
         </div>
@@ -222,12 +222,12 @@ export default function SignalGraphPage() {
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${severityColor(data.signal.severity)}`}>
             {SEVERITY_LABELS[data.signal.severity]}
           </span>
-          <span className="rounded-full bg-gov-blue-100 px-3 py-1 text-xs font-semibold text-gov-blue-700">
+          <span className="rounded-full bg-accent-subtle px-3 py-1 text-xs font-semibold text-accent">
             {Math.round(data.signal.confidence * 100)}% confiança
           </span>
           <Link
             href={`/signal/${data.signal.id}`}
-            className="rounded-lg border border-gov-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gov-gray-700 transition hover:bg-gov-gray-50"
+            className="rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle"
           >
             Voltar ao sinal
           </Link>
@@ -235,32 +235,32 @@ export default function SignalGraphPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-lg border border-gov-blue-200 bg-gov-blue-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gov-blue-700">Padrão detectado</p>
-          <p className="mt-1 text-sm text-gov-blue-900">{data.pattern_story.pattern_label}</p>
-          <p className="mt-2 text-xs text-gov-blue-800">{data.pattern_story.why_flagged}</p>
+        <div className="rounded-lg border border-accent/20 bg-accent-subtle p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">Padrão detectado</p>
+          <p className="mt-1 text-sm text-primary">{data.pattern_story.pattern_label}</p>
+          <p className="mt-2 text-xs text-accent-hover">{data.pattern_story.why_flagged}</p>
         </div>
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-600">Começou em</p>
-          <p className="mt-1 text-sm font-medium text-gov-gray-900">
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Começou em</p>
+          <p className="mt-1 text-sm font-medium text-primary">
             {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data não informada"}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {data.pattern_story.started_from_entities.map((entity) => (
-              <span key={entity.entity_id} className="rounded-full bg-gov-gray-100 px-2 py-0.5 text-xs text-gov-gray-700">
+              <span key={entity.entity_id} className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs text-secondary">
                 {entity.name}
               </span>
             ))}
           </div>
         </div>
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gov-gray-600">Fluxo observado</p>
-          <p className="mt-1 text-sm font-medium text-gov-gray-900">
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Fluxo observado</p>
+          <p className="mt-1 text-sm font-medium text-primary">
             {data.pattern_story.ended_at ? formatDate(data.pattern_story.ended_at) : "Data não informada"}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {data.pattern_story.flow_targets.map((entity) => (
-              <span key={entity.entity_id} className="rounded-full bg-gov-gray-100 px-2 py-0.5 text-xs text-gov-gray-700">
+              <span key={entity.entity_id} className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs text-secondary">
                 {entity.name}
               </span>
             ))}
@@ -269,10 +269,10 @@ export default function SignalGraphPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[2fr,1fr]">
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-3">
+        <div className="rounded-lg border border-border bg-surface-card p-3">
           <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-800">
-              <Network className="h-4 w-4 text-gov-blue-600" />
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Network className="h-4 w-4 text-accent" />
               Teia de conexões
             </h2>
             <div className="flex items-center gap-3">
@@ -281,31 +281,31 @@ export default function SignalGraphPage() {
                   onClick={() => setShowExpanded(!showExpanded)}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     showExpanded
-                      ? "bg-gov-blue-50 text-gov-blue-700 hover:bg-gov-blue-100"
-                      : "bg-gov-gray-100 text-gov-gray-500 hover:bg-gov-gray-200"
+                      ? "bg-accent-subtle text-accent hover:bg-accent-subtle"
+                      : "bg-surface-subtle text-muted hover:bg-surface-hover"
                   }`}
                 >
                   <Waypoints className="h-3.5 w-3.5" />
                   {showExpanded ? "Ocultar expansão" : "Mostrar expansão"}
                 </button>
               )}
-              <span className="text-xs text-gov-gray-500">
+              <span className="text-xs text-muted">
                 {data.overview.nodes.length} entidades
                 {expandedCount > 0 && (
-                  <span className={showExpanded ? "text-gov-blue-600" : "text-gov-gray-400"}>
+                  <span className={showExpanded ? "text-accent" : "text-muted"}>
                     {" "}+ {expandedCount} descobertas
                   </span>
                 )}
                 {" - "}
                 {data.overview.edges.length} ligações
                 {expansionEdgeCount > 0 && showExpanded && (
-                  <span className="text-gov-blue-600"> + {expansionEdgeCount} conexões</span>
+                  <span className="text-accent"> + {expansionEdgeCount} conexões</span>
                 )}
               </span>
             </div>
           </div>
           {hasGraph ? (
-            <div className="relative h-[520px] overflow-hidden rounded-lg border border-gov-gray-100">
+            <div className="relative h-[520px] overflow-hidden rounded-lg border border-border">
               <InvestigationCanvas
                 graphData={graphData}
                 degreeMap={degreeMap}
@@ -329,9 +329,9 @@ export default function SignalGraphPage() {
           )}
         </div>
 
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-800">
-            <Users className="h-4 w-4 text-gov-blue-600" />
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <Users className="h-4 w-4 text-accent" />
             Entidade selecionada
           </h2>
           {selectedEntity ? (
@@ -344,14 +344,14 @@ export default function SignalGraphPage() {
                     className="h-14 w-14 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gov-gray-100 text-xs text-gov-gray-500">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-surface-subtle text-xs text-muted">
                     sem foto
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-gov-gray-900">{selectedEntity.name}</p>
-                  <p className="text-xs text-gov-gray-500">{entityTypeLabel(selectedEntity.node_type)}</p>
-                  <p className="mt-1 text-xs text-gov-gray-500">
+                  <p className="text-sm font-semibold text-primary">{selectedEntity.name}</p>
+                  <p className="text-xs text-muted">{entityTypeLabel(selectedEntity.node_type)}</p>
+                  <p className="mt-1 text-xs text-muted">
                     Participa de {selectedEntity.event_count} evento(s) nesta teia
                   </p>
                 </div>
@@ -367,7 +367,7 @@ export default function SignalGraphPage() {
               {Object.keys(selectedEntity.identifiers).length > 0 && (
                 <div className="space-y-1">
                   {Object.entries(selectedEntity.identifiers).map(([key, value]) => (
-                    <p key={key} className="rounded bg-gov-gray-50 px-2 py-1 text-xs text-gov-gray-700">
+                    <p key={key} className="rounded bg-surface-base px-2 py-1 text-xs text-secondary">
                       <span className="font-semibold">{key.toUpperCase()}:</span> {value}
                     </p>
                   ))}
@@ -377,7 +377,7 @@ export default function SignalGraphPage() {
               {selectedEntity.roles_in_signal.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {selectedEntity.roles_in_signal.map((role) => (
-                    <span key={role.code} className="rounded-full bg-gov-blue-50 px-2 py-0.5 text-xs text-gov-blue-700">
+                    <span key={role.code} className="rounded-full bg-accent-subtle px-2 py-0.5 text-xs text-accent">
                       {role.label} ({role.code}) - {role.count_in_signal}
                     </span>
                   ))}
@@ -386,18 +386,18 @@ export default function SignalGraphPage() {
 
               {selectedEntity.cluster_entities && selectedEntity.cluster_entities.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-gov-gray-700">Outras aparições (mesmo cluster)</p>
+                  <p className="text-xs font-semibold text-secondary">Outras aparições (mesmo cluster)</p>
                   {selectedEntity.cluster_entities.map((ce) => {
                     const ceColors = CONNECTOR_COLORS[ce.source_connector ?? ""];
                     const ceLabel = CONNECTOR_LABELS[ce.source_connector ?? ""] ?? ce.source_connector;
                     return (
-                      <div key={ce.entity_id} className="flex items-center gap-2 rounded bg-gov-gray-50 px-2 py-1 text-xs">
+                      <div key={ce.entity_id} className="flex items-center gap-2 rounded bg-surface-base px-2 py-1 text-xs">
                         {ceLabel && (
-                          <span className={`inline-flex shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${ceColors?.bg ?? "bg-gov-gray-100"} ${ceColors?.text ?? "text-gov-gray-700"}`}>
+                          <span className={`inline-flex shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${ceColors?.bg ?? "bg-surface-subtle"} ${ceColors?.text ?? "text-secondary"}`}>
                             {ceLabel}
                           </span>
                         )}
-                        <span className="text-gov-gray-700 truncate">{ce.name}</span>
+                        <span className="text-secondary truncate">{ce.name}</span>
                       </div>
                     );
                   })}
@@ -406,18 +406,18 @@ export default function SignalGraphPage() {
 
               <Link
                 href={`/entity/${selectedEntity.entity_id}`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-gov-blue-700 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
               >
                 Ver perfil completo <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           ) : (
-            <p className="mt-3 text-xs text-gov-gray-500">
+            <p className="mt-3 text-xs text-muted">
               Clique em uma entidade na teia para ver detalhes completos.
             </p>
           )}
 
-          <div className="mt-4 rounded-lg border border-gov-gray-100 bg-gov-gray-50 p-3 text-xs text-gov-gray-600">
+          <div className="mt-4 rounded-lg border border-border bg-surface-base p-3 text-xs text-secondary">
             Cobertura: {data.diagnostics.events_loaded}/{data.diagnostics.events_total} eventos,
             {" "}
             {data.diagnostics.participants_total} participações, {data.diagnostics.unique_entities} entidades.
@@ -425,16 +425,16 @@ export default function SignalGraphPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg border border-gov-gray-200 bg-white p-4">
+      <div className="mt-6 rounded-lg border border-border bg-surface-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-gov-gray-800">
-            <FileText className="h-4 w-4 text-gov-blue-600" />
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <FileText className="h-4 w-4 text-accent" />
             Eventos e evidências ({filteredTimeline.length})
           </h2>
-          <label className="text-xs text-gov-gray-600">
+          <label className="text-xs text-secondary">
             Filtrar por papel:
             <select
-              className="ml-2 rounded border border-gov-gray-300 bg-white px-2 py-1 text-xs"
+              className="ml-2 rounded border border-border bg-surface-card px-2 py-1 text-xs"
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value)}
             >
@@ -449,8 +449,8 @@ export default function SignalGraphPage() {
         </div>
         <div className="mt-3 space-y-2">
           {filteredTimeline.map((event) => (
-            <div key={event.event_id} className="rounded-lg border border-gov-gray-100 bg-gov-gray-50 p-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-gov-gray-500">
+            <div key={event.event_id} className="rounded-lg border border-border bg-surface-base p-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
                   {event.occurred_at ? formatDate(event.occurred_at) : "Data não informada"}
@@ -460,27 +460,27 @@ export default function SignalGraphPage() {
                 )}
                 <span>{event.source_connector}/{event.source_id}</span>
               </div>
-              <p className="mt-1 text-sm font-medium text-gov-gray-900">{event.description}</p>
+              <p className="mt-1 text-sm font-medium text-primary">{event.description}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {event.participants.map((participant) => (
-                  <span key={`${event.event_id}-${participant.entity_id}-${participant.role}`} className="rounded-full bg-white px-2 py-0.5 text-xs text-gov-gray-700">
+                  <span key={`${event.event_id}-${participant.entity_id}-${participant.role}`} className="rounded-full bg-surface-card px-2 py-0.5 text-xs text-secondary">
                     {participant.name} - {participant.role_label} ({participant.role})
                   </span>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-gov-gray-600">
+              <p className="mt-2 text-xs text-secondary">
                 Porque sustenta a ligação: {event.evidence_reason}
               </p>
             </div>
           ))}
           {filteredTimeline.length === 0 && (
-            <p className="text-xs text-gov-gray-500">Nenhum evento para o filtro selecionado.</p>
+            <p className="text-xs text-muted">Nenhum evento para o filtro selecionado.</p>
           )}
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg border border-gov-gray-100 bg-gov-gray-50 p-3">
-        <p className="text-xs text-gov-gray-500">
+      <div className="mt-6 rounded-lg border border-border bg-surface-base p-3">
+        <p className="text-xs text-muted">
           <strong>Aviso legal:</strong> Esta teia representa hipótese investigativa com base em cruzamento automático de dados públicos.
         </p>
       </div>

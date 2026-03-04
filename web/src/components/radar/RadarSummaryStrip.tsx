@@ -23,7 +23,7 @@ export function RadarSummaryStrip({
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={`radar-summary-skeleton-${i}`}
-            className="h-24 animate-pulse rounded-xl border border-gov-gray-200 bg-white"
+            className="h-24 animate-pulse rounded-xl border border-border bg-surface-card"
           />
         ))}
       </div>
@@ -35,45 +35,45 @@ export function RadarSummaryStrip({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
               Total de sinais
             </p>
-            <Activity className="h-4 w-4 text-gov-blue-600" />
+            <Activity className="h-4 w-4 text-accent" />
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">
+          <p className="mt-2 text-2xl font-semibold text-primary">
             {summary.totals.signals}
           </p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
               Total de casos
             </p>
-            <BriefcaseBusiness className="h-4 w-4 text-gov-blue-600" />
+            <BriefcaseBusiness className="h-4 w-4 text-accent" />
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">
+          <p className="mt-2 text-2xl font-semibold text-primary">
             {summary.totals.cases}
           </p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
               Filtros ativos
             </p>
-            <Filter className="h-4 w-4 text-gov-blue-600" />
+            <Filter className="h-4 w-4 text-accent" />
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">
+          <p className="mt-2 text-2xl font-semibold text-primary">
             {summary.active_filters_count}
           </p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium uppercase tracking-wide text-gov-gray-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
               Tipologias detectadas
             </p>
-            <Info className="h-4 w-4 text-gov-blue-600" />
+            <Info className="h-4 w-4 text-accent" />
           </div>
-          <p className="mt-2 text-2xl font-semibold text-gov-gray-900">
+          <p className="mt-2 text-2xl font-semibold text-primary">
             {summary.typology_counts.length}
           </p>
         </div>
@@ -94,13 +94,13 @@ export function RadarSummaryStrip({
               key={severity}
               type="button"
               onClick={() => onSeverityClick(severity)}
-              className={`rounded-xl border p-3.5 text-left transition ${
+              className={`rounded-xl border p-3 text-left transition ${
                 isActive
-                  ? "border-gov-blue-300 bg-gov-blue-50 shadow-sm"
-                  : "border-gov-gray-200/90 bg-white/90 hover:border-gov-blue-200 hover:shadow-sm"
+                  ? "border-accent bg-accent-subtle"
+                  : "border-border bg-surface-card hover:border-accent/20"
               }`}
             >
-              <p className="text-sm font-semibold uppercase tracking-wide text-gov-gray-500">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                 {SEVERITY_LABELS[severity]}
               </p>
               <p className={`mt-1 text-xl font-semibold ${severityTone}`}>

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/Header";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AppSidebar } from "@/components/AppSidebar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,11 +29,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen flex flex-col bg-gov-gray-50`}
+        className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen bg-surface-base`}
       >
-        <Header />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
+        <div className="flex h-screen overflow-hidden">
+          <AppSidebar />
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </div>
       </body>
     </html>
   );

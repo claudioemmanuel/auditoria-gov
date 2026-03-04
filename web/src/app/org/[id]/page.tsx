@@ -91,56 +91,56 @@ export default function OrgDetailPage() {
       />
 
       <div className="mt-4 flex items-start gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gov-blue-100">
-          <Landmark className="h-6 w-6 text-gov-blue-700" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-subtle">
+          <Landmark className="h-6 w-6 text-accent" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gov-gray-900">{org.name}</h1>
-          <p className="mt-0.5 text-sm text-gov-gray-500">Organização</p>
+          <h1 className="text-2xl font-bold text-primary">{org.name}</h1>
+          <p className="mt-0.5 text-sm text-muted">Organização</p>
         </div>
       </div>
 
       {/* Summary stats */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4 text-center">
-          <FileText className="mx-auto h-5 w-5 text-gov-blue-600" />
-          <p className="mt-1 text-lg font-bold text-gov-gray-900">{org.total_events}</p>
-          <p className="text-xs text-gov-gray-500">Eventos</p>
+        <div className="rounded-lg border border-border bg-surface-card p-4 text-center">
+          <FileText className="mx-auto h-5 w-5 text-accent" />
+          <p className="mt-1 text-lg font-bold text-primary">{org.total_events}</p>
+          <p className="text-xs text-muted">Eventos</p>
         </div>
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4 text-center">
+        <div className="rounded-lg border border-border bg-surface-card p-4 text-center">
           <AlertTriangle className="mx-auto h-5 w-5 text-orange-500" />
-          <p className="mt-1 text-lg font-bold text-gov-gray-900">{org.total_signals}</p>
-          <p className="text-xs text-gov-gray-500">Sinais</p>
+          <p className="mt-1 text-lg font-bold text-primary">{org.total_signals}</p>
+          <p className="text-xs text-muted">Sinais</p>
         </div>
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4 text-center">
-          <BarChart3 className="mx-auto h-5 w-5 text-gov-blue-600" />
-          <p className="mt-1 text-lg font-bold text-gov-gray-900">
+        <div className="rounded-lg border border-border bg-surface-card p-4 text-center">
+          <BarChart3 className="mx-auto h-5 w-5 text-accent" />
+          <p className="mt-1 text-lg font-bold text-primary">
             {org.total_contracts_value > 0 ? formatBRL(org.total_contracts_value) : "—"}
           </p>
-          <p className="text-xs text-gov-gray-500">Valor Contratos</p>
+          <p className="text-xs text-muted">Valor Contratos</p>
         </div>
-        <div className="rounded-lg border border-gov-gray-200 bg-white p-4 text-center">
-          <ShieldCheck className="mx-auto h-5 w-5 text-gov-blue-600" />
-          <p className="mt-1 text-lg font-bold text-gov-gray-900">
+        <div className="rounded-lg border border-border bg-surface-card p-4 text-center">
+          <ShieldCheck className="mx-auto h-5 w-5 text-accent" />
+          <p className="mt-1 text-lg font-bold text-primary">
             {org.risk_score != null ? org.risk_score.toFixed(0) : "—"}
           </p>
-          <p className="text-xs text-gov-gray-500">Score de Risco</p>
+          <p className="text-xs text-muted">Score de Risco</p>
         </div>
       </div>
 
       {Object.keys(org.identifiers).length > 0 && (
         <div className="mt-6">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
-            <Fingerprint className="h-5 w-5 text-gov-blue-600" />
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+            <Fingerprint className="h-5 w-5 text-accent" />
             Identificadores
           </h2>
           <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {Object.entries(org.identifiers).map(([key, value]) => (
-              <div key={key} className="rounded-lg bg-gov-gray-100 p-3">
-                <dt className="text-xs font-medium uppercase text-gov-gray-500">
+              <div key={key} className="rounded-lg bg-surface-subtle p-3">
+                <dt className="text-xs font-medium uppercase text-muted">
                   {key}
                 </dt>
-                <dd className="mt-0.5 font-mono text-sm text-gov-gray-900">{value}</dd>
+                <dd className="mt-0.5 font-mono text-sm text-primary">{value}</dd>
               </div>
             ))}
           </dl>
@@ -150,8 +150,8 @@ export default function OrgDetailPage() {
       {/* Severity distribution */}
       {org.total_signals > 0 && org.severity_distribution && (
         <div className="mt-6">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
-            <ShieldCheck className="h-5 w-5 text-gov-blue-600" />
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+            <ShieldCheck className="h-5 w-5 text-accent" />
             Distribuição de Sinais por Severidade
           </h2>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -173,11 +173,11 @@ export default function OrgDetailPage() {
 
       {/* Graph */}
       <div className="mt-6">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-gov-gray-900">
-          <GitBranch className="h-5 w-5 text-gov-blue-600" />
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+          <GitBranch className="h-5 w-5 text-accent" />
           Grafo de Relacionamentos
         </h2>
-        <div className="mt-2 overflow-hidden rounded-lg border border-gov-gray-200 bg-white">
+        <div className="mt-2 overflow-hidden rounded-lg border border-border bg-surface-card">
           <GraphView entityId={org.id} />
         </div>
       </div>
