@@ -26,10 +26,17 @@ import { RadarSignalsList } from "@/components/radar/RadarSignalsList";
 import { RadarCasesList } from "@/components/radar/RadarCasesList";
 import { RadarPreviewDrawer } from "@/components/radar/RadarPreviewDrawer";
 import { RadarCoveragePanel } from "@/components/radar/RadarCoveragePanel";
-import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
-import { AlertTriangle, ArrowUpDown, ChevronLeft, ChevronRight, Search, ShieldCheck } from "lucide-react";
-import { cn, formatNumber } from "@/lib/utils";
+import {
+  AlertTriangle,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  ShieldCheck,
+  Radar,
+} from "lucide-react";
+import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 
@@ -37,7 +44,6 @@ function RadarPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Read filter state from URL
   const view = (searchParams.get("view") as RadarViewMode) || "signals";
   const typology = searchParams.get("typology") || "";
   const severity = searchParams.get("severity") || "";
@@ -54,11 +60,7 @@ function RadarPageInner() {
     (updates: Record<string, string>) => {
       const params = new URLSearchParams(searchParams.toString());
       for (const [key, value] of Object.entries(updates)) {
-        if (value) {
-          params.set(key, value);
-        } else {
-          params.delete(key);
-        }
+        if (value) { params.set(key, value); } else { params.delete(key); }
       }
       router.replace(`?${params.toString()}`, { scroll: false });
     },
@@ -75,15 +77,10 @@ function RadarPageInner() {
   const setSphere = (v: string) => updateParam({ sphere: v, offset: "" });
   const setOffset = (v: number) => updateParam({ offset: v > 0 ? String(v) : "" });
 
-  const clearAllFilters = () => {
-    router.replace("?", { scroll: false });
-    setSearch("");
-  };
+  const clearAllFilters = () => { router.replace("?", { scroll: false }); setSearch(""); };
 
-  // Data state
   const [summary, setSummary] = useState<RadarV2SummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
-
   const [signals, setSignals] = useState<RadarV2SignalItem[]>([]);
   const [cases, setCases] = useState<RadarV2CaseItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -120,7 +117,6 @@ function RadarPageInner() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-
     const commonParams = {
       offset: offsetParam,
       limit: PAGE_SIZE,
@@ -131,34 +127,22 @@ function RadarPageInner() {
       corruption_type: corruptionType || undefined,
       sphere: sphere || undefined,
     };
-
-    const task =
-      view === "signals"
-        ? getRadarV2Signals({ ...commonParams, sort })
-        : getRadarV2Cases(commonParams);
-
+    const task = view === "signals"
+      ? getRadarV2Signals({ ...commonParams, sort })
+      : getRadarV2Cases(commonParams);
     task
       .then((data) => {
         setTotal(data.total);
-        if (view === "signals") {
-          setSignals(data.items as RadarV2SignalItem[]);
-          setCases([]);
-        } else {
-          setCases(data.items as RadarV2CaseItem[]);
-          setSignals([]);
-        }
+        if (view === "signals") { setSignals(data.items as RadarV2SignalItem[]); setCases([]); }
+        else { setCases(data.items as RadarV2CaseItem[]); setSignals([]); }
       })
       .catch(() => setError("Erro ao carregar dados do Radar"))
       .finally(() => setLoading(false));
   }, [view, offsetParam, typology, severity, sort, periodFrom, periodTo, corruptionType, sphere]);
 
   const openSignalPreview = (signalId: string) => {
-    setPreviewOpen(true);
-    setPreviewType("signal");
-    setPreviewLoading(true);
-    setPreviewError(null);
-    setSignalPreview(null);
-    setCasePreview(null);
+    setPreviewOpen(true); setPreviewType("signal"); setPreviewLoading(true);
+    setPreviewError(null); setSignalPreview(null); setCasePreview(null);
     getRadarV2SignalPreview(signalId, { limit: 10 })
       .then(setSignalPreview)
       .catch(() => setPreviewError("Não foi possível carregar a prévia do sinal"))
@@ -166,12 +150,8 @@ function RadarPageInner() {
   };
 
   const openCasePreview = (caseId: string) => {
-    setPreviewOpen(true);
-    setPreviewType("case");
-    setPreviewLoading(true);
-    setPreviewError(null);
-    setSignalPreview(null);
-    setCasePreview(null);
+    setPreviewOpen(true); setPreviewType("case"); setPreviewLoading(true);
+    setPreviewError(null); setSignalPreview(null); setCasePreview(null);
     getRadarV2CasePreview(caseId)
       .then(setCasePreview)
       .catch(() => setPreviewError("Não foi possível carregar a prévia do caso"))
@@ -181,8 +161,7 @@ function RadarPageInner() {
   const openCoverage = () => {
     setCoverageOpen(true);
     if (coverage || coverageLoading) return;
-    setCoverageLoading(true);
-    setCoverageError(null);
+    setCoverageLoading(true); setCoverageError(null);
     getRadarV2Coverage()
       .then(setCoverage)
       .catch(() => setCoverageError("Não foi possível carregar a cobertura analítica"))
@@ -194,28 +173,46 @@ function RadarPageInner() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offsetParam / PAGE_SIZE) + 1;
 
-  return (
-    <div className="page-wrap mx-auto max-w-[1280px]">
-      <PageHeader
-        title="Radar de Riscos"
-        subtitle="Monitoramento de sinais e casos de risco em tempo real"
-        actions={
-          <div className="flex items-center gap-3">
-            {!summaryLoading && summary && (
-              <span className="font-mono text-sm font-semibold tabular-nums text-secondary">
-                {formatNumber(summary.totals.signals)} sinais
-              </span>
-            )}
-            <Button variant="secondary" size="sm" onClick={openCoverage}>
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Confiabilidade
-            </Button>
-          </div>
-        }
-      />
+  // Active filter count
+  const activeFilters = useMemo(() =>
+    [typology, severity, periodFrom, periodTo, corruptionType, sphere].filter(Boolean).length,
+    [typology, severity, periodFrom, periodTo, corruptionType, sphere]
+  );
 
-      {/* 2-column body */}
-      <div className="flex min-h-0 flex-col gap-4 p-4 lg:flex-row lg:items-start lg:gap-6 lg:p-6">
+  return (
+    <div className="flex min-h-screen flex-col">
+
+      {/* ── Page header ────────────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card">
+        <div className="mx-auto max-w-[1280px] px-4 py-5 sm:px-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
+                <Radar className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h1 className="font-display text-xl font-bold text-primary">Radar de Riscos</h1>
+                <p className="text-xs text-muted">Monitoramento de sinais e casos de risco em tempo real</p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              {!summaryLoading && summary && (
+                <span className="hidden font-mono text-sm font-semibold tabular-nums text-secondary sm:block">
+                  {formatNumber(summary.totals.signals)} sinais
+                </span>
+              )}
+              <Button variant="secondary" size="sm" onClick={openCoverage}>
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Confiabilidade
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Body: filter + content ─────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row lg:items-start lg:gap-6 lg:p-6 mx-auto w-full max-w-[1280px]">
+
         {/* Left: filter panel */}
         <RadarFilterPanel
           view={view}
@@ -236,15 +233,18 @@ function RadarPageInner() {
 
         {/* Right: main content */}
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {/* Tabs + search + sort bar */}
+
+          {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-3">
-            <RadarViewTabs
-              value={view}
-              onChange={(next) => setView(next)}
-            />
+            <RadarViewTabs value={view} onChange={(next) => setView(next)} />
+
+            {activeFilters > 0 && (
+              <span className="rounded-full bg-accent text-white px-2 py-0.5 text-[10px] font-bold">
+                {activeFilters} filtro{activeFilters > 1 ? "s" : ""}
+              </span>
+            )}
 
             <div className="ml-auto flex items-center gap-2">
-              {/* Search input */}
               <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
                 <Search className="h-3.5 w-3.5 flex-shrink-0 text-muted" />
                 <input
@@ -252,11 +252,10 @@ function RadarPageInner() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar..."
-                  className="w-40 bg-transparent text-xs text-primary outline-none placeholder:text-placeholder"
+                  className="w-36 bg-transparent text-xs text-primary outline-none placeholder:text-placeholder"
                 />
               </label>
 
-              {/* Sort — only for signals */}
               {view === "signals" && (
                 <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
                   <ArrowUpDown className="h-3.5 w-3.5 flex-shrink-0 text-muted" />
@@ -273,7 +272,7 @@ function RadarPageInner() {
             </div>
           </div>
 
-          {/* Table area */}
+          {/* Content area */}
           {loading ? (
             <TableSkeleton rows={8} />
           ) : error ? (
@@ -303,8 +302,7 @@ function RadarPageInner() {
               </p>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="secondary"
-                  size="sm"
+                  variant="secondary" size="sm"
                   disabled={offsetParam === 0}
                   onClick={() => setOffset(Math.max(0, offsetParam - PAGE_SIZE))}
                 >
@@ -312,11 +310,11 @@ function RadarPageInner() {
                   Anterior
                 </Button>
                 <span className="text-xs text-muted">
-                  Pg <span className="font-mono tabular-nums">{currentPage}</span>/<span className="font-mono tabular-nums">{totalPages}</span>
+                  Pg <span className="font-mono tabular-nums">{currentPage}</span>
+                  /<span className="font-mono tabular-nums">{totalPages}</span>
                 </span>
                 <Button
-                  variant="secondary"
-                  size="sm"
+                  variant="secondary" size="sm"
                   disabled={offsetParam + PAGE_SIZE >= total}
                   onClick={() => setOffset(offsetParam + PAGE_SIZE)}
                 >
@@ -337,11 +335,8 @@ function RadarPageInner() {
         signalPreview={signalPreview}
         casePreview={casePreview}
         onClose={() => {
-          setPreviewOpen(false);
-          setPreviewType(null);
-          setPreviewError(null);
-          setSignalPreview(null);
-          setCasePreview(null);
+          setPreviewOpen(false); setPreviewType(null);
+          setPreviewError(null); setSignalPreview(null); setCasePreview(null);
         }}
       />
 

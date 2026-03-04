@@ -7,7 +7,6 @@ import {
   getCoverageV2Sources,
   getCoverageV2Summary,
 } from "@/lib/api";
-import { PageHeader } from "@/components/PageHeader";
 import { CoverageAnalyticsPanel } from "@/components/coverage/CoverageAnalyticsPanel";
 import { CoverageFilterBar, type CoverageFilterState } from "@/components/coverage/CoverageFilterBar";
 import { CoveragePipelinePanel } from "@/components/coverage/CoveragePipelinePanel";
@@ -20,6 +19,7 @@ import type {
   CoverageV2SourcesResponse,
   CoverageV2SummaryResponse,
 } from "@/lib/types";
+import { Database, Clock } from "lucide-react";
 
 const PAGE_LIMIT = 12;
 const DEFAULT_FILTERS: CoverageFilterState = {
@@ -31,17 +31,8 @@ const DEFAULT_FILTERS: CoverageFilterState = {
 };
 
 const DOMAIN_OPTIONS = [
-  "despesa",
-  "contrato",
-  "compra",
-  "licitacao",
-  "beneficio",
-  "remuneracao",
-  "sancao",
-  "politico",
-  "empresa",
-  "pessoa",
-  "juridico",
+  "despesa", "contrato", "compra", "licitacao", "beneficio",
+  "remuneracao", "sancao", "politico", "empresa", "pessoa", "juridico",
 ];
 
 export default function CoveragePage() {
@@ -71,20 +62,10 @@ export default function CoveragePage() {
     setSummaryLoading(true);
     setSummaryError(null);
     getCoverageV2Summary()
-      .then((payload) => {
-        if (!active) return;
-        setSummary(payload);
-      })
-      .catch(() => {
-        if (!active) return;
-        setSummaryError("Não foi possível carregar o resumo da cobertura.");
-      })
-      .finally(() => {
-        if (active) setSummaryLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+      .then((p) => { if (active) setSummary(p); })
+      .catch(() => { if (active) setSummaryError("Não foi possível carregar o resumo da cobertura."); })
+      .finally(() => { if (active) setSummaryLoading(false); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -92,52 +73,29 @@ export default function CoveragePage() {
     setSourcesLoading(true);
     setSourcesError(null);
     getCoverageV2Sources({
-      offset,
-      limit: PAGE_LIMIT,
+      offset, limit: PAGE_LIMIT,
       status: filters.status || undefined,
       domain: filters.domain || undefined,
       enabled_only: filters.enabledOnly,
       q: filters.q.trim() || undefined,
       sort: filters.sort,
     })
-      .then((payload) => {
-        if (!active) return;
-        setSources(payload);
-      })
-      .catch(() => {
-        if (!active) return;
-        setSourcesError("Falha de rede ao carregar fontes. Verifique a API e tente novamente.");
-      })
-      .finally(() => {
-        if (active) setSourcesLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+      .then((p) => { if (active) setSources(p); })
+      .catch(() => { if (active) setSourcesError("Falha de rede ao carregar fontes. Verifique a API e tente novamente."); })
+      .finally(() => { if (active) setSourcesLoading(false); });
+    return () => { active = false; };
   }, [filters, offset]);
 
   useEffect(() => {
-    if (!analyticsOpen || analytics || analyticsLoading) {
-      return;
-    }
+    if (!analyticsOpen || analytics || analyticsLoading) return;
     let active = true;
     setAnalyticsLoading(true);
     setAnalyticsError(null);
     getCoverageV2Analytics()
-      .then((payload) => {
-        if (!active) return;
-        setAnalytics(payload);
-      })
-      .catch(() => {
-        if (!active) return;
-        setAnalyticsError("Não foi possível carregar a cobertura analítica.");
-      })
-      .finally(() => {
-        if (active) setAnalyticsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+      .then((p) => { if (active) setAnalytics(p); })
+      .catch(() => { if (active) setAnalyticsError("Não foi possível carregar a cobertura analítica."); })
+      .finally(() => { if (active) setAnalyticsLoading(false); });
+    return () => { active = false; };
   }, [analyticsOpen, analytics, analyticsLoading]);
 
   const domains = useMemo(() => DOMAIN_OPTIONS, []);
@@ -152,51 +110,62 @@ export default function CoveragePage() {
     setPreviewLoading(true);
     setPreviewError(null);
     setPreviewData(null);
-
     getCoverageV2SourcePreview(connector, { runs_limit: 12 })
-      .then((payload) => {
-        setPreviewData(payload);
-      })
-      .catch(() => {
-        setPreviewError("Não foi possível carregar o diagnóstico detalhado desta fonte.");
-      })
-      .finally(() => {
-        setPreviewLoading(false);
-      });
+      .then(setPreviewData)
+      .catch(() => setPreviewError("Não foi possível carregar o diagnóstico detalhado desta fonte."))
+      .finally(() => setPreviewLoading(false));
   }
 
   return (
-    <div>
-      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
-        <PageHeader
-          title="Cobertura de Dados"
-          subtitle="Visão investigativa da saúde do pipeline e da qualidade operacional por fonte."
-          actions={
-            <div className="rounded-lg border border-border bg-surface-card px-3 py-2 text-right">
-              <p className="font-display text-xs font-medium uppercase tracking-wide text-muted">Snapshot</p>
-              <p className="mt-1 font-mono tabular-nums text-sm font-medium text-primary">
-                {summary?.snapshot_at ? new Date(summary.snapshot_at).toLocaleString("pt-BR") : "Aguardando dados"}
+    <div className="min-h-screen">
+
+      {/* ── Page header ────────────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card">
+        <div className="mx-auto max-w-[1280px] px-4 py-5 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
+                <Database className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h1 className="font-display text-xl font-bold text-primary">Cobertura de Dados</h1>
+                <p className="text-xs text-muted">Saúde do pipeline e qualidade operacional por fonte</p>
+              </div>
+            </div>
+
+            {/* Snapshot timestamp */}
+            <div className="shrink-0 rounded-lg border border-border bg-surface-base px-3 py-2 text-right">
+              <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+                <Clock className="h-3 w-3" />
+                Snapshot
+              </p>
+              <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
+                {summary?.snapshot_at
+                  ? new Date(summary.snapshot_at).toLocaleString("pt-BR")
+                  : "Aguardando dados"}
               </p>
             </div>
-          }
-        />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Body ───────────────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 space-y-6">
 
         {summaryError && (
-          <div className="mt-3 rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error">
+          <div className="rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error">
             {summaryError}
           </div>
         )}
 
-        {/* Summary KPI strip */}
+        {/* KPI strip */}
         <CoverageSummaryStrip summary={summary} loading={summaryLoading} />
 
-        {/* Pipeline step indicator */}
-        <div className="mt-6">
-          <CoveragePipelinePanel summary={summary} loading={summaryLoading} />
-        </div>
+        {/* Pipeline steps */}
+        <CoveragePipelinePanel summary={summary} loading={summaryLoading} />
 
-        {/* Sources table */}
-        <div className="mt-6 space-y-3">
+        {/* Sources */}
+        <div className="space-y-3">
           <CoverageFilterBar value={filters} domains={domains} onChange={handleFiltersChange} />
 
           {sourcesError && (
@@ -216,8 +185,8 @@ export default function CoveragePage() {
           />
         </div>
 
-        {/* Typology analytics (collapsible) */}
-        <div className="mt-6">
+        {/* Analytics panel */}
+        <div>
           <CoverageAnalyticsPanel
             open={analyticsOpen}
             loading={analyticsLoading}

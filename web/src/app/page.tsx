@@ -1,119 +1,181 @@
 import Link from "next/link";
 import { DATA_SOURCES, TYPOLOGY_LABELS } from "@/lib/constants";
-import { Radar, Database, BookOpen, ArrowRight, Shield, Activity } from "lucide-react";
-import { PageHeader } from "@/components/PageHeader";
+import {
+  Radar,
+  Database,
+  BookOpen,
+  Activity,
+  Shield,
+  ArrowRight,
+  GitBranch,
+  Layers,
+  Target,
+  Scale,
+} from "lucide-react";
 
 export default function HomePage() {
   const typologyCount = Object.keys(TYPOLOGY_LABELS).length;
   const sourceCount = DATA_SOURCES.length;
 
   return (
-    <div>
-      <PageHeader
-        title="Inteligencia Investigativa"
-        subtitle="Triagem automatizada de riscos em dados publicos federais. Sinais deterministicos, evidencias rastreáveis, investigacoes cidadas."
-      />
+    <div className="min-h-screen flex flex-col">
 
-      <div className="page-wrap pt-6">
-        {/* KPIs operacionais */}
-        <section className="mb-8">
-          <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-muted">
-            Visao Operacional
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="surface-card px-4 py-3">
-              <p className="font-mono tabular-nums text-2xl font-bold text-primary">{typologyCount}</p>
-              <p className="text-xs text-secondary">Tipologias ativas</p>
+      {/* ── Hero / System Identity ─────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
+              <Shield className="h-6 w-6 text-accent" />
             </div>
-            <div className="surface-card px-4 py-3">
-              <p className="font-mono tabular-nums text-2xl font-bold text-primary">{sourceCount}</p>
-              <p className="text-xs text-secondary">Fontes publicas</p>
-            </div>
-            <div className="surface-card px-4 py-3">
-              <p className="font-mono tabular-nums text-2xl font-bold text-primary">3</p>
-              <p className="text-xs text-secondary">Eixos de score</p>
-            </div>
-            <div className="surface-card px-4 py-3">
-              <p className="font-mono tabular-nums text-2xl font-bold text-primary">5</p>
-              <p className="text-xs text-secondary">Etapas do pipeline</p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+                  AuditorIA
+                </h1>
+                <span className="rounded-md border border-border bg-surface-base px-2 py-0.5 font-mono text-xs font-medium text-muted">
+                  GOV · v2
+                </span>
+                <span className="rounded-md border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-xs font-semibold text-success">
+                  ATIVO
+                </span>
+              </div>
+              <p className="mt-1.5 max-w-2xl text-sm text-secondary leading-relaxed">
+                Sistema de inteligência investigativa sobre dados públicos federais.
+                Sinais determinísticos, evidências rastreáveis, hipóteses auditáveis.
+              </p>
             </div>
           </div>
-        </section>
 
-        {/* Atalhos investigativos */}
-        <section className="mb-8">
-          <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-muted">
-            Atalhos Investigativos
-          </h2>
+          {/* Operational metrics strip */}
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { icon: Target, value: typologyCount, label: "Tipologias ativas", mono: true },
+              { icon: Database, value: sourceCount, label: "Fontes públicas", mono: true },
+              { icon: Layers, value: "3", label: "Eixos de score", mono: true },
+              { icon: GitBranch, value: "5", label: "Etapas do pipeline", mono: true },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center gap-3 rounded-lg border border-border bg-surface-base px-3 py-2.5"
+              >
+                <item.icon className="h-4 w-4 shrink-0 text-accent" />
+                <div>
+                  <p className="font-mono tabular-nums text-lg font-bold text-primary leading-none">
+                    {item.value}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted">{item.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mission navigation ─────────────────────────────────────── */}
+      <div className="flex-1 mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 space-y-8">
+
+        <section>
+          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">
+            Central de Investigação
+          </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               {
                 href: "/radar",
-                title: "Central de Riscos",
-                desc: "Sinais de risco classificados por tipologia, severidade e periodo. Ponto de entrada para investigacoes.",
                 icon: Radar,
+                title: "Radar de Riscos",
+                desc: "Sinais e casos classificados por tipologia, severidade e período. Ponto de entrada para investigações cidadãs.",
+                tag: "PRINCIPAL",
+                tagClass: "bg-accent text-white",
               },
               {
                 href: "/coverage",
-                title: "Cobertura de Dados",
-                desc: "Status operacional das fontes e conectores. Monitoramento de ingestao e disponibilidade.",
                 icon: Database,
+                title: "Cobertura de Dados",
+                desc: "Estado operacional das fontes e conectores. Monitoramento do pipeline de ingestão e qualidade dos dados.",
+                tag: "OPERACIONAL",
+                tagClass: "border border-border text-muted",
               },
               {
                 href: "/methodology",
-                title: "Metodologia",
-                desc: "Fundamentacao tecnica e legal das tipologias, fatores de risco e criterios de classificacao.",
                 icon: BookOpen,
+                title: "Metodologia",
+                desc: "Fundamentos técnicos e legais das tipologias, fatores de risco e critérios de classificação de evidência.",
+                tag: "REFERÊNCIA",
+                tagClass: "border border-border text-muted",
               },
             ].map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="surface-card group flex items-start gap-3 p-4 transition-colors duration-120 hover:border-accent/30"
+                className="group relative flex flex-col gap-3 rounded-xl border border-border bg-surface-card p-5 transition-all hover:border-accent/40 hover:bg-accent-subtle/10"
               >
-                <div className="rounded-[10px] bg-accent-subtle p-2">
-                  <item.icon className="h-4 w-4 text-accent" />
+                <div className="flex items-start justify-between">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
+                    <item.icon className="h-4 w-4 text-accent" />
+                  </div>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${item.tagClass}`}>
+                    {item.tag}
+                  </span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-display text-sm font-semibold text-primary">{item.title}</h3>
-                  <p className="mt-0.5 text-xs leading-relaxed text-secondary">{item.desc}</p>
+                <div>
+                  <h2 className="font-display text-sm font-bold text-primary">{item.title}</h2>
+                  <p className="mt-1 text-xs text-secondary leading-relaxed">{item.desc}</p>
                 </div>
-                <ArrowRight className="mt-1 h-3.5 w-3.5 shrink-0 text-muted transition-colors group-hover:text-accent" />
+                <div className="flex items-center gap-1 text-xs font-medium text-muted transition-colors group-hover:text-accent">
+                  Acessar
+                  <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                </div>
               </Link>
             ))}
           </div>
         </section>
 
-        {/* Acesso rapido */}
-        <section className="mb-8 flex flex-wrap gap-2">
-          <Link
-            href="/api-health"
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition-colors hover:bg-surface-subtle hover:text-primary"
-          >
-            <Activity className="h-3.5 w-3.5" />
-            Saude da API
-          </Link>
-          <Link
-            href="/methodology"
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition-colors hover:bg-surface-subtle hover:text-primary"
-          >
-            <Shield className="h-3.5 w-3.5" />
-            Transparencia e Conformidade
-          </Link>
+        {/* ── System links ─────────────────────────────────────────── */}
+        <section>
+          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">
+            Sistema & Conformidade
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/api-health"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Saúde da API
+            </Link>
+            <Link
+              href="/methodology#base-legal"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
+            >
+              <Scale className="h-3.5 w-3.5" />
+              Base Legal
+            </Link>
+            <Link
+              href="/methodology#escopo"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
+            >
+              <Shield className="h-3.5 w-3.5" />
+              Escopo & LGPD
+            </Link>
+          </div>
         </section>
 
-        {/* Aviso legal */}
-        <footer className="rounded-[10px] border border-amber/20 bg-amber-subtle px-4 py-3">
-          <p className="text-xs leading-relaxed text-secondary">
-            <strong className="font-semibold text-primary">Aviso legal:</strong> Esta plataforma e um
-            instrumento de triagem para controle social e auditoria cidada. Os resultados representam
-            hipoteses investigaveis baseadas em dados publicos e{" "}
-            <strong className="font-semibold">
-              nao configuram acusacao, prova definitiva ou juizo de culpa
-            </strong>
-            . Tratamento de dados conforme LGPD (Lei 13.709/2018), art. 7, VII — execucao de politicas
-            publicas. Dados pessoais sao anonimizados conforme art. 12.
-          </p>
+        {/* ── Legal footer ─────────────────────────────────────────── */}
+        <footer className="rounded-xl border border-border bg-surface-base p-4">
+          <div className="flex items-start gap-3">
+            <Scale className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+            <p className="text-xs text-muted leading-relaxed">
+              <strong className="font-semibold text-secondary">Aviso legal:</strong>{" "}
+              Esta plataforma é um instrumento de triagem para controle social e auditoria cidadã.
+              Os resultados representam hipóteses investigáveis baseadas em dados públicos e{" "}
+              <strong className="font-medium text-secondary">
+                não configuram acusação, prova definitiva ou juízo de culpa
+              </strong>
+              . Tratamento de dados conforme LGPD (Lei 13.709/2018), art. 7, VII.
+              Dados pessoais são anonimizados conforme art. 12.
+            </p>
+          </div>
         </footer>
       </div>
     </div>

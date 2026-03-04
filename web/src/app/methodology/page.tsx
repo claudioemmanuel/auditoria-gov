@@ -1,6 +1,8 @@
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
-import { PageHeader } from "@/components/PageHeader";
+import { DetailPageLayout } from "@/components/DetailPageLayout";
+import { DetailHeader } from "@/components/DetailHeader";
 import { TableOfContents } from "./TableOfContents";
+import { BookOpen, CheckCircle2 } from "lucide-react";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
 
@@ -46,8 +48,6 @@ const TYPOLOGY_SOURCES: Record<string, string[]> = {
   T18: ["Portal da Transparencia"],
 };
 
-// ── Static content ─────────────────────────────────────────────────────────────
-
 const PRINCIPLES = [
   {
     title: "Sinal de Risco != Prova",
@@ -68,31 +68,11 @@ const PRINCIPLES = [
 ];
 
 const PIPELINE_STEPS = [
-  {
-    n: 1,
-    title: "Ingestao e Catalogacao",
-    desc: "Coleta automatica em fontes publicas com metadados de recencia e status por job.",
-  },
-  {
-    n: 2,
-    title: "Normalizacao Canonica",
-    desc: "Padronizacao de contratos, participantes, valores, periodos e identificadores.",
-  },
-  {
-    n: 3,
-    title: "Resolucao de Entidades",
-    desc: "Matching deterministico e probabilistico para consolidar pessoas, empresas e orgaos.",
-  },
-  {
-    n: 4,
-    title: "Baselines e Scores",
-    desc: "Calculo de distribuicoes historicas, percentis e thresholds com fallback de escopo.",
-  },
-  {
-    n: 5,
-    title: "Deteccao e Explicacao",
-    desc: "Aplicacao das tipologias com registro de execucao (candidatos, criados, deduplicados, bloqueados), classificacao de risco e producao de explicacao interpretavel.",
-  },
+  { n: 1, title: "Ingestao e Catalogacao", desc: "Coleta automatica em fontes publicas com metadados de recencia e status por job." },
+  { n: 2, title: "Normalizacao Canonica", desc: "Padronizacao de contratos, participantes, valores, periodos e identificadores." },
+  { n: 3, title: "Resolucao de Entidades", desc: "Matching deterministico e probabilistico para consolidar pessoas, empresas e orgaos." },
+  { n: 4, title: "Baselines e Scores", desc: "Calculo de distribuicoes historicas, percentis e thresholds com fallback de escopo." },
+  { n: 5, title: "Deteccao e Explicacao", desc: "Aplicacao das tipologias com registro de execucao (candidatos, criados, deduplicados, bloqueados), classificacao de risco e producao de explicacao interpretavel." },
 ];
 
 const SCORE_DIMENSIONS = [
@@ -137,201 +117,196 @@ const LEGAL_REFS = [
   ["Nepotismo/Clientelismo", "Decreto 7.203/2010"],
 ];
 
-// ── Section heading ────────────────────────────────────────────────────────────
-
 function SectionHeading({ id, children }: { id: string; children: React.ReactNode }) {
   return (
     <h2
       id={id}
-      className="font-display text-xl font-semibold text-primary mb-4 mt-10 pb-2 border-b border-border scroll-mt-8"
+      className="font-display text-lg font-bold text-primary mb-4 mt-10 pb-2 border-b border-border scroll-mt-24 first:mt-0"
     >
       {children}
     </h2>
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────────
-
 export default function MethodologyPage() {
-  return (
-    <div className="page-wrap">
-      <PageHeader
-        title="Metodologia"
-        subtitle="Como o sistema transforma dados publicos em sinais de risco, como interpretar os scores e quais limites considerar na leitura."
-      />
+  const aside = (
+    <div className="rounded-xl border border-border bg-surface-card p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <BookOpen className="h-4 w-4 text-accent" />
+        <h2 className="font-display text-xs font-semibold uppercase tracking-wide text-muted">
+          Conteúdo
+        </h2>
+      </div>
+      <TableOfContents />
+    </div>
+  );
 
-      {/* Two-column layout */}
-      <div className="flex gap-12">
-        {/* TOC — hidden on mobile */}
-        <div className="hidden lg:block">
-          <TableOfContents />
-        </div>
+  const main = (
+    <article className="prose-none">
 
-        {/* Main content */}
-        <div className="min-w-0 flex-1 max-w-2xl">
-
-          {/* ── Principios ── */}
-          <SectionHeading id="principios">Principios</SectionHeading>
-          <div className="space-y-4">
-            {PRINCIPLES.map((p) => (
-              <div key={p.title}>
-                <h3 className="font-display text-base font-semibold text-primary mb-1">{p.title}</h3>
+      {/* ── Principios ─────────────────────────────────────────── */}
+      <SectionHeading id="principios">Princípios</SectionHeading>
+      <div className="space-y-3">
+        {PRINCIPLES.map((p) => (
+          <div key={p.title} className="rounded-lg border border-border bg-surface-card p-4">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <div>
+                <h3 className="font-display text-sm font-bold text-primary mb-1">{p.title}</h3>
                 <p className="text-sm text-secondary leading-relaxed">{p.body}</p>
               </div>
-            ))}
+            </div>
           </div>
+        ))}
+      </div>
 
-          {/* ── Pipeline ── */}
-          <SectionHeading id="pipeline">Pipeline</SectionHeading>
-          <ol className="space-y-4">
-            {PIPELINE_STEPS.map((step) => (
-              <li key={step.n} className="flex gap-4">
-                <span className="font-mono tabular-nums text-sm font-bold text-accent shrink-0 w-6 pt-0.5">
-                  {step.n}.
-                </span>
-                <div>
-                  <h3 className="font-display text-base font-semibold text-primary mb-1">{step.title}</h3>
-                  <p className="text-sm text-secondary leading-relaxed">{step.desc}</p>
+      {/* ── Pipeline ───────────────────────────────────────────── */}
+      <SectionHeading id="pipeline">Pipeline</SectionHeading>
+      <div className="space-y-2">
+        {PIPELINE_STEPS.map((step) => (
+          <div key={step.n} className="flex gap-4 rounded-lg border border-border bg-surface-card p-4">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-subtle border border-accent/20">
+              <span className="font-mono text-xs font-bold text-accent">{step.n}</span>
+            </div>
+            <div>
+              <h3 className="font-display text-sm font-bold text-primary mb-1">{step.title}</h3>
+              <p className="text-sm text-secondary leading-relaxed">{step.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tipologias ─────────────────────────────────────────── */}
+      <SectionHeading id="tipologias">Tipologias</SectionHeading>
+      <p className="mb-4 text-sm text-secondary leading-relaxed">
+        O motor aplica {Object.keys(TYPOLOGY_LABELS).length} tipologias com thresholds específicos por contexto e baseline.
+        A leitura de cada código deve considerar o nível de evidência: direto (viola regra legal específica),
+        indireto (anomalia estatística) ou proxy (indicador associado ao veículo de risco).
+      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {Object.entries(TYPOLOGY_LABELS).map(([code, name]) => {
+          const sources = TYPOLOGY_SOURCES[code] ?? [];
+          const desc = TYPOLOGY_DESCRIPTIONS[code] ?? "";
+          return (
+            <div key={code} className="rounded-lg border border-border bg-surface-card p-3">
+              <div className="flex items-baseline gap-2 mb-1.5">
+                <span className="font-mono text-xs font-bold text-accent">{code}</span>
+                <span className="text-xs font-semibold text-primary leading-snug">{name}</span>
+              </div>
+              {desc && <p className="text-xs text-secondary leading-relaxed mb-2">{desc}</p>}
+              {sources.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {sources.map((src) => (
+                    <span key={src} className="rounded-full bg-accent-subtle px-2 py-0.5 text-[10px] font-medium text-accent">
+                      {src}
+                    </span>
+                  ))}
                 </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <h3 className="font-display text-sm font-bold text-primary mt-6 mb-3">Fontes de Dados</h3>
+      <div className="flex flex-wrap gap-2">
+        {DATA_SOURCES.map((src) => (
+          <span key={src} className="rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs font-medium text-secondary">
+            {src}
+          </span>
+        ))}
+      </div>
+
+      {/* ── Scores ─────────────────────────────────────────────── */}
+      <SectionHeading id="scores">Scores de Avaliação</SectionHeading>
+      <p className="mb-4 text-sm text-secondary leading-relaxed">
+        A leitura correta exige considerar os três eixos em conjunto. Severidade alta sem
+        completude adequada indica prioridade de verificação, não conclusão final.
+      </p>
+      <div className="space-y-2">
+        {SCORE_DIMENSIONS.map((dim) => (
+          <div key={dim.name} className="rounded-lg border border-border bg-surface-card p-4">
+            <h3 className="font-display text-sm font-bold text-primary mb-1">{dim.name}</h3>
+            <p className="text-sm text-secondary leading-relaxed">{dim.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Escopo ─────────────────────────────────────────────── */}
+      <SectionHeading id="escopo">Escopo</SectionHeading>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">Cobertura atual</h3>
+          <ul className="space-y-2">
+            {SCOPE_CURRENT.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-xs text-secondary">
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                {item}
               </li>
             ))}
-          </ol>
-
-          {/* ── Tipologias ── */}
-          <SectionHeading id="tipologias">Tipologias</SectionHeading>
-          <p className="text-sm text-secondary leading-relaxed mb-6">
-            O motor aplica 18 tipologias com thresholds especificos por contexto e baseline.
-            A leitura de cada codigo deve considerar o nivel de evidencia: direto (viola regra
-            legal especifica), indireto (anomalia estatistica) ou proxy (indicador associado ao
-            veiculo de risco).
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {Object.entries(TYPOLOGY_LABELS).map(([code, name]) => {
-              const sources = TYPOLOGY_SOURCES[code] ?? [];
-              const desc = TYPOLOGY_DESCRIPTIONS[code] ?? "";
-              return (
-                <div
-                  key={code}
-                  className="border border-border rounded-lg p-4 bg-surface-card"
-                >
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-mono font-bold text-accent text-sm">{code}</span>
-                    <span className="text-sm font-semibold text-primary">{name}</span>
-                  </div>
-                  {desc && (
-                    <p className="text-xs text-secondary leading-relaxed mb-3">{desc}</p>
-                  )}
-                  {sources.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {sources.map((src) => (
-                        <span
-                          key={src}
-                          className="rounded-full bg-accent-subtle px-2 py-0.5 text-[10px] font-medium text-accent"
-                        >
-                          {src}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Fontes de dados */}
-          <h3 className="font-display text-base font-semibold text-primary mt-8 mb-3">Fontes de Dados</h3>
-          <div className="flex flex-wrap gap-2">
-            {DATA_SOURCES.map((src) => (
-              <span
-                key={src}
-                className="rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs font-medium text-secondary"
-              >
-                {src}
-              </span>
+          </ul>
+        </div>
+        <div className="rounded-lg border border-border bg-surface-base p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">Roadmap</h3>
+          <ul className="space-y-2">
+            {SCOPE_ROADMAP.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-xs text-muted">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted" />
+                {item}
+              </li>
             ))}
-          </div>
-
-          {/* ── Scores ── */}
-          <SectionHeading id="scores">Scores de Avaliacao</SectionHeading>
-          <p className="text-sm text-secondary leading-relaxed mb-6">
-            A leitura correta exige considerar os tres eixos em conjunto. Severidade alta sem
-            completude adequada indica prioridade de verificacao, nao conclusao final.
-          </p>
-          <div className="space-y-3">
-            {SCORE_DIMENSIONS.map((dim) => (
-              <div
-                key={dim.name}
-                className="border border-border rounded-lg p-4 bg-surface-card"
-              >
-                <h3 className="font-display text-base font-semibold text-primary mb-1">{dim.name}</h3>
-                <p className="text-sm text-secondary leading-relaxed">{dim.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Escopo ── */}
-          <SectionHeading id="escopo">Escopo</SectionHeading>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <h3 className="text-base font-semibold text-primary mb-3">Cobertura atual</h3>
-              <ul className="space-y-2">
-                {SCOPE_CURRENT.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-secondary">
-                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-secondary" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-primary mb-3">Roadmap</h3>
-              <ul className="space-y-2">
-                {SCOPE_ROADMAP.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-muted">
-                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* ── Base Legal ── */}
-          <SectionHeading id="base-legal">Base Legal</SectionHeading>
-          <p className="text-sm text-secondary leading-relaxed mb-6">
-            Cada tipologia mapeia para tipos de corrupcao com artigos legais especificos e esferas
-            de atuacao. Esses filtros estao disponiveis no Radar para busca por categoria juridica.
-          </p>
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-surface-subtle border-b border-border">
-                  <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Tipo
-                  </th>
-                  <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Referencia
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {LEGAL_REFS.map(([name, ref]) => (
-                  <tr key={name} className="bg-surface-card">
-                    <td className="px-4 py-2.5 text-sm text-primary">{name}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted">{ref}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-6 text-xs text-muted leading-relaxed">
-            A metodologia evolui conforme expansao de cobertura nacional e melhoria de evidencia
-            por UF/municipio. Ajustes de threshold, score e tipologias sao versionados para
-            rastreabilidade tecnica.
-          </p>
-
+          </ul>
         </div>
       </div>
-    </div>
+
+      {/* ── Base Legal ─────────────────────────────────────────── */}
+      <SectionHeading id="base-legal">Base Legal</SectionHeading>
+      <p className="mb-4 text-sm text-secondary leading-relaxed">
+        Cada tipologia mapeia para tipos de corrupção com artigos legais específicos e esferas
+        de atuação. Esses filtros estão disponíveis no Radar para busca por categoria jurídica.
+      </p>
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-base">
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Tipo</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Referência</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border bg-surface-card">
+            {LEGAL_REFS.map(([name, ref]) => (
+              <tr key={name} className="hover:bg-surface-subtle transition-colors">
+                <td className="px-4 py-2.5 text-sm text-primary">{name}</td>
+                <td className="px-4 py-2.5 font-mono text-xs text-muted">{ref}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-6 text-xs text-muted leading-relaxed">
+        A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência
+        por UF/município. Ajustes de threshold, score e tipologias são versionados para
+        rastreabilidade técnica.
+      </p>
+    </article>
+  );
+
+  return (
+    <DetailPageLayout
+      header={
+        <DetailHeader
+          breadcrumbs={[{ label: "Metodologia" }]}
+          title="Metodologia"
+          badge={
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
+              <BookOpen className="h-4 w-4 text-accent" />
+            </div>
+          }
+        />
+      }
+      aside={aside}
+      main={main}
+      maxWidth="6xl"
+    />
   );
 }
