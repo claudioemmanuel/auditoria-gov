@@ -178,6 +178,24 @@ npm run lint
 npm run build
 ```
 
+## Compliance & Respaldo Legal
+
+[![LAI Compliant](https://img.shields.io/badge/LAI-Lei%2012.527%2F2011-green)](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm)
+[![LGPD Compliant](https://img.shields.io/badge/LGPD-Lei%2013.709%2F2018-blue)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
+[![Dados Públicos](https://img.shields.io/badge/Dados-Transparência%20Ativa%20Obrigatória-orange)](./docs/COMPLIANCE.md)
+
+A plataforma opera inteiramente sobre **dados já tornados públicos por força de lei** — nenhum dado é obtido por acesso não autorizado ou violação de sigilo.
+
+| Pilar | Garantia |
+|-------|---------|
+| **Tecnologicamente robusto** | Whitelist de domínios `.gov.br`/`.leg.br`, testes automatizados, código aberto AGPL-3.0, cadeia de proveniência auditável |
+| **Metodologicamente defensável** | Tipologias com base legal explícita, scoring determinístico, veracity registry público via `GET /public/sources` |
+| **Juridicamente responsável** | CF/88 art. 5º XXXIII, LAI (Lei 12.527/2011), LGPD art. 7º VI, Lei Anticorrupção 12.846/2013 |
+| **Publicamente auditável** | Open source, endpoints de proveniência públicos, metodologia documentada, aviso de disclaimer em cada sinal |
+
+Ver documento técnico-jurídico completo: [docs/COMPLIANCE.md](./docs/COMPLIANCE.md)
+
 ## Contributing
 
 Contributions are welcome.

@@ -9,7 +9,8 @@ const SECTIONS = [
   { id: "tipologias", label: "Tipologias" },
   { id: "scores", label: "Scores de Avaliacao" },
   { id: "escopo", label: "Escopo" },
-  { id: "base-legal", label: "Base Legal" },
+  { id: "base-legal", label: "Base Legal & Compliance" },
+  { id: "conformidade", label: "Conformidade" },
 ];
 
 export function TableOfContents() {

@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
 import { TableOfContents } from "./TableOfContents";
-import { BookOpen, CheckCircle2 } from "lucide-react";
+import { BookOpen, CheckCircle2, ExternalLink, ArrowRight, Scale } from "lucide-react";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
 
@@ -104,15 +105,15 @@ const SCOPE_ROADMAP = [
   "Historico de precos de referencia por categoria CATMAT/CATSER",
 ];
 
-const LEGAL_REFS = [
-  ["Fraude em Licitacao", "Lei 14.133/2021"],
-  ["Corrupcao Passiva", "art. 317 CP"],
-  ["Corrupcao Ativa", "art. 333 CP"],
-  ["Peculato", "art. 312 CP"],
-  ["Lavagem de Dinheiro", "Lei 9.613/98"],
-  ["Prevaricacao", "art. 319 CP"],
-  ["Concussao", "art. 316 CP"],
-  ["Nepotismo/Clientelismo", "Decreto 7.203/2010"],
+const LEGAL_REFS: [string, string, string][] = [
+  ["Fraude em Licitacao", "Lei 14.133/2021", "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm"],
+  ["Corrupcao Passiva", "art. 317 CP", "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"],
+  ["Corrupcao Ativa", "art. 333 CP", "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"],
+  ["Peculato", "art. 312 CP", "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"],
+  ["Lavagem de Dinheiro", "Lei 9.613/98", "https://www.planalto.gov.br/ccivil_03/leis/l9613.htm"],
+  ["Prevaricacao", "art. 319 CP", "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"],
+  ["Concussao", "art. 316 CP", "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"],
+  ["Nepotismo/Clientelismo", "Decreto 7.203/2010", "https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2010/decreto/d7203.htm"],
 ];
 
 function SectionHeading({ id, children }: { id: string; children: React.ReactNode }) {
@@ -258,29 +259,90 @@ export default function MethodologyPage() {
       </div>
 
       {/* ── Base Legal ─────────────────────────────────────────── */}
-      <SectionHeading id="base-legal">Base Legal</SectionHeading>
+      <SectionHeading id="base-legal">Base Legal & Compliance</SectionHeading>
       <p className="mb-4 text-sm text-secondary leading-relaxed">
         Cada tipologia mapeia para tipos de corrupção com artigos legais específicos e esferas
         de atuação. Esses filtros estão disponíveis no Radar para busca por categoria jurídica.
+        A plataforma opera exclusivamente sobre dados de transparência ativa obrigatória (LAI art. 8º).
       </p>
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-base">
               <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Tipo</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Referência</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Norma / Artigo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-surface-card">
-            {LEGAL_REFS.map(([name, ref]) => (
+            {LEGAL_REFS.map(([name, ref, url]) => (
               <tr key={name} className="hover:bg-surface-subtle transition-colors">
                 <td className="px-4 py-2.5 text-sm text-primary">{name}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted">{ref}</td>
+                <td className="px-4 py-2.5">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-mono text-xs text-accent hover:underline"
+                  >
+                    {ref}
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* ── Conformidade da Metodologia ──────────────────────── */}
+      <SectionHeading id="conformidade">Conformidade da Metodologia</SectionHeading>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-4">
+        {[
+          {
+            title: "Tecnologicamente Robusto",
+            body: "Whitelist de domínios .gov.br/.leg.br aplicada em nível HTTP. Score de veracidade por fonte. Código aberto (AGPL-3.0). Cadeia de proveniência de cada dado exposta via GET /signal/{id}/provenance.",
+          },
+          {
+            title: "Metodologicamente Defensável",
+            body: "18 tipologias com base legal explícita. Scoring determinístico e reproduzível — nenhuma IA participa da geração de scores ou classificação de risco.",
+          },
+          {
+            title: "Juridicamente Responsável",
+            body: "Opera sobre transparência ativa obrigatória (LAI art. 8º). CPFs hasheados (LGPD art. 12). Aviso obrigatório em todos os sinais: indicador estatístico, não acusação.",
+          },
+          {
+            title: "Publicamente Auditável",
+            body: "GET /public/sources expõe scores de veracidade e status de compliance em tempo real. Compliance automatizado toda segunda-feira 06:00 UTC.",
+          },
+        ].map((item) => (
+          <div key={item.title} className="rounded-lg border border-border bg-surface-card p-4">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+              <div>
+                <h3 className="font-display text-sm font-bold text-primary mb-1">{item.title}</h3>
+                <p className="text-xs text-secondary leading-relaxed">{item.body}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-accent/20 bg-accent-subtle/10 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Scale className="h-4 w-4 text-accent" />
+          <p className="text-xs text-secondary">
+            Veja o documento técnico-jurídico completo com respaldo legal detalhado.
+          </p>
+        </div>
+        <Link
+          href="/compliance"
+          className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline shrink-0"
+        >
+          Compliance completo
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+
       <p className="mt-6 text-xs text-muted leading-relaxed">
         A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência
         por UF/município. Ajustes de threshold, score e tipologias são versionados para

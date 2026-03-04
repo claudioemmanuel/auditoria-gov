@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider, ThemeScript } from "@/components/ThemeProvider";
 import { CommandPalette } from "@/components/CommandPalette";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -45,7 +46,10 @@ export default function RootLayout({
         <ThemeProvider>
           <div className="flex h-screen overflow-hidden">
             <AppSidebar />
-            <main className="flex-1 overflow-y-auto">{children}</main>
+            <main className="flex-1 overflow-y-auto">
+              {children}
+              <SiteFooter />
+            </main>
           </div>
           <CommandPalette />
         </ThemeProvider>
