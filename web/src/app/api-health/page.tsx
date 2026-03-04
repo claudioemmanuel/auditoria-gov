@@ -155,7 +155,7 @@ export default function ApiHealthPage() {
 
       {/* ── Page Header ────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
@@ -197,7 +197,7 @@ export default function ApiHealthPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-6">
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-6">
 
         {/* ── Status board ─────────────────────────────────────── */}
         <section>
