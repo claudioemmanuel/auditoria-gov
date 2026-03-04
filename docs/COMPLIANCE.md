@@ -85,6 +85,17 @@ Todos esses dados são de **divulgação ativa obrigatória** — as entidades g
 - O hash é unidirecional (SHA-256 + salt) — não é reversível sem o salt
 - Esta implementação está em conformidade com o art. 12 da LGPD (dados anonimizados não são considerados dados pessoais)
 
+### 4.2b Escopo LGPD na Busca de Entidades
+
+A funcionalidade `GET /public/entity/search` aplica escopos automáticos de proteção à privacidade:
+
+| Tipo | Restrição |
+|------|-----------|
+| Empresa (CNPJ) | Sem restrição — CNPJ é dado público por lei (Lei 8.934/94, art. 29) |
+| Pessoa física | Restrita a servidores e funcionários públicos identificados via `EntityRawSource.source_connector` (ex.: `pt_servidores_remuneracao`, `pt_ceis_cnpj`) |
+
+Pessoas físicas não oriundas de conectores de servidores públicos são excluídas dos resultados. CPF **nunca aparece na resposta** — validado por teste de regressão LGPD (`assert "cpf" not in json.dumps(response.json())`).
+
 ### 4.3 Dados de Servidores Públicos
 
 O Supremo Tribunal Federal (STF), no RE 652.777 (repercussão geral), fixou a seguinte tese:

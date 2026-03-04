@@ -49,8 +49,13 @@ docker compose run --rm api alembic -c api/alembic.ini upgrade head
 - New connector: `shared/connectors/` + `shared/connectors/__init__.py` + tests in `tests/connectors/`
 - New typology: `shared/typologies/` + `shared/typologies/registry.py` + tests in `tests/typologies/`
 - Public API responses: `api/app/routers/public.py` + repository queries in `shared/repo/queries.py`
+- Internal API responses: `api/app/routers/internal.py` + repository queries in `shared/repo/queries.py`
+- Entity search / graph path: `shared/repo/queries.py` (`search_entities`, `get_entity_path`) + `api/app/routers/public.py`
+- Data quality monitoring: `shared/repo/queries.py` (`get_cross_source_overlap`) + `api/app/routers/internal.py` + `web/src/app/coverage/quality/`
+- Entity cluster expansion: `shared/repo/queries.py` (`resolve_entity_ids_with_clusters`) — apply to any new query path that matches signals by entity ID
 - Scheduled pipelines: `shared/scheduler/schedule.py` and `worker/tasks/`
 - UI pages/components: `web/src/app/` and `web/src/components/`
+- DB migrations: `api/alembic/versions/` — do NOT use `CONCURRENTLY` inside migration functions (Alembic runs inside a transaction)
 
 ## Guardrails
 

@@ -57,12 +57,14 @@ from shared.models.graph import (
     CaseSignalBrief,
     ClusterEntityOut,
     CoParticipantOut,
+    EntityPathResponse,
     ExpandedNodeOut,
     ExpansionEdgeOut,
     GraphDiagnosticsOut,
     GraphEdgeOut,
     GraphNodeOut,
     NeighborhoodResponse,
+    PathHopOut,
     SignalGraphDiagnosticsOut,
     SignalGraphEdgeOut,
     SignalGraphNodeOut,
@@ -789,6 +791,30 @@ async def get_entity_by_id(
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def resolve_entity_ids_with_clusters(
+    session: AsyncSession,
+    raw_entity_ids: list[uuid.UUID],
+) -> set[uuid.UUID]:
+    """
+    Given entity UUIDs (possibly pre-merge), returns all UUIDs sharing cluster_ids.
+    Single batched query — NEVER call in a loop over signals.
+    """
+    if not raw_entity_ids:
+        return set()
+    from sqlalchemy import text
+    result = await session.execute(
+        text("""
+        SELECT DISTINCT e.id FROM entity e
+        WHERE e.cluster_id IN (
+            SELECT cluster_id FROM entity
+            WHERE id = ANY(:ids) AND cluster_id IS NOT NULL
+        ) OR e.id = ANY(:ids)
+        """),
+        {"ids": [str(eid) for eid in raw_entity_ids]},
+    )
+    return {uuid.UUID(row[0]) for row in result.fetchall()}
 
 
 async def get_case_by_id(
@@ -3027,8 +3053,8 @@ async def get_case_graph(
         return None
 
     # Collect all entity_ids from signals and build signal briefs
-    seed_entity_ids: list[uuid.UUID] = []
-    seen_entity_ids: set[uuid.UUID] = set()
+    raw_seed_ids: list[uuid.UUID] = []
+    seen_raw_ids: set[uuid.UUID] = set()
     signal_briefs: list[CaseSignalBrief] = []
     focus_signal: RiskSignal | None = None
 
@@ -3038,9 +3064,22 @@ async def get_case_graph(
         if focus_signal_id is not None and sig.id == focus_signal_id:
             focus_signal = sig
         for eid in eids:
-            if eid not in seen_entity_ids:
-                seen_entity_ids.add(eid)
-                seed_entity_ids.append(eid)
+            if eid not in seen_raw_ids:
+                seen_raw_ids.add(eid)
+                raw_seed_ids.append(eid)
+
+    # Expand seeds to include cluster siblings (single batched query)
+    resolved_seed_set = await resolve_entity_ids_with_clusters(session, raw_seed_ids)
+    seen_entity_ids: set[uuid.UUID] = set()
+    seed_entity_ids: list[uuid.UUID] = []
+    for eid in raw_seed_ids:
+        if eid not in seen_entity_ids:
+            seen_entity_ids.add(eid)
+            seed_entity_ids.append(eid)
+    for eid in resolved_seed_set:
+        if eid not in seen_entity_ids:
+            seen_entity_ids.add(eid)
+            seed_entity_ids.append(eid)
         signal_briefs.append(
             CaseSignalBrief(
                 id=sig.id,
@@ -3416,7 +3455,8 @@ async def get_org_summary(
     )
     event_count = (await session.execute(event_count_stmt)).scalar_one()
 
-    # Get signals involving this entity
+    # Get signals involving this entity (including cluster siblings)
+    resolved_ids = await resolve_entity_ids_with_clusters(session, [entity_id])
     signal_stmt = (
         select(RiskSignal)
         .options(selectinload(RiskSignal.typology))
@@ -3426,10 +3466,12 @@ async def get_org_summary(
     signal_result = await session.execute(signal_stmt)
     all_signals = signal_result.scalars().all()
 
-    # Filter signals that reference this entity
+    # Filter signals that reference this entity or any cluster sibling
     entity_signals = [
         s for s in all_signals
-        if str(entity_id) in [str(eid) for eid in s.entity_ids]
+        if resolved_ids.intersection(
+            uuid.UUID(str(eid)) for eid in (s.entity_ids or [])
+        )
     ]
 
     severity_counts: dict[str, int] = {}
@@ -3607,3 +3649,282 @@ async def get_public_sources(session: AsyncSession) -> dict:
         "controlled_exceptions": exceptions,
         "generated_at": dt.now(tz.utc),
     }
+
+
+async def get_cross_source_overlap(session: AsyncSession) -> list[dict]:
+    """Returns how many entities appear in exactly N distinct connectors."""
+    from sqlalchemy import text
+
+    result = await session.execute(
+        text("""
+            SELECT source_count, COUNT(*) AS entity_count
+            FROM (
+                SELECT ers.entity_id, COUNT(DISTINCT rs.connector) AS source_count
+                FROM entity_raw_source ers
+                JOIN raw_source rs ON rs.id = ers.raw_source_id
+                GROUP BY ers.entity_id
+            ) sub
+            GROUP BY source_count
+            ORDER BY source_count
+        """)
+    )
+    return [{"source_count": r[0], "entity_count": r[1]} for r in result.fetchall()]
+
+
+async def get_data_quality_dashboard(session: AsyncSession) -> dict:
+    """Aggregate data-quality metrics: coverage registry, cross-source overlap, and drop alerts."""
+    from datetime import timezone as _tz
+    from sqlalchemy import text as _text
+
+    now = datetime.now(tz=_tz.utc)
+    cutoff = now - timedelta(days=7)
+
+    # Current coverage entries
+    cov_rows = (await session.execute(select(CoverageRegistry))).scalars().all()
+
+    sources = [
+        {
+            "connector": row.connector,
+            "job": row.job,
+            "total_items": row.total_items,
+            "freshness_lag_hours": row.freshness_lag_hours,
+            "last_success_at": row.last_success_at.isoformat() if row.last_success_at else None,
+            "veracity_score": row.veracity_score,
+            "status": row.status,
+        }
+        for row in cov_rows
+    ]
+
+    current_by_key: dict[tuple[str, str], int] = {
+        (row.connector, row.job): row.total_items for row in cov_rows
+    }
+
+    # Compare against BaselineSnapshot for 7+ day old coverage data
+    baseline_result = await session.execute(
+        _text("""
+            SELECT scope_key, (metrics->>'total_items')::bigint AS total_items
+            FROM baseline_snapshot
+            WHERE baseline_type = 'coverage_registry'
+              AND window_end <= :cutoff
+            ORDER BY window_end DESC
+        """),
+        {"cutoff": cutoff},
+    )
+    prior_by_key: dict[tuple[str, str], int] = {}
+    for brow in baseline_result.fetchall():
+        parts = str(brow[0]).split(":", 1)
+        if len(parts) == 2:
+            key = (parts[0], parts[1])
+            if key not in prior_by_key:
+                prior_by_key[key] = int(brow[1])
+
+    alerts: list[dict] = []
+    for (connector, job), current_total in current_by_key.items():
+        prior_total = prior_by_key.get((connector, job))
+        if prior_total is not None and prior_total > 0:
+            drop_pct = (prior_total - current_total) / prior_total * 100.0
+            if drop_pct > 20.0:
+                alerts.append(
+                    {
+                        "connector": connector,
+                        "job": job,
+                        "alert": "weekly_drop",
+                        "drop_pct": round(drop_pct, 2),
+                    }
+                )
+
+    cross_source_overlap = await get_cross_source_overlap(session)
+
+    return {
+        "sources": sources,
+        "cross_source_overlap": cross_source_overlap,
+        "alerts": alerts,
+    }
+
+
+async def search_entities(
+    session: AsyncSession,
+    q: str,
+    entity_type: str | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    """
+    Fuzzy entity search using pg_trgm similarity on name_normalized.
+
+    LGPD: person results are scoped to public servants only (portal_transparencia /
+    pt_servidores_remuneracao) via a join through entity_raw_source → raw_source.
+    CPF is never returned — identifiers are excluded from the response.
+    """
+    from sqlalchemy import text
+
+    if entity_type == "person":
+        # Persons: only return public servants to comply with LGPD
+        sql = text("""
+            SELECT DISTINCT e.id, e.name, e.name_normalized, e.type,
+                   e.identifiers->>'cnpj' AS cnpj, e.cluster_id,
+                   similarity(e.name_normalized, :q) AS score
+            FROM entity e
+            JOIN entity_raw_source ers ON ers.entity_id = e.id
+            JOIN raw_source rs ON rs.id = ers.raw_source_id
+                AND rs.connector = 'portal_transparencia'
+                AND rs.job = 'pt_servidores_remuneracao'
+            WHERE e.name_normalized % :q
+              AND e.type = 'person'
+            ORDER BY score DESC
+            LIMIT :limit
+        """)
+        result = await session.execute(sql, {"q": q, "limit": limit})
+    else:
+        sql = text("""
+            SELECT e.id, e.name, e.name_normalized, e.type,
+                   e.identifiers->>'cnpj' AS cnpj, e.cluster_id,
+                   similarity(e.name_normalized, :q) AS score
+            FROM entity e
+            WHERE e.name_normalized % :q
+              AND (:type IS NULL OR e.type = :type)
+            ORDER BY score DESC
+            LIMIT :limit
+        """)
+        result = await session.execute(sql, {"q": q, "type": entity_type, "limit": limit})
+
+    rows = result.fetchall()
+    return [
+        {
+            "entity_id": str(r[0]),
+            "name": r[1],
+            "name_normalized": r[2],
+            "type": r[3],
+            "cnpj": r[4],
+            "cluster_id": str(r[5]) if r[5] else None,
+            "score": float(r[6]),
+        }
+        for r in rows
+    ]
+
+async def get_entity_path(
+    session: AsyncSession,
+    from_entity_id: uuid.UUID,
+    to_entity_id: uuid.UUID,
+    max_hops: int = 5,
+) -> EntityPathResponse:
+    """Find shortest path between two entities using recursive CTE over graph_node/graph_edge.
+
+    Temporal bounds (first_seen_at/last_seen_at) are computed via EventParticipant -> Event.
+    Returns EntityPathResponse with found=False if no path exists within max_hops.
+    """
+    from sqlalchemy import text
+
+    # Recursive CTE: traverse graph_edge via graph_node.entity_id linkage.
+    # graph_edge stores from_node_id/to_node_id as graph_node.id (UUID PK),
+    # so we join graph_node to map entity_id <-> node id at each hop.
+    path_sql = text("""
+        WITH RECURSIVE path_search AS (
+            SELECT
+                gn_from.entity_id   AS src_entity_id,
+                gn_to.entity_id     AS tgt_entity_id,
+                ge.type             AS edge_type,
+                ARRAY[gn_from.entity_id::text]              AS visited,
+                ARRAY[ge.id::text]                          AS edge_ids,
+                ARRAY[gn_from.entity_id::text,
+                      gn_to.entity_id::text]                AS node_path,
+                1                                           AS depth
+            FROM graph_edge ge
+            JOIN graph_node gn_from ON gn_from.id = ge.from_node_id
+            JOIN graph_node gn_to   ON gn_to.id   = ge.to_node_id
+            WHERE gn_from.entity_id = :from_id
+              AND gn_to.entity_id  != :from_id
+
+            UNION ALL
+
+            SELECT
+                ps.src_entity_id,
+                gn_to.entity_id     AS tgt_entity_id,
+                ge.type             AS edge_type,
+                ps.visited || gn_from.entity_id::text,
+                ps.edge_ids || ge.id::text,
+                ps.node_path || gn_to.entity_id::text,
+                ps.depth + 1
+            FROM path_search ps
+            JOIN graph_node gn_from ON gn_from.entity_id = ps.tgt_entity_id
+            JOIN graph_edge ge      ON ge.from_node_id   = gn_from.id
+            JOIN graph_node gn_to   ON gn_to.id          = ge.to_node_id
+            WHERE ps.depth < :max_hops
+              AND NOT (gn_from.entity_id::text = ANY(ps.visited))
+              AND NOT (gn_to.entity_id::text   = ANY(ps.visited))
+        )
+        SELECT src_entity_id, tgt_entity_id, edge_type, visited, edge_ids, node_path, depth
+        FROM path_search
+        WHERE tgt_entity_id = :to_id
+        ORDER BY depth ASC
+        LIMIT 1
+    """)
+
+    result = await session.execute(
+        path_sql,
+        {"from_id": str(from_entity_id), "to_id": str(to_entity_id), "max_hops": max_hops},
+    )
+    row = result.fetchone()
+    if row is None:
+        return EntityPathResponse(found=False, hops=None, path=[])
+
+    node_path: list[str] = list(row.node_path)
+    edge_ids: list[str] = list(row.edge_ids)
+    depth: int = int(row.depth)
+
+    # Fetch node labels for all entity UUIDs in path
+    node_uuids = [uuid.UUID(eid) for eid in node_path]
+    label_stmt = select(GraphNode.entity_id, GraphNode.label, GraphNode.node_type).where(
+        GraphNode.entity_id.in_(node_uuids)
+    )
+    label_rows = (await session.execute(label_stmt)).all()
+    label_map: dict[uuid.UUID, tuple[str, str]] = {
+        r.entity_id: (r.label, r.node_type) for r in label_rows
+    }
+
+    # Fetch edges to get their types (preserving order via edge_ids)
+    edge_uuids = [uuid.UUID(eid) for eid in edge_ids]
+    edge_stmt = select(GraphEdge.id, GraphEdge.type).where(GraphEdge.id.in_(edge_uuids))
+    edge_rows = (await session.execute(edge_stmt)).all()
+    edge_type_map: dict[uuid.UUID, str] = {r.id: r.type for r in edge_rows}
+
+    # Compute temporal bounds per hop via EventParticipant -> Event
+    hops: list[PathHopOut] = []
+    for i in range(depth):
+        from_eid = uuid.UUID(node_path[i])
+        to_eid = uuid.UUID(node_path[i + 1])
+        edge_id = uuid.UUID(edge_ids[i])
+
+        from_label, _ = label_map.get(from_eid, ("unknown", "unknown"))
+        to_label, _ = label_map.get(to_eid, ("unknown", "unknown"))
+        edge_type = edge_type_map.get(edge_id, "unknown")
+
+        # Temporal bounds: events where both entities co-participated
+        temporal_sql = text("""
+            SELECT
+                MIN(e.occurred_at) AS first_seen_at,
+                MAX(e.occurred_at) AS last_seen_at
+            FROM event e
+            JOIN event_participant ep1 ON ep1.event_id = e.id AND ep1.entity_id = :from_eid
+            JOIN event_participant ep2 ON ep2.event_id = e.id AND ep2.entity_id = :to_eid
+            WHERE e.occurred_at IS NOT NULL
+        """)
+        t_result = await session.execute(
+            temporal_sql, {"from_eid": str(from_eid), "to_eid": str(to_eid)}
+        )
+        t_row = t_result.fetchone()
+        first_seen_at = t_row.first_seen_at if t_row else None
+        last_seen_at = t_row.last_seen_at if t_row else None
+
+        hops.append(
+            PathHopOut(
+                from_entity_id=from_eid,
+                to_entity_id=to_eid,
+                from_label=from_label,
+                to_label=to_label,
+                edge_type=edge_type,
+                first_seen_at=first_seen_at,
+                last_seen_at=last_seen_at,
+            )
+        )
+
+    return EntityPathResponse(found=True, hops=depth, path=hops)

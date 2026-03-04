@@ -144,6 +144,17 @@ Setting `LLM_PROVIDER=none` in the environment disables all LLM calls and uses J
 
 ---
 
+## 5b. Data Quality Monitoring
+
+A dedicated data quality endpoint (`GET /internal/data-quality`) continuously monitors the health of all ingested sources:
+
+- **Per-source metrics**: entity count, freshness lag (hours since `last_success_at`), veracity score, compliance status
+- **Cross-source overlap histogram**: entity distribution by number of sources (1 source vs. 2 vs. 3+), revealing coverage depth and deduplication quality
+- **Week-over-week delta alerts**: any source whose weekly entity contribution drops >20% triggers a warning — indicating ingestion failures, API changes, or data drift
+- **LGPD scoping audit**: person-type entity search is verified to exclude non-public-servant sources via `EntityRawSource.source_connector` join
+
+These metrics complement the existing `CoverageRegistry` tracked per connector and are visible in the admin data quality dashboard (`/coverage/quality`).
+
 ## 6. Reproducibility Guarantees
 
 Every risk signal can be traced back to its raw source data:

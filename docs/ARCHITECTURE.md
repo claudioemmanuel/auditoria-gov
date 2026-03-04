@@ -40,6 +40,30 @@ AuditorIA Gov is a public-read citizen auditing platform that ingests Brazilian 
 6. Coverage (`worker.tasks.coverage_tasks`)
    - Updates freshness and registry visibility.
 
+## Public API Endpoints
+
+### Public (unauthenticated)
+
+- `GET /public/radar` — Risk signal radar with filters
+- `GET /public/entity/search?q=<text>&type=company|person&limit=20` — Fuzzy entity search via pg_trgm (GIN index on `name_normalized`). Person results are LGPD-scoped to public-servant connectors via `EntityRawSource` join.
+- `GET /public/graph/path?from=<id>&to=<id>&max_hops=5` — Shortest path between two entities using a PostgreSQL recursive CTE; returns node/edge list with `event_type`, `typology_ids`, `first_seen`, and `last_seen` per edge.
+- `GET /public/sources` — Source veracity registry (scores, compliance status, freshness)
+- `GET /signal/{id}/provenance` — Full evidence chain for a signal
+- `GET /case/{id}/provenance` — Full evidence chain for a case
+
+### Internal (authenticated)
+
+- `GET /internal/data-quality` — Data quality monitoring: per-source entity count, freshness lag, veracity score, cross-source entity overlap histogram, and week-over-week contribution delta alerts (>20% drop threshold).
+
+## Entity Resolution Bridge
+
+`resolve_entity_ids_with_clusters(session, raw_entity_ids)` in `shared/repo/queries.py` expands any list of entity UUIDs to the full cluster — entities sharing the same `cluster_id` after an ER merge. This bridge is applied to all signal-matching query paths (`get_org_summary`, case graph, `compute_entity_risk_score`, radar listing) so that signals filed against pre-merge entity UUIDs are correctly surfaced after ER runs. The helper is batch-safe: always called once per request, never in a per-signal loop.
+
+## Database Extensions
+
+- `pgvector`: embeddings support
+- `pg_trgm`: trigram similarity index on `entity.name_normalized` (migration `0014`) for fuzzy bulk entity search
+
 ## Sources and Connectors
 
 Current ingestion runs through connector modules in `shared/connectors/`:

@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import shared.db  # noqa: F401 — ensure module is cached before settings is patched
+
 from worker.tasks.ai_tasks import (
     classify_texts_unclassified,
     embed_entities_batch,

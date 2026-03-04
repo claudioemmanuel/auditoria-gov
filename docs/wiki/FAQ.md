@@ -24,6 +24,18 @@ Portal da Transparencia jobs require a token. Most other sources are public.
 
 Open an issue with the `new_connector` template.
 
+## Can I search for entities by name?
+
+Yes. `GET /public/entity/search?q=<text>&type=company|person&limit=20` performs fuzzy search using PostgreSQL pg_trgm. It supports accent-folded queries (e.g. `"joao"` matches `"João"`). Person results are LGPD-scoped to public-servant entities only.
+
+## Can I find the connection between two entities?
+
+Yes. `GET /public/graph/path?from=<entity_id>&to=<entity_id>&max_hops=5` returns the shortest path as an ordered list of nodes and edges, each labeled with `event_type`, `typology_ids`, and temporal bounds (`first_seen`, `last_seen`). Returns 404 when no path exists within `max_hops`.
+
+## How does entity resolution affect signals?
+
+After an ER merge, `entity.cluster_id` links formerly separate entities. The platform's query layer uses `resolve_entity_ids_with_clusters()` to expand any entity ID to its full cluster — so signals filed against a pre-merge UUID are correctly surfaced when querying the post-merge canonical entity.
+
 ---
 
 ## Conformidade Legal

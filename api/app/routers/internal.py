@@ -15,7 +15,7 @@ from shared.connectors import get_connector
 from shared.db import async_session
 from shared.db_sync import SyncSession
 from shared.models.orm import IngestState, RawRun, RawSource, ReferenceData
-from shared.repo.queries import get_signal_quality_metrics, replay_signal
+from shared.repo.queries import get_data_quality_dashboard, get_signal_quality_metrics, replay_signal
 from shared.utils.sync_async import run_async
 
 router = APIRouter()
@@ -559,6 +559,13 @@ async def signals_quality():
     """Monitoring metrics for explanatory quality and evidence pagination readiness."""
     async with async_session() as session:
         return await get_signal_quality_metrics(session)
+
+
+@router.get("/data-quality")
+async def data_quality():
+    """Data quality monitoring dashboard: coverage registry, cross-source overlap, and drop alerts."""
+    async with async_session() as session:
+        return await get_data_quality_dashboard(session)
 
 
 @router.post("/backfill/signal-clarity")

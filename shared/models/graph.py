@@ -216,6 +216,22 @@ class SignalInvolvedEntityProfileOut(BaseModel):
     cluster_entities: list[ClusterEntityOut] = Field(default_factory=list)
 
 
+class PathHopOut(BaseModel):
+    from_entity_id: uuid.UUID
+    to_entity_id: uuid.UUID
+    from_label: str
+    to_label: str
+    edge_type: str
+    first_seen_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+
+
+class EntityPathResponse(BaseModel):
+    found: bool
+    hops: Optional[int] = None
+    path: list[PathHopOut] = Field(default_factory=list)
+
+
 class SignalGraphDiagnosticsOut(BaseModel):
     events_total: int = 0
     events_loaded: int = 0

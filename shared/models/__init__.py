@@ -1,4 +1,5 @@
 from shared.models.base import Base
+from shared.models.vocabulary import EventType, ParticipantRole, ROLE_ALIASES
 from shared.models.orm import (
     RawRun,
     RawSource,
@@ -74,6 +75,9 @@ from shared.models.coverage_v2 import (
 
 __all__ = [
     "Base",
+    "EventType",
+    "ParticipantRole",
+    "ROLE_ALIASES",
     "RawRun",
     "RawSource",
     "Entity",

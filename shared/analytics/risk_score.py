@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.models.orm import Entity, RiskSignal
+from shared.repo.queries import resolve_entity_ids_with_clusters
 
 
 # Severity weights
@@ -87,12 +88,12 @@ async def compute_entity_risk_score(
     weights by severity + confidence + recency,
     normalizes to 0-100 scale.
     """
-    # Get all signals mentioning this entity
+    # Get all signals mentioning this entity (including cluster siblings)
+    resolved_ids = await resolve_entity_ids_with_clusters(session, [entity_id])
     stmt = select(RiskSignal).order_by(RiskSignal.created_at.desc()).limit(100)
     result = await session.execute(stmt)
     all_signals = result.scalars().all()
 
-    entity_id_str = str(entity_id)
     entity_signals = [
         {
             "severity": s.severity,
@@ -100,7 +101,9 @@ async def compute_entity_risk_score(
             "created_at": s.created_at,
         }
         for s in all_signals
-        if entity_id_str in [str(eid) for eid in s.entity_ids]
+        if resolved_ids.intersection(
+            uuid.UUID(str(eid)) for eid in (s.entity_ids or [])
+        )
     ]
 
     score = compute_risk_score_from_signals(entity_signals)

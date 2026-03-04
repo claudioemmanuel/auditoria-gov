@@ -1,7 +1,15 @@
 import uuid
 from dataclasses import dataclass
 
+from rapidfuzz.distance import JaroWinkler
+
+from shared.config import settings
 from shared.er.normalize import normalize_entity_for_matching
+
+
+def _jaro_winkler_similarity(s1: str, s2: str) -> float:
+    """Jaro-Winkler string similarity (0.0 to 1.0). Delegates to rapidfuzz."""
+    return JaroWinkler.similarity(s1, s2)
 
 
 @dataclass
@@ -47,72 +55,46 @@ def deterministic_match(
     return None
 
 
-def _jaro_winkler_similarity(s1: str, s2: str) -> float:
-    """Jaro-Winkler string similarity (0.0 to 1.0)."""
-    if s1 == s2:
-        return 1.0
-    if not s1 or not s2:
-        return 0.0
-
-    max_dist = max(len(s1), len(s2)) // 2 - 1
-    if max_dist < 0:
-        max_dist = 0
-
-    s1_matches = [False] * len(s1)
-    s2_matches = [False] * len(s2)
-
-    matches = 0
-    transpositions = 0
-
-    for i in range(len(s1)):
-        start = max(0, i - max_dist)
-        end = min(i + max_dist + 1, len(s2))
-        for j in range(start, end):
-            if s2_matches[j] or s1[i] != s2[j]:
-                continue
-            s1_matches[i] = True
-            s2_matches[j] = True
-            matches += 1
-            break
-
-    if matches == 0:
-        return 0.0
-
-    k = 0
-    for i in range(len(s1)):
-        if not s1_matches[i]:
-            continue
-        while not s2_matches[k]:
-            k += 1
-        if s1[i] != s2[k]:
-            transpositions += 1
-        k += 1
-
-    jaro = (
-        matches / len(s1) + matches / len(s2) + (matches - transpositions / 2) / matches
-    ) / 3
-
-    # Winkler adjustment
-    prefix = 0
-    for i in range(min(4, len(s1), len(s2))):
-        if s1[i] == s2[i]:
-            prefix += 1
-        else:
-            break
-
-    return jaro + prefix * 0.1 * (1 - jaro)
+def _get_cnpj_raiz(cnpj: str) -> str:
+    """Extract CNPJ raiz (first 8 digits, digits only) for blocking."""
+    digits = "".join(c for c in cnpj if c.isdigit())
+    return digits[:8] if len(digits) >= 8 else ""
 
 
 def probabilistic_match(
-    entity_a: dict, entity_b: dict, threshold: float = 0.85
+    entity_a: dict, entity_b: dict, threshold: float | None = None
 ) -> MatchResult | None:
     """Fuzzy match using Jaro-Winkler on normalized names.
     Additional signals: shared address, phone, email boost score.
+
+    Uses per-entity-type thresholds from settings:
+    - org/company: settings.ORG_MATCH_THRESHOLD (default 0.85)
+    - person: settings.PERSON_MATCH_THRESHOLD (default 0.90)
+
+    CNPJ-prefix blocking: if both entities have a CNPJ raiz and they differ,
+    the comparison is skipped (returns None immediately).
     """
     norm_a = normalize_entity_for_matching(entity_a["name"], entity_a["identifiers"])
     norm_b = normalize_entity_for_matching(entity_b["name"], entity_b["identifiers"])
 
-    name_sim = _jaro_winkler_similarity(norm_a["name_norm"], norm_b["name_norm"])
+    # CNPJ-prefix blocking
+    cnpj_a = norm_a.get("cnpj") or ""
+    cnpj_b = norm_b.get("cnpj") or ""
+    raiz_a = _get_cnpj_raiz(cnpj_a)
+    raiz_b = _get_cnpj_raiz(cnpj_b)
+    if raiz_a and raiz_b and raiz_a != raiz_b:
+        return None
+
+    # Determine threshold from entity type if not provided explicitly
+    if threshold is None:
+        entity_type_a = entity_a.get("entity_type", "org")
+        entity_type_b = entity_b.get("entity_type", "org")
+        is_person = "person" in (entity_type_a, entity_type_b)
+        threshold = (
+            settings.PERSON_MATCH_THRESHOLD if is_person else settings.ORG_MATCH_THRESHOLD
+        )
+
+    name_sim = JaroWinkler.similarity(norm_a["name_norm"], norm_b["name_norm"])
 
     # Boost for shared tokens
     if norm_a["tokens"] and norm_b["tokens"]:

@@ -1,9 +1,19 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Optional
 
 from shared.models.canonical import NormalizeResult
 from shared.models.raw import RawItem
+
+
+class SourceClassification(str, Enum):
+    """Classification of a data source for signal generation purposes."""
+    FULL_SOURCE = "full_source"
+    """Source can independently generate risk signals."""
+    ENRICHMENT_ONLY = "enrichment_only"
+    """Source can only enrich existing signals, never create signals independently.
+    Used for non-government sources like OpenSanctions that pass a DomainException."""
 
 
 @dataclass
@@ -56,6 +66,11 @@ class BaseConnector(ABC):
     ) -> NormalizeResult:
         """Normalize raw items into canonical models."""
         ...
+
+    @property
+    def classification(self) -> SourceClassification:
+        """Source classification for signal generation gating."""
+        return SourceClassification.FULL_SOURCE
 
     def rate_limit_policy(self) -> RateLimitPolicy:
         """Return rate limiting policy for this connector's API."""

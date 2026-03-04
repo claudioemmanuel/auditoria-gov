@@ -1,4 +1,4 @@
-from shared.connectors.base import BaseConnector
+from shared.connectors.base import BaseConnector, SourceClassification
 from shared.connectors.portal_transparencia import PortalTransparenciaConnector
 from shared.connectors.compras_gov import ComprasGovConnector
 from shared.connectors.comprasnet_contratos import ComprasNetContratosConnector

@@ -27,6 +27,7 @@ import {
   Database,
   FileText,
   Lightbulb,
+  BookOpen,
   Package,
   Search,
   X,
@@ -630,9 +631,213 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
   );
 }
 
+// ── Typology info modal ────────────────────────────────────────────────────────
+
+function TypologyInfoModal({
+  item,
+  onClose,
+}: {
+  item: AnalyticalCoverageItem;
+  onClose: () => void;
+}) {
+  const domainTotal = item.required_domains.length;
+  const domainAvail = item.domains_available.length;
+  const pct = domainTotal > 0 ? Math.round((domainAvail / domainTotal) * 100) : 0;
+  const barColor = item.apt ? "bg-success" : pct > 0 ? "bg-amber" : "bg-error";
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div className="relative z-10 flex w-full max-w-2xl max-h-[88vh] flex-col rounded-2xl border border-border bg-surface-card shadow-2xl overflow-hidden">
+
+        {/* ── Header ──────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className="font-mono text-xs font-bold text-accent">{item.typology_code}</span>
+              {item.apt ? (
+                <span className="rounded-full border border-success/30 bg-success/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-success">
+                  Apta
+                </span>
+              ) : (
+                <span className="rounded-full border border-error/30 bg-error/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-error">
+                  Bloqueada
+                </span>
+              )}
+            </div>
+            <h2 className="font-display text-base font-bold text-primary">{item.typology_name}</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-base text-muted transition hover:bg-surface-subtle hover:text-primary"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* ── Summary strip ───────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-3 border-b border-border px-6 py-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Evidência</p>
+            <p className="font-mono text-sm font-bold text-primary capitalize">{item.evidence_level ?? "—"}</p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Domínios</p>
+            <p className="font-mono text-sm font-bold text-primary">{domainAvail}/{domainTotal}</p>
+            <p className="font-mono text-[10px] text-muted">{pct}% coberto</p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Sinais 30d</p>
+            <p className={`font-mono text-sm font-bold ${item.signals_30d > 0 ? "text-success" : "text-muted"}`}>
+              {item.signals_30d}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Scrollable body ─────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 bg-surface-base">
+
+          {/* Description legal */}
+          {item.description_legal && (
+            <section>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Descrição Legal</p>
+              <div className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent-subtle/30 px-4 py-3">
+                <Lightbulb className="h-4 w-4 shrink-0 text-accent mt-0.5" />
+                <p className="text-sm text-secondary leading-relaxed">{item.description_legal}</p>
+              </div>
+            </section>
+          )}
+
+          {/* Domains */}
+          <section>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Domínios de Dados Necessários</p>
+            <div className="rounded-xl border border-border bg-surface-card p-4 space-y-3">
+              <div className="h-1.5 rounded-full bg-surface-subtle overflow-hidden">
+                <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {item.domains_available.map((d) => (
+                  <span key={d} className="flex items-center gap-1 rounded-full border border-success/20 bg-success/5 px-2 py-0.5 text-[10px] font-medium text-success">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {d}
+                  </span>
+                ))}
+                {item.domains_missing.map((d) => (
+                  <span key={d} className="flex items-center gap-1 rounded-full border border-error/20 bg-error/5 px-2 py-0.5 text-[10px] font-medium text-error">
+                    <XCircle className="h-3 w-3" />
+                    {d}
+                  </span>
+                ))}
+              </div>
+              {item.domains_missing.length > 0 && (
+                <p className="text-xs text-muted leading-relaxed">
+                  {item.domains_missing.length === 1
+                    ? "1 domínio ausente — a tipologia permanece bloqueada até que todos os domínios necessários estejam disponíveis."
+                    : `${item.domains_missing.length} domínios ausentes — a tipologia permanece bloqueada até que todos os domínios necessários estejam disponíveis.`}
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* Classification */}
+          {((item.corruption_types && item.corruption_types.length > 0) || (item.spheres && item.spheres.length > 0)) && (
+            <section>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Classificação Jurídica</p>
+              <div className="rounded-xl border border-border bg-surface-card p-4 space-y-4">
+                {item.corruption_types && item.corruption_types.length > 0 && (
+                  <div>
+                    <p className="font-mono text-[10px] text-muted mb-2">Tipos de corrupção cobertos</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.corruption_types.map((ct) => (
+                        <span key={ct} className="rounded-full border border-border bg-surface-base px-2 py-0.5 text-[10px] font-medium text-secondary capitalize">
+                          {ct.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {item.spheres && item.spheres.length > 0 && (
+                  <div>
+                    <p className="font-mono text-[10px] text-muted mb-2">Esferas</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.spheres.map((s) => (
+                        <span key={s} className="rounded-full border border-accent/20 bg-accent/5 px-2 py-0.5 text-[10px] font-medium text-accent capitalize">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Last run */}
+          {item.last_run_at && (
+            <section>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Última Execução</p>
+              <div className="rounded-xl border border-border bg-surface-card p-4 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="font-mono text-[9px] text-muted mb-0.5">Data</p>
+                  <p className="font-mono text-xs text-primary">{new Date(item.last_run_at).toLocaleString("pt-BR")}</p>
+                </div>
+                {item.last_run_status && (
+                  <div>
+                    <p className="font-mono text-[9px] text-muted mb-0.5">Status</p>
+                    <p className={`font-mono text-xs font-bold ${item.last_run_status === "success" ? "text-success" : item.last_run_status === "running" ? "text-accent" : "text-error"}`}>
+                      {item.last_run_status}
+                    </p>
+                  </div>
+                )}
+                {item.last_run_candidates != null && item.last_run_candidates > 0 && (
+                  <div>
+                    <p className="font-mono text-[9px] text-muted mb-0.5">Candidatos</p>
+                    <p className="font-mono text-xs font-bold text-primary">{item.last_run_candidates}</p>
+                  </div>
+                )}
+                {item.last_run_signals_created != null && (
+                  <div>
+                    <p className="font-mono text-[9px] text-muted mb-0.5">Sinais criados</p>
+                    <p className="font-mono text-xs font-bold text-primary">{item.last_run_signals_created}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* ── Footer ──────────────────────────────────────────── */}
+        <div className="flex items-center justify-end border-t border-border px-6 py-3 bg-surface-card">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-border bg-surface-base px-4 py-1.5 text-xs font-semibold text-secondary transition hover:bg-surface-subtle hover:text-primary"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Typology card ─────────────────────────────────────────────────────────────
 
 function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
+  const [modalOpen, setModalOpen] = useState(false);
   const domainTotal = item.required_domains.length;
   const domainAvail = item.domains_available.length;
   const pct = domainTotal > 0 ? Math.round((domainAvail / domainTotal) * 100) : 0;
@@ -640,7 +845,8 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
   const borderColor = item.apt ? "border-success/20" : pct > 0 ? "border-amber/20" : "border-error/20";
 
   return (
-    <div className={`rounded-xl border ${borderColor} bg-surface-card p-4 space-y-3`}>
+    <div className={`rounded-xl border ${borderColor} bg-surface-card flex flex-col`}>
+      <div className="p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -746,6 +952,19 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
             </span>
           ))}
         </div>
+      )}
+      </div>
+
+      <button
+        onClick={() => setModalOpen(true)}
+        className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-[11px] font-semibold text-muted transition hover:bg-surface-subtle hover:text-primary"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Ver detalhes da tipologia
+      </button>
+
+      {modalOpen && (
+        <TypologyInfoModal item={item} onClose={() => setModalOpen(false)} />
       )}
     </div>
   );

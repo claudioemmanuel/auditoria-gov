@@ -12,14 +12,26 @@ AuditorIA Gov is an open-source citizen auditing platform for Brazilian federal 
 - [Data Sources](./Data-Sources)
 - [Typologies](./Typologies)
 - [Runbook (Local + Pipeline)](./Runbook)
+- [Legal Compliance](./Legal-Compliance)
 - [Contributing and Governance](./Contributing-and-Governance)
 - [FAQ](./FAQ)
+
+## Key Investigator Features
+
+| Feature | Endpoint |
+|---------|----------|
+| Fuzzy entity search (companies + public servants) | `GET /public/entity/search` |
+| Connection path between entities | `GET /public/graph/path` |
+| Risk signal radar | `GET /public/radar` |
+| Signal evidence chain | `GET /signal/{id}/provenance` |
+| Data source quality status | `GET /public/sources` |
 
 ## Core Principles
 
 - Deterministic risk detection (no black-box scoring)
+- Cluster-aware entity resolution: signals follow entities through merges
 - Reproducible evidence for each signal
-- LGPD-by-design handling of sensitive identifiers
+- LGPD-by-design: CPF hashing, person search restricted to public-servant sources
 - Public-interest mission with AGPL-3.0 license
 
 ## Canonical Repository Docs

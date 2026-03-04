@@ -62,10 +62,18 @@ O STF, no RE 652.777, fixou que a publicação de remuneração de servidores p�
 
 ---
 
+## LGPD e Busca de Entidades
+
+A funcionalidade de busca de entidades (`GET /public/entity/search`) aplica escopos LGPD automáticos:
+
+- **Empresas (CNPJ)** — sem restrição; CNPJ é dado público por lei (Lei 8.934/94).
+- **Pessoas físicas** — restritas a servidores e funcionários públicos identificados via `EntityRawSource` (join com `source_connector IN ('pt_servidores_remuneracao', 'pt_servidores_licencas', …)`). Pessoas não oriundas de fontes de transparência ativa de servidores são excluídas dos resultados.
+- **CPF nunca aparece na resposta** — confirmado por teste de regressão LGPD na suíte de testes.
+
 ## FAQ Rápido
 
 **Vocês estão violando a LGPD?**
-Não. O tratamento tem base legal no art. 7º, VI da LGPD. Dados pessoais (CPF) são anonimizados conforme art. 12.
+Não. O tratamento tem base legal no art. 7º, VI da LGPD. Dados pessoais (CPF) são anonimizados conforme art. 12. A busca de pessoas retorna apenas servidores públicos.
 
 **Podem publicar dados de servidores públicos?**
 Sim. O STF (RE 652.777) e a LAI (art. 8º, §1º, VII) garantem a legitimidade dessa publicação.

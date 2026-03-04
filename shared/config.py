@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings
 from typing import Literal
 
@@ -48,6 +50,10 @@ class Settings(BaseSettings):
     # App
     APP_ENV: Literal["development", "staging", "production"] = "development"
     LOG_LEVEL: str = "INFO"
+
+    # Entity Resolution thresholds
+    ORG_MATCH_THRESHOLD: float = float(os.getenv("ORG_MATCH_THRESHOLD", "0.85"))
+    PERSON_MATCH_THRESHOLD: float = float(os.getenv("PERSON_MATCH_THRESHOLD", "0.90"))
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

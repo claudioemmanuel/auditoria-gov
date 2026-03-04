@@ -16,7 +16,7 @@ from shared.models.coverage_v2 import (
     CoverageV2SummaryResponse,
     PublicSourcesResponse,
 )
-from shared.models.graph import CaseGraphResponse, NeighborhoodResponse, SignalGraphResponse
+from shared.models.graph import CaseGraphResponse, EntityPathResponse, NeighborhoodResponse, SignalGraphResponse
 from shared.models.orm import Contestation
 from shared.models.radar import (
     RadarV2CaseListResponse,
@@ -43,6 +43,7 @@ from shared.repo.queries import (
     get_coverage_v2_summary,
     get_evidence_package_by_id,
     get_entity_by_id,
+    get_entity_path,
     get_graph_neighborhood,
     get_org_summary,
     get_public_sources,
@@ -57,6 +58,7 @@ from shared.repo.queries import (
     get_signal_graph,
     get_signal_evidence_page,
     replay_signal,
+    search_entities,
 )
 
 router = APIRouter()
@@ -327,6 +329,18 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
     }
 
 
+@router.get("/entity/search")
+async def entity_search(
+    session: DbSession,
+    q: str = Query(..., min_length=2, description="Fuzzy name query (min 2 chars)"),
+    type: Optional[str] = Query(None, pattern="^(company|person)$", description="Filter by entity type"),
+    limit: int = Query(20, ge=1, le=100, description="Max results (1-100)"),
+):
+    """Fuzzy entity search via pg_trgm. Person results are LGPD-scoped to public servants only. CPF is never returned."""
+    results = await search_entities(session, q, entity_type=type, limit=limit)
+    return results
+
+
 @router.get("/entity/{entity_id}")
 async def entity_detail(entity_id: uuid.UUID, session: DbSession):
     """Entity detail with identifiers, events, signals."""
@@ -364,6 +378,19 @@ async def graph_neighborhood(
 ):
     """Graph neighborhood — nodes and edges around an entity (max 100 nodes)."""
     return await get_graph_neighborhood(session, entity_id, depth=depth, limit=100)
+
+
+@router.get("/graph/path", response_model=EntityPathResponse)
+async def get_graph_path(
+    session: DbSession,
+    from_id: uuid.UUID = Query(..., description="Source entity ID"),
+    to_id: uuid.UUID = Query(..., description="Target entity ID"),
+    max_hops: int = Query(5, ge=1, le=10, description="Maximum hops (1-10)"),
+):
+    """Shortest path between two entities via recursive CTE with temporal annotations."""
+    if from_id == to_id:
+        raise HTTPException(status_code=422, detail="from_id and to_id must be different entities")
+    return await get_entity_path(session, from_id, to_id, max_hops)
 
 
 @router.get("/case/{case_id}/graph", response_model=CaseGraphResponse)
