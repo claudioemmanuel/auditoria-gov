@@ -312,7 +312,7 @@ def run_entity_resolution():
     2. Batched edge building from event-participant relationships.
     3. Watermark update for incremental re-runs.
     """
-    from sqlalchemy import or_, select, update
+    from sqlalchemy import or_, select, text as sa_text, update
 
     from shared.db_sync import SyncSession
     from shared.er.clustering import cluster_entities
@@ -320,9 +320,21 @@ def run_entity_resolution():
     from shared.er.normalize import normalize_entity_for_matching
     from shared.models.orm import Entity, ERRunState, Event, EventParticipant, GraphEdge, GraphNode
 
+    # Unique integer key for the ER singleton advisory lock.
+    _ER_LOCK_KEY = 7349812
+
     log.info("run_entity_resolution.start")
 
     with SyncSession() as session:
+        # Prevent concurrent ER runs: only one worker may hold the advisory lock.
+        # pg_try_advisory_lock is session-level — released automatically on disconnect.
+        acquired = session.execute(
+            sa_text("SELECT pg_try_advisory_lock(:key)"), {"key": _ER_LOCK_KEY}
+        ).scalar()
+        if not acquired:
+            log.info("run_entity_resolution.skipped_concurrent")
+            return {"status": "skipped", "reason": "concurrent run in progress"}
+
         # Load watermark from last successful run
         last_run = session.execute(
             select(ERRunState)
