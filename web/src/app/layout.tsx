@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Manrope, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ThemeProvider, ThemeScript } from "@/components/ThemeProvider";
+import { CommandPalette } from "@/components/CommandPalette";
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-manrope",
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
   display: "swap",
 });
 
@@ -16,9 +24,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AuditorIA Gov — Auditoria Cidada",
+  title: "AuditorIA Gov — Inteligencia Investigativa Cidada",
   description:
-    "Portal publico e open-source para auditoria cidada de dados do governo federal brasileiro",
+    "Plataforma publica e open-source de auditoria cidada sobre dados do governo federal brasileiro. Sinais de risco, evidencias e investigacoes baseadas em dados abertos.",
 };
 
 export default function RootLayout({
@@ -27,14 +35,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen bg-surface-base`}
+        className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} min-h-screen bg-surface-base`}
       >
-        <div className="flex h-screen overflow-hidden">
-          <AppSidebar />
-          <main className="flex-1 overflow-y-auto">{children}</main>
-        </div>
+        <ThemeProvider>
+          <div className="flex h-screen overflow-hidden">
+            <AppSidebar />
+            <main className="flex-1 overflow-y-auto">{children}</main>
+          </div>
+          <CommandPalette />
+        </ThemeProvider>
       </body>
     </html>
   );

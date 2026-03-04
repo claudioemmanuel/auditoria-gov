@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCase } from "@/lib/api";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/Badge"
 import { DetailSkeleton } from "@/components/Skeleton";
 import { Suspense } from "react";
 import { formatBRL, formatDate, severityDotColor, cn } from "@/lib/utils";

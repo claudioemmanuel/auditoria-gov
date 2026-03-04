@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { Badge } from "@/components/Badge"
+import { EmptyState } from "@/components/EmptyState"
 import { cn, severityDotColor } from "@/lib/utils";
 import type { RadarV2SignalItem } from "@/lib/types";
 

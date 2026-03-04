@@ -2,7 +2,7 @@
 
 import type { RadarV2CaseItem, RadarV2CasePreviewResponse } from "@/lib/types";
 import { cn, formatBRL, severityDotColor } from "@/lib/utils";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/Badge"
 import { relativeTime } from "@/lib/utils";
 
 interface RadarCasesListProps {
