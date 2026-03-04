@@ -497,19 +497,6 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
                 </div>
               </section>
 
-              {/* Recent runs */}
-              {preview.recent_runs.length > 0 && (
-                <section>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">
-                    Execuções recentes ({preview.recent_runs.length})
-                  </p>
-                  <div className="space-y-2">
-                    {preview.recent_runs.map((run) => (
-                      <RunCard key={run.id} run={run} />
-                    ))}
-                  </div>
-                </section>
-              )}
             </>
           )}
         </div>
