@@ -12,6 +12,7 @@ import asyncio
 import httpx
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
+from shared.connectors.domain_guard import validate_domain
 from shared.models.canonical import (
     CanonicalEntity,
     CanonicalEvent,
@@ -54,6 +55,8 @@ class QueridoDiarioConnector(BaseConnector):
 
         cursor format: "offset:YYYY-MM-DD" (offset + published_since date)
         """
+        validate_domain(_BASE_URL)
+
         offset = 0
         published_since = (datetime.now(timezone.utc) - timedelta(days=1825)).strftime("%Y-%m-%d")
 

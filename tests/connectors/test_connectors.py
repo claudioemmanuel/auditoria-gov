@@ -631,13 +631,16 @@ class TestSenado:
         assert result.entities[0].identifiers["codigo_parlamentar"] == "5012"
 
     def test_normalize_ceaps(self):
-        items = [RawItem(raw_id="ceaps:2025:1:0", data={
-            "id": 269628, "original_id": "2088478",
-            "date": "2025-02-07", "amount": "1000.00",
-            "expense_category": "Divulgação da atividade parlamentar",
-            "description": "Serviço de comunicação",
-            "supplier": "EMPRESA MIDIA LTDA", "supplier_document": "12345678000199",
-            "senator": {"id": 41717, "name": "SEN TESTE", "party": "PP", "UF": "RS"},
+        items = [RawItem(raw_id="ceaps:5012:2025:0", data={
+            "_senator_codigo": "5012",
+            "NomeParlamentar": "SEN TESTE",
+            "Data": "2025-02-07",
+            "ValorReembolsado": "1000.00",
+            "TipoDespesa": "Divulgação da atividade parlamentar",
+            "Detalhamento": "Serviço de comunicação",
+            "Fornecedor": "EMPRESA MIDIA LTDA",
+            "CNPJCPF": "12345678000199",
+            "NumeroDocumento": "2088478",
         })]
         job = JobSpec(name="senado_ceaps", description="", domain="despesa")
         result = self.c.normalize(job, items)
@@ -706,43 +709,60 @@ class TestSenado:
 
     @pytest.mark.asyncio
     async def test_fetch_ceaps(self):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "data": [{"id": 1, "amount": "500"}, {"id": 2, "amount": "300"}],
-            "links": {"next": None},
+        # Mock _get_senator_codes to return a single senator
+        ceaps_resp = MagicMock()
+        ceaps_resp.status_code = 200
+        ceaps_resp.headers = {"content-type": "application/json"}
+        ceaps_resp.json.return_value = {
+            "CesapAtual": {
+                "Despesas": {
+                    "Despesa": [
+                        {"Data": "2025-01-10", "ValorReembolsado": "500", "Fornecedor": "A"},
+                        {"Data": "2025-01-11", "ValorReembolsado": "300", "Fornecedor": "B"},
+                    ]
+                }
+            }
         }
-        mock_resp.raise_for_status = MagicMock()
+        ceaps_resp.raise_for_status = MagicMock()
 
         mock_client = AsyncMock()
-        mock_client.get.return_value = mock_resp
+        mock_client.get.return_value = ceaps_resp
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.senado.senado_ceaps_client", return_value=mock_client):
+        with (
+            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+            patch.object(self.c, "_get_senator_codes", return_value=["5012"]),
+        ):
             job = JobSpec(name="senado_ceaps", description="", domain="despesa")
             items, cursor = await self.c.fetch(job, params={"ano": "2025"})
             assert len(items) == 2
-            assert cursor is None
+            assert cursor is None  # single senator, single year
 
     @pytest.mark.asyncio
-    async def test_fetch_ceaps_with_pagination(self):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "data": [{"id": 1}],
-            "links": {"next": "https://apis.codante.io/senator-expenses/expenses?page=2"},
+    async def test_fetch_ceaps_iterates_senators(self):
+        ceaps_resp = MagicMock()
+        ceaps_resp.status_code = 200
+        ceaps_resp.headers = {"content-type": "application/json"}
+        ceaps_resp.json.return_value = {
+            "CesapAtual": {"Despesas": {"Despesa": [{"Data": "2025-01-10"}]}}
         }
-        mock_resp.raise_for_status = MagicMock()
+        ceaps_resp.raise_for_status = MagicMock()
 
         mock_client = AsyncMock()
-        mock_client.get.return_value = mock_resp
+        mock_client.get.return_value = ceaps_resp
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.senado.senado_ceaps_client", return_value=mock_client):
+        with (
+            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+            patch.object(self.c, "_get_senator_codes", return_value=["5012", "5013"]),
+        ):
             job = JobSpec(name="senado_ceaps", description="", domain="despesa")
-            items, cursor = await self.c.fetch(job)
+            # First call: senator 0, year 0 → cursor advances to senator 1
+            items, cursor = await self.c.fetch(job, params={"ano": "2025"})
             assert len(items) == 1
-            assert cursor == "y0p2"
+            assert cursor == "s1y0"
 
     @pytest.mark.asyncio
     async def test_fetch_unknown_raises(self):

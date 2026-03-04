@@ -3,6 +3,7 @@
 import httpx
 
 from shared.config import settings
+from shared.connectors.domain_guard import validate_domain
 
 # Timeouts: 30s connect, 60s read
 DEFAULT_TIMEOUT = httpx.Timeout(connect=30.0, read=60.0, write=30.0, pool=30.0)
@@ -10,10 +11,20 @@ PORTAL_TIMEOUT = httpx.Timeout(connect=30.0, read=120.0, write=30.0, pool=30.0)
 DEFAULT_PAGE_SIZE = 100
 
 
+def _guarded_client(base_url: str, **kwargs: object) -> httpx.AsyncClient:
+    """Create an HTTP client after validating the base URL against the domain whitelist.
+
+    Raises DomainNotAllowedError if the domain is not a government TLD
+    and has no approved exception.
+    """
+    validate_domain(base_url)
+    return httpx.AsyncClient(base_url=base_url, **kwargs)
+
+
 def portal_transparencia_client() -> httpx.AsyncClient:
     """HTTP client for Portal da Transparência API."""
-    return httpx.AsyncClient(
-        base_url="https://api.portaldatransparencia.gov.br/api-de-dados",
+    return _guarded_client(
+        "https://api.portaldatransparencia.gov.br/api-de-dados",
         headers={"chave-api-dados": settings.PORTAL_TRANSPARENCIA_TOKEN},
         timeout=PORTAL_TIMEOUT,
     )
@@ -25,8 +36,8 @@ def compras_gov_client() -> httpx.AsyncClient:
     Docs: https://compras.dados.gov.br/docs/home.html
     Module-based URL structure: /{module}/v1/{method}.json
     """
-    return httpx.AsyncClient(
-        base_url="https://compras.dados.gov.br",
+    return _guarded_client(
+        "https://compras.dados.gov.br",
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
@@ -39,8 +50,8 @@ def comprasnet_contratos_client() -> httpx.AsyncClient:
     We use the open-data contracts endpoint at compras.dados.gov.br instead.
     Docs: https://compras.dados.gov.br/docs/contratos.html
     """
-    return httpx.AsyncClient(
-        base_url="https://compras.dados.gov.br",
+    return _guarded_client(
+        "https://compras.dados.gov.br",
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
@@ -48,8 +59,8 @@ def comprasnet_contratos_client() -> httpx.AsyncClient:
 
 def pncp_client() -> httpx.AsyncClient:
     """HTTP client for PNCP API."""
-    return httpx.AsyncClient(
-        base_url="https://pncp.gov.br/api/consulta/v1",
+    return _guarded_client(
+        "https://pncp.gov.br/api/consulta/v1",
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
@@ -65,8 +76,8 @@ def transferegov_client(module: str = "") -> httpx.AsyncClient:
     Docs: https://docs.api.transferegov.gestao.gov.br/{module}/
     """
     base = f"https://api.transferegov.gestao.gov.br/{module}" if module else "https://api.transferegov.gestao.gov.br"
-    return httpx.AsyncClient(
-        base_url=base,
+    return _guarded_client(
+        base,
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
@@ -74,8 +85,8 @@ def transferegov_client(module: str = "") -> httpx.AsyncClient:
 
 def camara_client() -> httpx.AsyncClient:
     """HTTP client for Câmara dos Deputados API."""
-    return httpx.AsyncClient(
-        base_url="https://dadosabertos.camara.leg.br/api/v2",
+    return _guarded_client(
+        "https://dadosabertos.camara.leg.br/api/v2",
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
@@ -83,22 +94,8 @@ def camara_client() -> httpx.AsyncClient:
 
 def senado_client() -> httpx.AsyncClient:
     """HTTP client for Senado Federal API."""
-    return httpx.AsyncClient(
-        base_url="https://legis.senado.leg.br/dadosabertos",
-        headers={"Accept": "application/json"},
-        timeout=DEFAULT_TIMEOUT,
-    )
-
-
-def senado_ceaps_client() -> httpx.AsyncClient:
-    """HTTP client for senator expenses (CEAPS) via Codante API.
-
-    The official Senado /senador/lista/ceaps/{ano} endpoint returns 404.
-    Codante aggregates the same CEAPS data at a working REST endpoint.
-    Docs: https://docs.apis.codante.io/gastos-senadores
-    """
-    return httpx.AsyncClient(
-        base_url="https://apis.codante.io/senator-expenses",
+    return _guarded_client(
+        "https://legis.senado.leg.br/dadosabertos",
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )

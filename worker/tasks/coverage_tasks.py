@@ -4,6 +4,7 @@ from celery import shared_task
 from sqlalchemy import func, select
 
 from shared.connectors import ConnectorRegistry
+from shared.connectors.veracity import SOURCE_VERACITY_REGISTRY
 from shared.db_sync import SyncSession
 from shared.logging import log
 from shared.models.orm import CoverageRegistry, IngestState, RawRun, RawSource
@@ -103,6 +104,14 @@ def update_coverage_registry():
                 cov.last_success_at = last_success_at
                 cov.freshness_lag_hours = freshness_lag_hours
                 cov.total_items = total_items
+
+                # Veracity scoring from static registry
+                profile = SOURCE_VERACITY_REGISTRY.get(f"{name}:{job.name}")
+                if profile:
+                    cov.veracity_score = profile.composite_score
+                    cov.veracity_label = profile.veracity_label
+                    cov.domain_tier = profile.domain_tier.value
+
                 updated += 1
 
         session.commit()

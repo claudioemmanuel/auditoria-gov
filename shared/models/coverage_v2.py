@@ -173,3 +173,45 @@ class CoverageV2RunDetailResponse(BaseModel):
     summary: dict
     field_profile: list[CoverageV2RunFieldProfile] = Field(default_factory=list)
     samples: list[CoverageV2RunSampleRecord] = Field(default_factory=list)
+
+
+# ── Public Sources (Governance) ────────────────────────────────────────
+
+
+class SourceVeracityDetail(BaseModel):
+    government_domain: float
+    legal_authority: float
+    public_availability: float
+    official_api_documented: float
+    metadata_traceability: float
+    composite_score: float
+    label: str
+
+
+class PublicSourceItem(BaseModel):
+    connector: str
+    job: str
+    domain: str
+    base_url: Optional[str] = None
+    is_government: bool
+    veracity: Optional[SourceVeracityDetail] = None
+    status: CoverageSourceStatus = "pending"
+    freshness_lag_hours: Optional[float] = None
+    total_items: int = 0
+    compliance_status: Optional[str] = None
+
+
+class PublicDomainException(BaseModel):
+    domain: str
+    justification: str
+    max_veracity: float
+    review_by: str
+
+
+class PublicSourcesResponse(BaseModel):
+    items: list[PublicSourceItem] = Field(default_factory=list)
+    total: int
+    policy_version: str = "1.0"
+    domain_whitelist: list[str] = Field(default_factory=list)
+    controlled_exceptions: list[PublicDomainException] = Field(default_factory=list)
+    generated_at: datetime

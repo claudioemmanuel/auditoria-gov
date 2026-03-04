@@ -3518,3 +3518,92 @@ def find_similar_signal_embeddings(
         sql, {"query_vec": vec_str, "threshold": threshold, "limit": limit}
     ).fetchall()
     return [{"source_id": row.source_id, "similarity": float(row.similarity)} for row in rows]
+
+
+async def get_public_sources(session: AsyncSession) -> dict:
+    """Build public sources response with veracity metadata.
+
+    Queries CoverageRegistry and enriches with static veracity profiles
+    and domain guard configuration.
+    """
+    from datetime import datetime as dt, timezone as tz
+
+    from shared.connectors import ConnectorRegistry
+    from shared.connectors.domain_guard import (
+        DOMAIN_EXCEPTIONS,
+        GOVERNMENT_TLDS,
+        is_government_domain,
+    )
+    from shared.connectors.veracity import SOURCE_VERACITY_REGISTRY
+
+    # Base URLs per connector (static mapping)
+    _CONNECTOR_URLS: dict[str, str] = {
+        "portal_transparencia": "https://api.portaldatransparencia.gov.br",
+        "compras_gov": "https://compras.dados.gov.br",
+        "comprasnet_contratos": "https://compras.dados.gov.br",
+        "pncp": "https://pncp.gov.br",
+        "transferegov": "https://api.transferegov.gestao.gov.br",
+        "camara": "https://dadosabertos.camara.leg.br",
+        "senado": "https://legis.senado.leg.br",
+        "tse": "https://dadosabertos.tse.jus.br",
+        "receita_cnpj": "https://dados.rfb.gov.br",
+        "querido_diario": "https://api.queridodiario.ok.org.br",
+    }
+
+    # Get all coverage rows
+    stmt = select(CoverageRegistry)
+    rows = (await session.execute(stmt)).scalars().all()
+    cov_map = {(r.connector, r.job): r for r in rows}
+
+    items = []
+    for name, cls in ConnectorRegistry.items():
+        connector = cls()
+        base_url = _CONNECTOR_URLS.get(name, "")
+        for job in connector.list_jobs():
+            key = f"{name}:{job.name}"
+            profile = SOURCE_VERACITY_REGISTRY.get(key)
+            cov = cov_map.get((name, job.name))
+
+            veracity_detail = None
+            if profile:
+                veracity_detail = {
+                    "government_domain": profile.government_domain,
+                    "legal_authority": profile.legal_authority,
+                    "public_availability": profile.public_availability,
+                    "official_api_documented": profile.official_api_documented,
+                    "metadata_traceability": profile.metadata_traceability,
+                    "composite_score": profile.composite_score,
+                    "label": profile.veracity_label,
+                }
+
+            items.append({
+                "connector": name,
+                "job": job.name,
+                "domain": job.domain,
+                "base_url": base_url,
+                "is_government": is_government_domain(base_url) if base_url else False,
+                "veracity": veracity_detail,
+                "status": cov.status if cov else "pending",
+                "freshness_lag_hours": cov.freshness_lag_hours if cov else None,
+                "total_items": cov.total_items if cov else 0,
+                "compliance_status": cov.compliance_status if cov else None,
+            })
+
+    exceptions = [
+        {
+            "domain": exc.domain,
+            "justification": exc.justification,
+            "max_veracity": exc.max_veracity,
+            "review_by": exc.review_by.isoformat(),
+        }
+        for exc in DOMAIN_EXCEPTIONS.values()
+    ]
+
+    return {
+        "items": items,
+        "total": len(items),
+        "policy_version": "1.0",
+        "domain_whitelist": sorted(GOVERNMENT_TLDS),
+        "controlled_exceptions": exceptions,
+        "generated_at": dt.now(tz.utc),
+    }

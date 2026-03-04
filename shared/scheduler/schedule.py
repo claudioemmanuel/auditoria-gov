@@ -56,4 +56,9 @@ BEAT_SCHEDULE = {
         "schedule": crontab(minute=30, hour=5),  # Daily at 05:30
         "options": {"queue": "default"},
     },
+    "check-source-compliance-weekly": {
+        "task": "worker.tasks.compliance_tasks.check_source_compliance",
+        "schedule": crontab(minute=0, hour=6, day_of_week=1),  # Monday 06:00 UTC
+        "options": {"queue": "default"},
+    },
 }

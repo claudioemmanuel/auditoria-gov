@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from jinja2 import Template
 
-from shared.ai.provider import get_llm_provider
+from shared.ai.provider import explanatory_only, get_llm_provider
 from shared.config import settings
 
 if TYPE_CHECKING:
@@ -65,6 +65,7 @@ identificada pela análise automatizada dos dados públicos.
 > Recomenda-se análise aprofundada por órgão competente.""")
 
 
+@explanatory_only
 async def explain_signal(
     typology_code: str,
     typology_name: str,

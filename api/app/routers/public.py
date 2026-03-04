@@ -14,6 +14,7 @@ from shared.models.coverage_v2 import (
     CoverageV2SourcePreviewResponse,
     CoverageV2SourcesResponse,
     CoverageV2SummaryResponse,
+    PublicSourcesResponse,
 )
 from shared.models.graph import CaseGraphResponse, NeighborhoodResponse, SignalGraphResponse
 from shared.models.orm import Contestation
@@ -44,6 +45,7 @@ from shared.repo.queries import (
     get_entity_by_id,
     get_graph_neighborhood,
     get_org_summary,
+    get_public_sources,
     get_radar_v2_case_preview,
     get_radar_v2_cases,
     get_radar_v2_coverage,
@@ -129,6 +131,12 @@ async def coverage_v2_run_detail(
         raise HTTPException(status_code=404, detail="Run not found")
     return detail
 
+
+
+@router.get("/sources", response_model=PublicSourcesResponse)
+async def public_sources(session: DbSession):
+    """Full transparency on data provenance — sources, veracity, whitelist."""
+    return await get_public_sources(session)
 
 
 @router.get("/radar/v2/summary", response_model=RadarV2SummaryResponse)

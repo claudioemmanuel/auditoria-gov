@@ -1,15 +1,15 @@
 """Connector for Senado Federal.
 
 Senators list: https://legis.senado.leg.br/dadosabertos (Accept: application/json)
-CEAPS expenses: https://apis.codante.io/senator-expenses (official endpoint returns 404)
-Docs (Codante): https://docs.apis.codante.io/gastos-senadores
+CEAPS expenses: https://legis.senado.leg.br/dadosabertos/senador/{codigo}/ceaps
+Official docs: https://legis.senado.leg.br/dadosabertos/docs
 """
 
 from datetime import datetime, timezone
 from typing import Optional
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
-from shared.connectors.http_client import senado_client, senado_ceaps_client, DEFAULT_PAGE_SIZE
+from shared.connectors.http_client import senado_client, DEFAULT_PAGE_SIZE
 from shared.models.canonical import (
     CanonicalEntity,
     CanonicalEvent,
@@ -37,7 +37,7 @@ class SenadoConnector(BaseConnector):
             ),
             JobSpec(
                 name="senado_ceaps",
-                description="CEAPS — senator quota expenses (via Codante)",
+                description="CEAPS — senator quota expenses (official Senado API)",
                 domain="despesa",
                 enabled=True,
             ),
@@ -78,14 +78,13 @@ class SenadoConnector(BaseConnector):
     async def _fetch_ceaps(
         self, cursor: Optional[str], params: Optional[dict]
     ) -> tuple[list[RawItem], Optional[str]]:
-        """Fetch CEAPS expenses from Codante API.
+        """Fetch CEAPS expenses from the official Senado API (per senator).
 
-        Endpoint: GET /expenses?year=YYYY&page=N
-        Response: {"data": [...], "links": {"next": ...}, "meta": {"current_page": N}}
+        Strategy: first fetch senator codes via /senador/lista/atual, then
+        call GET /senador/{codigo}/ceaps?ano=YYYY for each senator/year.
 
-        Multi-year cursor format: "y{year_idx}p{page}" — iterates 3 years of data.
+        Cursor format: "s{senator_idx}y{year_idx}" for resumability.
         """
-        # Build 3-year range of years to iterate
         current_year = datetime.now(timezone.utc).year
         years = [str(y) for y in range(current_year - 4, current_year + 1)]
 
@@ -93,43 +92,81 @@ class SenadoConnector(BaseConnector):
         if explicit_ano:
             years = [str(explicit_ano)]
 
-        # Parse cursor
-        year_idx, page = 0, 1
-        if cursor:
-            if cursor.startswith("y") and "p" in cursor:
-                parts = cursor[1:].split("p", 1)
-                year_idx, page = int(parts[0]), int(parts[1])
-            else:
-                page = int(cursor)
-
-        if year_idx >= len(years):
+        # Fetch senator codes
+        senator_codes = await self._get_senator_codes()
+        if not senator_codes:
             return [], None
 
+        # Parse cursor
+        senator_idx, year_idx = 0, 0
+        if cursor:
+            if cursor.startswith("s") and "y" in cursor:
+                parts = cursor[1:].split("y", 1)
+                senator_idx, year_idx = int(parts[0]), int(parts[1])
+
+        if senator_idx >= len(senator_codes):
+            return [], None
+
+        codigo = senator_codes[senator_idx]
         ano = years[year_idx]
 
-        async with senado_ceaps_client() as client:
+        async with senado_client() as client:
             response = await client.get(
-                "/expenses",
-                params={"year": ano, "page": page},
+                f"/senador/{codigo}/ceaps",
+                params={"ano": ano},
             )
+            response.raise_for_status()
+            body = _parse_response(response)
+
+        # Extract CEAPS records — handle both JSON structures
+        ceaps = (
+            body.get("CesapAtual", body.get("Ceaps", {}))
+            .get("Despesas", {})
+            .get("Despesa", [])
+        )
+        if isinstance(ceaps, dict):
+            ceaps = [ceaps]
+
+        items = [
+            RawItem(
+                raw_id=f"senado_ceaps:{codigo}:{ano}:{i}",
+                data={**record, "_senator_codigo": str(codigo)},
+            )
+            for i, record in enumerate(ceaps)
+        ]
+
+        # Advance cursor: next year, then next senator
+        if year_idx + 1 < len(years):
+            next_cursor = f"s{senator_idx}y{year_idx + 1}"
+        elif senator_idx + 1 < len(senator_codes):
+            next_cursor = f"s{senator_idx + 1}y0"
+        else:
+            next_cursor = None
+
+        return items, next_cursor
+
+    async def _get_senator_codes(self) -> list[str]:
+        """Fetch current senator codes from /senador/lista/atual."""
+        async with senado_client() as client:
+            response = await client.get("/senador/lista/atual")
             response.raise_for_status()
             body = {} if response.status_code == 204 else response.json()
 
-        records = body.get("data", [])
-        items = [
-            RawItem(raw_id=f"senado_ceaps:{ano}:{page}:{i}", data=r)
-            for i, r in enumerate(records)
-        ]
+        parlamentares = (
+            body.get("ListaParlamentarEmExercicio", {})
+            .get("Parlamentares", {})
+            .get("Parlamentar", [])
+        )
+        if isinstance(parlamentares, dict):
+            parlamentares = [parlamentares]
 
-        # Check pagination via links.next or meta; advance year when exhausted
-        has_next = bool(body.get("links", {}).get("next"))
-        if has_next:
-            next_cursor = f"y{year_idx}p{page + 1}"
-        elif year_idx + 1 < len(years):
-            next_cursor = f"y{year_idx + 1}p1"
-        else:
-            next_cursor = None
-        return items, next_cursor
+        codes = []
+        for p in parlamentares:
+            ident = p.get("IdentificacaoParlamentar", p)
+            code = ident.get("CodigoParlamentar")
+            if code:
+                codes.append(str(code))
+        return codes
 
     def normalize(
         self,
@@ -170,23 +207,21 @@ class SenadoConnector(BaseConnector):
 
         for item in items:
             d = item.data
-            senator_data = d.get("senator", {})
+            senator_codigo = d.get("_senator_codigo", "")
+
             senator = CanonicalEntity(
                 source_connector="senado",
-                source_id=str(senator_data.get("id", item.raw_id)),
+                source_id=senator_codigo or item.raw_id,
                 type="person",
-                name=senator_data.get("name", ""),
-                identifiers={"senator_id": str(senator_data.get("id", ""))},
-                attrs={
-                    "sigla_partido": senator_data.get("party", ""),
-                    "uf": senator_data.get("UF", ""),
-                },
+                name=d.get("NomeParlamentar", d.get("Senador", "")),
+                identifiers={"codigo_parlamentar": senator_codigo},
+                attrs={},
             )
             entities.append(senator)
 
             # Supplier entity (if document is present)
-            supplier_doc = _digits_only(d.get("supplier_document", ""))
-            supplier_name = d.get("supplier", "")
+            supplier_doc = _digits_only(d.get("CNPJCPF", ""))
+            supplier_name = d.get("Fornecedor", "")
             participants = [
                 CanonicalEventParticipant(entity_ref=senator, role="senador"),
                 CanonicalEventParticipant(entity_ref=senator, role="buyer"),
@@ -208,21 +243,21 @@ class SenadoConnector(BaseConnector):
                 participants.append(CanonicalEventParticipant(entity_ref=supplier, role="fornecedor"))
                 participants.append(CanonicalEventParticipant(entity_ref=supplier, role="supplier"))
 
-            amount = _safe_float(d.get("amount"))
-            occurred_at = _parse_any_datetime(d.get("date"))
-            expense_category = d.get("expense_category", "")
+            amount = _safe_float(d.get("ValorReembolsado", d.get("ValorDocumento")))
+            occurred_at = _parse_any_datetime(d.get("Data", d.get("DataDoc")))
+            expense_category = d.get("TipoDespesa", "")
             events.append(
                 CanonicalEvent(
                     source_connector="senado",
-                    source_id=str(d.get("id", d.get("original_id", item.raw_id))),
+                    source_id=f"{senator_codigo}:{d.get('Data', '')}:{d.get('NumeroDocumento', item.raw_id)}",
                     type="despesa",
                     subtype="ceaps",
-                    description=expense_category or d.get("description", ""),
+                    description=expense_category or d.get("Detalhamento", ""),
                     occurred_at=occurred_at,
                     value_brl=amount,
                     attrs={
-                        "date": d.get("date", ""),
-                        "description": d.get("description", ""),
+                        "date": d.get("Data", ""),
+                        "description": d.get("Detalhamento", ""),
                         "modality": "ceaps",
                         "catmat_group": expense_category or "ceaps",
                     },
@@ -231,6 +266,39 @@ class SenadoConnector(BaseConnector):
             )
 
         return NormalizeResult(entities=entities, events=events)
+
+
+def _parse_response(response: object) -> dict:
+    """Parse Senado API response handling both JSON and XML fallback."""
+    content_type = getattr(response, "headers", {}).get("content-type", "")
+    if response.status_code == 204:
+        return {}
+    if "xml" in content_type:
+        # Senado API sometimes returns XML; extract as best-effort dict
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(response.text)
+        return _xml_to_dict(root)
+    return response.json()
+
+
+def _xml_to_dict(element: object) -> dict:
+    """Recursively convert an XML element to a dict."""
+    result: dict = {}
+    for child in element:
+        tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+        if len(child) > 0:
+            child_dict = _xml_to_dict(child)
+            if tag in result:
+                existing = result[tag]
+                if isinstance(existing, list):
+                    existing.append(child_dict)
+                else:
+                    result[tag] = [existing, child_dict]
+            else:
+                result[tag] = child_dict
+        else:
+            result[tag] = child.text or ""
+    return result
 
 
 def _digits_only(value: object) -> str:

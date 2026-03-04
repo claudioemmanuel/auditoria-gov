@@ -2,8 +2,8 @@ from shared.scheduler.schedule import BEAT_SCHEDULE
 
 
 class TestBeatSchedule:
-    def test_has_11_entries(self):
-        assert len(BEAT_SCHEDULE) == 11
+    def test_has_12_entries(self):
+        assert len(BEAT_SCHEDULE) == 12
 
     def test_ingest_entry(self):
         entry = BEAT_SCHEDULE["ingest-all-incremental"]

@@ -59,3 +59,6 @@ docker compose run --rm api alembic -c api/alembic.ini upgrade head
 - Keep typology logic deterministic and auditable.
 - Add or update tests for all behavioral changes.
 - Prefer small, reviewable PRs with explicit verification output.
+- All outbound HTTP must pass through `shared/connectors/domain_guard.py` whitelist. Non-government domains require a `DomainException` with justification and review date.
+- New data sources require a `SourceVeracityProfile` in `shared/connectors/veracity.py` and an update to `docs/GOVERNANCE.md`.
+- LLM usage is explanatory only — never affects scoring. Functions calling LLMs must use the `@explanatory_only` decorator from `shared/ai/provider.py`.

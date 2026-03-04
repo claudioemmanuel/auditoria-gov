@@ -1,6 +1,10 @@
+import functools
+import logging
 from typing import Protocol
 
 from shared.config import settings
+
+_audit_log = logging.getLogger("auditoria.llm_audit")
 
 
 class LLMProvider(Protocol):
@@ -97,3 +101,23 @@ def get_llm_provider() -> LLMProvider:
     if settings.LLM_PROVIDER == "anthropic":
         return AnthropicProvider()
     return NoOpProvider()
+
+
+def explanatory_only(fn):
+    """Decorator enforcing that LLM functions return only explanatory text.
+
+    - Logs an audit event on every invocation.
+    - Asserts the return value is a string (never numeric/dict).
+    - Raises TypeError if the decorated function returns a non-string.
+    """
+    @functools.wraps(fn)
+    async def wrapper(*args, **kwargs):
+        _audit_log.info("llm_invocation: %s", fn.__qualname__)
+        result = await fn(*args, **kwargs)
+        if not isinstance(result, str):
+            raise TypeError(
+                f"LLM function {fn.__qualname__} must return str (explanatory text), "
+                f"got {type(result).__name__}. LLM output must never affect scoring."
+            )
+        return result
+    return wrapper

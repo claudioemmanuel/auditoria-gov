@@ -340,6 +340,13 @@ class CoverageRegistry(Base):
     total_items: Mapped[int] = mapped_column(BigInteger, default=0)
     period_start: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    veracity_score: Mapped[Optional[float]] = mapped_column(Float)
+    veracity_label: Mapped[Optional[str]] = mapped_column(String(20))
+    domain_tier: Mapped[Optional[str]] = mapped_column(String(50))
+    last_compliance_check_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    compliance_status: Mapped[Optional[str]] = mapped_column(String(20))
 
     __table_args__ = (
         UniqueConstraint(
