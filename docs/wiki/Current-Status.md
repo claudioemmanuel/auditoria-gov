@@ -1,13 +1,13 @@
 # Current Status
 
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 ## Product Scope
 
 - Public read-only web experience (no login required)
 - FastAPI API + Celery workers + PostgreSQL + Next.js
 - 10 connector modules ingesting 11 public source streams
-- 10 deterministic typology detectors (T01-T10)
+- 18 deterministic typology detectors (T01-T18)
 
 ## Engineering Status
 

@@ -16,6 +16,14 @@ export const TYPOLOGY_LABELS: Record<string, string> = {
   T08: "Sanção x Contrato",
   T09: "Proxy de Folha Fantasma",
   T10: "Terceirização Paralela",
+  T11: "Jogo de Planilha",
+  T12: "Edital Direcionado",
+  T13: "Conflito de Interesses",
+  T14: "Sequência de Favorecimento Contratual",
+  T15: "Inexigibilidade Indevida",
+  T16: "Clientelismo Orçamentário-Contratual",
+  T17: "Lavagem via Camadas Societárias",
+  T18: "Acúmulo Ilegal de Cargos",
 };
 
 export const COVERAGE_STATUS_LABELS: Record<string, string> = {
@@ -35,6 +43,7 @@ export const NAV_ITEMS = [
 
 export const CORRUPTION_TYPE_LABELS: Record<string, string> = {
   fraude_licitatoria: "Fraude em Licitação",
+  corrupcao_ativa_passiva: "Corrupção Ativa/Passiva",
   corrupcao_passiva: "Corrupção Passiva",
   corrupcao_ativa: "Corrupção Ativa",
   peculato: "Peculato",

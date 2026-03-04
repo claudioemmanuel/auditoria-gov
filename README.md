@@ -76,6 +76,14 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 | T08 | Sanctions mismatch | Contracting activity involving sanctioned entities |
 | T09 | Ghost payroll proxy | Payroll-like inconsistencies and proxy ghost-worker patterns |
 | T10 | Outsourcing + parallel payroll | Outsourcing contracts overlapping suspicious payroll patterns |
+| T11 | Spreadsheet manipulation (jogo de planilha) | Unit price inflation exploited via contract amendments in engineering works |
+| T12 | Directed tender (edital direcionado) | Tender requirements tailored to a pre-selected supplier |
+| T13 | Conflict of interest | Contracting agent has financial or family ties to the winning supplier |
+| T14 | Compound favoritism sequence | Persistent accumulation of multiple favoritism signals for the same supplier |
+| T15 | False sole-source (inexigibilidade indevida) | Sole-source procurement where qualified alternatives exist |
+| T16 | Budget clientelism (emenda pix) | Parliamentary transfers without work plan or disproportionate to recipient capacity |
+| T17 | Layered money laundering | Circular fund flows between interconnected entities post-contract |
+| T18 | Illegal position accumulation | Simultaneous public roles or dismissed officials active in contracting companies |
 
 ## Quick Start
 

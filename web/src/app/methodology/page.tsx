@@ -14,6 +14,14 @@ const TYPOLOGY_DESCRIPTIONS: Record<string, string> = {
   T08: "Fornecedor com contrato ativo consta em cadastro de sancionados (CEIS, CNEP, CEPIM) vigente.",
   T09: "Servidores com vinculo ativo nao localizaveis na folha de pagamento do periodo ou com remuneracao inconsistente.",
   T10: "Contratacao terceirizada paralela a quadro proprio com sobreposicao de funcao e orgao.",
+  T11: "Itens com preco unitario inflado seguidos de aumento de quantidade via aditivo — padrao classico de jogo de planilha em obras publicas.",
+  T12: "Edital com exigencias tecnicas, geograficas ou de qualificacao direcionadas a fornecedor especifico, restringindo a competitividade.",
+  T13: "Agente publico responsavel pela contratacao compartilha vinculo familiar, societario ou financeiro com o fornecedor vencedor.",
+  T14: "Fornecedor acumula multiplos sinais de favorecimento (concentracao, baixa competicao, aditivo outlier, preco outlier) de forma persistente e composta.",
+  T15: "Contratacao declarada inexigivel quando existem fornecedores alternativos habilitados no mesmo segmento de mercado.",
+  T16: "Emendas parlamentares ou transferencias especiais sem plano de trabalho registrado ou com valor desproporcional a capacidade administrativa do ente.",
+  T17: "Fluxo financeiro circular entre empresas interligadas societariamente apos contrato publico, indicador de lavagem por camadas.",
+  T18: "Servidor com vinculo ativo em dois orgaos simultaneamente ou expulso da administracao atuando como socio em empresa contratada.",
 };
 
 const TYPOLOGY_SOURCES: Record<string, string[]> = {
@@ -27,6 +35,14 @@ const TYPOLOGY_SOURCES: Record<string, string[]> = {
   T08: ["Portal da Transparencia", "PNCP"],
   T09: ["Portal da Transparencia"],
   T10: ["Portal da Transparencia", "Compras.gov.br"],
+  T11: ["PNCP", "ComprasNet Contratos"],
+  T12: ["PNCP", "Compras.gov.br"],
+  T13: ["Receita Federal (CNPJ)", "Portal da Transparencia"],
+  T14: ["PNCP", "Portal da Transparencia"],
+  T15: ["PNCP", "Compras.gov.br"],
+  T16: ["Portal da Transparencia", "Transfere.gov"],
+  T17: ["Receita Federal (CNPJ)"],
+  T18: ["Portal da Transparencia"],
 };
 
 // ── Static content ─────────────────────────────────────────────────────────────
@@ -187,7 +203,7 @@ export default function MethodologyPage() {
           {/* ── Tipologias ── */}
           <SectionHeading id="tipologias">Tipologias</SectionHeading>
           <p className="text-sm text-secondary leading-relaxed mb-6">
-            O motor aplica 10 tipologias com thresholds especificos por contexto e baseline.
+            O motor aplica 18 tipologias com thresholds especificos por contexto e baseline.
             A leitura de cada codigo deve considerar o nivel de evidencia: direto (viola regra
             legal especifica), indireto (anomalia estatistica) ou proxy (indicador associado ao
             veiculo de risco).
