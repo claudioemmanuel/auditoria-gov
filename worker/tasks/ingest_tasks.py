@@ -157,10 +157,12 @@ def ingest_connector(
                 )
 
                 if not items:
-                    # Preserve cursor even when no items returned (e.g., rate limit
-                    # returns empty items with a resume cursor).
                     if next_cursor is not None:
+                        # Advance through empty windows (e.g., PNCP has no data
+                        # for 2021-2022 windows; keep going until real data or end).
                         current_cursor = next_cursor
+                        pages += 1  # count against MAX_PAGES to prevent infinite loop
+                        continue
                     break
 
                 # Store raw items in bulk (one add_all per page).

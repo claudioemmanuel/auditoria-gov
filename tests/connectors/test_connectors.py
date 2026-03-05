@@ -1256,6 +1256,136 @@ class TestTSE:
         assert result.events[0].value_brl == 500000.0
 
 
+# ── Regression: Senado log NameError ────────────────────────────────
+# Bug: _fetch_ceaps used `log.warning(...)` but `log` was not imported,
+# causing NameError on every 404 response from the senator CEAPS endpoint.
+
+class TestSenadoCeaps404Regression:
+    """Regression tests for NameError in _fetch_ceaps and 404/204 handling."""
+
+    def test_senado_module_has_log_import(self):
+        """log must be importable at module level — prevents NameError regression."""
+        import shared.connectors.senado as senado_mod
+        assert hasattr(senado_mod, "log"), (
+            "shared.connectors.senado missing 'log' — _fetch_ceaps will crash on 404"
+        )
+
+    @pytest.mark.asyncio
+    async def test_fetch_ceaps_404_returns_empty_and_advances_cursor(self):
+        """404 from senator CEAPS endpoint must NOT raise — return ([], next_cursor)."""
+        c = get_connector("senado")
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_resp.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.object(c, "_get_senator_codes", return_value=["5012", "5013"]),
+            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+        ):
+            items, next_cursor = await c._fetch_ceaps(cursor=None, params=None)
+
+        assert items == []
+        # Must advance to the next entry rather than stalling
+        assert next_cursor is not None
+
+    @pytest.mark.asyncio
+    async def test_fetch_ceaps_204_returns_empty_and_advances_cursor(self):
+        """204 from senator CEAPS endpoint must NOT raise — return ([], next_cursor)."""
+        c = get_connector("senado")
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 204
+        mock_resp.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.object(c, "_get_senator_codes", return_value=["5012", "5013"]),
+            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+        ):
+            items, next_cursor = await c._fetch_ceaps(cursor=None, params=None)
+
+        assert items == []
+        assert next_cursor is not None
+
+    @pytest.mark.asyncio
+    async def test_fetch_ceaps_no_senator_codes_returns_empty(self):
+        """Empty senator list must return ([], None) without HTTP calls."""
+        c = get_connector("senado")
+        with patch.object(c, "_get_senator_codes", return_value=[]):
+            items, next_cursor = await c._fetch_ceaps(cursor=None, params=None)
+        assert items == []
+        assert next_cursor is None
+
+
+# ── Regression: TSE BadZipFile ───────────────────────────────────────
+# Bug: TSE CDN sometimes returns an HTML error page with HTTP 200 instead
+# of a real ZIP. zipfile.ZipFile() then raised BadZipFile. The fix validates
+# with zipfile.is_zipfile() before extraction, deletes the corrupt file, and
+# raises FileNotFoundError so the next Celery retry downloads fresh.
+
+class TestTSECorruptZipRegression:
+    """Regression tests for BadZipFile when TSE CDN returns non-ZIP content."""
+
+    @pytest.mark.asyncio
+    async def test_corrupt_zip_raises_file_not_found_and_deletes_file(self, tmp_path):
+        """A downloaded file that is not a valid ZIP must be deleted and raise FileNotFoundError."""
+        import os
+        from shared.connectors.tse import _TSEJobCfg, _download_tse_dataset
+
+        cfg = _TSEJobCfg(
+            zip_dir="prestacao_contas",
+            zip_prefix="prestacao_de_contas_eleitorais_candidatos",
+            csv_prefix="despesas_contratadas_candidatos",
+        )
+        year = 2024
+        zip_filename = f"{cfg.zip_prefix}_{year}.zip"
+        zip_path = tmp_path / zip_filename
+        # Simulate CDN returning an HTML error page saved as a ZIP
+        zip_path.write_bytes(b"<html><body>Service Unavailable</body></html>")
+
+        assert zip_path.exists()
+
+        with pytest.raises(FileNotFoundError, match="not a valid ZIP"):
+            await _download_tse_dataset(cfg, year, str(tmp_path))
+
+        # Corrupt file must be deleted so the next run re-downloads
+        assert not zip_path.exists(), "Corrupt ZIP file was not deleted after validation failure"
+
+    @pytest.mark.asyncio
+    async def test_valid_zip_does_not_raise(self, tmp_path):
+        """A valid ZIP file passes validation and proceeds to extraction."""
+        import zipfile as _zipfile
+        from shared.connectors.tse import _TSEJobCfg, _download_tse_dataset
+
+        cfg = _TSEJobCfg(
+            zip_dir="prestacao_contas",
+            zip_prefix="prestacao_de_contas_eleitorais_candidatos",
+            csv_prefix="despesas_contratadas_candidatos",
+        )
+        year = 2024
+        zip_filename = f"{cfg.zip_prefix}_{year}.zip"
+        zip_path = tmp_path / zip_filename
+
+        # Create a minimal valid ZIP with a matching CSV
+        csv_name = f"despesas_contratadas_candidatos_{year}_BRASIL.csv"
+        with _zipfile.ZipFile(str(zip_path), "w") as zf:
+            zf.writestr(csv_name, "col1;col2\nval1;val2\n")
+
+        # Should not raise — returns path to extracted CSV
+        csv_path = await _download_tse_dataset(cfg, year, str(tmp_path))
+        assert csv_path.endswith(csv_name) or csv_name in csv_path
+
+
 # ── Integration: Portal Transparência (real API) ────────────────────
 
 class TestPortalTransparenciaIntegration:

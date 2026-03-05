@@ -2,8 +2,8 @@ from shared.scheduler.schedule import BEAT_SCHEDULE
 
 
 class TestBeatSchedule:
-    def test_has_12_entries(self):
-        assert len(BEAT_SCHEDULE) == 12
+    def test_has_13_entries(self):
+        assert len(BEAT_SCHEDULE) == 13
 
     def test_ingest_entry(self):
         entry = BEAT_SCHEDULE["ingest-all-incremental"]
@@ -35,3 +35,33 @@ class TestBeatSchedule:
         for name, entry in BEAT_SCHEDULE.items():
             assert "options" in entry, f"{name} missing options"
             assert "queue" in entry["options"], f"{name} missing queue"
+
+    # ── Regression: pipeline-watchdog ────────────────────────────────
+    # Bug: pipeline stages ran on fixed cron times regardless of whether ingest
+    # had finished, causing ER to run on partial data or typologies on stale baselines.
+    # Fix: pipeline_watchdog task runs every 15 min, checks conditions, dispatches chain.
+
+    def test_pipeline_watchdog_entry_exists(self):
+        assert "pipeline-watchdog" in BEAT_SCHEDULE, (
+            "pipeline-watchdog missing from beat schedule — automated pipeline will not trigger"
+        )
+
+    def test_pipeline_watchdog_task_name(self):
+        entry = BEAT_SCHEDULE["pipeline-watchdog"]
+        assert entry["task"] == "worker.tasks.maintenance_tasks.pipeline_watchdog"
+
+    def test_pipeline_watchdog_uses_default_queue(self):
+        entry = BEAT_SCHEDULE["pipeline-watchdog"]
+        assert entry["options"]["queue"] == "default"
+
+    def test_pipeline_watchdog_runs_frequently(self):
+        """Watchdog must run often enough to react to finished ingest batches."""
+        from celery.schedules import crontab
+        entry = BEAT_SCHEDULE["pipeline-watchdog"]
+        schedule = entry["schedule"]
+        assert isinstance(schedule, crontab), "pipeline-watchdog schedule must be a crontab"
+        # Verify it runs every N minutes (minute pattern like "*/15" or "*/10")
+        minute = str(schedule._orig_minute)
+        assert minute.startswith("*/"), (
+            f"pipeline-watchdog should run every N minutes, got minute={minute!r}"
+        )

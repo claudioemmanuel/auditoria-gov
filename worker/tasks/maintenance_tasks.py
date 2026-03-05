@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from celery import shared_task
+from celery import current_app, shared_task
 from celery.signals import task_failure
 from sqlalchemy import or_, select, update
 
@@ -464,3 +464,83 @@ def backfill_public_profile_photos(limit: int = 1000):
     }
     log.info("backfill_public_profile_photos.done", **result)
     return result
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.run_full_pipeline",
+    bind=False,
+    max_retries=0,
+)
+def run_full_pipeline() -> dict:
+    """Dispatch ER → baselines → signals as a Celery chain."""
+    pipeline = current_app.chain(
+        current_app.signature(
+            "worker.tasks.er_tasks.run_entity_resolution",
+            immutable=True,
+            queue="er",
+        ),
+        current_app.signature(
+            "worker.tasks.baseline_tasks.compute_all_baselines",
+            immutable=True,
+            queue="default",
+        ),
+        current_app.signature(
+            "worker.tasks.signal_tasks.run_all_signals",
+            immutable=True,
+            queue="signals",
+        ),
+    )
+    result = pipeline.apply_async()
+    log.info("run_full_pipeline.dispatched", chain_id=str(result.id))
+    return {"status": "dispatched", "chain_id": str(result.id)}
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.pipeline_watchdog",
+    bind=False,
+    soft_time_limit=60,
+    time_limit=90,
+    max_retries=0,
+)
+def pipeline_watchdog() -> dict:
+    """Check DB state every 15 min and dispatch run_full_pipeline when ingest is idle and ER is stale."""
+    from sqlalchemy import func, select
+
+    from shared.db_sync import SyncSession
+    from shared.models.orm import ERRunState, RawRun
+
+    with SyncSession() as session:
+        active_ingest = session.execute(
+            select(func.count()).select_from(RawRun).where(RawRun.status == "running")
+        ).scalar_one()
+        if active_ingest > 0:
+            log.info("pipeline_watchdog.skip", reason="ingest_running", count=active_ingest)
+            return {"status": "skip", "reason": "ingest_running"}
+
+        er_running = session.execute(
+            select(ERRunState).where(ERRunState.status == "running").limit(1)
+        ).scalar_one_or_none()
+        if er_running is not None:
+            log.info("pipeline_watchdog.skip", reason="er_running")
+            return {"status": "skip", "reason": "er_running"}
+
+        last_ingest_at = session.execute(
+            select(func.max(RawRun.finished_at)).where(RawRun.status == "completed")
+        ).scalar_one()
+        if last_ingest_at is None:
+            log.info("pipeline_watchdog.skip", reason="no_completed_ingest")
+            return {"status": "skip", "reason": "no_completed_ingest"}
+
+        er_completed = session.execute(
+            select(ERRunState)
+            .where(ERRunState.status == "completed", ERRunState.watermark_at.is_not(None))
+            .order_by(ERRunState.watermark_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if er_completed is not None and er_completed.watermark_at >= last_ingest_at:
+            log.info("pipeline_watchdog.skip", reason="er_up_to_date")
+            return {"status": "skip", "reason": "er_up_to_date"}
+
+    result = run_full_pipeline.apply_async(queue="default")
+    log.info("pipeline_watchdog.dispatched", task_id=str(result.id))
+    return {"status": "dispatched", "task_id": str(result.id)}

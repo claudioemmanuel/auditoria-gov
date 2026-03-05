@@ -107,7 +107,12 @@ async def _download_tse_dataset(cfg: _TSEJobCfg, year: int, data_dir: str) -> st
                 ) from exc
             raise
 
-    # Extract ZIP
+    # Validate and extract ZIP
+    if not zipfile.is_zipfile(zip_path):
+        os.remove(zip_path)
+        raise FileNotFoundError(
+            f"TSE: downloaded file is not a valid ZIP (deleted, will retry): {zip_filename}"
+        )
     log.info("tse.extracting", file=zip_filename)
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(data_dir)

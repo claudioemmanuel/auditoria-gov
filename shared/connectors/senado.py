@@ -10,6 +10,7 @@ from typing import Optional
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
 from shared.connectors.http_client import senado_client, DEFAULT_PAGE_SIZE
+from shared.logging import log
 from shared.models.canonical import (
     CanonicalEntity,
     CanonicalEvent,

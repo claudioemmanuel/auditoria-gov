@@ -46,6 +46,11 @@ BEAT_SCHEDULE = {
         "schedule": crontab(minute=45, hour=4),  # Daily at 04:45 UTC
         "options": {"queue": "ai"},
     },
+    "pipeline-watchdog": {
+        "task": "worker.tasks.maintenance_tasks.pipeline_watchdog",
+        "schedule": crontab(minute="*/15"),
+        "options": {"queue": "default"},
+    },
     "cleanup-stale-runs": {
         "task": "worker.tasks.maintenance_tasks.cleanup_stale_runs",
         "schedule": crontab(minute=0, hour=5),  # Daily at 05:00
