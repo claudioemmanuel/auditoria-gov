@@ -540,13 +540,18 @@ def vacuum_raw_source() -> dict:
 
 
 def _watchdog_recover_orphans() -> dict | None:
-    """Recover orphaned 'running' runs older than 10 min. Returns result dict or None."""
+    """Recover orphaned 'running' runs older than 2 hours. Returns result dict or None.
+
+    2-hour threshold: ingest jobs legitimately run for 30–90 min (PNCP cursor
+    pagination, bulk downloads). 10 min was too aggressive and killed healthy jobs.
+    The daily cleanup_stale_runs task (24h cutoff) handles truly dead runs.
+    """
     from shared.db_sync import SyncSession
     from shared.models.orm import IngestState, RawRun
 
     try:
         with SyncSession() as session:
-            orphan_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+            orphan_cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
             orphans = session.execute(
                 select(RawRun).where(
                     RawRun.status == "running",
