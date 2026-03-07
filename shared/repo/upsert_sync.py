@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from shared.config import settings
 from shared.models.orm import Entity, Event, EventParticipant
 from shared.models.canonical import CanonicalEntity, CanonicalEvent
-from shared.utils.hashing import hash_cpf, mask_cpf
+from shared.utils.hashing import hash_cpf
 from shared.utils.text import normalize_name
 
 
@@ -105,16 +105,16 @@ def _normalize_identifiers(identifiers: dict) -> dict:
         normalized["cnpj"] = cnpj
 
     if len(cpf) == 11:
+        normalized["cpf"] = cpf
         normalized["cpf_hash"] = hash_cpf(cpf, settings.CPF_HASH_SALT)
-        normalized["cpf_masked"] = mask_cpf(cpf)
-    normalized.pop("cpf", None)
+    normalized.pop("cpf_masked", None)
 
     if cnpj_cpf:
         if len(cnpj_cpf) == 14:
             normalized["cnpj"] = cnpj_cpf
         elif len(cnpj_cpf) == 11:
+            normalized["cpf"] = cnpj_cpf
             normalized["cpf_hash"] = hash_cpf(cnpj_cpf, settings.CPF_HASH_SALT)
-            normalized["cpf_masked"] = mask_cpf(cnpj_cpf)
         normalized.pop("cnpj_cpf", None)
 
     return normalized
@@ -162,8 +162,8 @@ def upsert_entity_sync(session: Session, canonical: CanonicalEntity) -> Entity:
         stmt = select(Entity).where(
             Entity.type == canonical.type,
             Entity.name_normalized == normalized_name,
-        )
-        entity = session.execute(stmt).scalar_one_or_none()
+        ).limit(1)
+        entity = session.execute(stmt).scalars().first()
         if entity:
             entity.attrs = {**entity.attrs, **canonical.attrs}
             entity.identifiers = {**entity.identifiers, **normalized_identifiers}
@@ -177,7 +177,10 @@ def upsert_entity_sync(session: Session, canonical: CanonicalEntity) -> Entity:
         attrs=canonical.attrs,
     )
     session.add(entity)
-    session.flush()
+    # No flush here: entity.id is a Python-generated UUID4 (no server-side default),
+    # so the ID is already known. SQLAlchemy autoflush will batch-emit all pending
+    # entity INSERTs before the next SELECT/INSERT that needs them — far more
+    # efficient than 2000 individual flushes per chunk.
     return entity
 
 

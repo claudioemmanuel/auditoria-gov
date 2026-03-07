@@ -26,6 +26,99 @@ export const TYPOLOGY_LABELS: Record<string, string> = {
   T18: "Acúmulo Ilegal de Cargos",
 };
 
+export const TYPOLOGY_INFO: Record<string, { description: string; legal: string }> = {
+  T01: {
+    description:
+      "Detecta quando um único fornecedor concentra mais de 70% do valor contratado por um órgão em determinada categoria de produto/serviço (HHI > 0,70). Alta concentração sugere direcionamento de contratos ou cartelização.",
+    legal: "Lei 8.666/93, Art. 3° | Lei 14.133/2021, Art. 9° | Lei 12.529/2011 (CADE)",
+  },
+  T02: {
+    description:
+      "Identifica licitações com número de participantes abaixo do percentil 10 do histórico de licitações similares. Pouca competição pode indicar edital restritivo, combinação prévia entre empresas ou afastamento de concorrentes.",
+    legal: "Lei 8.666/93, Art. 3°, §1° | Lei 14.133/2021, Art. 9° | Lei 8.429/92, Art. 10",
+  },
+  T03: {
+    description:
+      "Detecta compras repetidas do mesmo item em janela de 30 dias cujo valor somado ultrapassa os limites legais de dispensa de licitação. Fracionamento artificial é prática vedada para contornar exigência de certame.",
+    legal: "Lei 8.666/93, Art. 24, I e II | Lei 14.133/2021, Art. 75, I e II | TCU Súmula 249",
+  },
+  T04: {
+    description:
+      "Sinaliza aditivos contratuais cujo valor supera 25% do contrato original (limite legal para obras e serviços). Aditivos excessivos podem indicar superfaturamento planejado ou escopo subdeclarado no contrato original.",
+    legal: "Lei 8.666/93, Art. 65, §1° | Lei 14.133/2021, Art. 125 | TCU Acórdão 2618/2020",
+  },
+  T05: {
+    description:
+      "Compara o preço unitário de itens licitados com a mediana de contratos similares (mesmo CATMAT). Preços acima de 1,5× a mediana indicam possível superfaturamento em relação ao mercado.",
+    legal: "Lei 8.666/93, Art. 15, V | IN SEGES 73/2022 | TCU Acórdão 1977/2013",
+  },
+  T06: {
+    description:
+      "Identifica empresas vencedoras com sinais de empresa de fachada: CNPJ recente (<180 dias), capital social abaixo de R$ 10 mil, sem funcionários registrados ou endereço suspeito. Empresas de fachada são usadas para desvio de recursos públicos.",
+    legal: "Lei 8.429/92, Art. 10 | Lei 12.846/2013, Art. 5° | FATF Recomendação 24",
+  },
+  T07: {
+    description:
+      "Detecta redes de empresas com mesmos sócios, endereços compartilhados ou padrões de lance coordenados que sugerem formação de cartel em licitações. Conluio entre concorrentes viola a livre competição.",
+    legal: "Lei 12.529/2011, Art. 36, III | Lei 14.133/2021, Art. 155, IV | CP Art. 335-A",
+  },
+  T08: {
+    description:
+      "Cruza empresas vencedoras de contratos com registros de sanções administrativas ativas (CEIS, CNEP, CEPIM). Contratar empresa punida é vedado por lei e indica falha de controle interno ou desvio intencional.",
+    legal: "Lei 8.429/92 | Lei 12.846/2013, Art. 19 | Decreto 11.129/2022 (CEIS/CNEP)",
+  },
+  T09: {
+    description:
+      "Identifica servidores com remuneração que excede em mais de 2 desvios-padrão a mediana do cargo, ou servidores com CPF duplicado. Pode indicar pagamentos a servidores fantasmas ou erros de cadastro na folha.",
+    legal: "Lei 8.112/1990 | Lei 8.429/92, Art. 9° | TCU Acórdão 1947/2017",
+  },
+  T10: {
+    description:
+      "Detecta contratos de terceirização onde os trabalhadores prestam serviços típicos do órgão contratante, podendo caracterizar vínculo empregatício disfarçado ou desvio da vedação constitucional ao provimento irregular.",
+    legal: "CF/88, Art. 37, II | Súmula 331/TST | Lei 13.429/2017 | Lei 14.133/2021",
+  },
+  T11: {
+    description:
+      "Identifica padrões suspeitos em planilhas de composição de preços: itens com arredondamento excessivo, coeficientes idênticos entre propostas concorrentes ou valores que batem exatamente com estimativas sigilosas.",
+    legal: "Lei 8.666/93, Art. 44, §2° | IN SEGES 65/2021 | TCU Acórdão 1977/2013",
+  },
+  T12: {
+    description:
+      "Detecta editais de licitação com especificações técnicas altamente restritivas, exigências desnecessárias ou prazos de resposta anormalmente curtos, favorecendo um fornecedor específico em detrimento da ampla concorrência.",
+    legal: "Lei 8.666/93, Art. 3°, §1°, I | Lei 14.133/2021, Art. 9° | TCU Súmula 177",
+  },
+  T13: {
+    description:
+      "Cruza servidores públicos envolvidos em decisões de compras com dados de sócios de empresas fornecedoras, identificando possíveis conflitos de interesse entre agentes públicos e beneficiários privados.",
+    legal: "Lei 12.813/2013 (Conflito de Interesses) | Lei 8.429/92, Art. 9° | CF/88, Art. 37, §4°",
+  },
+  T14: {
+    description:
+      "Tipologia composta: agrega sinais de T01, T02, T04, T05, T06, T07, T11 e T12 referentes à mesma entidade ao longo do tempo. Quando 2+ tipologias distintas se acumulam (meta-score ≥ 4) por mais de 180 dias, indica favorecimento contratual sistemático.",
+    legal: "CP Arts. 317/333 | Lei 12.846/2013, Art. 5° | Lei 8.429/92, Art. 10",
+  },
+  T15: {
+    description:
+      "Identifica contratos firmados por inexigibilidade de licitação (fornecedor exclusivo) em categorias onde existem 3+ fornecedores competindo em certames similares. Indica uso indevido da dispensa para beneficiar fornecedor preferido.",
+    legal: "Lei 14.133/2021, Art. 74 | Lei 8.666/93, Art. 25 | Lei 8.429/92, Art. 10, VII",
+  },
+  T16: {
+    description:
+      "Detecta emendas parlamentares e transferências especiais sem plano de trabalho registrado, com valor desproporcional à receita municipal ou direcionadas sistematicamente para os mesmos municípios por um único relator (HHI > 0,70).",
+    legal: "CF/88, Art. 166-A | TCU Acórdão 518/2023 | STF Min. Flávio Dino 2024 | Decreto 11.878/2024",
+  },
+  T17: {
+    description:
+      "Detecta fornecedores vencedores de contratos que formam ciclos societários de até 3 saltos (A→B→C→A), indicando estrutura de camadas para dissimular o beneficiário final (UBO) e possível lavagem de dinheiro via contratos públicos.",
+    legal: "Lei 9.613/1998, Art. 1° | FATF Recomendação 24 | FATF Recomendação 3",
+  },
+  T18: {
+    description:
+      "Identifica servidores com vínculos simultâneos em 2+ órgãos por mais de 90 dias, o que é vedado pela Constituição exceto em casos específicos. Cruza com o CEAF (Cadastro de Expulsados) para agravamento da severidade.",
+    legal: "CF/88, Arts. 37, XVI-XVII | Lei 8.112/1990, Arts. 118-120 | TCU Acórdão 1947/2017",
+  },
+};
+
 export const COVERAGE_STATUS_LABELS: Record<string, string> = {
   ok: "Atualizado",
   warning: "Alerta",

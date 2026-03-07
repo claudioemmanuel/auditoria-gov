@@ -249,32 +249,25 @@ class TestRunEntityResolutionSemanticPass:
         """LLM_PROVIDER=none: semantic_matches=0 in result dict."""
         from worker.tasks import er_tasks
 
-        fake_entity_a = MagicMock()
-        fake_entity_a.id = uuid.uuid4()
-        fake_entity_a.name = "Entity A"
-        fake_entity_a.type = "company"
-        fake_entity_a.identifiers = {}
-        fake_entity_a.attrs = {}
-        fake_entity_a.cluster_id = None
+        entity_a_id = uuid.uuid4()
+        entity_b_id = uuid.uuid4()
 
-        fake_entity_b = MagicMock()
-        fake_entity_b.id = uuid.uuid4()
-        fake_entity_b.name = "Entity B"
-        fake_entity_b.type = "company"
-        fake_entity_b.identifiers = {}
-        fake_entity_b.attrs = {}
-        fake_entity_b.cluster_id = None
+        # Entity rows as dicts — the batch loop uses .mappings() which yields dict-like rows
+        row_a = {"id": entity_a_id, "name": "Entity A", "type": "company", "identifiers": {}, "attrs": {}}
+        row_b = {"id": entity_b_id, "name": "Entity B", "type": "company", "identifiers": {}, "attrs": {}}
+
+        lock_mock = MagicMock()
+        lock_mock.scalar.return_value = True  # advisory lock acquired
+
+        watermark_mock = MagicMock()
+        watermark_mock.scalar_one_or_none.return_value = None  # no prior run
+
+        batch_mock = MagicMock()
+        batch_mock.mappings.return_value = [row_a, row_b]  # 2 entities in first batch
 
         mock_session = MagicMock()
 
-        exec_results = iter([
-            # watermark query -> None
-            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
-            # entities query -> 2 entities
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[fake_entity_a, fake_entity_b])))),
-            # participants query -> empty
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
-        ])
+        exec_results = iter([lock_mock, watermark_mock, batch_mock])
 
         def _fake_execute(stmt, *a, **kw):
             try:
@@ -291,7 +284,8 @@ class TestRunEntityResolutionSemanticPass:
              patch.object(er_tasks, "_build_deterministic_matches", return_value=[]), \
              patch.object(er_tasks, "_build_probabilistic_matches", return_value=[]), \
              patch("shared.er.clustering.cluster_entities", return_value=[]), \
-             patch("shared.er.edges.build_structural_edges", return_value=[]):
+             patch("shared.er.edges.build_structural_edges", return_value=[]), \
+             patch("shared.er.corporate_edges.build_corporate_edges", return_value=[]):
             mock_settings.LLM_PROVIDER = "none"
             result = er_tasks.run_entity_resolution()
 
@@ -302,35 +296,32 @@ class TestRunEntityResolutionSemanticPass:
         from shared.er.matching import MatchResult
         from worker.tasks import er_tasks
 
-        fake_entity_a = MagicMock()
-        fake_entity_a.id = uuid.uuid4()
-        fake_entity_a.name = "Entity A"
-        fake_entity_a.type = "company"
-        fake_entity_a.identifiers = {}
-        fake_entity_a.attrs = {}
-
-        fake_entity_b = MagicMock()
-        fake_entity_b.id = uuid.uuid4()
-        fake_entity_b.name = "Entity B"
-        fake_entity_b.type = "company"
-        fake_entity_b.identifiers = {}
-        fake_entity_b.attrs = {}
+        entity_a_id = uuid.uuid4()
+        entity_b_id = uuid.uuid4()
 
         sem_match = MatchResult(
-            entity_a_id=fake_entity_a.id,
-            entity_b_id=fake_entity_b.id,
+            entity_a_id=entity_a_id,
+            entity_b_id=entity_b_id,
             match_type="semantic",
             score=0.92,
             reason="Embedding cosine similarity: 0.920",
         )
 
+        row_a = {"id": entity_a_id, "name": "Entity A", "type": "company", "identifiers": {}, "attrs": {}}
+        row_b = {"id": entity_b_id, "name": "Entity B", "type": "company", "identifiers": {}, "attrs": {}}
+
+        lock_mock = MagicMock()
+        lock_mock.scalar.return_value = True
+
+        watermark_mock = MagicMock()
+        watermark_mock.scalar_one_or_none.return_value = None
+
+        batch_mock = MagicMock()
+        batch_mock.mappings.return_value = [row_a, row_b]
+
         mock_session = MagicMock()
 
-        exec_results = iter([
-            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[fake_entity_a, fake_entity_b])))),
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
-        ])
+        exec_results = iter([lock_mock, watermark_mock, batch_mock])
 
         def _fake_execute(stmt, *a, **kw):
             try:
@@ -348,7 +339,8 @@ class TestRunEntityResolutionSemanticPass:
              patch.object(er_tasks, "_build_probabilistic_matches", return_value=[]), \
              patch.object(er_tasks, "_build_semantic_matches", return_value=[sem_match]), \
              patch("shared.er.clustering.cluster_entities", return_value=[]), \
-             patch("shared.er.edges.build_structural_edges", return_value=[]):
+             patch("shared.er.edges.build_structural_edges", return_value=[]), \
+             patch("shared.er.corporate_edges.build_corporate_edges", return_value=[]):
             mock_settings.LLM_PROVIDER = "openai"
             result = er_tasks.run_entity_resolution()
 

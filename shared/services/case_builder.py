@@ -31,6 +31,14 @@ _TYPOLOGY_SHORT: dict[str, str] = {
     "T08": "Sancao x Contrato",
     "T09": "Folha Fantasma",
     "T10": "Terceirizacao",
+    "T11": "Jogo de Planilha",
+    "T12": "Edital Direcionado",
+    "T13": "Conflito de Interesse",
+    "T14": "Favorecimento Composto",
+    "T15": "Inexigibilidade Indevida",
+    "T16": "Clientelismo Orcamentario",
+    "T17": "Lavagem Societaria",
+    "T18": "Acumulo de Cargos",
 }
 
 

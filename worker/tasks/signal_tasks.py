@@ -116,10 +116,11 @@ async def _populate_signal_links(session, signal_id, entity_ids, event_ids):
 
 @shared_task(name="worker.tasks.signal_tasks.run_all_signals", max_retries=1)
 def run_all_signals(dry_run: bool = False):
-    """Execute all active typology detectors.
+    """Execute all active typology detectors in dependency order.
 
-    Args:
-        dry_run: If True, compute signals but don't persist — only log the funnel.
+    Wave 1: Independent typologies (no ER/meta dependency).
+    Wave 2: ER-dependent typologies (T13, T17).
+    Wave 3: Meta-typology that depends on wave 1+2 results (T14), dispatched with a delay.
     """
     from shared.typologies.registry import get_all_typologies
 
@@ -127,10 +128,34 @@ def run_all_signals(dry_run: bool = False):
     typologies = get_all_typologies()
     log.info("loaded_typologies", count=len(typologies))
 
-    for t in typologies:
+    # Wave 1: Independent typologies (no ER/meta dependency)
+    wave1_codes = {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18"}
+    # Wave 2: ER-dependent
+    wave2_codes = {"T13","T17"}
+    # Wave 3: Meta-typology (depends on wave 1+2 results)
+    wave3_codes = {"T14"}
+
+    wave1 = [t for t in typologies if t.id in wave1_codes]
+    wave2 = [t for t in typologies if t.id in wave2_codes]
+    wave3 = [t for t in typologies if t.id in wave3_codes]
+
+    log.info("run_all_signals.wave1", codes=[t.id for t in wave1])
+    for t in wave1:
         run_single_signal.delay(t.id, dry_run=dry_run)
 
-    return {"status": "dispatched", "count": len(typologies), "dry_run": dry_run}
+    log.info("run_all_signals.wave2_er_dependent", codes=[t.id for t in wave2])
+    for t in wave2:
+        run_single_signal.delay(t.id, dry_run=dry_run)
+
+    log.info("run_all_signals.wave3_meta", codes=[t.id for t in wave3])
+    for t in wave3:
+        run_single_signal.apply_async(
+            args=[t.id],
+            kwargs={"dry_run": dry_run},
+            countdown=60,
+        )
+
+    return {"status": "dispatched", "count": len(typologies), "dry_run": dry_run, "waves": [len(wave1), len(wave2), len(wave3)]}
 
 
 @shared_task(name="worker.tasks.signal_tasks.run_single_signal", max_retries=2)

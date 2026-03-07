@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 
-from shared.utils.hashing import hash_cpf, mask_cpf
+from shared.utils.hashing import hash_cpf
 
 
 class TestHashCpf:
@@ -23,20 +23,3 @@ class TestHashCpf:
         result = hash_cpf("", "salt")
         expected = hmac.new("salt".encode(), "".encode(), hashlib.sha256).hexdigest()
         assert result == expected
-
-
-class TestMaskCpf:
-    def test_basic_mask(self):
-        assert mask_cpf("12345678900") == "***.***789-00"
-
-    def test_formatted_cpf(self):
-        assert mask_cpf("123.456.789-00") == "***.***789-00"
-
-    def test_short_cpf(self):
-        assert mask_cpf("123") == "***.***.***-**"
-
-    def test_empty_cpf(self):
-        assert mask_cpf("") == "***.***.***-**"
-
-    def test_long_cpf(self):
-        assert mask_cpf("1234567890012") == "***.***.***-**"

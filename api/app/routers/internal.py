@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 from typing import Any, Optional
 
-from celery import Celery
+from celery import Celery, chain, chord, group
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -278,6 +278,23 @@ async def trigger_ingest(connector_name: str, job_name: str, cursor: Optional[st
     return {"status": "dispatched", "task_id": result.id, "connector": connector_name, "job": job_name}
 
 
+@router.post("/ingest/{connector_name}/yield")
+async def request_yield_connector(connector_name: str):
+    """Request all running jobs for a connector to yield their slot."""
+    with SyncSession() as session:
+        states = session.execute(
+            select(IngestState).where(IngestState.connector == connector_name)
+        ).scalars().all()
+        if not states:
+            return {"status": "error", "error": f"No jobs found for connector '{connector_name}'"}
+        updated = 0
+        for state in states:
+            state.yield_requested = True
+            updated += 1
+        session.commit()
+    return {"status": "ok", "connector": connector_name, "jobs_signaled": updated}
+
+
 @router.post("/ingest/all")
 async def trigger_ingest_all():
     """Manually trigger incremental ingestion for all connectors."""
@@ -493,7 +510,7 @@ async def trigger_renormalize(connectors: Optional[str] = None):
         celery_app.send_task(
             "worker.tasks.normalize_tasks.normalize_run",
             args=[run_id],
-            queue="default",
+            queue="normalize",
         )
 
     return {
@@ -526,6 +543,16 @@ async def trigger_all_signals():
     result = celery_app.send_task(
         "worker.tasks.signal_tasks.run_all_signals",
         queue="signals",
+    )
+    return {"status": "dispatched", "task_id": result.id}
+
+
+@router.post("/cases/build")
+async def trigger_build_cases():
+    """Trigger case builder to group ungrouped risk signals into investigation cases."""
+    result = celery_app.send_task(
+        "worker.tasks.case_tasks.build_cases",
+        queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
 
@@ -639,4 +666,187 @@ async def trigger_case_building():
         "status": "completed",
         "cases_created": len(cases),
         "case_ids": [str(c.id) for c in cases],
+    }
+
+
+# --- Full pipeline trigger ---
+
+
+@router.get("/pipeline/status")
+async def pipeline_status():
+    """Return current running state of each pipeline stage."""
+    from shared.models.orm import ERRunState
+
+    with SyncSession() as session:
+        ingest_running = session.execute(
+            select(func.count(RawRun.id)).where(RawRun.status == "running")
+        ).scalar_one()
+
+        er_running = session.execute(
+            select(ERRunState).where(ERRunState.status == "running").limit(1)
+        ).scalar_one_or_none()
+
+    return {
+        "is_running": ingest_running > 0 or er_running is not None,
+        "stages": {
+            "ingest": "running" if ingest_running > 0 else "idle",
+            "entity_resolution": "running" if er_running is not None else "idle",
+            "signals": "idle",  # signals are fast; no persistent run state to check
+        },
+    }
+
+
+@router.get("/pipeline/capacity")
+async def pipeline_capacity():
+    """Return resource capacity and what can run next."""
+    from shared.models.orm import ERRunState
+
+    with SyncSession() as session:
+        running_ingest = session.execute(
+            select(func.count(RawRun.id)).where(RawRun.status == "running")
+        ).scalar_one()
+
+        er_running = session.execute(
+            select(ERRunState).where(ERRunState.status == "running").limit(1)
+        ).scalar_one_or_none()
+
+        # Resource limits based on docker-compose: worker has 2 CPUs, 2GB RAM
+        MAX_CONCURRENT_INGEST = 4
+
+        can_ingest_more = running_ingest < MAX_CONCURRENT_INGEST
+        can_run_er = er_running is None and running_ingest == 0
+        can_run_baselines = running_ingest == 0
+        can_run_signals = running_ingest == 0 and er_running is None
+
+        return {
+            "running_ingest_jobs": running_ingest,
+            "max_concurrent_ingest": MAX_CONCURRENT_INGEST,
+            "er_running": er_running is not None,
+            "slots_available": MAX_CONCURRENT_INGEST - running_ingest,
+            "can_dispatch": {
+                "ingest": can_ingest_more,
+                "entity_resolution": can_run_er,
+                "baselines": can_run_baselines,
+                "signals": can_run_signals,
+            },
+            "recommendation": (
+                "idle" if running_ingest == 0 and er_running is None
+                else "ingest_active" if running_ingest > 0
+                else "er_active"
+            ),
+        }
+
+
+@router.post("/pipeline/dispatch-next")
+async def dispatch_next_pending():
+    """Auto-dispatch the next pending connector job if resources allow."""
+    with SyncSession() as session:
+        running_count = session.execute(
+            select(func.count(RawRun.id)).where(RawRun.status == "running")
+        ).scalar_one()
+
+        MAX_CONCURRENT = 4
+        if running_count >= MAX_CONCURRENT:
+            return {
+                "status": "blocked",
+                "reason": f"Already {running_count}/{MAX_CONCURRENT} jobs running",
+                "dispatched": None,
+            }
+
+    # Find pending connectors that have never run or are most stale
+    from shared.connectors import ConnectorRegistry
+    from shared.models.orm import IngestState
+
+    candidates = []
+    with SyncSession() as session:
+        for name, cls in ConnectorRegistry.items():
+            connector = cls()
+            for job_spec in connector.list_jobs():
+                if not job_spec.enabled:
+                    continue
+                state = session.execute(
+                    select(IngestState).where(
+                        IngestState.connector == name,
+                        IngestState.job == job_spec.name,
+                    )
+                ).scalar_one_or_none()
+
+                last_run = state.last_run_at if state else None
+                candidates.append({
+                    "connector": name,
+                    "job": job_spec.name,
+                    "last_run_at": last_run,
+                    "priority": 0 if last_run is None else 1,
+                })
+
+    if not candidates:
+        return {"status": "nothing_pending", "dispatched": None}
+
+    # Sort: never-run first, then oldest
+    candidates.sort(key=lambda c: (c["priority"], c["last_run_at"] or datetime(2000, 1, 1)))
+    chosen = candidates[0]
+
+    result = celery_app.send_task(
+        "worker.tasks.ingest_tasks.ingest_connector",
+        args=[chosen["connector"], chosen["job"]],
+        queue="ingest",
+    )
+
+    return {
+        "status": "dispatched",
+        "dispatched": {
+            "connector": chosen["connector"],
+            "job": chosen["job"],
+            "task_id": result.id,
+        },
+        "slots_remaining": MAX_CONCURRENT - running_count - 1,
+    }
+
+
+@router.post("/pipeline/full")
+async def trigger_full_pipeline():
+    """Trigger full pipeline: ingest → entity resolution → signals.
+
+    Returns 409 if ingest or entity resolution is already running to prevent
+    duplicate task dispatch and potential data races.
+    """
+    from shared.models.orm import ERRunState
+
+    with SyncSession() as session:
+        ingest_running = session.execute(
+            select(func.count(RawRun.id)).where(RawRun.status == "running")
+        ).scalar_one()
+        if ingest_running > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Pipeline already running: {ingest_running} ingest job(s) active.",
+            )
+        er_running = session.execute(
+            select(ERRunState).where(ERRunState.status == "running").limit(1)
+        ).scalar_one_or_none()
+        if er_running is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Pipeline already running: entity resolution active.",
+            )
+
+    pipeline = chain(
+        celery_app.signature('worker.tasks.ingest_tasks.ingest_all_incremental', queue='ingest'),
+        chord(
+            group(
+                celery_app.signature('worker.tasks.er_tasks.run_entity_resolution', queue='er'),
+                celery_app.signature('worker.tasks.baseline_tasks.compute_all_baselines', queue='default'),
+            ),
+            celery_app.signature('worker.tasks.signal_tasks.run_all_signals', queue='signals'),
+        ),
+        group(
+            celery_app.signature('worker.tasks.case_tasks.build_cases', queue='default'),
+            celery_app.signature('worker.tasks.coverage_tasks.update_coverage_registry', queue='default'),
+        ),
+    )
+    result = pipeline.apply_async()
+    return {
+        "status": "dispatched",
+        "pipeline_id": result.id,
+        "stages": ["ingest", "er+baselines", "signals", "cases+coverage"],
     }

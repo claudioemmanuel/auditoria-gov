@@ -13,13 +13,12 @@ from shared.models.signals import (
 )
 from shared.typologies.base import BaseTypology
 
-# Graph edge types that indicate corporate ownership/control links
+# Graph edge types that indicate corporate ownership/control links.
+# Only includes types actively produced by shared/er/corporate_edges.py.
 _OWNERSHIP_EDGE_TYPES = {
     "SAME_SOCIO",
     "SUBSIDIARY",
     "HOLDING",
-    "SAME_BENEFICIAL_OWNER",
-    "CO_PARTICIPANT",
 }
 
 # Maximum hops to detect a cycle
@@ -49,6 +48,9 @@ def _find_cycles(
 
         for neighbor in graph.get(current, set()):
             if neighbor == start and len(path) >= 2:
+                # Require at least 2 distinct nodes before closing.  With a
+                # directed graph, A→B→A only forms when there are explicit
+                # back-edges in the data — a genuine circular ownership loop.
                 cycles.append(path + [start])
                 continue
             if neighbor not in path:
@@ -108,7 +110,7 @@ class T17LayeredMoneyLaunderingTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Load ownership/corporate graph edges
         edges_stmt = select(GraphEdge).where(
@@ -133,7 +135,10 @@ class T17LayeredMoneyLaunderingTypology(BaseTypology):
         node_to_entity: dict[str, str] = {str(n.id): str(n.entity_id) for n in nodes}
         entity_to_node: dict[str, str] = {str(n.entity_id): str(n.id) for n in nodes}
 
-        # Build directed adjacency graph (entity → related entities)
+        # Build directed adjacency graph.  Keeping edges directed means A→B→A
+        # only forms a cycle when there are explicit edges in both directions —
+        # a genuine circular ownership loop.  A single undirected SAME_SOCIO
+        # edge stored as A→B will not produce a false positive.
         entity_graph: dict[str, set[str]] = defaultdict(set)
         for edge in edges:
             from_entity = node_to_entity.get(str(edge.from_node_id))

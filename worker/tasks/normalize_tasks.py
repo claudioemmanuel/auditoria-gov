@@ -1,5 +1,5 @@
 from celery import shared_task
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from shared.connectors import get_connector
 from shared.db_sync import SyncSession
@@ -13,7 +13,11 @@ from shared.repo.upsert_sync import (
 )
 
 # Process raw items in chunks to cap memory for large runs.
-_NORMALIZE_CHUNK_SIZE = 500
+# Larger chunks reduce per-chunk overhead (fewer LIMIT queries, commits, and
+# PostgreSQL round trips) at the cost of slightly higher peak memory per worker.
+# raw_source reads are mostly physical I/O (36% cache hit rate); larger chunks
+# improve sequential read efficiency.
+_NORMALIZE_CHUNK_SIZE = 5000
 
 
 @shared_task(name="worker.tasks.normalize_tasks.normalize_run")
@@ -24,7 +28,7 @@ def normalize_run(run_id: str):
     2. Get the connector instance.
     3. Call connector.normalize(job, raw_items) per chunk.
     4. Upsert entities, events, participants via repo layer.
-    5. Mark raw_source items as normalized.
+    5. Mark raw_source items as normalized and clear raw_data.
     6. Update RawRun stats.
     """
     log.info("normalize_run.start", run_id=run_id)
@@ -47,14 +51,14 @@ def normalize_run(run_id: str):
             log.error("normalize_run.job_not_found", connector=raw_run.connector, job=raw_run.job)
             return {"run_id": run_id, "status": "error", "error": "job not found"}
 
-        # Load un-normalized raw sources
-        stmt = select(RawSource).where(
+        # Count first for progress tracking.
+        count_stmt = select(func.count()).select_from(RawSource).where(
             RawSource.run_id == raw_run.id,
             RawSource.normalized == False,  # noqa: E712
         )
-        raw_sources = session.execute(stmt).scalars().all()
+        total_count = session.execute(count_stmt).scalar_one()
 
-        if not raw_sources:
+        if total_count == 0:
             log.info("normalize_run.nothing_to_normalize", run_id=run_id)
             return {"run_id": run_id, "status": "nothing_to_normalize"}
 
@@ -64,9 +68,21 @@ def normalize_run(run_id: str):
 
         from shared.config import settings
 
-        # Process in chunks to avoid memory spikes on large runs.
-        for chunk_start in range(0, len(raw_sources), _NORMALIZE_CHUNK_SIZE):
-            chunk = raw_sources[chunk_start : chunk_start + _NORMALIZE_CHUNK_SIZE]
+        # Paginate with LIMIT on normalized=False — after each commit the marked rows
+        # disappear from the filter, so offset=0 always returns the next fresh batch.
+        # This avoids server-side cursors (which are transaction-scoped and break on commit).
+        while True:
+            chunk = session.execute(
+                select(RawSource)
+                .where(
+                    RawSource.run_id == raw_run.id,
+                    RawSource.normalized == False,  # noqa: E712
+                )
+                .limit(_NORMALIZE_CHUNK_SIZE)
+            ).scalars().all()
+
+            if not chunk:
+                break
 
             raw_items = [
                 RawItem(raw_id=rs.raw_id, data=rs.raw_data)
@@ -77,9 +93,23 @@ def normalize_run(run_id: str):
 
             entities_to_embed: list[dict] = []
 
+            # Per-chunk entity identity cache: (source_connector, source_id) → Entity.
+            # Eliminates redundant DB lookups when the same entity appears multiple times
+            # within one chunk (e.g., candidate with many assets/donations).
+            _chunk_entity_cache: dict[tuple[str, str], object] = {}
+
+            def _upsert_entity_cached(canonical_entity):
+                key = (canonical_entity.source_connector, canonical_entity.source_id)
+                cached = _chunk_entity_cache.get(key)
+                if cached is not None:
+                    return cached
+                entity = upsert_entity_sync(session, canonical_entity)
+                _chunk_entity_cache[key] = entity
+                return entity
+
             # Upsert standalone entities
             for canonical_entity in result.entities:
-                entity = upsert_entity_sync(session, canonical_entity)
+                entity = _upsert_entity_cached(canonical_entity)
                 if entity.name:
                     entities_to_embed.append(
                         {"entity_id": str(entity.id), "name_normalized": entity.name}
@@ -92,7 +122,7 @@ def normalize_run(run_id: str):
                 total_events += 1
 
                 for participant in canonical_event.participants:
-                    entity = upsert_entity_sync(session, participant.entity_ref)
+                    entity = _upsert_entity_cached(participant.entity_ref)
                     if entity.name:
                         entities_to_embed.append(
                             {"entity_id": str(entity.id), "name_normalized": entity.name}
@@ -105,15 +135,19 @@ def normalize_run(run_id: str):
                         attrs=participant.attrs,
                     )
 
-            # Mark chunk as normalized
+            # Mark chunk as normalized and clear raw_data to free staging space.
+            # raw_data is no longer needed once the chunk is in entity/event tables.
+            # Commit — next loop iteration re-queries with normalized=False.
             for rs in chunk:
                 rs.normalized = True
+                rs.raw_data = {}
 
             total_normalized += len(chunk)
-
-            # Commit per chunk — releases memory and makes progress visible.
             raw_run.items_normalized = total_normalized
             session.commit()
+
+            # Expire session identity map to release ORM object memory each cycle.
+            session.expire_all()
 
             # Fire-and-forget: embed entity names for semantic ER (non-blocking).
             if settings.LLM_PROVIDER != "none" and entities_to_embed:
@@ -124,7 +158,7 @@ def normalize_run(run_id: str):
                 "normalize_run.chunk",
                 run_id=run_id,
                 chunk_size=len(chunk),
-                progress=f"{total_normalized}/{len(raw_sources)}",
+                progress=f"{total_normalized}/{total_count}",
             )
 
         log.info(
@@ -134,6 +168,13 @@ def normalize_run(run_id: str):
             events=total_events,
             raw_items_normalized=total_normalized,
         )
+
+        # Reclaim disk space from cleared raw_data fields.
+        # Uses dedicated 'vacuum' queue with 5-min delay so vacuum tasks
+        # don't pile up in 'default' and block critical pipeline tasks.
+        if total_normalized > 0:
+            from worker.tasks.maintenance_tasks import vacuum_raw_source
+            vacuum_raw_source.apply_async(queue="vacuum", countdown=300)
 
         return {
             "run_id": run_id,

@@ -14,7 +14,7 @@ from shared.models.signals import (
 from shared.typologies.base import BaseTypology
 
 # Minimum overlap in days to flag simultaneous positions
-_MIN_OVERLAP_DAYS = 30
+_MIN_OVERLAP_DAYS = 90
 
 # Maximum legally permitted simultaneous positions (CF/88 Art. 37, XVI exceptions)
 _MAX_LEGAL_POSITIONS = 2
@@ -38,7 +38,7 @@ class T18IllegalPositionAccumulationTypology(BaseTypology):
     - TCU Acórdão 1947/2017 (algorithmic payroll audit trails)
     - CEAF — Federal Administration Expulsion Registry (CGU)
 
-    LGPD note: Only hashed CPF identifiers are stored; no raw CPF persisted.
+    Note: CPF identifiers from public government sources (LAI 12.527/2011) are stored raw alongside hashes for ER matching.
     """
 
     @property
@@ -71,7 +71,7 @@ class T18IllegalPositionAccumulationTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query remuneration events
         stmt = select(Event).where(

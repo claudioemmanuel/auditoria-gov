@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shared.config import settings
 from shared.models.orm import Entity, Event, EventParticipant, GraphEdge, GraphNode
 from shared.models.canonical import CanonicalEntity, CanonicalEvent, CanonicalEdge
-from shared.utils.hashing import hash_cpf, mask_cpf
+from shared.utils.hashing import hash_cpf
 from shared.utils.text import normalize_name
 
 
@@ -29,16 +29,16 @@ def _normalize_identifiers(identifiers: dict) -> dict:
         normalized["cnpj"] = cnpj
 
     if len(cpf) == 11:
+        normalized["cpf"] = cpf
         normalized["cpf_hash"] = hash_cpf(cpf, settings.CPF_HASH_SALT)
-        normalized["cpf_masked"] = mask_cpf(cpf)
-    normalized.pop("cpf", None)
+    normalized.pop("cpf_masked", None)
 
     if cnpj_cpf:
         if len(cnpj_cpf) == 14:
             normalized["cnpj"] = cnpj_cpf
         elif len(cnpj_cpf) == 11:
+            normalized["cpf"] = cnpj_cpf
             normalized["cpf_hash"] = hash_cpf(cnpj_cpf, settings.CPF_HASH_SALT)
-            normalized["cpf_masked"] = mask_cpf(cnpj_cpf)
         normalized.pop("cnpj_cpf", None)
 
     return normalized

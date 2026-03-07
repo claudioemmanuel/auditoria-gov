@@ -46,7 +46,7 @@ class T04AmendmentsOutlierTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query contracts
         stmt = (
@@ -119,7 +119,7 @@ class T04AmendmentsOutlierTypology(BaseTypology):
                 confidence = min(0.95, 0.8 + pct_increase * 0.05)
             elif pct_increase > p95 or amendment_count > 5:
                 severity = SignalSeverity.HIGH
-                confidence = min(0.88, 0.6 + (pct_increase - p95) * 2)
+                confidence = max(0.60, min(0.88, 0.6 + (pct_increase - p95) * 2))
             else:
                 severity = SignalSeverity.MEDIUM
                 confidence = 0.60

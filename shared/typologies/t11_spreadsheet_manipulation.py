@@ -69,7 +69,7 @@ class T11SpreadsheetManipulationTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query engineering/works contracts
         stmt = (
@@ -106,6 +106,15 @@ class T11SpreadsheetManipulationTypology(BaseTypology):
             event_entity_ids[str(p.event_id)].append(p.entity_id)
 
         signals: list[RiskSignalOut] = []
+        # Cache baseline lookups across contracts — avoids redundant DB round-trips
+        # when multiple contracts share the same CATMAT group.
+        baseline_cache: dict[str, float] = {}
+
+        async def _get_cached_baseline(catmat_key: str) -> float:
+            if catmat_key not in baseline_cache:
+                bl = await get_baseline(session, BaselineType.PRICE_BY_ITEM.value, catmat_key)
+                baseline_cache[catmat_key] = bl.get("median", 0) if bl else 0
+            return baseline_cache[catmat_key]
 
         for contract in contracts_with_items:
             item_prices: list[dict] = contract.attrs.get("item_prices", [])
@@ -124,19 +133,11 @@ class T11SpreadsheetManipulationTypology(BaseTypology):
             if not amendment_deltas:
                 continue
 
-            # Get price baseline for this contract's CATMAT group
-            catmat = contract.attrs.get("catmat_code", "all")
-            baseline = await get_baseline(
-                session,
-                BaselineType.PRICE_BY_ITEM.value,
-                catmat,
-            )
-            baseline_median = baseline.get("median", 0) if baseline else 0
+            contract_catmat = contract.attrs.get("catmat_code", "all")
 
-            if not baseline_median or baseline_median <= 0:
-                continue
-
-            # Identify overpriced items with quantity increases
+            # Identify overpriced items with quantity increases.
+            # Each item may carry its own catmat_code — use it for a more precise
+            # baseline; fall back to the contract-level CATMAT group.
             n_items_overpriced = 0
             quantity_increase_value = 0.0
             max_price_ratio = 0.0
@@ -146,6 +147,11 @@ class T11SpreadsheetManipulationTypology(BaseTypology):
                 code = item.get("item_code", "")
                 unit_price = item.get("unit_price", 0)
                 if not unit_price or unit_price <= 0:
+                    continue
+
+                item_catmat = item.get("catmat_code") or contract_catmat
+                baseline_median = await _get_cached_baseline(item_catmat)
+                if not baseline_median or baseline_median <= 0:
                     continue
 
                 ratio = unit_price / baseline_median
@@ -219,8 +225,7 @@ class T11SpreadsheetManipulationTypology(BaseTypology):
                     EvidenceRef(
                         ref_type=RefType.BASELINE,
                         description=(
-                            f"Referência SINAPI/Painel de Preços: "
-                            f"mediana R$ {baseline_median:,.2f} para CATMAT {catmat}"
+                            f"Referência SINAPI/Painel de Preços para CATMAT {contract_catmat}"
                         ),
                     ),
                 ],

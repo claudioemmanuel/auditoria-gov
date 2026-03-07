@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from shared.models.orm import Event, EventParticipant
+from shared.utils.query import execute_chunked_in
 from shared.models.signals import (
     EvidenceRef,
     RefType,
@@ -70,7 +71,7 @@ class T16BudgetClientelismTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query transfer/amendment events
         stmt = select(Event).where(
@@ -87,18 +88,34 @@ class T16BudgetClientelismTypology(BaseTypology):
             return []
 
         event_ids = [e.id for e in events]
-        parts_stmt = select(EventParticipant).where(
-            EventParticipant.event_id.in_(event_ids),
+        participants = await execute_chunked_in(
+            session,
+            lambda batch: select(EventParticipant).where(
+                EventParticipant.event_id.in_(batch),
+            ),
+            event_ids,
         )
-        parts_result = await session.execute(parts_stmt)
-        participants = parts_result.scalars().all()
 
         event_roles: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+        event_entity_ids: dict[str, list[uuid.UUID]] = defaultdict(list)
         for p in participants:
-            event_roles[str(p.event_id)][p.role].append(str(p.entity_id))
+            eid_str = str(p.event_id)
+            event_roles[eid_str][p.role].append(str(p.entity_id))
+            try:
+                event_entity_ids[eid_str].append(uuid.UUID(str(p.entity_id)))
+            except ValueError:
+                pass
 
-        # Build relator → {beneficiary → total_value} for HHI
+        # First pass: build relator → {beneficiary → total_value} for HHI.
+        # This must be a separate pass so HHI is complete before the signal loop.
         relator_beneficiary_value: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        for event in events:
+            attrs = event.attrs or {}
+            relator_id = attrs.get("relator_id", "")
+            if relator_id and event.value_brl:
+                beneficiaries = event_roles.get(str(event.id), {}).get("beneficiary", [])
+                beneficiary = beneficiaries[0] if beneficiaries else "unknown"
+                relator_beneficiary_value[relator_id][beneficiary] += event.value_brl
 
         signals: list[RiskSignalOut] = []
 
@@ -108,8 +125,9 @@ class T16BudgetClientelismTypology(BaseTypology):
             flag_reasons: list[str] = []
 
             # Flag 1: no plano_de_trabalho registered
+            # Only flag when explicitly False (boolean identity); None/null/absent/empty = not a flag
             plano_registered = attrs.get("plano_trabalho_registered")
-            if plano_registered is False or plano_registered == "false":
+            if plano_registered is False:
                 n_flags += 1
                 flag_reasons.append("sem_plano_trabalho")
 
@@ -121,12 +139,7 @@ class T16BudgetClientelismTypology(BaseTypology):
                     n_flags += 1
                     flag_reasons.append(f"value_revenue_ratio_{ratio:.1f}x")
 
-            # Track relator concentration
             relator_id = attrs.get("relator_id", "")
-            if relator_id and event.value_brl:
-                beneficiaries = event_roles.get(str(event.id), {}).get("beneficiary", [])
-                beneficiary = beneficiaries[0] if beneficiaries else "unknown"
-                relator_beneficiary_value[relator_id][beneficiary] += event.value_brl
 
             # Flag 3: recipient is sanctioned (marker in attrs)
             if attrs.get("recipient_sanctioned"):
@@ -162,13 +175,7 @@ class T16BudgetClientelismTypology(BaseTypology):
                 else None
             )
 
-            entity_ids: list[uuid.UUID] = []
-            for p in participants:
-                if str(p.event_id) == str(event.id):
-                    try:
-                        entity_ids.append(uuid.UUID(str(p.entity_id)))
-                    except ValueError:
-                        pass
+            entity_ids = event_entity_ids.get(str(event.id), [])
 
             signal = RiskSignalOut(
                 id=uuid.uuid4(),

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from shared.models.coverage import CoverageMapItem, CoverageMetric
 
 
-CoveragePipelineStatus = Literal["done", "processing", "warning", "error", "pending"]
+CoveragePipelineStatus = Literal["up_to_date", "processing", "stale", "warning", "error", "pending"]
 CoverageOverallStatus = Literal["healthy", "attention", "blocked"]
 CoverageSourceStatus = Literal["ok", "warning", "stale", "error", "pending"]
 CoverageMapLayer = Literal["uf", "municipio"]
@@ -64,6 +64,11 @@ class CoverageV2SourceRuntime(BaseModel):
     running_jobs: int = 0
     stuck_jobs: int = 0
     error_jobs: int = 0
+    active_job_names: list[str] = Field(default_factory=list)
+    items_fetched_live: int = 0
+    items_normalized_live: int = 0
+    elapsed_seconds: Optional[float] = None
+    estimated_rate_per_min: Optional[float] = None
 
 
 class CoverageV2SourceItem(BaseModel):
@@ -94,6 +99,8 @@ class CoverageV2LatestRun(BaseModel):
     items_fetched: int = 0
     items_normalized: int = 0
     error_message: Optional[str] = None
+    elapsed_seconds: Optional[float] = None
+    progress_pct: Optional[float] = None
 
 
 class CoverageV2SourcePreviewConnector(BaseModel):

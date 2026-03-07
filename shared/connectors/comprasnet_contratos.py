@@ -173,6 +173,15 @@ class ComprasNetContratosConnector(BaseConnector):
                     status=404,
                 )
                 return [], None
+            if resp.status_code == 500:
+                # PNCP 500s on specific windows are common; skip rather than failing.
+                log.warning(
+                    "comprasnet_contratos.window_skip_500",
+                    window=f"{di}/{df}",
+                )
+                if window_idx + 1 < len(windows):
+                    return [], f"w{window_idx + 1}p1"
+                return [], None
             resp.raise_for_status()
             rows = _extract_records([] if resp.status_code == 204 else resp.json())
 
@@ -263,7 +272,7 @@ class ComprasNetContratosConnector(BaseConnector):
                         "orgao": d.get("orgao_nome", ""),
                         "uasg": d.get("unidade_codigo", ""),
                         "original_value": original_value,
-                        "amendment_count": d.get("qtd_aditivos", d.get("amendment_count", 0)),
+                        "amendment_count": d.get("qtd_aditivos") or d.get("amendment_count") or 0,
                         "amendments_total_value": _safe_float(
                             d.get("valor_total_aditivos", d.get("amendments_total_value"))
                         )

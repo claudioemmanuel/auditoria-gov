@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from shared.baselines.compute import _CATMAT_MISSING
 from shared.models.orm import Event, EventParticipant
 from shared.models.signals import (
     EvidenceRef,
@@ -46,7 +47,7 @@ class T07CartelNetworkTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query licitacao events
         stmt = (
@@ -89,13 +90,16 @@ class T07CartelNetworkTypology(BaseTypology):
             elif p.role in ("procuring_entity", "buyer"):
                 event_buyers[eid] = entity_id
 
-        # Group events by (buyer, catmat_group)
+        # Group events by (buyer, catmat_group); skip sentinel CATMAT to avoid
+        # lumping all unclassified events into a single spurious cartel group.
         groups: dict[tuple, list[str]] = defaultdict(list)
         for e in events:
             eid = str(e.id)
-            buyer = event_buyers.get(eid, "sem classificacao")
-            catmat = e.attrs.get("catmat_group", "sem classificacao")
-            groups[(buyer, catmat)].append(eid)
+            catmat_raw = e.attrs.get("catmat_group", "") or ""
+            if str(catmat_raw).strip().lower() in _CATMAT_MISSING:
+                continue
+            buyer = event_buyers.get(eid, "unknown")
+            groups[(buyer, catmat_raw)].append(eid)
 
         signals: list[RiskSignalOut] = []
 
@@ -173,6 +177,20 @@ class T07CartelNetworkTypology(BaseTypology):
 
             community_members = list(communities[0])[:10] if communities else list(all_winners)[:10]
 
+            # Build entity_ids: buyer organ + community members (bidders/winners)
+            entity_ids_t07: list[uuid.UUID] = []
+            if buyer_id_str not in ("sem classificacao", "unknown"):
+                try:
+                    entity_ids_t07.append(uuid.UUID(buyer_id_str))
+                except ValueError:
+                    pass
+            for eid_cm in community_members[:9]:
+                if eid_cm not in ("sem classificacao", "unknown"):
+                    try:
+                        entity_ids_t07.append(uuid.UUID(eid_cm))
+                    except ValueError:
+                        pass
+
             signal = RiskSignalOut(
                 id=uuid.uuid4(),
                 typology_code=self.id,
@@ -208,10 +226,7 @@ class T07CartelNetworkTypology(BaseTypology):
                     )
                     for eid in group_event_ids[:5]
                 ],
-                entity_ids=[
-                    uuid.UUID(eid) for eid in community_members[:10]
-                    if eid != "sem classificacao"
-                ],
+                entity_ids=entity_ids_t07,
                 event_ids=[uuid.UUID(eid) for eid in group_event_ids[:20]],
                 period_start=window_start,
                 period_end=window_end,

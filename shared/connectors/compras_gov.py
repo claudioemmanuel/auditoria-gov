@@ -130,9 +130,16 @@ class ComprasGovConnector(BaseConnector):
                     return [], None
                 response.raise_for_status()
                 records = _extract_records([] if response.status_code == 204 else response.json())
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             if job.name != "compras_licitacoes_by_period":
-                raise
+                # Catalog endpoints (catmat/catser) are frequently unavailable.
+                # Return empty so the run completes cleanly; beat will retry next cycle.
+                log.warning(
+                    "compras_gov.catalog_unavailable",
+                    job=job.name,
+                    error=str(exc),
+                )
+                return [], None
             # Primary source down — switch to windowed PNCP fallback
             return await self._fetch_pncp_windowed(job, "w0p1", params)
 
@@ -195,6 +202,15 @@ class ComprasGovConnector(BaseConnector):
                     endpoint="/contratacoes/publicacao",
                     status=404,
                 )
+                return [], None
+            if response.status_code == 500:
+                # PNCP 500s on specific windows are common; skip rather than failing.
+                log.warning(
+                    "compras_gov.window_skip_500",
+                    window=f"{di}/{df}",
+                )
+                if window_idx + 1 < len(windows):
+                    return [], f"w{window_idx + 1}p1"
                 return [], None
             response.raise_for_status()
             rows = _extract_records([] if response.status_code == 204 else response.json())

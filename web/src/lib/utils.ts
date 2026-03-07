@@ -81,6 +81,25 @@ export function relativeTime(dateStr: string): string {
   }
 }
 
+export function formatCPF(cpf: string): string {
+  const d = cpf.replace(/\D/g, "");
+  if (d.length !== 11) return cpf;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+export function formatCNPJ(cnpj: string): string {
+  const d = cnpj.replace(/\D/g, "");
+  if (d.length !== 14) return cnpj;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+export function formatIdentifier(identifiers: Record<string, string>): string {
+  if (identifiers.cnpj) return formatCNPJ(identifiers.cnpj);
+  if (identifiers.cpf) return formatCPF(identifiers.cpf);
+  if (identifiers.cpf_partial) return identifiers.cpf_partial;
+  return "";
+}
+
 export function normalizeUnknownDisplay(
   value: unknown,
   fallback: string = "Nao informado pela fonte",

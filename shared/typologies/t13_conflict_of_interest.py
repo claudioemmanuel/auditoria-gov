@@ -13,14 +13,13 @@ from shared.models.signals import (
 )
 from shared.typologies.base import BaseTypology
 
-# Graph edge types indicating relational conflict of interest
+# Graph edge types indicating relational conflict of interest.
+# Only includes types actively produced by shared/er/corporate_edges.py.
 _CONFLICT_EDGE_TYPES = {
     "SAME_ADDRESS",
     "SHARES_PHONE",
     "SAME_SOCIO",
     "SAME_ACCOUNTANT",
-    "SAME_IP",
-    "KINSHIP",
 }
 
 # Minimum number of shared indicators to flag
@@ -33,12 +32,10 @@ _MIN_RELATIONSHIP_SCORE = 0.6
 def _edge_weight(edge_type: str) -> float:
     """Weight for each relationship indicator in the composite score."""
     weights = {
-        "KINSHIP": 0.5,
         "SAME_SOCIO": 0.4,
-        "SAME_ACCOUNTANT": 0.3,
-        "SAME_ADDRESS": 0.25,
+        "SAME_ACCOUNTANT": 0.35,
+        "SAME_ADDRESS": 0.30,
         "SHARES_PHONE": 0.25,
-        "SAME_IP": 0.2,
     }
     return weights.get(edge_type, 0.15)
 
@@ -95,7 +92,7 @@ class T13ConflictOfInterestTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query graph edges indicating relational conflicts
         edges_stmt = select(GraphEdge).where(
@@ -189,7 +186,7 @@ class T13ConflictOfInterestTypology(BaseTypology):
 
                     indicator_types = [t for t, _ in indicators]
 
-                    if relationship_score >= 0.85 or "KINSHIP" in indicator_types:
+                    if relationship_score >= 0.85:
                         severity = SignalSeverity.CRITICAL
                         confidence = min(0.90, 0.75 + relationship_score * 0.15)
                     elif relationship_score >= 0.70:
@@ -237,7 +234,6 @@ class T13ConflictOfInterestTypology(BaseTypology):
                             "relationship_score": round(relationship_score, 3),
                             "n_shared_indicators": n_shared,
                             "n_contracts_affected": n_contracts,
-                            "kinship_degree": 1 if "KINSHIP" in indicator_types else 0,
                             "indicator_types": indicator_types,
                         },
                         evidence_refs=[

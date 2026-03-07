@@ -10,20 +10,33 @@ def test_t08_typology_loads_from_registry():
 
 
 def test_run_all_signals_dispatches_every_loaded_typology(monkeypatch):
-    """Feature: run_all_signals must enqueue one task per loaded typology."""
+    """Feature: run_all_signals must enqueue one task per loaded typology.
+
+    Order is not guaranteed — wave grouping changes dispatch order — so we
+    assert set equality rather than list equality.
+    """
     dispatched: list[str] = []
 
     def _fake_delay(typology_code: str, dry_run: bool = False) -> None:
         dispatched.append(typology_code)
 
+    def _fake_apply_async(args, kwargs=None, countdown=None):
+        dispatched.append(args[0])
+
     monkeypatch.setattr(signal_tasks.run_single_signal, "delay", _fake_delay)
+    monkeypatch.setattr(signal_tasks.run_single_signal, "apply_async", _fake_apply_async)
 
     result = signal_tasks.run_all_signals()
 
     expected_typologies = [t.id for t in get_all_typologies()]
     assert result["status"] == "dispatched"
     assert result["count"] == len(expected_typologies)
-    assert dispatched == expected_typologies
+    assert sorted(dispatched) == sorted(expected_typologies)
+    assert result["waves"] == [len(w) for w in [
+        [t for t in get_all_typologies() if t.id in {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18"}],
+        [t for t in get_all_typologies() if t.id in {"T13","T17"}],
+        [t for t in get_all_typologies() if t.id in {"T14"}],
+    ]]
 
 
 def test_run_single_signal_uses_async_session(monkeypatch):

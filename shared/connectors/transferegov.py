@@ -181,6 +181,13 @@ class TransfereGovConnector(BaseConnector):
                     occurred_at=_parse_any_datetime(
                         d.get("dt_assinatura_termo") or d.get("dt_efetivacao_termo")
                     ),
+                    value_brl=_sum_money_fields(
+                        d.get("vl_total_convenio"),
+                        d.get("vl_repasse_convenio"),
+                        d.get("vl_global_convenio"),
+                        d.get("vl_global_termo"),
+                        d.get("valor_global"),
+                    ),
                     attrs={
                         "id_termo": d.get("id_termo"),
                         "id_plano_acao": plano_id,

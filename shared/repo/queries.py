@@ -388,6 +388,12 @@ def _coverage_run_error_message(run: RawRun) -> Optional[str]:
 
 
 def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2LatestRun:
+    elapsed_seconds = None
+    progress_pct = None
+    if run.status == "running" and run.created_at:
+        elapsed_seconds = round((now - run.created_at).total_seconds(), 1)
+    if run.items_fetched and run.items_normalized:
+        progress_pct = round((run.items_normalized / max(run.items_fetched, 1)) * 100, 1)
     return CoverageV2LatestRun(
         id=run.id,
         status=run.status,
@@ -397,6 +403,8 @@ def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2Lates
         items_fetched=run.items_fetched or 0,
         items_normalized=run.items_normalized or 0,
         error_message=_coverage_run_error_message(run),
+        elapsed_seconds=elapsed_seconds,
+        progress_pct=progress_pct,
     )
 
 
@@ -1167,16 +1175,33 @@ async def get_coverage_v2_sources(
         running_jobs = 0
         stuck_jobs = 0
         error_jobs = 0
+        active_job_names: list[str] = []
+        items_fetched_live = 0
+        items_normalized_live = 0
+        earliest_running_start: datetime | None = None
         for item in selected_jobs:
             run = latest_by_job.get((item.connector, item.job))
             if run is None:
                 continue
             if run.status == "running":
                 running_jobs += 1
+                active_job_names.append(item.job)
+                items_fetched_live += run.items_fetched or 0
+                items_normalized_live += run.items_normalized or 0
+                if run.created_at:
+                    if earliest_running_start is None or run.created_at < earliest_running_start:
+                        earliest_running_start = run.created_at
                 if _coverage_is_stuck_run(run, now):
                     stuck_jobs += 1
             elif run.status == "error":
                 error_jobs += 1
+
+        elapsed_seconds = None
+        estimated_rate = None
+        if earliest_running_start is not None:
+            elapsed_seconds = (now - earliest_running_start).total_seconds()
+            if elapsed_seconds > 0 and items_fetched_live > 0:
+                estimated_rate = round((items_fetched_live / elapsed_seconds) * 60, 1)
 
         last_success_values = [item.last_success_at for item in selected_jobs if item.last_success_at]
         lag_values = [item.freshness_lag_hours for item in selected_jobs if item.freshness_lag_hours is not None]
@@ -1193,6 +1218,11 @@ async def get_coverage_v2_sources(
                     running_jobs=running_jobs,
                     stuck_jobs=stuck_jobs,
                     error_jobs=error_jobs,
+                    active_job_names=active_job_names,
+                    items_fetched_live=items_fetched_live,
+                    items_normalized_live=items_normalized_live,
+                    elapsed_seconds=round(elapsed_seconds, 1) if elapsed_seconds is not None else None,
+                    estimated_rate_per_min=estimated_rate,
                 ),
                 last_success_at=max(last_success_values) if last_success_values else None,
                 max_freshness_lag_hours=max(lag_values) if lag_values else None,
@@ -1291,6 +1321,7 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
         await session.execute(select(ERRunState).order_by(ERRunState.created_at.desc()).limit(1))
     )
 
+    # ── Ingest stage (no upstream dependency) ──────────────────────────
     if not coverage_items or status_counts["pending"] == len(coverage_items):
         ingest_stage = CoverageV2PipelineStage(
             code="ingest",
@@ -1323,16 +1354,17 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
         ingest_stage = CoverageV2PipelineStage(
             code="ingest",
             label="Ingestao de Dados",
-            status="done",
+            status="up_to_date",
             reason="Fontes principais com atualizacao recente.",
         )
 
+    # ── ER stage (depends on ingest) ─────────────────────────────────
     if event_count == 0:
         er_stage = CoverageV2PipelineStage(
             code="entity_resolution",
             label="Resolucao de Entidades",
             status="pending",
-            reason="Aguardando dados para iniciar vinculação.",
+            reason="Aguardando dados para iniciar vinculacao.",
         )
     elif er_state is not None and er_state.status == "running":
         er_stage = CoverageV2PipelineStage(
@@ -1347,6 +1379,20 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
             label="Resolucao de Entidades",
             status="error",
             reason="Ultima execucao de resolucao falhou.",
+        )
+    elif er_state is None or er_state.status != "completed":
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="pending",
+            reason="Aguardando primeira execucao completa.",
+        )
+    elif ingest_stage.status in {"processing", "error", "warning"}:
+        er_stage = CoverageV2PipelineStage(
+            code="entity_resolution",
+            label="Resolucao de Entidades",
+            status="stale",
+            reason="Novos dados em ingestao; re-execucao pendente apos conclusao.",
         )
     elif graph_nodes == 0:
         er_stage = CoverageV2PipelineStage(
@@ -1366,44 +1412,77 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
         er_stage = CoverageV2PipelineStage(
             code="entity_resolution",
             label="Resolucao de Entidades",
-            status="done",
-            reason="Entidades e ligacoes materializadas.",
+            status="up_to_date",
+            reason=f"Entidades e ligacoes materializadas ({graph_nodes} nos, {graph_edges} arestas).",
         )
 
+    # ── Baselines stage (depends on ingest + ER) ─────────────────────
     if baseline_count == 0:
+        if ingest_stage.status == "pending":
+            bl_reason = "Aguardando ingestao de dados."
+        elif er_stage.status in {"pending", "processing"}:
+            bl_reason = "Aguardando resolucao de entidades."
+        else:
+            bl_reason = "Nenhum baseline calculado ainda."
         baseline_stage = CoverageV2PipelineStage(
             code="baselines",
             label="Calculo de Baselines",
             status="pending",
-            reason="Aguardando dados para calcular baselines.",
+            reason=bl_reason,
+        )
+    elif ingest_stage.status == "processing" or er_stage.status in {"processing", "stale"}:
+        baseline_stage = CoverageV2PipelineStage(
+            code="baselines",
+            label="Calculo de Baselines",
+            status="stale",
+            reason="Baselines existem, mas novos dados requerem recalculo.",
         )
     else:
         baseline_stage = CoverageV2PipelineStage(
             code="baselines",
             label="Calculo de Baselines",
-            status="done",
-            reason="Baselines recentes disponiveis para detecao.",
+            status="up_to_date",
+            reason=f"{baseline_count} baseline(s) atualizados.",
         )
 
+    # ── Signals stage (depends on ingest + ER + baselines) ───────────
     if signal_count == 0:
+        if baseline_count == 0:
+            sig_reason = "Aguardando calculo de baselines."
+        elif er_stage.status in {"pending", "processing"}:
+            sig_reason = "Aguardando resolucao de entidades."
+        else:
+            sig_reason = "Nenhum sinal detectado ainda."
         signal_stage = CoverageV2PipelineStage(
             code="signals",
             label="Deteccao de Sinais",
             status="pending",
-            reason="Aguardando baselines para iniciar detecao.",
+            reason=sig_reason,
+        )
+    elif (
+        ingest_stage.status == "processing"
+        or er_stage.status in {"stale", "processing"}
+        or baseline_stage.status in {"stale", "processing"}
+    ):
+        signal_stage = CoverageV2PipelineStage(
+            code="signals",
+            label="Deteccao de Sinais",
+            status="stale",
+            reason=f"{signal_count} sinais detectados, mas pipeline upstream em execucao — re-deteccao pendente.",
         )
     else:
         signal_stage = CoverageV2PipelineStage(
             code="signals",
             label="Deteccao de Sinais",
-            status="done",
-            reason="Sinais de risco detectados recentemente.",
+            status="up_to_date",
+            reason=f"{signal_count} sinais de risco detectados.",
         )
 
+    # ── Overall status ───────────────────────────────────────────────
     stages = [ingest_stage, er_stage, baseline_stage, signal_stage]
-    if runtime_error + runtime_stuck > 0 or any(stage.status == "error" for stage in stages):
+    if runtime_error + runtime_stuck > 0 or any(s.status == "error" for s in stages):
         overall_status = "blocked"
-    elif any(stage.status in {"warning", "processing", "pending"} for stage in stages):
+    elif any(s.status in {"stale", "processing", "pending", "warning"} for s in stages):
         overall_status = "attention"
     else:
         overall_status = "healthy"
@@ -3751,9 +3830,9 @@ async def search_entities(
     """
     Fuzzy entity search using pg_trgm similarity on name_normalized.
 
-    LGPD: person results are scoped to public servants only (portal_transparencia /
+    Person results are scoped to public servants only (portal_transparencia /
     pt_servidores_remuneracao) via a join through entity_raw_source → raw_source.
-    CPF is never returned — identifiers are excluded from the response.
+    CPF from public government sources (LAI 12.527/2011) is returned for auditor use.
     """
     from sqlalchemy import text
 
@@ -3761,7 +3840,9 @@ async def search_entities(
         # Persons: only return public servants to comply with LGPD
         sql = text("""
             SELECT DISTINCT e.id, e.name, e.name_normalized, e.type,
-                   e.identifiers->>'cnpj' AS cnpj, e.cluster_id,
+                   e.identifiers->>'cnpj' AS cnpj,
+                   e.identifiers->>'cpf' AS cpf,
+                   e.cluster_id,
                    similarity(e.name_normalized, :q) AS score
             FROM entity e
             JOIN entity_raw_source ers ON ers.entity_id = e.id
@@ -3777,7 +3858,9 @@ async def search_entities(
     else:
         sql = text("""
             SELECT e.id, e.name, e.name_normalized, e.type,
-                   e.identifiers->>'cnpj' AS cnpj, e.cluster_id,
+                   e.identifiers->>'cnpj' AS cnpj,
+                   e.identifiers->>'cpf' AS cpf,
+                   e.cluster_id,
                    similarity(e.name_normalized, :q) AS score
             FROM entity e
             WHERE e.name_normalized % :q
@@ -3795,8 +3878,9 @@ async def search_entities(
             "name_normalized": r[2],
             "type": r[3],
             "cnpj": r[4],
-            "cluster_id": str(r[5]) if r[5] else None,
-            "score": float(r[6]),
+            "cpf": r[5],
+            "cluster_id": str(r[6]) if r[6] else None,
+            "score": float(r[7]),
         }
         for r in rows
     ]

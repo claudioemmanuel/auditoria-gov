@@ -60,7 +60,7 @@ docker compose run --rm api alembic -c api/alembic.ini upgrade head
 ## Guardrails
 
 - Do not commit secrets, tokens, `.env`, or bulk datasets.
-- Preserve LGPD behavior (for example CPF hashing, no raw CPF persistence).
+- CPF/CNPJ from public government sources (LAI 12.527/2011, LGPD Art. 7 V / Art. 23) are stored raw alongside hashes. CPF hashing is preserved for ER matching.
 - Keep typology logic deterministic and auditable.
 - Add or update tests for all behavioral changes.
 - Prefer small, reviewable PRs with explicit verification output.

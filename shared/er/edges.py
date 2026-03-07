@@ -1,3 +1,4 @@
+import math
 import uuid
 from dataclasses import dataclass
 
@@ -9,6 +10,7 @@ _INITIATOR_ROLES = {
     "orgao",
     "senador",
     "deputado",
+    "company",
 }
 
 _TARGET_ROLES = {
@@ -17,6 +19,7 @@ _TARGET_ROLES = {
     "fornecedor",
     "beneficiario",
     "payee",
+    "partner",
 }
 
 
@@ -44,12 +47,16 @@ def _edge_type_from_roles(source_role: str, target_role: str) -> str:
         return "coparticipacao_orgaos"
     if source in {"supplier", "winner", "fornecedor"} and target in {"supplier", "winner", "fornecedor"}:
         return "coparticipacao_fornecedores"
+    if source == "company" and target == "partner":
+        return "sociedade"
     return "coparticipacao_evento"
 
 
 def _edge_label(source_role: str, target_role: str) -> str:
     if source_role.lower() in {"buyer", "procuring_entity"} and target_role.lower() in {"supplier", "winner", "fornecedor"}:
         return "Relacao de compra/fornecimento"
+    if source_role.lower() == "company" and target_role.lower() == "partner":
+        return "Relacao societaria (QSA)"
     return f"{source_role} -> {target_role}"
 
 
@@ -100,8 +107,6 @@ def build_structural_edges(
                 weight = 1.0
                 value = parts[i].get("value_brl") or parts[j].get("value_brl")
                 if value and value > 0:
-                    import math
-
                     weight = math.log10(value + 1)
 
                 edges.append(

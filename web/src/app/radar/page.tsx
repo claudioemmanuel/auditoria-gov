@@ -22,7 +22,7 @@ import { RadarPreviewDrawer } from "@/components/radar/RadarPreviewDrawer";
 import { RadarCoveragePanel } from "@/components/radar/RadarCoveragePanel";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/Button";
-import { CORRUPTION_TYPE_LABELS, SEVERITY_LABELS, SPHERE_LABELS, TYPOLOGY_LABELS } from "@/lib/constants";
+import { CORRUPTION_TYPE_LABELS, SEVERITY_LABELS, SPHERE_LABELS, TYPOLOGY_INFO, TYPOLOGY_LABELS } from "@/lib/constants";
 import { formatNumber, relativeTime } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -66,7 +66,10 @@ function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   const color = pct >= 80 ? "bg-success" : pct >= 50 ? "bg-amber" : "bg-error";
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      className="flex items-center gap-1.5 cursor-help"
+      title={`Confiança do algoritmo: ${pct}% — probabilidade de que o padrão detectado seja genuíno e não um falso positivo. Verde ≥ 80%, Âmbar ≥ 50%, Vermelho < 50%.`}
+    >
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-subtle">
         <div className={`h-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
@@ -663,6 +666,17 @@ function RadarPageInner() {
             {corruptionType && <FilterChip label={CORRUPTION_TYPE_LABELS[corruptionType] ?? corruptionType} onRemove={() => setCorruptionType("")} />}
             {sphere && <FilterChip label={SPHERE_LABELS[sphere] ?? sphere} onRemove={() => setSphere("")} />}
             <button type="button" onClick={clearAllFilters} className="text-[10px] text-error hover:underline">Limpar tudo</button>
+          </div>
+        )}
+
+        {/* ── Typology info banner ────────────────────────────── */}
+        {typology && !filtersExpanded && TYPOLOGY_INFO[typology] && (
+          <div className="rounded-lg border border-accent/20 bg-accent/5 px-4 py-3 space-y-1">
+            <p className="font-mono text-[9px] uppercase tracking-widest text-accent">
+              {typology} — {TYPOLOGY_LABELS[typology]}
+            </p>
+            <p className="text-xs text-secondary leading-relaxed">{TYPOLOGY_INFO[typology].description}</p>
+            <p className="font-mono text-[10px] text-muted">{TYPOLOGY_INFO[typology].legal}</p>
           </div>
         )}
 

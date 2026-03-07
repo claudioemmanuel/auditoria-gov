@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from shared.baselines.compute import _CATMAT_MISSING
 from shared.models.orm import Event, EventParticipant
 from shared.models.signals import (
     EvidenceRef,
@@ -83,7 +84,7 @@ class T15FalseSoleSourceTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query all licitacao events in window
         stmt = select(Event).where(
@@ -123,10 +124,13 @@ class T15FalseSoleSourceTypology(BaseTypology):
         for p in participants:
             event_roles[str(p.event_id)][p.role].add(str(p.entity_id))
 
-        # For competitive events: group by CATMAT → set of suppliers who competed
+        # For competitive events: group by CATMAT → set of suppliers who competed.
+        # Skip sentinel CATMAT values to avoid lumping all unclassified events.
         catmat_competitive_suppliers: dict[str, set] = defaultdict(set)
         for e in competitive_events:
-            catmat = str(e.attrs.get("catmat_group") or e.attrs.get("catmat_code") or "all")
+            catmat = str(e.attrs.get("catmat_group") or e.attrs.get("catmat_code") or "")
+            if catmat.strip().lower() in _CATMAT_MISSING:
+                continue
             roles = event_roles.get(str(e.id), {})
             for supplier_id in (
                 roles.get("winner", set())
@@ -135,10 +139,13 @@ class T15FalseSoleSourceTypology(BaseTypology):
             ):
                 catmat_competitive_suppliers[catmat].add(supplier_id)
 
-        # For inexigibilidade: group by (agency, catmat) → events
+        # For inexigibilidade: group by (agency, catmat) → events.
+        # Skip sentinel CATMAT values for the same reason.
         inexig_groups: dict[tuple, list[Event]] = defaultdict(list)
         for e in inexigibilidade_events:
-            catmat = str(e.attrs.get("catmat_group") or e.attrs.get("catmat_code") or "all")
+            catmat = str(e.attrs.get("catmat_group") or e.attrs.get("catmat_code") or "")
+            if catmat.strip().lower() in _CATMAT_MISSING:
+                continue
             buyers = event_roles.get(str(e.id), {}).get("buyer", set()) | \
                      event_roles.get(str(e.id), {}).get("procuring_entity", set())
             agency = next(iter(buyers), "unknown")

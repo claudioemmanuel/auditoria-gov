@@ -85,10 +85,12 @@ def probabilistic_match(
     if raiz_a and raiz_b and raiz_a != raiz_b:
         return None
 
-    # Determine threshold from entity type if not provided explicitly
+    # Determine threshold from entity type if not provided explicitly.
+    # Entity dicts use "type" as the key (from ORM Entity.type); fall back
+    # to "entity_type" for callers that use the legacy key name.
     if threshold is None:
-        entity_type_a = entity_a.get("entity_type", "org")
-        entity_type_b = entity_b.get("entity_type", "org")
+        entity_type_a = entity_a.get("type") or entity_a.get("entity_type", "org")
+        entity_type_b = entity_b.get("type") or entity_b.get("entity_type", "org")
         is_person = "person" in (entity_type_a, entity_type_b)
         threshold = (
             settings.PERSON_MATCH_THRESHOLD if is_person else settings.ORG_MATCH_THRESHOLD
@@ -108,7 +110,7 @@ def probabilistic_match(
     boost = 0.0
     attrs_a = entity_a.get("attrs", {})
     attrs_b = entity_b.get("attrs", {})
-    for field in ("address", "phone", "email"):
+    for field in ("address", "phone", "telefone", "email"):
         if attrs_a.get(field) and attrs_b.get(field) and attrs_a[field] == attrs_b[field]:
             boost += 0.05
 

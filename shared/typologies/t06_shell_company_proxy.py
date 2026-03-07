@@ -49,11 +49,16 @@ class T06ShellCompanyProxyTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         now = datetime.now(timezone.utc)
-        window_start = now - timedelta(days=365 * 2)
+        window_start = now - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
-        # Get companies that have won contracts
-        winner_stmt = select(EventParticipant).where(
-            EventParticipant.role.in_(["winner", "supplier", "contractor"]),
+        # Get companies that have won contracts within the analysis window
+        winner_stmt = (
+            select(EventParticipant)
+            .join(Event, EventParticipant.event_id == Event.id)
+            .where(
+                EventParticipant.role.in_(["winner", "supplier", "contractor"]),
+                Event.occurred_at >= window_start,
+            )
         )
         winner_result = await session.execute(winner_stmt)
         winners = winner_result.scalars().all()
@@ -95,6 +100,26 @@ class T06ShellCompanyProxyTypology(BaseTypology):
             list(all_event_ids),
         )
         event_map: dict[str, Event] = {str(e.id): e for e in event_rows}
+
+        # Load procuring entities (buyers) for each event to enrich entity_ids
+        buyer_rows = await execute_chunked_in(
+            session,
+            lambda batch: select(EventParticipant).where(
+                EventParticipant.event_id.in_(batch),
+                EventParticipant.role.in_(["buyer", "procuring_entity"]),
+            ),
+            list(all_event_ids),
+        )
+        # Build reverse map: event_id -> set of supplier entity_ids
+        event_to_suppliers: dict[uuid.UUID, set[str]] = defaultdict(set)
+        for supplier_eid, evts in entity_events.items():
+            for evid in evts:
+                event_to_suppliers[evid].add(supplier_eid)
+        # Map: supplier entity_id -> set of buyer entity_ids across their contracts
+        supplier_buyers: dict[str, set[uuid.UUID]] = defaultdict(set)
+        for bp in buyer_rows:
+            for supplier_eid in event_to_suppliers.get(bp.event_id, set()):
+                supplier_buyers[supplier_eid].add(bp.entity_id)
 
         # Build address index for shared-address detection
         address_entities: dict[str, list[str]] = defaultdict(list)
@@ -155,8 +180,15 @@ class T06ShellCompanyProxyTypology(BaseTypology):
                     capital_score = 0.5
                 elif ratio > 5:
                     capital_score = 0.3
-            elif capital == 0 and total_contract_value > 0:
-                capital_score = 0.8
+            elif (not capital) or capital == 0:
+                # Capital zero/absent is only suspicious when combined with a very
+                # recently founded company (< 2 years). Legitimate microempresas
+                # (MEI, ME) frequently have zero declared capital — treat as neutral
+                # unless the company is also brand-new.
+                if age_score >= 0.7:  # age_score set above: 0.7 = < 2 years old
+                    capital_score = 0.8
+                else:
+                    capital_score = 0.0
             factors_detail["capital_score"] = capital_score
             factor_scores.append(capital_score)
 
@@ -240,7 +272,7 @@ class T06ShellCompanyProxyTypology(BaseTypology):
                         description=f"Empresa {entity.name}",
                     ),
                 ],
-                entity_ids=[entity.id],
+                entity_ids=[entity.id] + list(supplier_buyers.get(eid, set()))[:5],
                 event_ids=event_ids_for_entity[:20],
                 period_start=window_start,
                 period_end=now,

@@ -378,22 +378,23 @@ export default function DashboardPage() {
             <p className="font-mono text-[10px] uppercase tracking-widest text-muted mb-3">Etapas do Pipeline</p>
             <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${coverageSummary.pipeline.stages.length}, minmax(0, 1fr))` }}>
               {coverageSummary.pipeline.stages.map((stage) => {
-                const statusMap: Record<string, { dot: string; text: string; bg: string; border: string }> = {
-                  done:       { dot: "bg-success",    text: "text-success",    bg: "bg-success/5",    border: "border-success/20"    },
-                  processing: { dot: "bg-accent",     text: "text-accent",     bg: "bg-accent/5",     border: "border-accent/20"     },
-                  warning:    { dot: "bg-amber",       text: "text-amber",       bg: "bg-amber/5",       border: "border-amber/20"       },
-                  error:      { dot: "bg-error",       text: "text-error",       bg: "bg-error/5",       border: "border-error/20"       },
-                  pending:    { dot: "bg-muted/50",    text: "text-muted",       bg: "bg-surface-base",  border: "border-border"         },
+                const statusMap: Record<string, { dot: string; text: string; bg: string; border: string; label: string }> = {
+                  up_to_date: { dot: "bg-success",    text: "text-success",    bg: "bg-success/5",    border: "border-success/20",    label: "Atualizado"    },
+                  stale:      { dot: "bg-amber",      text: "text-amber",      bg: "bg-amber/5",      border: "border-amber/20",      label: "Desatualizado" },
+                  processing: { dot: "bg-accent",     text: "text-accent",     bg: "bg-accent/5",     border: "border-accent/20",     label: "Processando"   },
+                  warning:    { dot: "bg-amber",      text: "text-amber",      bg: "bg-amber/5",      border: "border-amber/20",      label: "Atenção"       },
+                  error:      { dot: "bg-error",      text: "text-error",      bg: "bg-error/5",      border: "border-error/20",      label: "Erro"          },
+                  pending:    { dot: "bg-muted/50",   text: "text-muted",      bg: "bg-surface-base", border: "border-border",        label: "Pendente"      },
                 };
                 const scfg = statusMap[stage.status] ?? statusMap.pending;
                 return (
                   <div key={stage.code} className={`rounded-xl border ${scfg.border} ${scfg.bg} p-3 text-center`}>
                     <div className={`flex items-center justify-center gap-1.5 mb-1`}>
                       <span className={`h-2 w-2 rounded-full ${scfg.dot}`} />
-                      <p className={`font-mono text-[9px] font-bold uppercase tracking-wide ${scfg.text}`}>{stage.status}</p>
+                      <p className={`font-mono text-[9px] font-bold uppercase tracking-wide ${scfg.text}`}>{scfg.label}</p>
                     </div>
                     <p className="text-xs font-semibold text-primary leading-snug">{stage.label}</p>
-                    {stage.reason && stage.status !== "done" && (
+                    {stage.reason && stage.status !== "up_to_date" && (
                       <p className="text-[10px] text-muted mt-1 leading-snug">{stage.reason}</p>
                     )}
                   </div>

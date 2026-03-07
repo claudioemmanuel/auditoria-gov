@@ -25,8 +25,8 @@ class T09GhostPayrollProxyTypology(BaseTypology):
     2. Cross-reference with other data:
        a. Servant listed in multiple organs simultaneously.
        b. Compensation without corresponding position/role.
-    3. Checklist scoring (0-1 per factor), composite > 0.6 → signal.
-    4. Severity: HIGH if composite > 0.6, CRITICAL if > 0.8.
+    3. Checklist scoring (0-1 per factor), composite > 0.7 → signal.
+    4. Severity: HIGH if composite > 0.7, CRITICAL if > 0.8.
 
     Note: This is a PROXY indicator — requires human review.
     """
@@ -103,10 +103,12 @@ class T09GhostPayrollProxyTypology(BaseTypology):
             # Factor 1: Multiple organs simultaneously
             organs = entity_organs.get(entity_id_str, set())
             multi_organ_score = 0.0
-            if len(organs) >= 3:
-                multi_organ_score = 1.0
-            elif len(organs) >= 2:
+            if len(organs) >= 4:
+                multi_organ_score = 0.9
+            elif len(organs) >= 3:
                 multi_organ_score = 0.7
+            elif len(organs) >= 2:
+                multi_organ_score = 0.3
             factor_details["multi_organ_score"] = multi_organ_score
             factor_scores.append(multi_organ_score)
 
@@ -159,7 +161,7 @@ class T09GhostPayrollProxyTypology(BaseTypology):
             weights = [0.35, 0.20, 0.25, 0.20]
             composite = sum(s * w for s, w in zip(factor_scores, weights))
 
-            if composite < 0.6:
+            if composite < 0.7:
                 continue
 
             if composite > 0.8:

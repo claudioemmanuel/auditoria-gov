@@ -24,6 +24,13 @@ _DISPENSA_SERVICES_THRESHOLD = _DISPENSA_ENGINEERING_THRESHOLD  # alias
 _DEFAULT_THRESHOLD = _DISPENSA_GOODS_THRESHOLD
 _MAX_GAP_DAYS = 30  # Max days between purchases to be considered a cluster
 
+# Keywords that indicate a procurement is for engineering/public works, which
+# qualifies for the higher Decreto 12.343/2024 threshold (R$ 125,451.15).
+_ENGINEERING_KEYWORDS = {
+    "obra", "obras", "engenharia", "construcao", "construção",
+    "reforma", "infraestrutura", "pavimentacao", "pavimentação",
+}
+
 
 def _normalize_catmat_group(value: object) -> str:
     text = str(value or "").strip()
@@ -54,7 +61,8 @@ class T03SplittingTypology(BaseTypology):
     1. For each procuring entity + CATMAT/CATSER group:
        a. Find direct purchases (dispensa) in temporal sequences.
        b. Identify clusters where cumulative value approaches or exceeds
-          the dispensa threshold (R$ 50k for goods, R$ 100k for services).
+          the dispensa threshold (R$ 62,725.59 goods/services or
+          R$ 125,451.15 engineering/works — Decreto 12.343/2024).
     2. Use semantic clustering on descriptions to detect split purchases
        with slightly different wording.
     3. Flag sequences where:
@@ -82,7 +90,7 @@ class T03SplittingTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query dispensa/direct purchase events
         stmt = (
@@ -98,16 +106,25 @@ class T03SplittingTypology(BaseTypology):
         result = await session.execute(stmt)
         events = result.scalars().all()
 
-        # Filter for dispensa modality
-        dispensas = [
-            e for e in events
-            if e.attrs.get("modality", "").lower() in (
-                "dispensa", "dispensa de licitacao",
-                "dispensa_licitacao", "dispensa_valor",
-                "compra_direta", "inexigibilidade",
-            )
-            or (e.value_brl and e.value_brl < _DEFAULT_THRESHOLD)
-        ]
+        # Filter for dispensa modality.
+        # "inexigibilidade" is excluded: it covers technical/artistic sole-source
+        # exemptions, NOT price-based direct purchases subject to the dispensa limit.
+        # Events with absent/null/empty modality are SKIPPED to avoid false positives
+        # from low-value contracts processed under other procurement methods.
+        _DISPENSA_MODALITIES = {
+            "dispensa", "dispensa de licitacao",
+            "dispensa_licitacao", "dispensa_valor", "compra_direta",
+            "dispensa_eletronica",
+        }
+        skipped_unknown_modality = 0
+        dispensas = []
+        for e in events:
+            modality = (e.attrs.get("modality") or "").strip().lower()
+            if not modality:
+                skipped_unknown_modality += 1
+                continue
+            if modality in _DISPENSA_MODALITIES:
+                dispensas.append(e)
 
         if not dispensas:
             return []
@@ -140,6 +157,9 @@ class T03SplittingTypology(BaseTypology):
             buyer_id_str, catmat = key
             if len(group_events) < 2:
                 continue
+            # Skip groups with no identifiable buyer — cannot attribute to an organ
+            if buyer_id_str == str(uuid.UUID(int=0)):
+                continue
 
             # Sort by date
             sorted_events = sorted(
@@ -166,7 +186,20 @@ class T03SplittingTypology(BaseTypology):
             # Evaluate each cluster
             for cluster in clusters:
                 total_value = sum(e.value_brl or 0 for e in cluster)
-                threshold = _DEFAULT_THRESHOLD
+                # Use the higher engineering threshold when any event in the cluster
+                # is classified as public works / engineering (Decreto 12.343/2024).
+                is_engineering = any(
+                    any(
+                        kw in (
+                            (e.attrs.get("object_type") or "")
+                            + " " + (e.attrs.get("subtype") or "")
+                            + " " + (e.description or "")
+                        ).lower()
+                        for kw in _ENGINEERING_KEYWORDS
+                    )
+                    for e in cluster
+                )
+                threshold = _DISPENSA_ENGINEERING_THRESHOLD if is_engineering else _DISPENSA_GOODS_THRESHOLD
 
                 if total_value <= threshold:
                     continue
@@ -206,6 +239,7 @@ class T03SplittingTypology(BaseTypology):
                         "span_days": span_days,
                         "catmat_group": catmat,
                         "avg_value_brl": round(total_value / len(cluster), 2),
+                        "skipped_unknown_modality": skipped_unknown_modality,
                     },
                     evidence_refs=[
                         EvidenceRef(

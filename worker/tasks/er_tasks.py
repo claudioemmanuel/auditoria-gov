@@ -374,6 +374,8 @@ def run_entity_resolution():
         total_prob = 0
         total_clusters = 0
         last_id = None  # keyset pagination cursor
+        all_entities_for_semantic: list[dict] = []
+        all_matched_ids_for_semantic: set = set()
 
         # ── Phase 1: Batched entity matching ─────────────────────────────────
         while True:
@@ -430,6 +432,13 @@ def run_entity_resolution():
                 matches.extend(_build_probabilistic_matches(batch, matched_ids))
             prob_count = len(matches) - det_count
             total_prob += prob_count
+
+            # Accumulate entities/matched_ids for semantic pass (capped at limit)
+            if len(all_entities_for_semantic) < _SEMANTIC_MAX_UNMATCHED:
+                all_entities_for_semantic.extend(batch)
+            all_matched_ids_for_semantic |= (
+                {m.entity_a_id for m in matches} | {m.entity_b_id for m in matches}
+            )
 
             # Cluster this batch (Union-Find)
             clusters = cluster_entities(matches)
@@ -508,6 +517,39 @@ def run_entity_resolution():
             )
             session.commit()
             return {"status": "skipped", "reason": "insufficient entities"}
+
+        # ── Semantic ER pass (requires embeddings + active LLM provider) ──────
+        from shared.config import settings
+
+        total_sem = 0
+        if getattr(settings, "LLM_PROVIDER", "none") not in ("none", "", None):
+            sem_matches = _build_semantic_matches(
+                session, all_entities_for_semantic, all_matched_ids_for_semantic
+            )
+            total_sem = len(sem_matches)
+            log.info("er.semantic_matches", count=total_sem)
+
+            # Apply semantic clusters: write cluster_id for entities not yet merged
+            # by the deterministic/probabilistic passes (those take precedence).
+            if total_sem > 0:
+                sem_clusters = cluster_entities(sem_matches)
+                sem_applied = 0
+                for cluster in sem_clusters:
+                    if not cluster.entity_ids:
+                        continue
+                    session.execute(
+                        update(Entity)
+                        .where(
+                            Entity.id.in_(cluster.entity_ids),
+                            Entity.cluster_id.is_(None),
+                        )
+                        .values(cluster_id=cluster.cluster_id)
+                    )
+                    sem_applied += 1
+                if sem_applied:
+                    session.commit()
+                    total_clusters += sem_applied
+                    log.info("er.semantic_clusters_applied", count=sem_applied)
 
         # ── Phase 2: Batched edge building ────────────────────────────────────
         # Pre-build occurred_at map for all events (UUID-only pass is cheap).
@@ -720,6 +762,108 @@ def run_entity_resolution():
             edges_created += _flush_edges(part_batch)
         log.info("er.structural_edges", count=edges_created)
 
+        # ── Phase 2b: Corporate relationship edges (Receita CNPJ) ─────────────
+        # Builds SAME_ADDRESS, SHARES_PHONE, SAME_SOCIO, SAME_ACCOUNTANT,
+        # SUBSIDIARY, and HOLDING edges from entity attrs populated by the
+        # receita_cnpj connector.  These edge types are required by T13 and T17.
+        from shared.er.corporate_edges import build_corporate_edges
+
+        corp_edges = build_corporate_edges(session)
+        corp_edges_created = 0
+
+        if corp_edges:
+            # Collect all entity IDs referenced by corporate edges
+            corp_entity_ids: set = set()
+            for ce in corp_edges:
+                corp_entity_ids.add(ce.from_entity_id)
+                corp_entity_ids.add(ce.to_entity_id)
+
+            corp_entity_list = list(corp_entity_ids)
+
+            # Load / create GraphNodes for all referenced entities
+            corp_existing_nodes: dict = {}
+            for _ci in range(0, len(corp_entity_list), _IN_CHUNK):
+                _cc = corp_entity_list[_ci : _ci + _IN_CHUNK]
+                for n in session.execute(
+                    select(GraphNode).where(GraphNode.entity_id.in_(_cc))
+                ).scalars().all():
+                    corp_existing_nodes[n.entity_id] = n
+
+            corp_entity_map: dict = {}
+            for _ci in range(0, len(corp_entity_list), _IN_CHUNK):
+                _cc = corp_entity_list[_ci : _ci + _IN_CHUNK]
+                for e in session.execute(
+                    select(Entity).where(Entity.id.in_(_cc))
+                ).scalars().all():
+                    corp_entity_map[e.id] = e
+
+            corp_node_by_entity: dict = {}
+            for eid in corp_entity_ids:
+                entity = corp_entity_map.get(eid)
+                if entity is None:
+                    continue
+                node = corp_existing_nodes.get(eid)
+                if node is None:
+                    snapshot = _node_attrs_snapshot(
+                        {"identifiers": entity.identifiers or {}, "attrs": entity.attrs or {}}
+                    )
+                    node = GraphNode(
+                        entity_id=eid,
+                        label=entity.name,
+                        node_type=entity.type,
+                        attrs=snapshot,
+                    )
+                    session.add(node)
+                corp_node_by_entity[eid] = node
+            session.flush()
+
+            # Upsert corporate edges
+            corp_from_ids = list({corp_node_by_entity[ce.from_entity_id].id for ce in corp_edges if ce.from_entity_id in corp_node_by_entity})
+            corp_to_ids = list({corp_node_by_entity[ce.to_entity_id].id for ce in corp_edges if ce.to_entity_id in corp_node_by_entity})
+            corp_edge_types = list({ce.edge_type for ce in corp_edges})
+
+            corp_existing_edges: dict = {}
+            for _ci in range(0, len(corp_from_ids), _IN_CHUNK):
+                _cf = corp_from_ids[_ci : _ci + _IN_CHUNK]
+                for ge in session.execute(
+                    select(GraphEdge).where(
+                        GraphEdge.from_node_id.in_(_cf),
+                        GraphEdge.to_node_id.in_(corp_to_ids),
+                        GraphEdge.type.in_(corp_edge_types),
+                    )
+                ).scalars().all():
+                    corp_existing_edges[(ge.from_node_id, ge.to_node_id, ge.type)] = ge
+
+            for ce in corp_edges:
+                from_node = corp_node_by_entity.get(ce.from_entity_id)
+                to_node = corp_node_by_entity.get(ce.to_entity_id)
+                if from_node is None or to_node is None:
+                    continue
+                key = (from_node.id, to_node.id, ce.edge_type)
+                existing = corp_existing_edges.get(key)
+                if existing is None:
+                    session.add(GraphEdge(
+                        from_node_id=from_node.id,
+                        to_node_id=to_node.id,
+                        type=ce.edge_type,
+                        weight=ce.weight,
+                        edge_strength="strong" if ce.verification_confidence >= 0.80 else "weak",
+                        verification_method=ce.verification_method,
+                        verification_confidence=ce.verification_confidence,
+                        attrs=ce.attrs,
+                    ))
+                    corp_edges_created += 1
+                else:
+                    existing.weight = max(float(existing.weight or 0.0), ce.weight)
+                    existing.verification_confidence = max(
+                        float(existing.verification_confidence or 0.0),
+                        ce.verification_confidence,
+                    )
+            session.commit()
+
+        edges_created += corp_edges_created
+        log.info("er.corporate_edges", count=corp_edges_created)
+
         # ── Phase 3: Finalize run record ──────────────────────────────────────
         session.execute(
             update(ERRunState)
@@ -741,7 +885,7 @@ def run_entity_resolution():
         "entities_processed": total_entities,
         "deterministic_matches": total_det,
         "probabilistic_matches": total_prob,
-        "semantic_matches": 0,
+        "semantic_matches": total_sem,
         "clusters_formed": total_clusters,
         "edges_created": edges_created,
         "incremental": watermark is not None,

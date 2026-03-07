@@ -37,6 +37,14 @@ async function fetchJSON<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function postJSON<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export function getApiHeartbeat(): Promise<ApiHeartbeatResponse> {
   return fetchJSON("/health");
 }
@@ -259,4 +267,63 @@ export function comparePrices(params?: {
   if (params?.description) search.set("description", params.description);
   const qs = search.toString();
   return fetchJSON(`/public/compare/prices${qs ? `?${qs}` : ""}`);
+}
+
+export interface PipelineDispatchResponse {
+  status: "dispatched";
+  stages: {
+    ingest: { task_id: string };
+    entity_resolution: { task_id: string };
+    signals: { task_id: string };
+  };
+}
+
+export interface PipelineStatusResponse {
+  is_running: boolean;
+  stages: {
+    ingest: "running" | "idle";
+    entity_resolution: "running" | "idle";
+    signals: "running" | "idle";
+  };
+}
+
+export function getPipelineStatus(): Promise<PipelineStatusResponse> {
+  return fetchJSON("/internal/pipeline/status");
+}
+
+export function triggerFullPipeline(): Promise<PipelineDispatchResponse> {
+  return postJSON("/internal/pipeline/full");
+}
+
+export function requestYieldConnector(connector: string): Promise<{ status: string; jobs_signaled: number }> {
+  return postJSON(`/internal/ingest/${connector}/yield`);
+}
+
+export interface PipelineCapacity {
+  running_ingest_jobs: number;
+  max_concurrent_ingest: number;
+  er_running: boolean;
+  slots_available: number;
+  can_dispatch: {
+    ingest: boolean;
+    entity_resolution: boolean;
+    baselines: boolean;
+    signals: boolean;
+  };
+  recommendation: "idle" | "ingest_active" | "er_active";
+}
+
+export interface DispatchNextResponse {
+  status: "dispatched" | "blocked" | "nothing_pending";
+  reason?: string;
+  dispatched: { connector: string; job: string; task_id: string } | null;
+  slots_remaining?: number;
+}
+
+export function getPipelineCapacity(): Promise<PipelineCapacity> {
+  return fetchJSON("/internal/pipeline/capacity");
+}
+
+export function dispatchNextPending(): Promise<DispatchNextResponse> {
+  return postJSON("/internal/pipeline/dispatch-next");
 }

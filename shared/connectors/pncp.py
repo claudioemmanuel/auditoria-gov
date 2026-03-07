@@ -190,6 +190,21 @@ class PNCPConnector(BaseConnector):
                     body = []
                 else:
                     body = response.json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 500:
+                # PNCP 500s on specific windows are common (corrupted/unavailable data).
+                # Skip this window rather than failing the entire task.
+                from shared.logging import log as _log
+                _log.warning(
+                    "pncp.window_skip_500",
+                    endpoint=endpoint,
+                    window=f"{di}/{df}",
+                    job=job.name,
+                )
+                if window_idx + 1 < len(windows):
+                    return [], f"w{window_idx + 1}p1"
+                return [], None
+            raise
         except httpx.ReadTimeout:
             # Large pages occasionally time out on PNCP; retry once with a smaller page.
             if page_size <= _PNCP_REDUCED_PAGE_SIZE:
@@ -268,13 +283,15 @@ class PNCPConnector(BaseConnector):
                     ),
                 )
                 entities.append(fornecedor)
+                # Licitações list bidders; contratos/ARPs list suppliers/winners.
+                supplier_role = "bidder" if job.domain == "licitacao" else "supplier"
                 participants = [
                     CanonicalEventParticipant(entity_ref=orgao, role="buyer"),
                     CanonicalEventParticipant(
                         entity_ref=orgao, role="procuring_entity"
                     ),
                     CanonicalEventParticipant(
-                        entity_ref=fornecedor, role="supplier"
+                        entity_ref=fornecedor, role=supplier_role
                     ),
                 ]
             else:
@@ -303,7 +320,9 @@ class PNCPConnector(BaseConnector):
                         "modalidade": d.get("modalidadeNome", ""),
                         "modality": d.get("modalidadeNome", ""),
                         "situacao": d.get("situacaoCompra", d.get("situacao", "")),
-                        "catmat_group": d.get("codigoCatmat", d.get("catmat_group", "sem classificacao")),
+                        "catmat_group": str(
+                            d.get("codigoCatmat") or d.get("catmat_group") or "sem classificacao"
+                        ),
                         "uf": (
                             (d.get("unidadeOrgao") or {}).get("ufSigla", "")
                             if isinstance(d.get("unidadeOrgao"), dict)

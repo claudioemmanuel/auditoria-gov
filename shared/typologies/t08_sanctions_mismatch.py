@@ -1,6 +1,9 @@
+import logging
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+
+log = logging.getLogger(__name__)
 
 from sqlalchemy import select
 
@@ -180,9 +183,12 @@ class T08SanctionsMismatchTypology(BaseTypology):
                     except (ValueError, TypeError):
                         pass
 
-                # Default: sanction still active
+                # CEIS/CNEP sanctions without dataFimSancao are indefinite/ongoing.
+                # Treat as still-active (far-future end) rather than skipping — skipping
+                # would cause T08 to miss the most egregious cases where the sanction
+                # was never lifted.
                 if s_end is None:
-                    s_end = datetime.now(timezone.utc)
+                    s_end = datetime.now(timezone.utc) + timedelta(days=365 * 20)
 
                 # Check overlap: contract_start <= sanction_end AND contract_end >= sanction_start
                 if c_start <= s_end and c_end >= s_start:

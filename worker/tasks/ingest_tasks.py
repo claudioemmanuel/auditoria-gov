@@ -1,8 +1,10 @@
+import os
+import time
 from datetime import datetime, timezone
 
 import httpx
 from celery import shared_task
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from shared.connectors import get_connector
 from shared.db_sync import SyncSession
@@ -12,6 +14,11 @@ from shared.models.raw import RawItem
 from shared.utils.sync_async import run_async
 
 MAX_PAGES = 10_000  # Effectively unlimited; date range is the real constraint.
+
+# ── Time-slice fairness ──────────────────────────────────────────────────────
+_MAX_SLICE_SECONDS = int(os.environ.get("INGEST_MAX_SLICE_SECONDS", "1800"))  # 30 min
+_STUCK_THRESHOLD_SECONDS = int(os.environ.get("INGEST_STUCK_THRESHOLD_SECONDS", "300"))  # 5 min
+_MAX_YIELDS = int(os.environ.get("INGEST_MAX_YIELDS", "20"))  # Max re-enqueues before giving up
 
 # HTTP status codes that should NOT be retried (permanent client errors).
 _NON_RETRYABLE_STATUS = frozenset(range(400, 500)) - {408, 429}
@@ -32,6 +39,48 @@ def _format_error(exc: Exception) -> str:
     if message:
         return message
     return repr(exc)
+
+
+def _other_jobs_pending(session, current_connector: str, current_job: str) -> bool:
+    """Check if other enabled ingest jobs haven't run recently (>2h) or never ran."""
+    from shared.connectors import ConnectorRegistry
+
+    cutoff = datetime.now(timezone.utc)
+    for name, cls in ConnectorRegistry.items():
+        connector = cls()
+        for j in connector.list_jobs():
+            if not j.enabled or not j.supports_incremental:
+                continue
+            if name == current_connector and j.name == current_job:
+                continue
+            state = session.execute(
+                select(IngestState).where(
+                    IngestState.connector == name,
+                    IngestState.job == j.name,
+                )
+            ).scalar_one_or_none()
+            if state is None or state.last_run_at is None:
+                return True  # Never ran
+            if (cutoff - state.last_run_at).total_seconds() > 7200:
+                return True  # Stale (>2h since last run)
+    return False
+
+
+def _count_recent_yields(session, connector_name: str, job_name: str) -> int:
+    """Count consecutive yielded runs for this job (to prevent infinite yield loops)."""
+    recent = session.execute(
+        select(RawRun.status)
+        .where(RawRun.connector == connector_name, RawRun.job == job_name)
+        .order_by(RawRun.created_at.desc())
+        .limit(_MAX_YIELDS + 1)
+    ).scalars().all()
+    count = 0
+    for s in recent:
+        if s == "yielded":
+            count += 1
+        else:
+            break
+    return count
 
 
 def _finalize_stale_running_runs(session, connector_name: str, job_name: str) -> int:
@@ -142,9 +191,107 @@ def ingest_connector(
 
         total_items = 0
         pages = 0
+        slice_start = time.monotonic()
+        last_progress_at = slice_start
+        last_progress_count = 0
+        yield_count = _count_recent_yields(session, connector_name, job_name)
 
         try:
             while pages < MAX_PAGES:
+                # ── Time-slice check ─────────────────────────────────
+                elapsed = time.monotonic() - slice_start
+                # Check if yield was requested externally (every 10 pages to avoid DB spam)
+                force_yield = False
+                if pages % 10 == 0:
+                    try:
+                        session.refresh(ingest_state, ["yield_requested"])
+                        force_yield = ingest_state.yield_requested and current_cursor is not None
+                    except Exception:
+                        pass  # Column may not exist during rolling deploy
+                if (force_yield or elapsed > _MAX_SLICE_SECONDS) and current_cursor is not None:
+                    if yield_count >= _MAX_YIELDS and not force_yield:
+                        log.warning(
+                            "ingest_connector.max_yields_reached",
+                            connector=connector_name,
+                            job=job_name,
+                            yields=yield_count,
+                        )
+                        # Let it continue — don't yield forever
+                    elif force_yield or _other_jobs_pending(session, connector_name, job_name):
+                        yield_reason = "force_yield_requested" if force_yield else "time_slice_exceeded"
+                        raw_run.items_fetched = total_items
+                        raw_run.cursor_end = current_cursor
+                        raw_run.status = "yielded"
+                        raw_run.finished_at = datetime.now(timezone.utc)
+                        raw_run.errors = {
+                            "yielded": True,
+                            "reason": yield_reason,
+                            "elapsed_seconds": int(elapsed),
+                            "items_fetched": total_items,
+                        }
+                        ingest_state.last_cursor = current_cursor
+                        ingest_state.last_run_at = datetime.now(timezone.utc)
+                        ingest_state.last_run_id = raw_run.id
+                        if force_yield:
+                            ingest_state.yield_requested = False
+                        session.commit()
+
+                        log.info(
+                            "ingest_connector.yielded",
+                            connector=connector_name,
+                            job=job_name,
+                            items_fetched=total_items,
+                            elapsed_seconds=int(elapsed),
+                        )
+
+                        # Dispatch normalization for partial data
+                        if total_items > 0:
+                            from worker.tasks.normalize_tasks import normalize_run
+                            normalize_run.delay(str(raw_run.id))
+
+                        # Re-enqueue at back of queue
+                        ingest_connector.apply_async(
+                            args=[connector_name, job_name],
+                            queue="ingest",
+                            countdown=10,
+                        )
+                        return {
+                            "connector": connector_name,
+                            "job": job_name,
+                            "status": "yielded",
+                            "items_fetched": total_items,
+                            "cursor": current_cursor,
+                        }
+
+                # ── Stuck detection ──────────────────────────────────
+                if total_items > last_progress_count:
+                    last_progress_at = time.monotonic()
+                    last_progress_count = total_items
+                elif time.monotonic() - last_progress_at > _STUCK_THRESHOLD_SECONDS and pages > 0:
+                    raw_run.status = "error"
+                    raw_run.finished_at = datetime.now(timezone.utc)
+                    raw_run.errors = {
+                        "stuck": True,
+                        "reason": f"no_progress_in_{_STUCK_THRESHOLD_SECONDS}s",
+                        "items_fetched": total_items,
+                        "elapsed_seconds": int(time.monotonic() - slice_start),
+                    }
+                    ingest_state.last_cursor = current_cursor
+                    session.commit()
+                    log.warning(
+                        "ingest_connector.stuck",
+                        connector=connector_name,
+                        job=job_name,
+                        items_fetched=total_items,
+                    )
+                    return {
+                        "connector": connector_name,
+                        "job": job_name,
+                        "status": "stuck",
+                        "items_fetched": total_items,
+                    }
+
+                # ── Fetch next page ──────────────────────────────────
                 effective_params = dict(job.default_params or {})
                 if params:
                     effective_params.update(params)
@@ -185,6 +332,8 @@ def ingest_connector(
 
                 raw_run.items_fetched = total_items
                 raw_run.cursor_end = current_cursor
+                # Save cursor on every page so re-runs resume from here on crash/error.
+                ingest_state.last_cursor = current_cursor
                 session.commit()
 
                 if pages % 100 == 0 or next_cursor is None:
@@ -234,6 +383,8 @@ def ingest_connector(
                     "senado",
                     "camara",
                     "pncp",
+                    "comprasnet_contratos",
+                    "compras_gov",
                 }:
                     from worker.tasks.maintenance_tasks import trigger_post_ingest_recompute
                     trigger_post_ingest_recompute.apply_async(
@@ -260,6 +411,11 @@ def ingest_connector(
         except Exception as exc:
             formatted_error = _format_error(exc)
             retryable = _is_retryable(exc)
+            # Save cursor at the point of failure so the next run resumes from here,
+            # not from the beginning. Prevents re-fetching millions of already-stored rows.
+            ingest_state.last_cursor = current_cursor
+            ingest_state.last_run_at = datetime.now(timezone.utc)
+            ingest_state.last_run_id = raw_run.id
             if isinstance(exc, NotImplementedError):
                 raw_run.status = "skipped"
                 raw_run.errors = {
@@ -281,6 +437,31 @@ def ingest_connector(
                     "status": "skipped",
                     "error": formatted_error,
                 }
+
+            # Retryable error with partial data already stored: close the current
+            # run as "completed" so normalize can process what was collected, then
+            # retry from the saved cursor to fetch the remaining pages.
+            if retryable and total_items > 0:
+                raw_run.status = "completed"
+                raw_run.errors = {
+                    "error": formatted_error,
+                    "error_type": type(exc).__name__,
+                    "retryable": True,
+                    "partial": True,
+                }
+                raw_run.finished_at = datetime.now(timezone.utc)
+                session.commit()
+                log.warning(
+                    "ingest_connector.partial_completed",
+                    connector=connector_name,
+                    job=job_name,
+                    items_fetched=total_items,
+                    error=formatted_error,
+                )
+                from worker.tasks.normalize_tasks import normalize_run
+                normalize_run.delay(str(raw_run.id))
+                backoff = 60 * (2 ** self.request.retries)
+                raise self.retry(exc=exc, countdown=backoff)
 
             raw_run.status = "error"
             raw_run.errors = {

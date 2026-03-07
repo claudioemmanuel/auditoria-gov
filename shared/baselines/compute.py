@@ -6,7 +6,25 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.baselines.models import BaselineMetrics, BaselineType, MIN_SAMPLE_SIZE
+from shared.logging import log
 from shared.models.orm import BaselineSnapshot, Event, EventParticipant
+
+# Sentinel values indicating missing/unknown CATMAT group — excluded from baselines.
+# Includes both ASCII-normalised and accented Portuguese variants so all callers
+# (T01, T07, T12, baselines) reject the same set without local divergence.
+_CATMAT_MISSING = {
+    "",
+    "nao_informado",
+    "não informado",
+    "nao informado",
+    "sem classificacao",
+    "sem classificação",
+    "null",
+    "none",
+    "unknown",
+    "nao_classificado",
+    "não classificado",
+}
 
 
 def _percentile(sorted_data: list[float], pct: float) -> float:
@@ -93,7 +111,9 @@ async def _compute_price_baselines(
     # Group by catmat_group
     groups: dict[str, list[float]] = defaultdict(list)
     for e in events:
-        catmat = e.attrs.get("catmat_group") or e.attrs.get("catmat_code") or "nao_informado"
+        catmat = e.attrs.get("catmat_group") or e.attrs.get("catmat_code")
+        if not catmat or str(catmat).strip().lower() in _CATMAT_MISSING:
+            continue  # No meaningful group — exclude from baselines
         groups[f"catmat_group::{catmat}"].append(e.value_brl)
 
     results: list[BaselineMetrics] = []
@@ -213,8 +233,9 @@ async def _compute_hhi_baselines(
     # Map event -> (catmat_group, procuring_entity, value)
     event_info: dict[str, dict] = {}
     for e in events:
+        catmat_raw = e.attrs.get("catmat_group") or ""
         event_info[str(e.id)] = {
-            "catmat_group": e.attrs.get("catmat_group", "nao_informado"),
+            "catmat_group": catmat_raw if catmat_raw.strip().lower() not in _CATMAT_MISSING else None,
             "value_brl": e.value_brl or 0,
         }
 
@@ -226,6 +247,8 @@ async def _compute_hhi_baselines(
         if not info:
             continue
         catmat = info["catmat_group"]
+        if catmat is None:
+            continue  # sentinel/missing catmat — exclude from HHI distribution
         group_winners[catmat][str(w.entity_id)] += info["value_brl"]
 
     hhi_values: list[float] = []
@@ -375,32 +398,47 @@ async def compute_all_baselines(session: AsyncSession) -> list[BaselineMetrics]:
 
     results: list[BaselineMetrics] = []
 
-    # Compute each baseline type
+    # Compute and persist each baseline type incrementally so snapshots are
+    # available as soon as each block finishes rather than waiting for all blocks.
     price_baselines = await _compute_price_baselines(session, window_start, window_end)
     results.extend(price_baselines)
+    for m in price_baselines:
+        await _upsert_baseline_snapshot(session, m, window_start, window_end)
+    await session.commit()
+    log.info("compute_all_baselines.price_done", count=len(price_baselines))
 
     participants_baselines = await _compute_participants_baselines(
         session, window_start, window_end
     )
     results.extend(participants_baselines)
+    for m in participants_baselines:
+        await _upsert_baseline_snapshot(session, m, window_start, window_end)
+    await session.commit()
+    log.info("compute_all_baselines.participants_done", count=len(participants_baselines))
 
     hhi_baselines = await _compute_hhi_baselines(session, window_start, window_end)
     results.extend(hhi_baselines)
+    for m in hhi_baselines:
+        await _upsert_baseline_snapshot(session, m, window_start, window_end)
+    await session.commit()
+    log.info("compute_all_baselines.hhi_done", count=len(hhi_baselines))
 
     amendment_baselines = await _compute_amendment_baselines(
         session, window_start, window_end
     )
     results.extend(amendment_baselines)
+    for m in amendment_baselines:
+        await _upsert_baseline_snapshot(session, m, window_start, window_end)
+    await session.commit()
+    log.info("compute_all_baselines.amendment_done", count=len(amendment_baselines))
 
     duration_baselines = await _compute_duration_baselines(
         session, window_start, window_end
     )
     results.extend(duration_baselines)
-
-    # Persist all snapshots
-    for m in results:
+    for m in duration_baselines:
         await _upsert_baseline_snapshot(session, m, window_start, window_end)
-
-    await session.flush()
+    await session.commit()
+    log.info("compute_all_baselines.duration_done", count=len(duration_baselines))
 
     return results

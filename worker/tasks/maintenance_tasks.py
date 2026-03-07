@@ -183,13 +183,16 @@ def purge_old_results(max_age_days: int = 7):
 
 @shared_task(name="worker.tasks.maintenance_tasks.backfill_signal_clarity", soft_time_limit=1800, time_limit=1900, max_retries=1)
 def backfill_signal_clarity(max_events: int = 20000):
-    """Backfill data quality for investigability and refresh T03/T05 signals.
+    """Backfill data quality for investigability and refresh CATMAT-dependent signals.
 
     Steps:
     1. Normalize missing CATMAT sentinel values to "nao_informado".
     2. Attempt CATMAT enrichment using source_pncp_id-linked events.
     3. Copy winner/bidder/supplier participants when target events have only buyer roles.
-    4. Dispatch force-refresh for T03/T05 and run ER to materialize graph nodes/edges.
+    4. Dispatch force-refresh for T01/T03/T05/T07 and run ER to materialize graph nodes/edges.
+       T01 (HHI grouping), T03 (splitting threshold), T05 (price outlier), and T07 (cartel
+       network) all use catmat_group/code for grouping and skip sentinel values — enriching
+       CATMAT data directly improves signal recall for all four typologies.
     """
     from shared.db_sync import SyncSession
     from shared.models.orm import Event, EventParticipant
@@ -319,8 +322,10 @@ def backfill_signal_clarity(max_events: int = 20000):
 
         session.commit()
 
+    t01_task = run_single_signal.delay("T01", dry_run=False, force_refresh=True).id
     t03_task = run_single_signal.delay("T03", dry_run=False, force_refresh=True).id
     t05_task = run_single_signal.delay("T05", dry_run=False, force_refresh=True).id
+    t07_task = run_single_signal.delay("T07", dry_run=False, force_refresh=True).id
     er_task = run_entity_resolution.delay().id
 
     result = {
@@ -330,8 +335,10 @@ def backfill_signal_clarity(max_events: int = 20000):
         "catmat_enriched": enriched_catmat,
         "participants_enriched": enriched_participants,
         "tasks": {
+            "t01_refresh": t01_task,
             "t03_refresh": t03_task,
             "t05_refresh": t05_task,
+            "t07_refresh": t07_task,
             "er_run": er_task,
         },
     }
@@ -358,21 +365,33 @@ def trigger_post_ingest_recompute(connector: str = "", job: str = "") -> dict:
         job=job,
     )
 
-    # Dispatch baseline recomputation
-    compute_all_baselines.apply_async(queue="default")
-
-    # Dispatch signal recomputation
-    run_all_signals.apply_async(queue="signals")
+    # Chain: baselines must complete before signals run (signals read baselines)
+    from celery import chain, signature
+    pipeline = chain(
+        signature(
+            "worker.tasks.baseline_tasks.compute_all_baselines",
+            immutable=True,
+            queue="default",
+        ),
+        signature(
+            "worker.tasks.signal_tasks.run_all_signals",
+            immutable=True,
+            queue="signals",
+        ),
+    )
+    result = pipeline.apply_async()
 
     log.info(
         "trigger_post_ingest_recompute.dispatched",
         connector=connector,
         job=job,
+        chain_id=str(result.id),
     )
     return {
         "status": "dispatched",
         "connector": connector,
         "job": job,
+        "chain_id": str(result.id),
     }
 
 
@@ -473,18 +492,20 @@ def backfill_public_profile_photos(limit: int = 1000):
 )
 def run_full_pipeline() -> dict:
     """Dispatch ER → baselines → signals as a Celery chain."""
-    pipeline = current_app.chain(
-        current_app.signature(
+    from celery import chain, signature
+
+    pipeline = chain(
+        signature(
             "worker.tasks.er_tasks.run_entity_resolution",
             immutable=True,
             queue="er",
         ),
-        current_app.signature(
+        signature(
             "worker.tasks.baseline_tasks.compute_all_baselines",
             immutable=True,
             queue="default",
         ),
-        current_app.signature(
+        signature(
             "worker.tasks.signal_tasks.run_all_signals",
             immutable=True,
             queue="signals",
@@ -496,6 +517,83 @@ def run_full_pipeline() -> dict:
 
 
 @shared_task(
+    name="worker.tasks.maintenance_tasks.vacuum_raw_source",
+    bind=False,
+    max_retries=1,
+    soft_time_limit=600,
+    time_limit=660,
+)
+def vacuum_raw_source() -> dict:
+    """VACUUM raw_source to reclaim disk space from cleared raw_data fields.
+
+    Must run outside a transaction (AUTOCOMMIT). Uses a dedicated engine
+    connection to avoid interfering with the normal session pool.
+    """
+    from sqlalchemy import text
+    from shared.db_sync import sync_engine
+
+    with sync_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("VACUUM raw_source"))
+
+    log.info("vacuum_raw_source.done")
+    return {"status": "ok"}
+
+
+def _watchdog_recover_orphans() -> dict | None:
+    """Recover orphaned 'running' runs older than 10 min. Returns result dict or None."""
+    from shared.db_sync import SyncSession
+    from shared.models.orm import IngestState, RawRun
+
+    try:
+        with SyncSession() as session:
+            orphan_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+            orphans = session.execute(
+                select(RawRun).where(
+                    RawRun.status == "running",
+                    RawRun.finished_at.is_(None),
+                    RawRun.created_at < orphan_cutoff,
+                )
+            ).scalars().all()
+
+            if not orphans:
+                return None
+
+            now_ts = datetime.now(timezone.utc)
+            seen: set[tuple[str, str]] = set()
+            for run in orphans:
+                run.status = "error"
+                run.finished_at = now_ts
+                run.errors = {
+                    "error": "stale run recovered by watchdog",
+                    "error_type": "StaleRunWatchdog",
+                    "auto_recovered": True,
+                }
+                seen.add((run.connector, run.job))
+            session.commit()
+            log.warning("pipeline_watchdog.orphans_recovered", count=len(orphans))
+
+            for connector, job in seen:
+                state = session.execute(
+                    select(IngestState).where(
+                        IngestState.connector == connector,
+                        IngestState.job == job,
+                    )
+                ).scalar_one_or_none()
+                cursor = state.last_cursor if state else None
+                from worker.tasks.ingest_tasks import ingest_connector
+                ingest_connector.apply_async(
+                    args=[connector, job, cursor],
+                    queue="ingest",
+                    countdown=10,
+                )
+
+            return {"status": "recovered_orphans", "count": len(orphans), "redispatched": len(seen)}
+    except Exception as exc:
+        log.warning("pipeline_watchdog.orphan_recovery_failed", error=str(exc))
+        return None
+
+
+@shared_task(
     name="worker.tasks.maintenance_tasks.pipeline_watchdog",
     bind=False,
     soft_time_limit=60,
@@ -503,18 +601,33 @@ def run_full_pipeline() -> dict:
     max_retries=0,
 )
 def pipeline_watchdog() -> dict:
-    """Check DB state every 15 min and dispatch run_full_pipeline when ingest is idle and ER is stale."""
+    """Check DB state every 15 min and drive the full pipeline.
+
+    Two triggers:
+    1. ER stale (new ingest data not yet entity-resolved) → run_full_pipeline
+       (ER → baselines → signals).
+    2. Procurement data exists but baselines are absent → dispatch baselines +
+       signals immediately, even when ER is up-to-date. This fires the signal
+       pipeline as soon as PNCP/comprasnet data normalises, without waiting for
+       the next ER run watermark update.
+    """
     from sqlalchemy import func, select
 
     from shared.db_sync import SyncSession
-    from shared.models.orm import ERRunState, RawRun
+    from shared.models.orm import BaselineSnapshot, ERRunState, Event, RawRun
+
+    # ── Auto-recover orphaned runs (safety net) ─────────────────────
+    recovery = _watchdog_recover_orphans()
+    if recovery is not None:
+        return recovery
 
     with SyncSession() as session:
-        active_ingest = session.execute(
+        # Skip immediately if any ingest job is still running — data is incomplete.
+        ingest_running_count = session.execute(
             select(func.count()).select_from(RawRun).where(RawRun.status == "running")
         ).scalar_one()
-        if active_ingest > 0:
-            log.info("pipeline_watchdog.skip", reason="ingest_running", count=active_ingest)
+        if ingest_running_count > 0:
+            log.info("pipeline_watchdog.skip", reason="ingest_running", count=ingest_running_count)
             return {"status": "skip", "reason": "ingest_running"}
 
         er_running = session.execute(
@@ -537,7 +650,47 @@ def pipeline_watchdog() -> dict:
             .order_by(ERRunState.watermark_at.desc())
             .limit(1)
         ).scalar_one_or_none()
+
         if er_completed is not None and er_completed.watermark_at >= last_ingest_at:
+            # ER is up-to-date with latest ingest. Check if procurement data
+            # appeared since baselines were last computed.
+            procurement_count = session.execute(
+                select(func.count()).select_from(Event).where(
+                    Event.type.in_(["licitacao", "contrato"])
+                )
+            ).scalar_one()
+
+            if procurement_count > 0:
+                baseline_count = session.execute(
+                    select(func.count()).select_from(BaselineSnapshot)
+                ).scalar_one()
+
+                if baseline_count == 0:
+                    from celery import chain, signature
+                    pipeline = chain(
+                        signature(
+                            "worker.tasks.baseline_tasks.compute_all_baselines",
+                            immutable=True,
+                            queue="default",
+                        ),
+                        signature(
+                            "worker.tasks.signal_tasks.run_all_signals",
+                            immutable=True,
+                            queue="signals",
+                        ),
+                    )
+                    result = pipeline.apply_async()
+                    log.info(
+                        "pipeline_watchdog.dispatched_baselines",
+                        procurement_events=procurement_count,
+                        chain_id=str(result.id),
+                    )
+                    return {
+                        "status": "dispatched_baselines",
+                        "procurement_events": procurement_count,
+                        "chain_id": str(result.id),
+                    }
+
             log.info("pipeline_watchdog.skip", reason="er_up_to_date")
             return {"status": "skip", "reason": "er_up_to_date"}
 

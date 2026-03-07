@@ -320,6 +320,7 @@ class IngestState(Base):
     last_cursor: Mapped[Optional[str]] = mapped_column(String(255))
     last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    yield_requested: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     __table_args__ = (
         UniqueConstraint("connector", "job", name="uq_ingest_state_connector_job"),

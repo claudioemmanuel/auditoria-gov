@@ -83,11 +83,16 @@ async def _ensure_rfb_files(data_dir: str) -> None:
                                 f.write(chunk)
                 log.info("receita_cnpj.downloaded", file=zip_name)
 
-            # Extract ZIP
+            # Extract ZIP then delete it — each ZIP is ~600 MB and the CSV is all we need.
             try:
                 with zipfile.ZipFile(zip_path, "r") as z:
                     z.extractall(data_dir)
                 log.info("receita_cnpj.extracted", file=zip_name)
+                try:
+                    os.remove(zip_path)
+                    log.info("receita_cnpj.zip_deleted", file=zip_name)
+                except OSError:
+                    pass
             except zipfile.BadZipFile:
                 log.error("receita_cnpj.bad_zip", file=zip_name)
                 os.remove(zip_path)
@@ -299,7 +304,12 @@ class ReceitaCNPJConnector(BaseConnector):
             if tipo_socio == "1" and doc_socio:
                 identifiers["cnpj"] = doc_socio
             elif tipo_socio == "2" and doc_socio:
-                identifiers["cpf_hash"] = doc_socio  # Already masked by Receita
+                doc_clean = "".join(c for c in doc_socio if c.isdigit())
+                if len(doc_clean) == 11:
+                    identifiers["cpf"] = doc_clean
+                else:
+                    # Receita masks CPF of partners (***NNNNNN**) — store as partial
+                    identifiers["cpf_partial"] = doc_socio
 
             partner_entity = CanonicalEntity(
                 source_connector="receita_cnpj",

@@ -223,7 +223,7 @@ export interface CoverageV2SummaryResponse {
     stages: {
       code: "ingest" | "entity_resolution" | "baselines" | "signals" | string;
       label: string;
-      status: "done" | "processing" | "warning" | "error" | "pending";
+      status: "up_to_date" | "processing" | "stale" | "warning" | "error" | "pending";
       reason: string;
     }[];
   };
@@ -237,6 +237,11 @@ export interface CoverageV2SourceRuntime {
   running_jobs: number;
   stuck_jobs: number;
   error_jobs: number;
+  active_job_names: string[];
+  items_fetched_live: number;
+  items_normalized_live: number;
+  elapsed_seconds: number | null;
+  estimated_rate_per_min: number | null;
 }
 
 export interface CoverageV2SourceItem {
@@ -267,6 +272,8 @@ export interface CoverageV2LatestRun {
   items_fetched: number;
   items_normalized: number;
   error_message?: string | null;
+  elapsed_seconds: number | null;
+  progress_pct: number | null;
 }
 
 export interface CoverageV2SourcePreviewResponse {

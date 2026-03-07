@@ -118,6 +118,13 @@ async def _download_tse_dataset(cfg: _TSEJobCfg, year: int, data_dir: str) -> st
         z.extractall(data_dir)
     log.info("tse.extracted", file=zip_filename)
 
+    # Delete ZIP immediately after extraction — CSVs are all we need.
+    try:
+        os.remove(zip_path)
+        log.info("tse.zip_deleted", file=zip_filename)
+    except OSError:
+        pass
+
     extracted = _find_csv()
     if not extracted:
         raise FileNotFoundError(
@@ -286,6 +293,12 @@ class TSEConnector(BaseConnector):
         ]
 
         if finished:
+            # All rows consumed for this year — delete CSV to reclaim disk space.
+            try:
+                os.remove(csv_path)
+                log.info("tse.csv_deleted", file=os.path.basename(csv_path), year=year)
+            except OSError:
+                pass
             next_cursor = f"{year_idx + 1}:0" if year_idx + 1 < len(cfg.years) else None
         else:
             next_cursor = f"{year_idx}:{new_offset}"

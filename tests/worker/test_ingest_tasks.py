@@ -201,3 +201,172 @@ def test_finalize_stale_runs_marks_old_running_entries():
     assert stale.finished_at is not None
     assert stale.errors["error_type"] == "StaleRun"
     session.commit.assert_called_once()
+
+
+# ── Time-slice helpers ─────────────────────────────────────────────
+
+
+class _FakeIngestState:
+    def __init__(self, last_run_at=None):
+        self.last_run_at = last_run_at
+
+
+class _FakeScalarResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one_or_none(self):
+        return self._value
+
+
+class _FakeScalarsResult:
+    def __init__(self, values):
+        self._values = values
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return self._values
+
+
+def test_other_jobs_pending_true_when_never_ran(monkeypatch):
+    """_other_jobs_pending returns True when another enabled job has never run."""
+    import shared.connectors as connectors_module
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "conn_a": _FakeConnectorA,
+        },
+    )
+
+    session = MagicMock()
+    session.execute.return_value = _FakeScalarResult(None)  # no IngestState row
+
+    result = ingest_tasks._other_jobs_pending(session, "conn_a", "enabled_job")
+    # _FakeConnectorA has "enabled_job" (skipped as current) and "disabled_job" (disabled, skipped).
+    # No other enabled incremental jobs → False
+    assert result is False
+
+
+def test_other_jobs_pending_true_when_another_connector_never_ran(monkeypatch):
+    """_other_jobs_pending returns True when a different connector's job never ran."""
+    import shared.connectors as connectors_module
+
+    class _FakeConnectorD:
+        def list_jobs(self):
+            return [
+                JobSpec(name="other_job", description="Other", domain="test",
+                        supports_incremental=True, enabled=True),
+            ]
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "conn_a": _FakeConnectorA,
+            "conn_d": _FakeConnectorD,
+        },
+    )
+
+    session = MagicMock()
+    # conn_d/other_job has no IngestState
+    session.execute.return_value = _FakeScalarResult(None)
+
+    result = ingest_tasks._other_jobs_pending(session, "conn_a", "enabled_job")
+    assert result is True
+
+
+def test_other_jobs_pending_true_when_stale(monkeypatch):
+    """_other_jobs_pending returns True when another job ran >2h ago."""
+    from datetime import datetime, timedelta, timezone
+    import shared.connectors as connectors_module
+
+    class _FakeConnectorD:
+        def list_jobs(self):
+            return [
+                JobSpec(name="other_job", description="Other", domain="test",
+                        supports_incremental=True, enabled=True),
+            ]
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "conn_a": _FakeConnectorA,
+            "conn_d": _FakeConnectorD,
+        },
+    )
+
+    old_state = _FakeIngestState(
+        last_run_at=datetime.now(timezone.utc) - timedelta(hours=3),
+    )
+    session = MagicMock()
+    session.execute.return_value = _FakeScalarResult(old_state)
+
+    result = ingest_tasks._other_jobs_pending(session, "conn_a", "enabled_job")
+    assert result is True
+
+
+def test_other_jobs_pending_false_when_all_recent(monkeypatch):
+    """_other_jobs_pending returns False when all other jobs ran recently."""
+    from datetime import datetime, timedelta, timezone
+    import shared.connectors as connectors_module
+
+    class _FakeConnectorD:
+        def list_jobs(self):
+            return [
+                JobSpec(name="other_job", description="Other", domain="test",
+                        supports_incremental=True, enabled=True),
+            ]
+
+    monkeypatch.setattr(
+        connectors_module,
+        "ConnectorRegistry",
+        {
+            "conn_a": _FakeConnectorA,
+            "conn_d": _FakeConnectorD,
+        },
+    )
+
+    recent_state = _FakeIngestState(
+        last_run_at=datetime.now(timezone.utc) - timedelta(minutes=30),
+    )
+    session = MagicMock()
+    session.execute.return_value = _FakeScalarResult(recent_state)
+
+    result = ingest_tasks._other_jobs_pending(session, "conn_a", "enabled_job")
+    assert result is False
+
+
+def test_count_recent_yields_counts_consecutive(monkeypatch):
+    """_count_recent_yields counts consecutive 'yielded' statuses from most recent."""
+    session = MagicMock()
+    session.execute.return_value = _FakeScalarsResult(
+        ["yielded", "yielded", "yielded", "completed", "yielded"]
+    )
+
+    count = ingest_tasks._count_recent_yields(session, "conn", "job")
+    assert count == 3  # stops at "completed"
+
+
+def test_count_recent_yields_zero_when_no_yields(monkeypatch):
+    """_count_recent_yields returns 0 when most recent run is not yielded."""
+    session = MagicMock()
+    session.execute.return_value = _FakeScalarsResult(
+        ["completed", "yielded", "yielded"]
+    )
+
+    count = ingest_tasks._count_recent_yields(session, "conn", "job")
+    assert count == 0
+
+
+def test_count_recent_yields_empty(monkeypatch):
+    """_count_recent_yields returns 0 when no runs exist."""
+    session = MagicMock()
+    session.execute.return_value = _FakeScalarsResult([])
+
+    count = ingest_tasks._count_recent_yields(session, "conn", "job")
+    assert count == 0

@@ -7,6 +7,12 @@ import {
   getCoverageV2SourcePreview,
   getCoverageV2Sources,
   getCoverageV2Summary,
+  getPipelineCapacity,
+  getPipelineStatus,
+  triggerFullPipeline,
+  type PipelineCapacity,
+  type PipelineDispatchResponse,
+  type PipelineStatusResponse,
 } from "@/lib/api";
 import type {
   AnalyticalCoverageItem,
@@ -28,7 +34,9 @@ import {
   FileText,
   Lightbulb,
   BookOpen,
+  Loader2,
   Package,
+  Play,
   Search,
   X,
   XCircle,
@@ -48,8 +56,11 @@ const STATUS_CFG: Record<CoverageStatus, { label: string; dot: string; text: str
 const RUN_STATUS_CFG: Record<string, { dot: string; text: string; label: string }> = {
   completed: { dot: "bg-success",    text: "text-success",    label: "Concluído"  },
   running:   { dot: "bg-accent",     text: "text-accent",     label: "Executando" },
+  error:     { dot: "bg-red-500",    text: "text-red-400",    label: "Erro"       },
   failed:    { dot: "bg-error",      text: "text-error",      label: "Falhou"     },
+  yielded:   { dot: "bg-amber",      text: "text-amber",      label: "Cedeu vez"  },
   stuck:     { dot: "bg-amber",      text: "text-amber",      label: "Travado"    },
+  skipped:   { dot: "bg-muted/60",   text: "text-muted",      label: "Ignorado"   },
   pending:   { dot: "bg-muted/60",   text: "text-muted",      label: "Pendente"   },
 };
 
@@ -69,6 +80,14 @@ function formatLag(hours: number | null | undefined): string {
   if (hours < 24) return `${Math.round(hours)}h`;
   if (hours < 24 * 30) return `${Math.round(hours / 24)}d`;
   return `${Math.round(hours / 24 / 30)}m`;
+}
+
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
 }
 
 function formatDuration(start: string | null | undefined, end: string | null | undefined): string {
@@ -137,6 +156,25 @@ function RunCard({ run }: { run: CoverageV2LatestRun }) {
           </span>
         </div>
       )}
+      {/* Progress bar for running jobs */}
+      {run.status === "running" && (
+        <div className="space-y-1 mt-2">
+          {run.progress_pct != null && (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-500"
+                  style={{ width: `${Math.min(run.progress_pct, 100)}%` }}
+                />
+              </div>
+              <span className="font-mono text-[10px] text-accent font-bold">{run.progress_pct}%</span>
+            </div>
+          )}
+          {run.elapsed_seconds != null && (
+            <p className="font-mono text-[10px] text-muted">Tempo decorrido: {formatElapsed(run.elapsed_seconds)}</p>
+          )}
+        </div>
+      )}
       {run.error_message && (
         <div className="flex items-start gap-1.5 rounded border border-error/20 bg-error/5 px-2 py-1.5">
           <AlertTriangle className="h-3 w-3 shrink-0 text-error mt-0.5" />
@@ -198,11 +236,12 @@ function KpiStrip({ summary, loading }: { summary: CoverageV2SummaryResponse | n
 // ── Pipeline stages ──────────────────────────────────────────────────────────
 
 const STAGE_STATUS: Record<string, { label: string; icon: React.ReactNode; ring: string; bg: string; text: string }> = {
-  done:       { label: "Concluído",   icon: <CheckCircle2 className="h-5 w-5" />, ring: "border-success",    bg: "bg-success/10",     text: "text-success"  },
-  processing: { label: "Processando", icon: <Activity className="h-5 w-5" />,     ring: "border-accent",     bg: "bg-accent/10",      text: "text-accent"   },
-  warning:    { label: "Atenção",     icon: <AlertTriangle className="h-5 w-5" />, ring: "border-amber",      bg: "bg-amber/10",       text: "text-amber"    },
-  error:      { label: "Erro",        icon: <XCircle className="h-5 w-5" />,       ring: "border-error",      bg: "bg-error/10",       text: "text-error"    },
-  pending:    { label: "Pendente",    icon: <Clock className="h-5 w-5" />,         ring: "border-border",     bg: "bg-surface-subtle", text: "text-muted"    },
+  up_to_date: { label: "Atualizado",    icon: <CheckCircle2 className="h-5 w-5" />, ring: "border-success",    bg: "bg-success/10",     text: "text-success"  },
+  stale:      { label: "Desatualizado", icon: <Clock className="h-5 w-5" />,        ring: "border-amber",      bg: "bg-amber/10",       text: "text-amber"    },
+  processing: { label: "Processando",   icon: <Activity className="h-5 w-5" />,     ring: "border-accent",     bg: "bg-accent/10",      text: "text-accent"   },
+  warning:    { label: "Atenção",       icon: <AlertTriangle className="h-5 w-5" />, ring: "border-amber",      bg: "bg-amber/10",       text: "text-amber"    },
+  error:      { label: "Erro",          icon: <XCircle className="h-5 w-5" />,       ring: "border-error",      bg: "bg-error/10",       text: "text-error"    },
+  pending:    { label: "Pendente",      icon: <Clock className="h-5 w-5" />,         ring: "border-border",     bg: "bg-surface-subtle", text: "text-muted"    },
 };
 
 const OVERALL_CFG: Record<string, { label: string; cls: string }> = {
@@ -215,7 +254,6 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
   if (!summary) return null;
   const stages = summary.pipeline.stages;
   const ocfg = OVERALL_CFG[summary.pipeline.overall_status] ?? OVERALL_CFG.healthy;
-
   return (
     <div className="rounded-xl border border-border bg-surface-card p-6">
       <div className="flex items-center justify-between mb-6">
@@ -231,30 +269,56 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
       <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
         {stages.map((stage, i) => {
           const scfg = STAGE_STATUS[stage.status] ?? STAGE_STATUS.pending;
+          const isProcessing = stage.status === "processing";
           return (
             <div key={stage.code} className="relative">
               {/* Connector line */}
               {i < stages.length - 1 && (
                 <div className="absolute top-6 left-[calc(50%+1.5rem)] right-[-calc(50%-1.5rem)] h-px bg-border z-0" />
               )}
-              <div className={`relative z-10 rounded-xl border-2 ${scfg.ring} ${scfg.bg} p-4 flex flex-col items-center gap-3 text-center`}>
+              <div className={`relative z-10 rounded-xl border-2 ${scfg.ring} ${scfg.bg} p-4 flex flex-col items-center gap-3 text-center overflow-hidden`}>
+                {/* Animated scan line for processing stages */}
+                {isProcessing && (
+                  <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-[slide_2s_linear_infinite]" />
+                )}
                 <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-surface-card shadow-sm ${scfg.text}`}>
                   {scfg.icon}
                 </div>
                 <div>
                   <p className="font-display text-xs font-bold text-primary leading-snug">{stage.label}</p>
                   <p className={`font-mono text-[10px] font-bold uppercase mt-0.5 ${scfg.text}`}>{scfg.label}</p>
-                  {stage.reason && stage.status !== "done" && (
+                  {stage.reason && stage.status !== "up_to_date" && (
                     <p className="text-[10px] text-secondary mt-1.5 leading-snug">{stage.reason}</p>
                   )}
                 </div>
+                {/* Indeterminate progress bar for processing stages */}
+                {isProcessing && (
+                  <div className="w-full h-1 rounded-full bg-surface-subtle overflow-hidden">
+                    <div className="h-full w-1/3 rounded-full bg-accent animate-[progress_1.5s_ease-in-out_infinite]" />
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
     </div>
   );
+}
+
+// Overrides worst_status badge with an animated "Executando" pill when any job
+// belonging to this source is actively running, so the user can see live activity.
+function EffectiveBadge({ item }: { item: CoverageV2SourceItem }) {
+  if (item.runtime.running_jobs > 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+        Executando
+      </span>
+    );
+  }
+  return <StatusBadge status={item.worst_status} />;
 }
 
 // ── Source diagnostic modal ───────────────────────────────────────────────────
@@ -300,7 +364,7 @@ function SourceDiagnosticModal({
               <h2 className="font-display text-base font-bold text-primary capitalize">
                 {item.connector_label}
               </h2>
-              <StatusBadge status={item.worst_status} />
+              <EffectiveBadge item={item} />
             </div>
             <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
           </div>
@@ -401,9 +465,10 @@ function SourceDiagnosticModal({
                 </p>
                 <div className="space-y-4">
                   {preview.jobs.map((job) => {
+                    const isJobRunning = job.latest_run?.status === "running";
                     const scfg = STATUS_CFG[job.status] ?? STATUS_CFG.pending;
                     return (
-                      <div key={job.job} className={`rounded-xl border ${scfg.border} bg-surface-card p-4 space-y-4`}>
+                      <div key={job.job} className={`rounded-xl border ${isJobRunning ? "border-accent/30 bg-accent/5" : scfg.border + " bg-surface-card"} p-4 space-y-4`}>
                         {/* Job header */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -420,7 +485,14 @@ function SourceDiagnosticModal({
                               <p className="text-xs text-secondary mt-1 leading-relaxed">{job.description}</p>
                             )}
                           </div>
-                          <StatusBadge status={job.status} />
+                          {isJobRunning ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+                              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                              Executando
+                            </span>
+                          ) : (
+                            <StatusBadge status={job.status} />
+                          )}
                         </div>
 
                         {/* Job metrics */}
@@ -446,6 +518,11 @@ function SourceDiagnosticModal({
                             </p>
                           </div>
                         </div>
+
+                        {/* Pipeline progress strip — visible without clicking Detalhar */}
+                        {job.latest_run && (
+                          <JobPipelineStrip run={job.latest_run} />
+                        )}
 
                         {/* Latest run */}
                         {job.latest_run && (
@@ -483,6 +560,157 @@ function SourceDiagnosticModal({
   );
 }
 
+// ── Job pipeline strip ────────────────────────────────────────────────────────
+// Shows ingest→normalize progress per job (ER and signals are global, shown at page level).
+
+function JobPipelineStrip({ run }: { run: CoverageV2LatestRun }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const isRunning = run.status === "running";
+  const startMs = run.started_at ? new Date(run.started_at).getTime() : 0;
+  const elapsedMs = startMs > 0 ? nowMs - startMs : 0;
+  const elapsedMin = Math.floor(elapsedMs / 60_000);
+  const elapsedSec = Math.floor((elapsedMs % 60_000) / 1_000);
+  const elapsedStr =
+    elapsedMin >= 60
+      ? `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}min`
+      : elapsedMin > 0
+      ? `${elapsedMin}min ${elapsedSec}s`
+      : `${elapsedSec}s`;
+
+  const ratePerMin =
+    elapsedMs > 30_000 && run.items_fetched > 0
+      ? Math.round(run.items_fetched / (elapsedMs / 60_000))
+      : 0;
+
+  const normPct =
+    run.items_fetched > 0
+      ? Math.min(100, Math.round((run.items_normalized / run.items_fetched) * 100))
+      : 0;
+
+  const isError = run.status === "error";
+  const ingestDone = !isRunning && !isError;
+
+  type StageStatus = "active" | "done" | "pending" | "error" | "blocked";
+  const stages: { key: string; label: string; status: StageStatus; line1: string | null; line2: string | null }[] = [
+    {
+      key: "ingest",
+      label: "Ingestão",
+      status: isRunning ? "active" : isError ? "error" : "done",
+      line1:
+        isError
+          ? "Erro na ingestão"
+          : run.items_fetched > 0
+          ? `${run.items_fetched.toLocaleString("pt-BR")} coletados`
+          : isRunning
+          ? "Iniciando…"
+          : "0 itens",
+      line2:
+        isError && run.error_message
+          ? run.error_message.length > 80
+            ? run.error_message.slice(0, 77) + "…"
+            : run.error_message
+          : isRunning && ratePerMin > 0
+          ? `~${ratePerMin}/min · ${elapsedStr}`
+          : isRunning
+          ? elapsedStr
+          : null,
+    },
+    {
+      key: "normalize",
+      label: "Normalização",
+      status: isError ? "blocked" : normPct >= 100 ? "done" : ingestDone ? "active" : "pending",
+      line1:
+        isError
+          ? "Bloqueado por erro"
+          : run.items_normalized > 0
+          ? `${run.items_normalized.toLocaleString("pt-BR")} (${normPct}%)`
+          : ingestDone
+          ? "Processando…"
+          : "Aguardando ingestão",
+      line2: null,
+    },
+  ];
+
+  return (
+    <div className="rounded-lg border border-border bg-surface-base px-3 py-2.5 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-[9px] uppercase tracking-widest text-muted">
+          Pipeline de Processamento
+        </p>
+        {isRunning && startMs > 0 && (
+          <span className="font-mono text-[10px] text-accent">{elapsedStr} em execução</span>
+        )}
+      </div>
+      <div className="flex items-stretch gap-0.5">
+        {stages.map((stage) => (
+          <div
+            key={stage.key}
+            className={`flex-1 rounded border px-2 py-1.5 min-w-0 ${
+              stage.status === "error"
+                ? "border-red-500/30 bg-red-500/5"
+                : stage.status === "blocked"
+                ? "border-border bg-surface-subtle opacity-50"
+                : stage.status === "active"
+                ? "border-accent/40 bg-accent/10"
+                : stage.status === "done"
+                ? "border-success/30 bg-success/5"
+                : "border-border bg-surface-subtle"
+            }`}
+          >
+            <div className="flex items-center gap-1 mb-0.5">
+              {stage.status === "error" && (
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+              )}
+              {stage.status === "active" && (
+                <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse shrink-0" />
+              )}
+              {stage.status === "done" && (
+                <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+              )}
+              <p
+                className={`font-mono text-[9px] font-bold uppercase truncate ${
+                  stage.status === "error"
+                    ? "text-red-400"
+                    : stage.status === "active"
+                    ? "text-accent"
+                    : stage.status === "done"
+                    ? "text-success"
+                    : "text-muted"
+                }`}
+              >
+                {stage.label}
+              </p>
+            </div>
+            {stage.line1 && (
+              <p
+                className={`font-mono text-[9px] leading-tight truncate ${
+                  stage.status === "error"
+                    ? "text-red-400/80"
+                    : stage.status === "active"
+                    ? "text-accent/80"
+                    : stage.status === "done"
+                    ? "text-success/80"
+                    : "text-muted/60"
+                }`}
+              >
+                {stage.line1}
+              </p>
+            )}
+            {stage.line2 && (
+              <p className="font-mono text-[9px] text-muted leading-tight">{stage.line2}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Source card ───────────────────────────────────────────────────────────────
 
 function SourceCard({ item }: { item: CoverageV2SourceItem }) {
@@ -506,18 +734,29 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
     }
   }
 
+  // Bar always spans 100% width: colored segments for meaningful states,
+  // faded trailing segment for pending (unfilled but visible as a track).
   const statusBar = [
     { key: "ok"      as CoverageStatus, count: item.status_counts.ok,      color: "bg-success"    },
     { key: "warning" as CoverageStatus, count: item.status_counts.warning,  color: "bg-amber"      },
     { key: "stale"   as CoverageStatus, count: item.status_counts.stale,    color: "bg-yellow-500" },
     { key: "error"   as CoverageStatus, count: item.status_counts.error,    color: "bg-error"      },
-    { key: "pending" as CoverageStatus, count: item.status_counts.pending,  color: "bg-muted/30"   },
+    { key: "pending" as CoverageStatus, count: item.status_counts.pending,  color: "bg-muted/25"   },
   ].filter((s) => s.count > 0);
 
+  // Legend reuses statusBar (already includes pending); override pending dot to a slightly brighter shade.
+  const statusLegend = statusBar.map((s) =>
+    s.key === "pending" ? { ...s, color: "bg-muted/60" } : s
+  );
+
   return (
-    <div className={`rounded-xl border ${cfg.border} bg-surface-card flex flex-col`}>
+    <div className={`relative rounded-xl border ${item.runtime.running_jobs > 0 ? "border-accent/50" : cfg.border} bg-surface-card flex flex-col`}>
+      {/* Pulse ring for running connectors */}
+      {item.runtime.running_jobs > 0 && (
+        <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-accent/40 animate-pulse" />
+      )}
       {/* ── Card summary ─────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-4 p-4 flex-1">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -526,7 +765,7 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
             </h3>
             <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
           </div>
-          <StatusBadge status={item.worst_status} />
+          <EffectiveBadge item={item} />
         </div>
 
         {/* Counts row */}
@@ -569,13 +808,68 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              {statusBar.map((s) => (
+              {statusLegend.map((s) => (
                 <span key={s.key} className="flex items-center gap-1 text-[10px] text-muted">
                   <span className={`h-1.5 w-1.5 rounded-full ${s.color}`} />
                   {STATUS_CFG[s.key]?.label}: <span className="font-mono font-bold text-primary">{s.count}</span>
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Live progress when running */}
+        {item.runtime.running_jobs > 0 && (
+          <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Executando {item.runtime.running_jobs} job(s)
+              </span>
+              {item.runtime.elapsed_seconds != null && (
+                <span className="font-mono text-[10px] text-muted">
+                  {formatElapsed(item.runtime.elapsed_seconds)}
+                </span>
+              )}
+            </div>
+            {item.runtime.active_job_names?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {item.runtime.active_job_names.map((name) => (
+                  <span key={name} className="rounded-full bg-accent/10 border border-accent/20 px-2 py-0.5 font-mono text-[9px] text-accent">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-4 text-[10px] text-secondary">
+              {item.runtime.items_fetched_live > 0 && (
+                <span className="font-mono">
+                  {item.runtime.items_fetched_live.toLocaleString("pt-BR")} itens coletados
+                </span>
+              )}
+              {item.runtime.items_normalized_live > 0 && (
+                <span className="font-mono">
+                  {item.runtime.items_normalized_live.toLocaleString("pt-BR")} normalizados
+                </span>
+              )}
+              {item.runtime.estimated_rate_per_min != null && item.runtime.estimated_rate_per_min > 0 && (
+                <span className="font-mono text-accent">
+                  ~{item.runtime.estimated_rate_per_min.toLocaleString("pt-BR")}/min
+                </span>
+              )}
+            </div>
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                const { requestYieldConnector } = await import("@/lib/api");
+                await requestYieldConnector(item.connector);
+              }}
+              className="mt-1 flex items-center gap-1 rounded-md border border-amber/30 bg-amber/10 px-2 py-1 text-[10px] font-semibold text-amber hover:bg-amber/20 transition-colors"
+              title="Salvar cursor e ceder a vez para outros jobs"
+            >
+              <Clock className="h-3 w-3" />
+              Ceder vez
+            </button>
           </div>
         )}
 
@@ -846,7 +1140,7 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
 
   return (
     <div className={`rounded-xl border ${borderColor} bg-surface-card flex flex-col`}>
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-3 flex-1">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -894,6 +1188,28 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
               {d}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Requirements block — only shown for blocked typologies */}
+      {!item.apt && item.domains_missing.length > 0 && (
+        <div className="rounded-lg border border-amber/20 bg-amber/5 px-3 py-2.5 space-y-1.5">
+          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-amber">
+            Para iniciar o processamento:
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {item.domains_missing.map((d) => (
+              <span key={d} className="flex items-center gap-1 rounded-full border border-amber/30 bg-surface-card px-1.5 py-0.5 text-[10px] font-medium text-amber">
+                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                {d}
+              </span>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted leading-snug">
+            {item.domains_missing.length === 1
+              ? "Aguarda ingestão e normalização deste domínio para começar a cruzar os dados."
+              : `Aguarda ${item.domains_missing.length} domínios. Sem eles, o cruzamento de dados não pode ocorrer.`}
+          </p>
         </div>
       )}
 
@@ -970,6 +1286,286 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
   );
 }
 
+// ── Pipeline Modal ────────────────────────────────────────────────────────────
+
+type StageKey = "ingest" | "entity_resolution" | "signals";
+type StageStatus = "idle" | "dispatching" | "dispatched" | "error";
+
+interface StageState {
+  status: StageStatus;
+  taskId?: string;
+}
+
+const PIPELINE_STAGE_DEFS: { key: StageKey; label: string; description: string; worker: string }[] = [
+  {
+    key: "ingest",
+    label: "Ingestão de Dados",
+    description: "Coleta incremental de todas as fontes públicas federais",
+    worker: "worker-ingest",
+  },
+  {
+    key: "entity_resolution",
+    label: "Resolução de Entidades",
+    description: "Deduplicação e agrupamento de CPF/CNPJ entre fontes",
+    worker: "worker-er",
+  },
+  {
+    key: "signals",
+    label: "Sinais de Risco",
+    description: "Execução das 18 tipologias de corrupção detectadas",
+    worker: "worker-cpu",
+  },
+];
+
+function PipelineModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [stages, setStages] = useState<Record<StageKey, StageState>>({
+    ingest: { status: "idle" },
+    entity_resolution: { status: "idle" },
+    signals: { status: "idle" },
+  });
+  const [running, setRunning] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [alreadyRunning, setAlreadyRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const allDispatched = Object.values(stages).every((s) => s.status === "dispatched");
+
+  // Check pipeline status every time the modal opens
+  useEffect(() => {
+    if (!open) return;
+    setChecking(true);
+    setAlreadyRunning(false);
+    setError(null);
+    setStages({ ingest: { status: "idle" }, entity_resolution: { status: "idle" }, signals: { status: "idle" } });
+    getPipelineStatus()
+      .then((status: PipelineStatusResponse) => {
+        if (status.is_running) {
+          setAlreadyRunning(true);
+          setStages({
+            ingest: { status: status.stages.ingest === "running" ? "dispatched" : "idle" },
+            entity_resolution: { status: status.stages.entity_resolution === "running" ? "dispatched" : "idle" },
+            signals: { status: status.stages.signals === "running" ? "dispatched" : "idle" },
+          });
+        }
+      })
+      .catch(() => { /* status check is best-effort */ })
+      .finally(() => setChecking(false));
+  }, [open]);
+
+  function resetAndClose() {
+    setStages({ ingest: { status: "idle" }, entity_resolution: { status: "idle" }, signals: { status: "idle" } });
+    setRunning(false);
+    setAlreadyRunning(false);
+    setError(null);
+    onClose();
+  }
+
+  async function handleExecute() {
+    if (running) return;
+    setRunning(true);
+    setError(null);
+    setStages({ ingest: { status: "dispatching" }, entity_resolution: { status: "dispatching" }, signals: { status: "dispatching" } });
+    try {
+      const result: PipelineDispatchResponse = await triggerFullPipeline();
+      setStages({
+        ingest: { status: "dispatched", taskId: result.stages.ingest.task_id },
+        entity_resolution: { status: "dispatched", taskId: result.stages.entity_resolution.task_id },
+        signals: { status: "dispatched", taskId: result.stages.signals.task_id },
+      });
+    } catch (e) {
+      // 409 = already running (race between status check and button click)
+      if (e instanceof Error && e.message.includes("409")) {
+        setAlreadyRunning(true);
+        setStages({ ingest: { status: "idle" }, entity_resolution: { status: "idle" }, signals: { status: "idle" } });
+      } else {
+        setError(e instanceof Error ? e.message : "Erro ao disparar o pipeline.");
+        setStages({ ingest: { status: "error" }, entity_resolution: { status: "error" }, signals: { status: "error" } });
+      }
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!running ? resetAndClose : undefined} />
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-surface-card shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
+              <Zap className="h-4 w-4 text-accent" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-primary">Executar Pipeline</p>
+              <p className="text-xs text-muted">Ingestão → ER → Sinais de Risco</p>
+            </div>
+          </div>
+          <button
+            onClick={resetAndClose}
+            className="rounded-lg p-1.5 text-muted hover:bg-surface-base hover:text-primary transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Already running banner */}
+        {alreadyRunning && (
+          <div className="mx-6 mt-5 flex items-start gap-2.5 rounded-xl border border-amber/30 bg-amber/5 px-4 py-3">
+            <Activity className="h-4 w-4 shrink-0 text-amber mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber">Pipeline já em execução</p>
+              <p className="mt-0.5 text-xs text-secondary">Os workers já estão processando dados. Não é necessário executar novamente — aguarde a conclusão do ciclo atual.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Checking state */}
+        {checking && (
+          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Verificando estado do pipeline...
+          </div>
+        )}
+
+        {/* Stages */}
+        {!checking && (
+          <div className="px-6 py-5 space-y-3">
+            {PIPELINE_STAGE_DEFS.map((def, i) => {
+              const stage = stages[def.key];
+              const isActive = alreadyRunning && stage.status === "dispatched";
+              const isDispatched = !alreadyRunning && stage.status === "dispatched";
+              const isDispatching = stage.status === "dispatching";
+              const isError = stage.status === "error";
+
+              return (
+                <div
+                  key={def.key}
+                  className={[
+                    "flex items-start gap-3 rounded-xl border p-3.5 transition-all duration-300",
+                    isActive ? "border-amber/30 bg-amber/5" :
+                    isDispatched ? "border-success/30 bg-success/5" :
+                    isError ? "border-error/20 bg-error/5" :
+                    "border-border bg-surface-base",
+                  ].join(" ")}
+                >
+                  <div className={[
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-300",
+                    isActive ? "bg-amber/20 border border-amber/40" :
+                    isDispatched ? "bg-success text-white" :
+                    isError ? "bg-error text-white" :
+                    "bg-surface-card border border-border text-muted",
+                  ].join(" ")}>
+                    {isDispatching ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+                    ) : isActive ? (
+                      <Activity className="h-3.5 w-3.5 text-amber" />
+                    ) : isDispatched ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : isError ? (
+                      <XCircle className="h-3.5 w-3.5" />
+                    ) : (
+                      <span>{i + 1}</span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={[
+                        "text-sm font-semibold",
+                        isActive ? "text-amber" :
+                        isDispatched ? "text-success" :
+                        isError ? "text-error" :
+                        "text-primary",
+                      ].join(" ")}>
+                        {def.label}
+                        {isActive && <span className="ml-2 text-[10px] font-normal text-amber/70">em execução</span>}
+                      </p>
+                      <span className="font-mono text-[10px] text-muted bg-surface-card border border-border rounded px-1.5 py-0.5 shrink-0">
+                        {def.worker}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-secondary">{def.description}</p>
+                    {isDispatched && stage.taskId && (
+                      <p className="mt-1.5 font-mono text-[10px] text-success/70 truncate">
+                        task: {stage.taskId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mx-6 mb-4 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
+            {error}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+          {alreadyRunning ? (
+            <div className="flex w-full items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs text-secondary">
+                <Clock className="h-3.5 w-3.5" />
+                O pipeline conclui automaticamente
+              </p>
+              <button
+                onClick={resetAndClose}
+                className="rounded-lg border border-border bg-surface-base px-4 py-2 text-xs font-semibold text-primary hover:bg-surface-card transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          ) : allDispatched ? (
+            <div className="flex w-full items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-success">
+                <CheckCircle2 className="h-4 w-4" />
+                Pipeline iniciado com sucesso
+              </p>
+              <button
+                onClick={resetAndClose}
+                className="rounded-lg border border-border bg-surface-base px-4 py-2 text-xs font-semibold text-primary hover:bg-surface-card transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={resetAndClose}
+                disabled={running}
+                className="rounded-lg border border-border bg-surface-base px-4 py-2 text-xs font-semibold text-primary hover:bg-surface-card disabled:opacity-40 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleExecute}
+                disabled={running || checking}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                {running ? "Iniciando..." : "Executar"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CoveragePage() {
@@ -984,9 +1580,12 @@ export default function CoveragePage() {
   const [analytics, setAnalytics] = useState<CoverageV2AnalyticsResponse | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
+  const [capacity, setCapacity] = useState<PipelineCapacity | null>(null);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | CoverageStatus>("");
   const [enabledOnly, setEnabledOnly] = useState(false);
+  const [pipelineModalOpen, setPipelineModalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -998,14 +1597,25 @@ export default function CoveragePage() {
     return () => { active = false; };
   }, []);
 
+  function loadSources() {
+    getCoverageV2Sources({ limit: 100, enabled_only: enabledOnly })
+      .then((r) => { setSources(r.items); })
+      .catch(() => { setSourcesError("Falha ao carregar fontes de dados."); })
+      .finally(() => { setSourcesLoading(false); });
+  }
+
   useEffect(() => {
     let active = true;
+    function fetchSources() {
+      getCoverageV2Sources({ limit: 100, enabled_only: enabledOnly })
+        .then((r) => { if (active) setSources(r.items); })
+        .catch(() => { if (active) setSourcesError("Falha ao carregar fontes de dados."); })
+        .finally(() => { if (active) setSourcesLoading(false); });
+    }
     setSourcesLoading(true);
-    getCoverageV2Sources({ limit: 100, enabled_only: enabledOnly })
-      .then((r) => { if (active) setSources(r.items); })
-      .catch(() => { if (active) setSourcesError("Falha ao carregar fontes de dados."); })
-      .finally(() => { if (active) setSourcesLoading(false); });
-    return () => { active = false; };
+    fetchSources();
+    const interval = setInterval(fetchSources, 15_000);
+    return () => { active = false; clearInterval(interval); };
   }, [enabledOnly]);
 
   useEffect(() => {
@@ -1015,6 +1625,15 @@ export default function CoveragePage() {
       .catch(() => {})
       .finally(() => { if (active) setAnalyticsLoading(false); });
     return () => { active = false; };
+  }, []);
+
+  // Capacity polling every 10s
+  useEffect(() => {
+    let active = true;
+    const load = () => getPipelineCapacity().then((c) => { if (active) setCapacity(c); }).catch(() => {});
+    load();
+    const interval = setInterval(load, 10_000);
+    return () => { active = false; clearInterval(interval); };
   }, []);
 
   const filteredSources = useMemo(() => {
@@ -1028,12 +1647,18 @@ export default function CoveragePage() {
         return true;
       })
       .sort((a, b) => {
+        // Running jobs always float to top
+        const aRunning = a.runtime.running_jobs > 0 ? 0 : 1;
+        const bRunning = b.runtime.running_jobs > 0 ? 0 : 1;
+        if (aRunning !== bRunning) return aRunning - bRunning;
         const order: CoverageStatus[] = ["error", "warning", "stale", "ok", "pending"];
         return order.indexOf(a.worst_status) - order.indexOf(b.worst_status);
       });
   }, [sources, search, statusFilter]);
 
   return (
+    <>
+    <PipelineModal open={pipelineModalOpen} onClose={() => setPipelineModalOpen(false)} />
     <div className="min-h-screen">
 
       {/* ── Page header ─────────────────────────────────────────── */}
@@ -1049,16 +1674,64 @@ export default function CoveragePage() {
                 <p className="mt-1.5 text-sm text-secondary leading-relaxed">Estado operacional do pipeline de ingestão e qualidade das fontes públicas federais</p>
               </div>
             </div>
-            <div className="shrink-0 rounded-lg border border-border bg-surface-base px-3 py-2 text-right">
-              <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
-                <Clock className="h-3 w-3" />
-                Snapshot
-              </p>
-              <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
-                {summary?.snapshot_at
-                  ? new Date(summary.snapshot_at).toLocaleString("pt-BR")
-                  : "Aguardando dados"}
-              </p>
+            <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+              {/* Capacity warning (only when maxed out) */}
+              {capacity && capacity.slots_available === 0 && (
+                <span className="group relative flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/5 px-3 py-1 text-xs text-amber cursor-help">
+                  <AlertTriangle className="h-3 w-3" />
+                  Capacidade máxima
+                  {/* Hover tooltip */}
+                  <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-72 rounded-lg border border-border bg-surface-card p-3 text-left shadow-lg group-hover:block">
+                    <p className="mb-2 text-xs font-semibold text-primary">Por que a capacidade está no máximo?</p>
+                    <p className="mb-2 text-[11px] leading-relaxed text-secondary">
+                      Todos os <span className="font-semibold text-amber">{capacity.max_concurrent_ingest}</span> slots de ingestão simultânea estão ocupados
+                      ({capacity.running_ingest_jobs}/{capacity.max_concurrent_ingest} em uso).
+                      {capacity.er_running && " A Resolução de Entidades também está ativa."}
+                    </p>
+                    {(() => {
+                      const activeJobs = sources
+                        .filter((s) => s.runtime.active_job_names && s.runtime.active_job_names.length > 0)
+                        .flatMap((s) => s.runtime.active_job_names!.map((job) => ({ connector: s.connector_label || s.connector, job })));
+                      return activeJobs.length > 0 ? (
+                        <div className="mb-1.5">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">Jobs ativos agora:</p>
+                          <ul className="space-y-0.5">
+                            {activeJobs.slice(0, 6).map((aj, i) => (
+                              <li key={i} className="flex items-center gap-1.5 text-[11px] text-secondary">
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent animate-pulse" />
+                                <span className="truncate font-medium">{aj.connector}</span>
+                                <span className="text-muted">— {aj.job}</span>
+                              </li>
+                            ))}
+                            {activeJobs.length > 6 && (
+                              <li className="text-[10px] text-muted">+{activeJobs.length - 6} mais...</li>
+                            )}
+                          </ul>
+                        </div>
+                      ) : null;
+                    })()}
+                    <p className="text-[10px] text-muted">Novos jobs serão enfileirados até que um slot seja liberado.</p>
+                  </div>
+                </span>
+              )}
+              <button
+                onClick={() => setPipelineModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent-subtle px-3 py-2 text-xs font-semibold text-accent transition-opacity hover:opacity-80"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Executar Pipeline
+              </button>
+              <div className="rounded-lg border border-border bg-surface-base px-3 py-2 text-right">
+                <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+                  <Clock className="h-3 w-3" />
+                  Snapshot
+                </p>
+                <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
+                  {summary?.snapshot_at
+                    ? new Date(summary.snapshot_at).toLocaleString("pt-BR")
+                    : "Aguardando dados"}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1193,5 +1866,6 @@ export default function CoveragePage() {
         </section>
       </div>
     </div>
+    </>
   );
 }

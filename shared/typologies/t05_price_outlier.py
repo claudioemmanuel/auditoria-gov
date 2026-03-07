@@ -63,7 +63,7 @@ class T05PriceOutlierTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query events with value_brl
         stmt = (
@@ -104,6 +104,7 @@ class T05PriceOutlierTypology(BaseTypology):
                 event_entity_ids[eid_str].append(p.entity_id)
 
         signals: list[RiskSignalOut] = []
+        _baseline_cache: dict = {}
 
         # Group by catmat/catser code for baseline comparison
         for e in events:
@@ -115,12 +116,13 @@ class T05PriceOutlierTypology(BaseTypology):
             if not unit_price or unit_price <= 0:
                 continue
 
-            # Get baseline for this item
+            # Get baseline for this item (cached to avoid N redundant DB queries per CATMAT)
             scope_key = f"catmat_group::{catmat}"
             baseline = await get_baseline(
                 session,
                 BaselineType.PRICE_BY_ITEM.value,
                 scope_key,
+                _cache=_baseline_cache,
             )
 
             if baseline is None:

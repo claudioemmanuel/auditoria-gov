@@ -264,6 +264,88 @@ async def test_t01_minimum_detectable_dataset_generates_signal(monkeypatch):
     assert signals[0].factors["top1_share"] == 1.0
 
 
+@pytest.mark.asyncio
+async def test_t01_top1_dominant_low_hhi_has_valid_confidence(monkeypatch):
+    """top1_share > 0.80 with near-floor HHI + high p95 baseline must produce valid confidence.
+
+    Regression: HIGH-branch formula ``0.7 + (hhi - p95) * 2`` returns a negative
+    value when hhi ≈ 0.65 and p95 = 1.0 (top1_share=0.805 is the sole trigger),
+    which violates ``Field(ge=0.0)`` and raises a Pydantic ValidationError.
+    Fix: wrap with ``max(0.60, min(0.95, ...))``.
+
+    Setup: 1 dominant winner (80.5%) + 20 small winners (0.975% each).
+    hhi ≈ 0.6499, top1_share = 0.805. Baseline p90=0.60, p95=1.0.
+    """
+    now = datetime.now(timezone.utc)
+    catmat = "servicos_ti"
+    procurer_id = uuid.uuid4()
+    big_winner_id = uuid.uuid4()
+    big_event_id = uuid.uuid4()
+    small_ids = [uuid.uuid4() for _ in range(20)]
+    small_event_ids = [uuid.uuid4() for _ in range(20)]
+
+    all_events = [
+        Event(
+            id=big_event_id,
+            type="licitacao",
+            occurred_at=now - timedelta(days=10),
+            source_connector="compras_gov",
+            source_id="lic:t01:regr:big",
+            value_brl=80500.0,
+            attrs={"catmat_group": catmat},
+        )
+    ] + [
+        Event(
+            id=eid,
+            type="licitacao",
+            occurred_at=now - timedelta(days=10),
+            source_connector="compras_gov",
+            source_id=f"lic:t01:regr:small:{i}",
+            value_brl=975.0,
+            attrs={"catmat_group": catmat},
+        )
+        for i, eid in enumerate(small_event_ids)
+    ]
+
+    all_winners = [
+        EventParticipant(
+            id=uuid.uuid4(), event_id=big_event_id,
+            entity_id=big_winner_id, role="winner", attrs={},
+        )
+    ] + [
+        EventParticipant(
+            id=uuid.uuid4(), event_id=eid,
+            entity_id=wid, role="winner", attrs={},
+        )
+        for eid, wid in zip(small_event_ids, small_ids)
+    ]
+
+    all_procurers = [
+        EventParticipant(
+            id=uuid.uuid4(), event_id=eid,
+            entity_id=procurer_id, role="procuring_entity", attrs={},
+        )
+        for eid in [big_event_id] + small_event_ids
+    ]
+
+    async def _baseline(*_args, **_kwargs):
+        return {"p90": 0.60, "p95": 1.0}
+
+    monkeypatch.setattr("shared.typologies.t01_concentration.get_baseline", _baseline)
+
+    session = _FakeAsyncSession([all_events, all_winners, all_procurers])
+    signals = await T01ConcentrationTypology().run(session)
+
+    assert len(signals) == 1
+    sig = signals[0]
+    assert sig.typology_code == "T01"
+    assert sig.severity.value == "high"
+    assert sig.factors["top1_share"] > 0.80
+    # hhi ≈ 0.6499 → before fix: 0.7+(0.6499-1.0)*2 = -0.0002 → ValidationError
+    assert 0.0 <= sig.confidence <= 1.0, f"confidence out of bounds: {sig.confidence}"
+    assert sig.confidence == pytest.approx(0.60)
+
+
 # ── T04 Amendment Outlier ──────────────────────────────────────────────
 
 
@@ -301,6 +383,51 @@ async def test_t04_minimum_detectable_dataset_generates_signal(monkeypatch):
     assert signals[0].typology_code == "T04"
     assert signals[0].factors["amendment_count"] == 6
     assert signals[0].factors["pct_increase"] == 0.6
+
+
+@pytest.mark.asyncio
+async def test_t04_count_only_flag_has_valid_confidence(monkeypatch):
+    """amendment_count=6 with zero value increase must produce valid confidence.
+
+    Regression: HIGH-branch formula ``0.6 + (pct_increase - p95) * 2`` returns -0.4
+    when pct_increase=0 and p95=0.5, violating ``Field(ge=0.0)`` and raising a
+    Pydantic ValidationError. Fix: wrap with ``max(0.60, min(0.88, ...))``.
+    """
+    now = datetime.now(timezone.utc)
+    event_id = uuid.uuid4()
+
+    events = [
+        Event(
+            id=event_id,
+            type="contrato",
+            occurred_at=now - timedelta(days=100),
+            source_connector="comprasnet_contratos",
+            source_id="contrato:t04:count:1",
+            value_brl=1000000.0,
+            attrs={
+                "original_value": 1000000.0,
+                "amendments_total_value": 0.0,   # zero value — pure count trigger
+                "amendment_count": 6,             # > 5 → should_flag=True
+            },
+        )
+    ]
+
+    async def _baseline(*_args, **_kwargs):
+        return {"p95": 0.5, "p99": 1.0}
+
+    monkeypatch.setattr("shared.typologies.t04_amendments_outlier.get_baseline", _baseline)
+
+    session = _FakeAsyncSession([events, []])
+    signals = await T04AmendmentsOutlierTypology().run(session)
+
+    assert len(signals) == 1
+    sig = signals[0]
+    assert sig.typology_code == "T04"
+    assert sig.severity.value == "high"
+    assert sig.factors["pct_increase"] == 0.0
+    # Before fix: min(0.88, 0.6+(0-0.5)*2) = min(0.88, -0.4) = -0.4 → ValidationError
+    assert 0.0 <= sig.confidence <= 1.0, f"confidence out of bounds: {sig.confidence}"
+    assert sig.confidence == pytest.approx(0.60)
 
 
 # ── T05 Price Outlier ──────────────────────────────────────────────────
@@ -412,7 +539,8 @@ async def test_t06_minimum_detectable_dataset_generates_signal():
         )
     ]
 
-    session = _FakeAsyncSession([winners, entities, events])
+    # Query 4: buyer participants (execute_chunked_in) — empty, no specific buyers needed
+    session = _FakeAsyncSession([winners, entities, events, []])
     signals = await T06ShellCompanyProxyTypology().run(session)
 
     assert len(signals) >= 1
@@ -504,26 +632,36 @@ async def test_t07_minimum_detectable_dataset_generates_signal():
 
 @pytest.mark.asyncio
 async def test_t09_minimum_detectable_dataset_generates_signal():
-    """Servant in 3 organs + round values + compensation jump → composite >= 0.6."""
+    """Servant in 4 organs + round values + compensation jump + benefit codes → composite >= 0.7.
+
+    Scoring breakdown (updated thresholds in t09):
+      multi_organ_score = 0.9 (>= 4 organs) * 0.35 = 0.315
+      round_number_score = 0.8 (>80% round)  * 0.20 = 0.160
+      compensation_jump_score = 0.8 (3x jump) * 0.25 = 0.200
+      benefit_codes_score = 0.5 (8 codes > 6) * 0.20 = 0.100
+      composite = 0.775 >= 0.7
+    """
     now = datetime.now(timezone.utc)
     servant_id = uuid.uuid4()
 
     events = []
     participants = []
 
-    # 3 remuneration events in different organs with round values and a jump
-    values = [5000.0, 5000.0, 15000.0]  # 3rd is 3x the 2nd → jump_score = 0.8
-    for i, (organ, val) in enumerate(zip(["organ_a", "organ_b", "organ_c"], values)):
+    # 4 remuneration events in different organs with round values and a jump
+    organs = ["organ_a", "organ_b", "organ_c", "organ_d"]
+    values = [5000.0, 5000.0, 15000.0, 5000.0]  # 3rd is 3x the 2nd → jump_score = 0.8
+    benefit_codes = [[], [], [], [f"BC{j:02d}" for j in range(8)]]  # last event: 8 codes > 6
+    for i, (organ, val, bcodes) in enumerate(zip(organs, values, benefit_codes)):
         eid = uuid.uuid4()
         events.append(
             Event(
                 id=eid,
                 type="remuneracao",
-                occurred_at=now - timedelta(days=90 - i * 30),  # chronological order
+                occurred_at=now - timedelta(days=120 - i * 30),  # chronological order
                 source_connector=organ,
                 source_id=f"rem:t09:{i}",
                 value_brl=val,
-                attrs={"organ_id": organ, "benefit_codes": []},
+                attrs={"organ_id": organ, "benefit_codes": bcodes},
             )
         )
         participants.append(
@@ -541,8 +679,8 @@ async def test_t09_minimum_detectable_dataset_generates_signal():
 
     assert len(signals) == 1
     assert signals[0].typology_code == "T09"
-    assert signals[0].factors["n_organs"] == 3
-    assert signals[0].factors["composite_score"] >= 0.6
+    assert signals[0].factors["n_organs"] == 4
+    assert signals[0].factors["composite_score"] >= 0.7
 
 
 # ── T10 Outsourcing Parallel ──────────────────────────────────────────
@@ -718,7 +856,7 @@ async def test_t12_minimum_detectable_dataset_generates_signal(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_t13_minimum_detectable_dataset_generates_signal():
-    """Buyer and supplier share KINSHIP + SAME_ADDRESS edges → conflict of interest."""
+    """Buyer and supplier share SAME_SOCIO + SAME_ADDRESS edges → conflict of interest."""
     now = datetime.now(timezone.utc)
     buyer_id = uuid.uuid4()
     supplier_id = uuid.uuid4()
@@ -726,11 +864,11 @@ async def test_t13_minimum_detectable_dataset_generates_signal():
     node_b_id = uuid.uuid4()
     event_id = uuid.uuid4()
 
-    # KINSHIP(0.5) + SAME_ADDRESS(0.25) = 0.75 ≥ 0.6, n_shared=2 ≥ 2
+    # SAME_SOCIO(0.4) + SAME_ADDRESS(0.30) = 0.70 ≥ 0.6, n_shared=2 ≥ 2
     edges = [
         GraphEdge(
             id=uuid.uuid4(), from_node_id=node_a_id, to_node_id=node_b_id,
-            type="KINSHIP", weight=1.0,
+            type="SAME_SOCIO", weight=1.0,
         ),
         GraphEdge(
             id=uuid.uuid4(), from_node_id=node_a_id, to_node_id=node_b_id,
@@ -767,7 +905,7 @@ async def test_t13_minimum_detectable_dataset_generates_signal():
     assert signals[0].typology_code == "T13"
     assert signals[0].factors["n_shared_indicators"] == 2
     assert signals[0].factors["relationship_score"] >= 0.6
-    assert "KINSHIP" in signals[0].factors["indicator_types"]
+    assert "SAME_SOCIO" in signals[0].factors["indicator_types"]
 
 
 # ── T14 Compound Favoritism ────────────────────────────────────────────

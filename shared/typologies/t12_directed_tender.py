@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from shared.baselines.compute import _CATMAT_MISSING
 from shared.baselines.models import BaselineType
 from shared.models.orm import Event, EventParticipant
 from shared.models.signals import (
@@ -71,7 +72,7 @@ class T12DirectedTenderTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Query competitive procurement events (exclude sole-source/dispensa)
         stmt = (
@@ -126,10 +127,13 @@ class T12DirectedTenderTypology(BaseTypology):
         )
         p10 = baseline.get("p10", 3.0) if baseline else 3.0
 
-        # Group: (buyer, catmat_group) → events
+        # Group: (buyer, catmat_group) → events; skip sentinel CATMAT to avoid
+        # lumping all unclassified events into one spurious directed-tender group.
         groups: dict[tuple, list[Event]] = defaultdict(list)
         for e in competitive:
-            catmat = str(e.attrs.get("catmat_group") or "nao_informado")
+            catmat = str(e.attrs.get("catmat_group") or "")
+            if catmat.strip().lower() in _CATMAT_MISSING:
+                continue
             buyers = event_buyers.get(str(e.id), set())
             buyer_id = next(iter(buyers), "unknown")
             groups[(str(buyer_id), catmat)].append(e)

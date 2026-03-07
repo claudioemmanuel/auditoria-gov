@@ -5,6 +5,7 @@ from worker.tasks import (
     baseline_tasks,
     signal_tasks,
     ai_tasks,
+    case_tasks,
     coverage_tasks,
     maintenance_tasks,
     reference_tasks,

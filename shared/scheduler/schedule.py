@@ -3,7 +3,7 @@ from celery.schedules import crontab
 BEAT_SCHEDULE = {
     "ingest-all-incremental": {
         "task": "worker.tasks.ingest_tasks.ingest_all_incremental",
-        "schedule": crontab(minute=0, hour="*/2"),  # Every 2 hours
+        "schedule": crontab(minute=0, hour="*/6"),  # Every 6 hours (free tier)
         "options": {"queue": "ingest"},
     },
     "ingest-all-bulk": {
@@ -48,7 +48,7 @@ BEAT_SCHEDULE = {
     },
     "pipeline-watchdog": {
         "task": "worker.tasks.maintenance_tasks.pipeline_watchdog",
-        "schedule": crontab(minute="*/15"),
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
         "options": {"queue": "default"},
     },
     "cleanup-stale-runs": {

@@ -13,8 +13,12 @@ from shared.models.signals import (
 )
 from shared.typologies.base import BaseTypology
 
-# Typology codes that compose this compound signal
-_COMPONENT_TYPOLOGIES = {"T01", "T02", "T04", "T05"}
+# Typology codes that compose this compound signal.
+# Includes all procurement-fraud typologies that can indicate systematic favoritism:
+# T01 (concentration), T02 (low competition), T04 (amendments), T05 (overpricing),
+# T06 (shell company), T07 (cartel), T11 (spreadsheet manipulation),
+# T12 (directed tender), T15 (false sole-source).
+_COMPONENT_TYPOLOGIES = {"T01", "T02", "T04", "T05", "T06", "T07", "T11", "T12", "T15"}
 
 # Severity weights for meta-score
 _SEVERITY_WEIGHTS = {
@@ -86,7 +90,7 @@ class T14CompoundFavoritismTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 2)
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # Step 1: get Typology IDs for component codes
         typ_stmt = select(Typology).where(
@@ -126,6 +130,7 @@ class T14CompoundFavoritismTypology(BaseTypology):
                     "signal_id": str(sig.id),
                     "period_start": sig.period_start,
                     "period_end": sig.period_end,
+                    "event_ids": [str(eid) for eid in (sig.event_ids or [])],
                 })
 
         output_signals: list[RiskSignalOut] = []
@@ -136,9 +141,12 @@ class T14CompoundFavoritismTypology(BaseTypology):
             if len(triggered_codes) < _MIN_COMPONENT_COUNT:
                 continue
 
-            # Compute meta-score
+            # Compute meta-score (severity may be stored as enum name — normalise to lowercase)
             meta_score = sum(
-                _SEVERITY_WEIGHTS.get(s["severity"], 0)
+                _SEVERITY_WEIGHTS.get(
+                    s["severity"].lower() if isinstance(s["severity"], str) else s["severity"],
+                    0,
+                )
                 for s in entity_signals
             )
 
@@ -183,6 +191,18 @@ class T14CompoundFavoritismTypology(BaseTypology):
             except ValueError:
                 pass
 
+            # Aggregate event_ids from all component signals for this entity
+            all_event_ids: list[uuid.UUID] = []
+            seen_eids: set[str] = set()
+            for s in entity_signals:
+                for eid_str in s.get("event_ids", []):
+                    if eid_str not in seen_eids:
+                        seen_eids.add(eid_str)
+                        try:
+                            all_event_ids.append(uuid.UUID(eid_str))
+                        except ValueError:
+                            pass
+
             output_signals.append(RiskSignalOut(
                 id=uuid.uuid4(),
                 typology_code=self.id,
@@ -225,7 +245,7 @@ class T14CompoundFavoritismTypology(BaseTypology):
                     for s in entity_signals[:5]
                 ],
                 entity_ids=entity_uuid,
-                event_ids=[],
+                event_ids=all_event_ids[:50],
                 period_start=first_date if dates else None,
                 period_end=last_date if dates else None,
                 created_at=datetime.now(timezone.utc),

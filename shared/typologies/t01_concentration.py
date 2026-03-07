@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from shared.baselines.compute import _CATMAT_MISSING
 from shared.baselines.models import BaselineType
 from shared.models.orm import Event, EventParticipant
 from shared.models.signals import (
@@ -46,7 +47,7 @@ class T01ConcentrationTypology(BaseTypology):
 
     async def run(self, session) -> list[RiskSignalOut]:
         window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365)  # 12-month window
+        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
 
         # 1. Query licitacao events in window
         stmt = (
@@ -83,11 +84,14 @@ class T01ConcentrationTypology(BaseTypology):
         procurer_result = await session.execute(procurer_stmt)
         procurers = procurer_result.scalars().all()
 
-        # Map event -> info
+        # Map event -> info; skip events with sentinel/null CATMAT (same guard as baselines)
         event_info: dict[str, dict] = {}
         for e in events:
+            catmat_raw = e.attrs.get("catmat_group", "") or ""
+            if str(catmat_raw).strip().lower() in _CATMAT_MISSING:
+                continue
             event_info[str(e.id)] = {
-                "catmat_group": e.attrs.get("catmat_group", "sem classificacao"),
+                "catmat_group": catmat_raw,
                 "value_brl": e.value_brl or 0,
                 "occurred_at": e.occurred_at,
                 "description": e.description,
@@ -130,6 +134,9 @@ class T01ConcentrationTypology(BaseTypology):
 
         for key, winner_totals in groups.items():
             procurer_id_str, catmat_group = key
+            # Skip groups with no identifiable procurer — cannot attribute to an organ
+            if procurer_id_str == str(uuid.UUID(int=0)):
+                continue
             total_value = sum(winner_totals.values())
             if total_value <= 0:
                 continue
@@ -147,7 +154,7 @@ class T01ConcentrationTypology(BaseTypology):
 
             if hhi > p95 or top1_share > 0.80:
                 severity = SignalSeverity.HIGH
-                confidence = min(0.95, 0.7 + (hhi - p95) * 2)
+                confidence = max(0.60, min(0.95, 0.7 + (hhi - p95) * 2))
             else:
                 severity = SignalSeverity.MEDIUM
                 confidence = min(0.85, 0.5 + (hhi - p90) * 3)
