@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSignal } from "@/lib/api";
+import { getSignal, fetchTypologyLegalBasis, fetchRelatedSignals } from "@/lib/api";
+import type { TypologyLegalBasis, RelatedSignal } from "@/lib/types";
 import { Markdown } from "@/components/Markdown";
 import { Badge } from "@/components/Badge";
 import { SignalEvidenceSection } from "@/components/SignalEvidenceSection";
 import { DetailPageLayout } from "@/components/DetailPageLayout";
 import { DetailHeader } from "@/components/DetailHeader";
-import { formatBRL, formatDate, normalizeUnknownDisplay } from "@/lib/utils";
+import { formatBRL, formatDate, normalizeUnknownDisplay, severityDotColor, cn } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
 import type { SignalDetail, FactorMeta, SignalSeverity } from "@/lib/types";
 import {
@@ -105,11 +106,23 @@ export default async function SignalDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   let signal: SignalDetail;
+  let legalBasis: TypologyLegalBasis | null = null;
   try {
     signal = await getSignal(id);
   } catch {
     notFound();
     return null as never;
+  }
+  try {
+    legalBasis = await fetchTypologyLegalBasis(signal.typology_code);
+  } catch {
+    // legal basis not available for all typologies
+  }
+  let relatedSignals: RelatedSignal[] = [];
+  try {
+    relatedSignals = await fetchRelatedSignals(id);
+  } catch {
+    // ignore
   }
 
   const shortId = id.slice(0, 8);
@@ -118,23 +131,24 @@ export default async function SignalDetailPage({ params }: PageProps) {
   const factorDescriptions = signal.factor_descriptions ?? {};
   const entities = signal.entities ?? [];
 
-  const fallbackInvestigation =
-    signal.typology_code === "T03"
-      ? {
-          what_crossed: [
-            "orgao_comprador",
-            "modalidade_dispensa",
-            "grupo_catmat",
-            "janela_temporal",
-          ],
-          period_start: signal.period_start ?? null,
-          period_end: signal.period_end ?? null,
-          observed_total_brl: toNumberOrNull(signal.factors?.total_value_brl),
-          legal_threshold_brl: toNumberOrNull(signal.factors?.threshold_brl),
-          ratio_over_threshold: toNumberOrNull(signal.factors?.ratio),
-          legal_reference: "Lei 14.133/2021",
-        }
-      : null;
+  const fallbackInvestigation = {
+    what_crossed: signal.typology_code === "T03"
+      ? ["orgao_comprador", "modalidade_dispensa", "grupo_catmat", "janela_temporal"]
+      : ["entidades", "eventos", "fatores_quantitativos"],
+    period_start: signal.period_start ?? null,
+    period_end: signal.period_end ?? null,
+    observed_total_brl: toNumberOrNull(
+      signal.factors?.total_value_brl ?? signal.factors?.value_brl
+    ),
+    legal_threshold_brl: toNumberOrNull(
+      signal.factors?.threshold_brl ?? signal.factors?.limit_brl
+    ),
+    ratio_over_threshold: toNumberOrNull(signal.factors?.ratio),
+    legal_reference:
+      signal.typology_code === "T03"
+        ? "Lei 14.133/2021"
+        : (legalBasis?.law_articles[0]?.law_name ?? null),
+  };
 
   const investigation = signal.investigation_summary ?? fallbackInvestigation;
 
@@ -396,6 +410,56 @@ export default async function SignalDetailPage({ params }: PageProps) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Base Legal */}
+      {legalBasis && legalBasis.law_articles.length > 0 && (
+        <section className="rounded-lg border border-border bg-surface-card p-4">
+          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary mb-3">
+            <Scale className="h-4 w-4 text-accent" />
+            Base Legal
+          </h2>
+          {legalBasis.description_legal && (
+            <p className="text-xs text-secondary mb-3">{legalBasis.description_legal}</p>
+          )}
+          <ul className="space-y-2">
+            {legalBasis.law_articles.map((article, i) => (
+              <li key={i} className="rounded-md bg-surface-base px-3 py-2">
+                <p className="text-xs font-semibold text-primary">{article.law_name}</p>
+                {article.article && (
+                  <p className="text-[11px] text-secondary mt-0.5">{article.article}</p>
+                )}
+                {article.violation_type && (
+                  <p className="text-[11px] text-muted mt-0.5">{article.violation_type}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Related Signals */}
+      {relatedSignals.length > 0 && (
+        <section className="rounded-lg border border-border bg-surface-card p-4">
+          <h2 className="font-display text-sm font-semibold text-primary mb-3">
+            Outros Sinais com as Mesmas Entidades
+          </h2>
+          <ul className="space-y-1.5">
+            {relatedSignals.map((s) => (
+              <li key={s.id}>
+                <Link
+                  href={`/signal/${s.id}`}
+                  className="flex items-center gap-2 rounded-md border border-border bg-surface-base px-3 py-2 text-xs transition hover:bg-surface-subtle"
+                >
+                  <span className={cn("h-2 w-2 shrink-0 rounded-full", severityDotColor(s.severity))} />
+                  <span className="font-mono tabular-nums font-bold text-accent shrink-0">{s.typology_code}</span>
+                  <span className="flex-1 truncate text-secondary">{s.title}</span>
+                  <ExternalLink className="h-3 w-3 shrink-0 text-muted" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* Evidence */}

@@ -34,6 +34,7 @@ async def test_case_detail_enriches_associated_signals(monkeypatch):
         status="open",
         severity="high",
         summary="2 sinais agrupados por entidade",
+        case_type="PROCUREMENT_FRAUD",
         attrs={
             "entity_names": ["Prefeitura A"],
             "total_value_brl": 200000.0,
@@ -47,7 +48,11 @@ async def test_case_detail_enriches_associated_signals(monkeypatch):
     async def _fake_get_case_by_id(_session, _case_id):
         return case
 
+    async def _fake_get_case_entities(_session, _case_id):
+        return []
+
     monkeypatch.setattr(public, "get_case_by_id", _fake_get_case_by_id)
+    monkeypatch.setattr(public, "get_case_entities_with_roles", _fake_get_case_entities)
 
     result = await public.case_detail(case_id=case_id, session=None)
 

@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCase } from "@/lib/api";
+import { getCase, fetchCaseLegalHypotheses, fetchRelatedCases } from "@/lib/api";
 import { Badge } from "@/components/Badge";
 import { DetailSkeleton } from "@/components/Skeleton";
 import { DetailPageLayout } from "@/components/DetailPageLayout";
 import { DetailHeader } from "@/components/DetailHeader";
+import { LegalInferencePanel } from "@/components/LegalInferencePanel";
+import { CaseTypeBadge } from "@/components/CaseTypeBadge";
 import { Suspense } from "react";
 import { formatBRL, formatDate, severityDotColor, cn } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
-import { Network, Radar, Building2, User, Landmark, ExternalLink } from "lucide-react";
-import type { SignalSeverity, CaseDetail, CaseSignal } from "@/lib/types";
+import { Network, Radar, Building2, User, Landmark, ExternalLink, FileText } from "lucide-react";
+import type { SignalSeverity, CaseDetail, CaseSignal, RelatedCase } from "@/lib/types";
 
 const SEVERITY_ORDER: Record<SignalSeverity, number> = {
   critical: 0,
@@ -44,6 +46,8 @@ async function CaseContent({ id }: { id: string }) {
     if (msg.includes("404")) notFound();
     throw err;
   }
+  const hypotheses = await fetchCaseLegalHypotheses(id);
+  const relatedCases = await fetchRelatedCases(id).catch((): RelatedCase[] => []);
 
   const shortId = caseData.id.slice(0, 8).toUpperCase();
   const entityNames = caseData.entity_names ?? [];
@@ -123,6 +127,28 @@ async function CaseContent({ id }: { id: string }) {
         </div>
       )}
 
+      {/* Related Cases */}
+      {relatedCases.length > 0 && (
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+            Casos Relacionados ({relatedCases.length})
+          </h3>
+          <ul className="space-y-1.5">
+            {relatedCases.map((rc) => (
+              <li key={rc.id}>
+                <Link
+                  href={`/case/${rc.id}`}
+                  className="flex items-center gap-2 rounded-md border border-border bg-surface-base px-2.5 py-1.5 transition hover:bg-surface-subtle"
+                >
+                  <span className={cn("h-2 w-2 shrink-0 rounded-full", severityDotColor(rc.severity))} />
+                  <span className="flex-1 truncate text-xs text-secondary" title={rc.title}>{rc.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="rounded-lg border border-border bg-surface-card p-4 space-y-2">
         <Link
@@ -138,6 +164,13 @@ async function CaseContent({ id }: { id: string }) {
         >
           <Radar className="h-3.5 w-3.5" />
           Ver no Radar
+        </Link>
+        <Link
+          href={`/case/${caseData.id}/dossier`}
+          className="flex items-center gap-2 rounded-md border border-border bg-surface-base px-3 py-2 text-xs font-medium text-secondary transition hover:bg-surface-subtle w-full"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Gerar Dossiê
         </Link>
       </div>
 
@@ -160,22 +193,58 @@ async function CaseContent({ id }: { id: string }) {
         </section>
       )}
 
+      {/* Grouping rationale */}
+      {(() => {
+        const rationale = (caseData.attrs as Record<string, unknown> | undefined)?.grouping_rationale as string | null | undefined;
+        const fallback = `${caseData.signals.length} sinal${caseData.signals.length !== 1 ? "is" : ""} agrupado${caseData.signals.length !== 1 ? "s" : ""} por entidade compartilhada.`;
+        const text = rationale ?? fallback;
+        return (
+          <details className="rounded-lg border border-border bg-surface-card p-4">
+            <summary className="cursor-pointer text-xs font-semibold text-secondary select-none list-none flex items-center gap-1.5">
+              <span className="text-muted">▶</span>
+              Por que este caso foi criado?
+            </summary>
+            <p className="mt-2 text-xs text-secondary leading-relaxed">{text}</p>
+          </details>
+        );
+      })()}
+
       {/* Entities expanded */}
-      {entityNames.length > 0 && (
+      {(caseData.entities?.length ?? entityNames.length) > 0 && (
         <section className="rounded-lg border border-border bg-surface-card p-4">
           <h2 className="font-display text-sm font-semibold text-primary mb-3">
             Entidades{" "}
-            <span className="font-mono tabular-nums text-muted">({entityNames.length})</span>
+            <span className="font-mono tabular-nums text-muted">
+              ({caseData.entities?.length ?? entityNames.length})
+            </span>
           </h2>
           <ul className="space-y-2">
-            {entityNames.map((name, i) => (
-              <li key={i} className="flex items-center gap-2.5 rounded-md bg-surface-base px-3 py-2">
-                <EntityTypeIcon type="company" />
-                <span className="flex-1 text-sm text-secondary truncate" title={name}>
-                  {name}
-                </span>
-              </li>
-            ))}
+            {caseData.entities
+              ? caseData.entities.map((entity) => (
+                  <li key={entity.id} className="flex items-center gap-2.5 rounded-md bg-surface-base px-3 py-2">
+                    <EntityTypeIcon type={entity.type} />
+                    <Link
+                      href={`/entity/${entity.id}`}
+                      className="flex-1 text-sm text-secondary truncate hover:text-primary"
+                      title={entity.name}
+                    >
+                      {entity.name}
+                    </Link>
+                    {entity.signal_ids.length > 0 && (
+                      <span className="font-mono tabular-nums text-[10px] text-muted shrink-0">
+                        {entity.signal_ids.length} sinal{entity.signal_ids.length !== 1 ? "is" : ""}
+                      </span>
+                    )}
+                  </li>
+                ))
+              : entityNames.map((name, i) => (
+                  <li key={i} className="flex items-center gap-2.5 rounded-md bg-surface-base px-3 py-2">
+                    <EntityTypeIcon type="company" />
+                    <span className="flex-1 text-sm text-secondary truncate" title={name}>
+                      {name}
+                    </span>
+                  </li>
+                ))}
           </ul>
         </section>
       )}
@@ -203,13 +272,23 @@ async function CaseContent({ id }: { id: string }) {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono tabular-nums text-xs font-bold text-accent">
+                      <span className="font-mono tabular-nums text-xs font-bold text-accent shrink-0">
                         {signal.typology_code}
                       </span>
                       <span className="text-xs text-secondary truncate">
                         {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
                       </span>
                     </div>
+                    {signal.title && (
+                      <p className="mt-1 text-xs font-medium text-primary truncate">
+                        {signal.title}
+                      </p>
+                    )}
+                    {signal.summary && (
+                      <p className="mt-0.5 text-[11px] text-secondary line-clamp-2">
+                        {signal.summary}
+                      </p>
+                    )}
                     <div className="mt-2 flex items-center gap-2">
                       <div className="h-1.5 flex-1 rounded-full bg-surface-base">
                         <div
@@ -238,11 +317,21 @@ async function CaseContent({ id }: { id: string }) {
         <DetailHeader
           breadcrumbs={[{ label: "Radar", href: "/radar" }, { label: `Caso #${shortId}` }]}
           title={caseData.title}
-          badge={<Badge severity={caseData.severity} className="shrink-0" />}
+          badge={
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge severity={caseData.severity} />
+              <CaseTypeBadge caseType={caseData.case_type} />
+            </div>
+          }
         />
       }
       aside={aside}
-      main={main}
+      main={
+        <>
+          {main}
+          <LegalInferencePanel hypotheses={hypotheses} />
+        </>
+      }
     />
   );
 }

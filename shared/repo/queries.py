@@ -24,6 +24,7 @@ from shared.models.orm import (
     RawRun,
     RawSource,
     RiskSignal,
+    SignalEntity,
     Typology,
     TypologyRunLog,
 )
@@ -841,6 +842,71 @@ async def get_case_by_id(
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_case_entities_with_roles(
+    session: AsyncSession, case_id: uuid.UUID
+) -> list[dict]:
+    """Entities linked to any signal in the case, with masked identifiers and roles."""
+    # Step 1: entity_id → signal_ids mapping via signal_entity
+    se_stmt = (
+        select(SignalEntity.entity_id, SignalEntity.signal_id)
+        .where(
+            SignalEntity.signal_id.in_(
+                select(CaseItem.signal_id).where(CaseItem.case_id == case_id)
+            )
+        )
+    )
+    se_rows = (await session.execute(se_stmt)).all()
+    if not se_rows:
+        return []
+
+    entity_signal_map: dict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    entity_ids: set[uuid.UUID] = set()
+    for entity_id, signal_id in se_rows:
+        entity_signal_map[entity_id].append(signal_id)
+        entity_ids.add(entity_id)
+
+    # Step 2: load entity details
+    entity_stmt = (
+        select(Entity)
+        .where(Entity.id.in_(list(entity_ids)))
+        .order_by(Entity.name)
+    )
+    entities = (await session.execute(entity_stmt)).scalars().all()
+
+    # Step 3: distinct roles for these entities across all their events
+    role_stmt = (
+        select(EventParticipant.entity_id, EventParticipant.role)
+        .where(EventParticipant.entity_id.in_(list(entity_ids)))
+        .distinct()
+    )
+    role_rows = (await session.execute(role_stmt)).all()
+    entity_roles: dict[uuid.UUID, set[str]] = defaultdict(set)
+    for eid, role in role_rows:
+        if role:
+            entity_roles[eid].add(role)
+
+    result = []
+    for entity in entities:
+        identifiers = entity.identifiers or {}
+        cnpj_raw = identifiers.get("cnpj", "")
+        cnpj_masked = None
+        if cnpj_raw and len(cnpj_raw) >= 8:
+            cnpj_masked = cnpj_raw[:2] + ".***.***/" + cnpj_raw[-6:]
+        result.append(
+            {
+                "id": entity.id,
+                "name": entity.name,
+                "type": entity.type,
+                "cnpj_masked": cnpj_masked,
+                "roles": sorted(entity_roles.get(entity.id, set())),
+                "signal_ids": [
+                    str(sid) for sid in entity_signal_map.get(entity.id, [])
+                ],
+            }
+        )
+    return result
 
 
 async def get_coverage_list(session: AsyncSession) -> list[CoverageItem]:
@@ -3396,12 +3462,9 @@ async def get_analytical_coverage(session: AsyncSession) -> list[dict]:
     now = datetime.now(timezone.utc)
     window_30d = now - timedelta(days=30)
 
-    # Get available event types (domains) in last 90 days
-    domain_stmt = (
-        select(Event.type, func.count().label("cnt"))
-        .where(Event.created_at >= now - timedelta(days=90))
-        .group_by(Event.type)
-    )
+    # Get available event types (domains) — no time restriction so bulk connectors
+    # (empresa, remuneracao) that are ingested once are not incorrectly marked as missing.
+    domain_stmt = select(Event.type).distinct()
     domain_result = await session.execute(domain_stmt)
     available_domains = {row.type for row in domain_result}
 
@@ -3493,6 +3556,7 @@ async def get_analytical_coverage(session: AsyncSession) -> list[dict]:
             "last_run_signals_created": last_run.signals_created if last_run else None,
             "last_run_signals_deduped": last_run.signals_deduped if last_run else None,
             "last_run_signals_blocked": last_run.signals_blocked if last_run else None,
+            "last_run_error_message": last_run.error_message[:200] if last_run and last_run.error_message else None,
             "last_success_at": success_map.get(typo.id),
             "corruption_types": legal_meta.get("corruption_types", []),
             "spheres": legal_meta.get("spheres", []),

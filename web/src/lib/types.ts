@@ -144,6 +144,7 @@ export interface RadarV2CaseItem {
   period_start?: string | null;
   period_end?: string | null;
   created_at: string;
+  case_type?: string | null;
 }
 
 export interface RadarV2SignalPreviewResponse {
@@ -638,6 +639,15 @@ export interface CaseSignal {
   created_at: string;
 }
 
+export interface CaseEntityBrief {
+  id: string;
+  name: string;
+  type: "person" | "company" | "org";
+  cnpj_masked?: string;
+  roles: string[];
+  signal_ids: string[];
+}
+
 export interface CaseDetail {
   id: string;
   title: string;
@@ -646,6 +656,7 @@ export interface CaseDetail {
   summary?: string;
   explanation?: string;
   entity_names?: string[];
+  entities?: CaseEntityBrief[];
   typology_names?: string[];
   total_value_brl?: number | null;
   period_start?: string | null;
@@ -653,6 +664,7 @@ export interface CaseDetail {
   attrs?: Record<string, unknown>;
   created_at: string;
   signals: CaseSignal[];
+  case_type?: string | null;
 }
 
 export interface AnalyticalCoverageItem {
@@ -670,6 +682,7 @@ export interface AnalyticalCoverageItem {
   last_run_signals_created?: number | null;
   last_run_signals_deduped?: number | null;
   last_run_signals_blocked?: number | null;
+  last_run_error_message?: string | null;
   last_success_at?: string | null;
   corruption_types?: string[];
   spheres?: string[];
@@ -779,4 +792,50 @@ export interface ClusterEntity {
   name: string;
   node_type: string;
   source_connector?: string | null;
+}
+
+// US-015: Legal basis types
+export interface LawArticle {
+  law_name: string;
+  article: string;
+  violation_type: string;
+}
+
+export interface TypologyLegalBasis {
+  code: string;
+  name: string;
+  corruption_types: string[];
+  spheres: string[];
+  evidence_level: string;
+  description_legal: string;
+  law_articles: LawArticle[];
+}
+
+export interface RelatedSignal {
+  id: string;
+  typology_code: string;
+  typology_name: string;
+  title: string;
+  severity: SignalSeverity;
+  confidence: number;
+  created_at: string;
+}
+
+export interface RelatedCase {
+  id: string;
+  title: string;
+  severity: SignalSeverity;
+  case_type?: string | null;
+  signal_count?: number | null;
+  created_at: string;
+}
+
+// US-016: Legal hypothesis types
+export interface LegalHypothesis {
+  id: string;
+  signal_cluster: string[];
+  law_name: string;
+  article: string | null;
+  violation_type: string | null;
+  confidence: number;
 }

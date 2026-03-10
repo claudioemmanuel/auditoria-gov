@@ -5,6 +5,8 @@ from io import StringIO
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from api.app.deps import DbSession, Pagination
 from shared.models.coverage_v2 import (
@@ -17,7 +19,7 @@ from shared.models.coverage_v2 import (
     PublicSourcesResponse,
 )
 from shared.models.graph import CaseGraphResponse, EntityPathResponse, NeighborhoodResponse, SignalGraphResponse
-from shared.models.orm import Contestation
+from shared.models.orm import Case, Contestation, RiskSignal
 from shared.models.radar import (
     RadarV2CaseListResponse,
     RadarV2CasePreviewResponse,
@@ -32,8 +34,10 @@ from shared.repo.provenance import (
     get_raw_sources_for_events,
     get_case_provenance_web,
 )
+from shared.models.orm import LegalViolationHypothesis
 from shared.repo.queries import (
     get_case_by_id,
+    get_case_entities_with_roles,
     get_case_graph,
     get_coverage_v2_analytics,
     get_coverage_v2_map,
@@ -258,6 +262,7 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
     case = await get_case_by_id(session, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
+    entities = await get_case_entities_with_roles(session, case_id)
 
     attrs = case.attrs or {}
     entity_names = attrs.get("entity_names", [])
@@ -317,8 +322,20 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
         "status": case.status,
         "severity": case.severity,
         "summary": case.summary,
+        "case_type": case.case_type,
         "explanation": explanation,
         "entity_names": entity_names,
+        "entities": [
+            {
+                "id": str(e["id"]),
+                "name": e["name"],
+                "type": e["type"],
+                "cnpj_masked": e["cnpj_masked"],
+                "roles": e["roles"],
+                "signal_ids": e["signal_ids"],
+            }
+            for e in entities
+        ],
         "typology_names": typology_names,
         "total_value_brl": attrs.get("total_value_brl"),
         "period_start": attrs.get("period_start"),
@@ -326,6 +343,50 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
         "attrs": case.attrs,
         "created_at": case.created_at,
         "signals": signal_items,
+    }
+
+
+@router.get("/typology/{code}/legal-basis")
+async def typology_legal_basis(code: str):
+    """Legal basis metadata for a typology: laws, articles, violation types."""
+    from shared.typologies.factor_metadata import TYPOLOGY_LEGAL_METADATA
+    meta = TYPOLOGY_LEGAL_METADATA.get(code.upper())
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Typology not found")
+    return {
+        "typology_code": code.upper(),
+        "corruption_types": meta.get("corruption_types", []),
+        "spheres": meta.get("spheres", []),
+        "evidence_level": meta.get("evidence_level"),
+        "description_legal": meta.get("description_legal"),
+        "law_articles": meta.get("law_articles", []),
+    }
+
+
+@router.get("/case/{case_id}/legal-hypothesis")
+async def case_legal_hypothesis(case_id: uuid.UUID, session: DbSession):
+    """Legal violation hypotheses inferred for a case."""
+    from sqlalchemy import select
+    result = await session.execute(
+        select(LegalViolationHypothesis)
+        .where(LegalViolationHypothesis.case_id == case_id)
+        .order_by(LegalViolationHypothesis.confidence.desc())
+    )
+    rows = result.scalars().all()
+    return {
+        "case_id": str(case_id),
+        "hypotheses": [
+            {
+                "id": str(h.id),
+                "law_name": h.law_name,
+                "article": h.article,
+                "violation_type": h.violation_type,
+                "confidence": h.confidence,
+                "signal_cluster": h.signal_cluster,
+                "created_at": h.created_at,
+            }
+            for h in rows
+        ],
     }
 
 
@@ -491,6 +552,41 @@ async def signal_evidence(
     if page is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return page
+
+
+@router.get("/signal/{signal_id}/related")
+async def signal_related(signal_id: uuid.UUID, session: DbSession):
+    """Related signals that share at least one entity with the given signal."""
+    signal = await get_signal_by_id(session, signal_id)
+    if signal is None:
+        raise HTTPException(status_code=404, detail="Signal not found")
+
+    stmt = (
+        select(RiskSignal)
+        .where(RiskSignal.id != signal_id)
+        .options(selectinload(RiskSignal.typology))
+        .order_by(RiskSignal.created_at.desc())
+        .limit(200)
+    )
+    candidates = (await session.execute(stmt)).scalars().all()
+    signal_entity_set = {str(e) for e in (signal.entity_ids or [])}
+    related = [
+        s for s in candidates
+        if signal_entity_set & {str(e) for e in (s.entity_ids or [])}
+    ][:5]
+
+    return [
+        {
+            "id": s.id,
+            "typology_code": s.typology.code if s.typology else None,
+            "typology_name": s.typology.name if s.typology else None,
+            "title": s.title,
+            "severity": s.severity,
+            "confidence": s.confidence,
+            "created_at": s.created_at,
+        }
+        for s in related
+    ]
 
 
 @router.get("/signals/{signal_id}/evidence/export")
@@ -677,6 +773,40 @@ async def case_provenance(case_id: uuid.UUID, session: DbSession):
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return result
+
+
+@router.get("/case/{case_id}/related")
+async def case_related(case_id: uuid.UUID, session: DbSession):
+    """Related cases that share at least one entity name with the given case."""
+    case = await get_case_by_id(session, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    entity_name_set = set((case.attrs or {}).get("entity_names", []))
+
+    stmt = (
+        select(Case)
+        .where(Case.id != case_id)
+        .order_by(Case.created_at.desc())
+        .limit(100)
+    )
+    candidates = (await session.execute(stmt)).scalars().all()
+    related = [
+        c for c in candidates
+        if entity_name_set & set((c.attrs or {}).get("entity_names", []))
+    ][:3]
+
+    return [
+        {
+            "id": c.id,
+            "title": c.title,
+            "severity": c.severity,
+            "case_type": c.case_type,
+            "signal_count": (c.attrs or {}).get("signal_count"),
+            "created_at": c.created_at,
+        }
+        for c in related
+    ]
 
 
 @router.post("/contestation", response_model=ContestationOut, status_code=status.HTTP_201_CREATED)

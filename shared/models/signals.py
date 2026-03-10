@@ -77,6 +77,15 @@ class SignalReplayOut(BaseModel):
     checked_at: datetime
 
 
+class CaseEntityBrief(BaseModel):
+    id: uuid.UUID
+    name: str
+    type: str          # "person" | "company" | "org"
+    cnpj_masked: Optional[str] = None
+    roles: list[str] = Field(default_factory=list)
+    signal_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
 class ContestationCreate(BaseModel):
     signal_id: Optional[uuid.UUID] = None
     requester_name: str = Field(min_length=2, max_length=255)
