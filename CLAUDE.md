@@ -6,64 +6,46 @@ Guidance for Claude Code contributors working on AuditorIA Gov.
 
 AuditorIA Gov is a deterministic citizen-auditing platform for Brazilian federal public data.
 
-- Backend API: `api/` (FastAPI)
-- Async jobs: `worker/` (Celery + Beat)
-- Shared domain/core: `shared/`
-- Frontend: `web/` (Next.js)
-- Tests: `tests/`
+- `api/` — FastAPI backend
+- `worker/` — Celery + Beat async jobs
+- `shared/` — domain logic, connectors, typologies
+- `web/` — Next.js frontend
+- `tests/` — pytest suite
 
-Core principle: risk signals are reproducible and evidence-based; the optional LLM layer is explanatory only.
+**Core principle:** risk signals are reproducible and evidence-based; the LLM layer is explanatory only.
 
 ## Key Commands
 
-Backend setup and tests:
-
 ```bash
-uv sync --extra test
+# Backend tests
 uv run --extra test pytest -q
-```
 
-Frontend setup and checks:
+# Frontend
+cd web && npm ci && npm run lint && npm run build
 
-```bash
-cd web
-npm ci
-npm run lint
-npm run build
-```
-
-Run local stack:
-
-```bash
+# Local stack
 docker compose up --build
-```
 
-Run DB migrations:
-
-```bash
+# DB migrations
 docker compose run --rm api alembic -c api/alembic.ini upgrade head
 ```
 
 ## Common Change Paths
 
-- New connector: `shared/connectors/` + `shared/connectors/__init__.py` + tests in `tests/connectors/`
-- New typology: `shared/typologies/` + `shared/typologies/registry.py` + tests in `tests/typologies/`
-- Public API responses: `api/app/routers/public.py` + repository queries in `shared/repo/queries.py`
-- Internal API responses: `api/app/routers/internal.py` + repository queries in `shared/repo/queries.py`
-- Entity search / graph path: `shared/repo/queries.py` (`search_entities`, `get_entity_path`) + `api/app/routers/public.py`
-- Data quality monitoring: `shared/repo/queries.py` (`get_cross_source_overlap`) + `api/app/routers/internal.py` + `web/src/app/coverage/quality/`
-- Entity cluster expansion: `shared/repo/queries.py` (`resolve_entity_ids_with_clusters`) — apply to any new query path that matches signals by entity ID
-- Scheduled pipelines: `shared/scheduler/schedule.py` and `worker/tasks/`
-- UI pages/components: `web/src/app/` and `web/src/components/`
-- DB migrations: `api/alembic/versions/` — do NOT use `CONCURRENTLY` inside migration functions (Alembic runs inside a transaction)
+| What | Where |
+|------|-------|
+| New connector | `shared/connectors/` + `__init__.py` + `tests/connectors/` |
+| New typology | `shared/typologies/` + `registry.py` + `tests/typologies/` |
+| Public API | `api/app/routers/public.py` + `shared/repo/queries.py` |
+| Scheduled jobs | `shared/scheduler/schedule.py` + `worker/tasks/` |
+| UI | `web/src/app/` + `web/src/components/` |
+| DB migration | `api/alembic/versions/` — no `CONCURRENTLY` inside functions |
 
-## Guardrails
+## Rules & Skills
 
-- Do not commit secrets, tokens, `.env`, or bulk datasets.
-- CPF/CNPJ from public government sources (LAI 12.527/2011, LGPD Art. 7 V / Art. 23) are stored raw alongside hashes. CPF hashing is preserved for ER matching.
-- Keep typology logic deterministic and auditable.
-- Add or update tests for all behavioral changes.
-- Prefer small, reviewable PRs with explicit verification output.
-- All outbound HTTP must pass through `shared/connectors/domain_guard.py` whitelist. Non-government domains require a `DomainException` with justification and review date.
-- New data sources require a `SourceVeracityProfile` in `shared/connectors/veracity.py` and an update to `docs/GOVERNANCE.md`.
-- LLM usage is explanatory only — never affects scoring. Functions calling LLMs must use the `@explanatory_only` decorator from `shared/ai/provider.py`.
+- Coding conventions: `.claude/rules/coding.md`
+- Testing conventions: `.claude/rules/testing.md`
+- Code review checklist: `.claude/skills/review/SKILL.md`
+- Safe refactor workflow: `.claude/skills/refactor/SKILL.md`
+- Utility scripts: `tools/SCRIPTS.md`
+- Prompt templates: `tools/PROMPTS.md`

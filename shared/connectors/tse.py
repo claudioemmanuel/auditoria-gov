@@ -31,6 +31,17 @@ from shared.models.canonical import (
 from shared.models.raw import RawItem
 
 _TSE_CDN_BASE = "https://cdn.tse.jus.br/estatistica/sead/odsele"
+
+
+def _safe_extractall(zip_path: str, dest_dir: str) -> None:
+    """Extract ZIP with path traversal (Zip Slip) protection."""
+    dest = os.path.realpath(dest_dir)
+    with zipfile.ZipFile(zip_path, "r") as z:
+        for member in z.namelist():
+            member_path = os.path.realpath(os.path.join(dest, member))
+            if not member_path.startswith(dest + os.sep) and member_path != dest:
+                raise ValueError(f"Zip Slip blocked: {member}")
+        z.extractall(dest_dir)
 _ELECTION_YEARS = [2024, 2022, 2020]  # Cover 5-year window (federal: 2022/2024; municipal: 2020/2024)
 _CHUNK_SIZE = 10_000
 
@@ -114,8 +125,7 @@ async def _download_tse_dataset(cfg: _TSEJobCfg, year: int, data_dir: str) -> st
             f"TSE: downloaded file is not a valid ZIP (deleted, will retry): {zip_filename}"
         )
     log.info("tse.extracting", file=zip_filename)
-    with zipfile.ZipFile(zip_path, "r") as z:
-        z.extractall(data_dir)
+    _safe_extractall(zip_path, data_dir)
     log.info("tse.extracted", file=zip_filename)
 
     # Delete ZIP immediately after extraction — CSVs are all we need.
@@ -582,3 +592,18 @@ class TSEConnector(BaseConnector):
 
     def rate_limit_policy(self) -> RateLimitPolicy:
         return RateLimitPolicy(requests_per_second=2, burst=4)
+
+    def cleanup_bulk_files(self, job: "JobSpec", raw_run: object) -> int:  # type: ignore[override]
+        """Delete all TSE CSV files once a run completes successfully."""
+        import glob as _glob
+
+        data_dir = os.environ.get("TSE_DATA_DIR", "/data/tse")
+        deleted = 0
+        for f in _glob.glob(os.path.join(data_dir, "*.csv")):
+            try:
+                os.remove(f)
+                log.info("tse.cleanup_on_complete", file=os.path.basename(f))
+                deleted += 1
+            except OSError:
+                pass
+        return deleted

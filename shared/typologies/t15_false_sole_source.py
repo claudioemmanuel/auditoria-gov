@@ -98,10 +98,14 @@ class T15FalseSoleSourceTypology(BaseTypology):
         if not all_events:
             return []
 
-        # Separate inexigibilidade from competitive
+        # Licitações sem adjudicação não têm alternativas reais — excluir
+        _VOID = frozenset({"deserta", "fracassada", "revogada", "anulada", "cancelada"})
+
+        # Separate inexigibilidade from competitive; filter out void situations
         inexigibilidade_events = [
             e for e in all_events
             if e.attrs.get("modality", "").lower() in _INEXIGIBILIDADE_MODALITIES
+            and e.attrs.get("situacao", "").lower().strip() not in _VOID
         ]
         competitive_events = [
             e for e in all_events

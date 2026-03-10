@@ -3,15 +3,12 @@
 import Link from "next/link";
 import type { CoverageStatus, CoverageV2LatestRun, CoverageV2SourcePreviewResponse } from "@/lib/types";
 import {
-  Activity,
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
-  Clock,
   FileText,
   Lightbulb,
   Package,
-  TriangleAlert,
   X,
   Zap,
 } from "lucide-react";

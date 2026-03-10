@@ -134,6 +134,13 @@ class T17LayeredMoneyLaunderingTypology(BaseTypology):
 
         node_to_entity: dict[str, str] = {str(n.id): str(n.entity_id) for n in nodes}
         entity_to_node: dict[str, str] = {str(n.entity_id): str(n.id) for n in nodes}
+        entity_to_label: dict[str, str] = {
+            str(n.entity_id): (n.label.strip() if n.label and n.label.strip() else str(n.entity_id)[:8])
+            for n in nodes
+        }
+
+        def _display(entity_id: str) -> str:
+            return entity_to_label.get(entity_id, entity_id[:8])
 
         # Build directed adjacency graph.  Keeping edges directed means A→B→A
         # only forms a cycle when there are explicit edges in both directions —
@@ -246,7 +253,7 @@ class T17LayeredMoneyLaunderingTypology(BaseTypology):
                     ),
                     summary=(
                         f"Fornecedor vencedor forma ciclo societário de {cycle_length} salto(s) "
-                        f"({' → '.join(shortest_cycle[:4])}...). "
+                        f"({' → '.join(_display(e) for e in shortest_cycle[:4])}...). "
                         f"Comunidade societária: {community_size} entidade(s). "
                         + (f"Subcontratados intra-comunidade: {len(intra_community_subcontractors)}. " if intra_community_subcontractors else "")
                         + f"Valor do contrato: R$ {contract.value_brl:,.2f}."
@@ -270,7 +277,7 @@ class T17LayeredMoneyLaunderingTypology(BaseTypology):
                         EvidenceRef(
                             ref_type=RefType.ENTITY,
                             ref_id=winner_entity,
-                            description=f"Fornecedor vencedor no ciclo: {' → '.join(shortest_cycle[:4])}",
+                            description=f"Fornecedor vencedor no ciclo: {' → '.join(_display(e) for e in shortest_cycle[:4])}",
                         ),
                     ],
                     entity_ids=entity_ids,

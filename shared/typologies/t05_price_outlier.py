@@ -103,11 +103,29 @@ class T05PriceOutlierTypology(BaseTypology):
                 _seen.add(pair)
                 event_entity_ids[eid_str].append(p.entity_id)
 
+        # Licitações desertas têm apenas orçamento estimado (não preço real praticado).
+        # Dispensas/inexigibilidades também devem ser excluídas da comparação de preço
+        # pois não passam por processo competitivo de formação de preço.
+        _VOID = frozenset({"deserta", "fracassada", "revogada", "anulada", "cancelada"})
+        _NON_COMPETITIVE = frozenset({
+            "dispensa", "dispensa de licitação", "dispensa de licitacao",
+            "dispensa eletrônica", "dispensa eletronica",
+            "inexigibilidade", "inexigibilidade de licitação", "inexigibilidade de licitacao",
+        })
+
         signals: list[RiskSignalOut] = []
         _baseline_cache: dict = {}
 
         # Group by catmat/catser code for baseline comparison
         for e in events:
+            # Skip licitações void ou não-competitivas (preço não reflete mercado)
+            if e.type == "licitacao":
+                situacao = e.attrs.get("situacao", "").lower().strip()
+                modality = e.attrs.get("modality", "").lower().strip()
+                if situacao in _VOID:
+                    continue
+                if any(modality.startswith(nc) for nc in _NON_COMPETITIVE):
+                    continue
             catmat = _normalize_catmat_group(e.attrs.get("catmat_code") or e.attrs.get("catmat_group"))
             if not catmat:
                 continue

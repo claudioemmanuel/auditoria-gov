@@ -15,17 +15,35 @@ from shared.models.signals import (
 from shared.repo.queries import get_baseline
 from shared.typologies.base import BaseTypology
 
+# Modalidades não-competitivas: 0 licitantes é esperado por lei (Lei 14.133/2021 Art. 72-74)
+_NON_COMPETITIVE_MODALITIES: frozenset[str] = frozenset({
+    "dispensa", "dispensa de licitação", "dispensa de licitacao",
+    "dispensa eletrônica", "dispensa eletronica",
+    "inexigibilidade", "inexigibilidade de licitação", "inexigibilidade de licitacao",
+})
+
+# Sem adjudicação → sem contrato → sem risco mensurável
+_VOID_SITUATIONS: frozenset[str] = frozenset({
+    "deserta", "fracassada", "revogada", "anulada", "cancelada",
+})
+
+# Adjudicada com 0 licitantes: juridicamente impossível em processo regular
+_AWARDED_SITUATIONS: frozenset[str] = frozenset({
+    "homologada", "adjudicada",
+})
+
 
 class T02LowCompetitionTypology(BaseTypology):
     """T02 — Low Competition.
 
     Algorithm:
     1. For each procurement in the analysis window:
-       a. Count distinct participants (bidders).
-       b. Compare against BASELINE (PARTICIPANTS_PER_PROCUREMENT for same
-          modality + CATMAT/CATSER group).
+       a. Skip non-competitive modalities (dispensa/inexigibilidade — 0 bidders expected by law).
+       b. Skip void situations (deserta/fracassada/revogada — no award, no risk).
+       c. Count distinct participants (bidders).
+       d. Compare against BASELINE (PARTICIPANTS_PER_PROCUREMENT for same modality + CATMAT group).
     2. Flag if n_participants < baseline p10.
-    3. Severity: HIGH if n_participants <= 1, MEDIUM if < p10.
+    3. Severity: CRITICAL if adjudicada with 0 bidders, HIGH if n_participants <= 1, MEDIUM if < p10.
     """
 
     @property
@@ -92,7 +110,8 @@ class T02LowCompetitionTypology(BaseTypology):
         event_info: dict[str, dict] = {}
         for e in events:
             event_info[str(e.id)] = {
-                "modality": e.attrs.get("modality", "nao informada"),
+                "modality": e.attrs.get("modality", e.attrs.get("modalidade", "")).lower().strip(),
+                "situacao": e.attrs.get("situacao", "").lower().strip(),
                 "description": e.description,
                 "value_brl": e.value_brl,
                 "occurred_at": e.occurred_at,
@@ -112,19 +131,51 @@ class T02LowCompetitionTypology(BaseTypology):
             eid = str(e.id)
             n_bidders = len(bidder_counts.get(eid, set()))
             info = event_info[eid]
+            modality = info["modality"]
+            situacao = info["situacao"]
+
+            # 1. Pular modalidades não-competitivas (dispensa/inexigibilidade)
+            if any(modality.startswith(nc) for nc in _NON_COMPETITIVE_MODALITIES):
+                continue
+
+            # 2. Pular licitações sem adjudicação (deserta, fracassada, revogada...)
+            if situacao in _VOID_SITUATIONS:
+                continue
 
             if n_bidders >= p10:
                 continue
 
-            # Determine severity
-            if n_bidders <= 1:
+            value_str = f"R$ {info['value_brl']:,.2f}" if info["value_brl"] else "N/A"
+
+            # 3. Determinar severidade com contexto de adjudicação
+            if n_bidders == 0 and situacao in _AWARDED_SITUATIONS:
+                severity = SignalSeverity.CRITICAL
+                confidence = 0.95
+                title = "Licitação adjudicada sem participantes"
+                summary = (
+                    f"Licitação {situacao} com {n_bidders} participante(s). "
+                    f"Adjudicação sem licitantes é juridicamente impossível em processo regular "
+                    f"(Lei 14.133/2021 Art. 90). Modalidade: {modality or 'não informada'}. Valor: {value_str}."
+                )
+            elif n_bidders <= 1:
                 severity = SignalSeverity.HIGH
                 confidence = 0.90
+                title = f"Baixa competição — {n_bidders} participante(s)"
+                summary = (
+                    f"Licitação com apenas {n_bidders} participante(s), "
+                    f"abaixo do p10 do baseline ({p10:.1f}). "
+                    f"Situação: {situacao or 'não informada'}. "
+                    f"Modalidade: {modality or 'não informada'}. Valor: {value_str}."
+                )
             else:
                 severity = SignalSeverity.MEDIUM
                 confidence = min(0.85, 0.5 + (p10 - n_bidders) / p10 * 0.4)
-
-            value_str = f"R$ {info['value_brl']:,.2f}" if info["value_brl"] else "N/A"
+                title = f"Baixa competição — {n_bidders} participante(s)"
+                summary = (
+                    f"Licitação com {n_bidders} participante(s), "
+                    f"abaixo do p10 do baseline ({p10:.1f}). "
+                    f"Modalidade: {modality or 'não informada'}. Valor: {value_str}."
+                )
 
             signal = RiskSignalOut(
                 id=uuid.uuid4(),
@@ -132,16 +183,13 @@ class T02LowCompetitionTypology(BaseTypology):
                 typology_name=self.name,
                 severity=severity,
                 confidence=confidence,
-                title=f"Baixa competição — {n_bidders} participante(s)",
-                summary=(
-                    f"Licitação com apenas {n_bidders} participante(s), "
-                    f"abaixo do p10 do baseline ({p10:.1f}). "
-                    f"Modalidade: {info['modality']}. Valor: {value_str}."
-                ),
+                title=title,
+                summary=summary,
                 factors={
                     "n_bidders": n_bidders,
                     "baseline_p10": round(p10, 2),
-                    "modality": info["modality"],
+                    "modality": modality or "nao_informada",
+                    "situacao": situacao or "nao_informada",
                     "value_brl": info["value_brl"],
                 },
                 evidence_refs=[

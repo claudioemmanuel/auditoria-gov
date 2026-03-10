@@ -42,3 +42,7 @@ jobs:
           node-version: "20"
       - run: npm ci
       - run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.auditoria.example.com

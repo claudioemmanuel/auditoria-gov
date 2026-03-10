@@ -61,9 +61,34 @@ BEAT_SCHEDULE = {
         "schedule": crontab(minute=30, hour=5),  # Daily at 05:30
         "options": {"queue": "default"},
     },
+    "purge-normalized-raw-source": {
+        "task": "worker.tasks.maintenance_tasks.purge_normalized_raw_source",
+        "schedule": crontab(minute=15, hour="*/2"),  # Every 2 hours at :15
+        "options": {"queue": "vacuum"},
+    },
+    "vacuum-raw-source": {
+        "task": "worker.tasks.maintenance_tasks.vacuum_raw_source",
+        "schedule": crontab(minute=45, hour=5),  # Daily at 05:45 UTC (after purge)
+        "options": {"queue": "vacuum"},
+    },
+    "disk-space-watchdog": {
+        "task": "worker.tasks.maintenance_tasks.disk_space_watchdog",
+        "schedule": crontab(minute="*/5"),  # Every 5 minutes
+        "options": {"queue": "default"},
+    },
     "check-source-compliance-weekly": {
         "task": "worker.tasks.compliance_tasks.check_source_compliance",
         "schedule": crontab(minute=0, hour=6, day_of_week=1),  # Monday 06:00 UTC
         "options": {"queue": "default"},
+    },
+    "normalize-drain-check": {
+        "task": "worker.tasks.maintenance_tasks.trigger_normalize_drain",
+        "schedule": crontab(minute="*/30"),  # Every 30 minutes
+        "options": {"queue": "vacuum"},
+    },
+    "docker-build-prune-weekly": {
+        "task": "worker.tasks.maintenance_tasks.docker_build_prune",
+        "schedule": crontab(minute=30, hour=6, day_of_week=0),  # Sunday 06:30 UTC
+        "options": {"queue": "vacuum"},
     },
 }

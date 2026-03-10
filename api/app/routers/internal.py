@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 from celery import Celery, chain, chord, group
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from shared.ai.classify import classify_text
@@ -24,13 +24,13 @@ celery_app = Celery(broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_R
 
 
 class ExplainRequest(BaseModel):
-    typology_code: str
-    typology_name: str
-    severity: str
+    typology_code: str = Field(..., max_length=10)
+    typology_name: str = Field(..., max_length=200)
+    severity: str = Field(..., max_length=20)
     confidence: float
-    title: str
+    title: str = Field(..., max_length=500)
     factors: dict
-    evidence_refs: list[dict]
+    evidence_refs: list[dict] = Field(..., max_length=100)
 
 
 class ExplainResponse(BaseModel):
@@ -38,8 +38,8 @@ class ExplainResponse(BaseModel):
 
 
 class ClassifyRequest(BaseModel):
-    text: str
-    categories: list[str]
+    text: str = Field(..., max_length=10_000)
+    categories: list[str] = Field(..., max_length=50)
 
 
 class ClassifyResponse(BaseModel):
@@ -558,14 +558,33 @@ async def trigger_build_cases():
 
 
 @router.post("/signals/run/{typology_code}")
-async def trigger_single_signal(typology_code: str):
-    """Trigger a single typology detector."""
+async def trigger_single_signal(typology_code: str, force_refresh: bool = False):
+    """Trigger a single typology detector. Use ?force_refresh=true to update existing signals."""
     result = celery_app.send_task(
         "worker.tasks.signal_tasks.run_single_signal",
         args=[typology_code],
+        kwargs={"force_refresh": force_refresh},
         queue="signals",
     )
-    return {"status": "dispatched", "task_id": result.id, "typology": typology_code}
+    return {
+        "status": "dispatched",
+        "task_id": result.id,
+        "typology": typology_code,
+        "force_refresh": force_refresh,
+    }
+
+
+@router.post("/signals/purge-stale-t02")
+async def trigger_purge_stale_t02():
+    """Delete T02 signals linked to dispensa or void situations (false positives).
+
+    Run once after deploying the T02 refinement before re-running T02.
+    """
+    result = celery_app.send_task(
+        "worker.tasks.maintenance_tasks.purge_stale_t02_signals",
+        queue="default",
+    )
+    return {"status": "dispatched", "task_id": result.id}
 
 
 @router.post("/signals/replay/{signal_id}")
@@ -800,6 +819,161 @@ async def dispatch_next_pending():
             "task_id": result.id,
         },
         "slots_remaining": MAX_CONCURRENT - running_count - 1,
+    }
+
+
+@router.get("/celery/workers")
+async def celery_workers():
+    """Active Celery workers and their task stats (replaces Flower)."""
+    try:
+        inspect = celery_app.control.inspect(timeout=3)
+        active = inspect.active() or {}
+        stats = inspect.stats() or {}
+        registered = inspect.registered() or {}
+        return {
+            "workers": list(active.keys()),
+            "active_tasks": {w: len(tasks) for w, tasks in active.items()},
+            "stats": {
+                w: {
+                    "total_tasks": s.get("total", {}),
+                    "pool": s.get("pool", {}).get("implementation", "unknown"),
+                    "concurrency": s.get("pool", {}).get("max-concurrency", 0),
+                }
+                for w, s in stats.items()
+            },
+            "registered_task_count": {w: len(tasks) for w, tasks in registered.items()},
+        }
+    except Exception as exc:
+        return {"error": str(exc), "workers": []}
+
+
+@router.get("/celery/tasks/active")
+async def celery_active_tasks():
+    """Currently executing tasks across all workers."""
+    try:
+        inspect = celery_app.control.inspect(timeout=3)
+        active = inspect.active() or {}
+        return {
+            worker: [
+                {"id": t.get("id"), "name": t.get("name"), "args": t.get("args", [])}
+                for t in tasks
+            ]
+            for worker, tasks in active.items()
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+@router.get("/celery/queues")
+async def celery_queue_depths():
+    """Redis queue depths for all Celery queues."""
+    import redis as redis_lib
+
+    try:
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        queues = ["ingest", "normalize", "er", "signals", "default", "ai", "bulk", "vacuum"]
+        return {q: r.llen(q) or 0 for q in queues}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+@router.get("/pipeline/metrics")
+async def get_pipeline_metrics():
+    """Real-time pipeline observability metrics.
+
+    Returns ingest/normalize throughput rates, raw_source backlog size,
+    Celery queue depths, and disk usage — all in one call for dashboards
+    and automated alerting.
+    """
+    import shutil
+    import redis as redis_lib
+    from datetime import timedelta
+    from sqlalchemy import text
+
+    with SyncSession() as session:
+        # Backlog: unnormalized rows pending processing
+        raw_backlog = session.execute(
+            text("SELECT COUNT(*) FROM raw_source WHERE normalized = false")
+        ).scalar() or 0
+
+        normalized_count = session.execute(
+            text("SELECT COUNT(*) FROM raw_source WHERE normalized = true")
+        ).scalar() or 0
+
+        # Ingest rate: rows created in last 60 minutes
+        ingest_rate_1h = session.execute(
+            text(
+                "SELECT COUNT(*) FROM raw_source "
+                "WHERE created_at >= now() - interval '1 hour'"
+            )
+        ).scalar() or 0
+
+        # Normalize rate: runs finished in last 60 minutes
+        normalize_rate_1h = session.execute(
+            text(
+                "SELECT COALESCE(SUM(items_normalized), 0) FROM raw_run "
+                "WHERE finished_at >= now() - interval '1 hour' AND status = 'completed'"
+            )
+        ).scalar() or 0
+
+        active_ingest_runs = session.execute(
+            text("SELECT COUNT(*) FROM raw_run WHERE status = 'running'")
+        ).scalar() or 0
+
+    # Celery queue depths via Redis LLEN
+    queue_lengths: dict[str, int] = {}
+    throttled = False
+    try:
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        for q in ["ingest", "normalize", "vacuum", "er", "signals", "default", "ai", "bulk"]:
+            queue_lengths[q] = r.llen(q) or 0
+        throttled = bool(r.get("disk:throttle"))
+    except Exception:
+        pass
+
+    # Disk
+    stat = shutil.disk_usage("/")
+    pct_used = (stat.used / stat.total) * 100
+
+    # Admission gate status
+    gate_blocked = raw_backlog > 1_000_000 or (stat.free / 1e9) < 5.0
+
+    return {
+        "raw_backlog": raw_backlog,
+        "normalized_count": normalized_count,
+        "ingest_rate_1h": ingest_rate_1h,
+        "normalize_rate_1h": normalize_rate_1h,
+        "active_ingest_runs": active_ingest_runs,
+        "celery_queue_lengths": queue_lengths,
+        "disk": {
+            "free_gb": round(stat.free / 1e9, 2),
+            "used_gb": round(stat.used / 1e9, 2),
+            "pct_used": round(pct_used, 1),
+        },
+        "gate_blocked": gate_blocked,
+        "throttled": throttled,
+    }
+
+
+@router.get("/disk")
+async def get_disk_status():
+    """Return disk usage for the Docker VM volume and Redis throttle flag."""
+    import shutil
+    import redis as redis_lib
+
+    stat = shutil.disk_usage("/")
+    pct_used = (stat.used / stat.total) * 100
+    try:
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        throttled = bool(r.get("disk:throttle"))
+    except Exception:
+        throttled = False
+    return {
+        "free_gb": round(stat.free / 1e9, 2),
+        "used_gb": round(stat.used / 1e9, 2),
+        "total_gb": round(stat.total / 1e9, 2),
+        "pct_used": round(pct_used, 1),
+        "throttled": throttled,
     }
 
 

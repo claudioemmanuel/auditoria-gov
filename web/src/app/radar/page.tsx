@@ -29,6 +29,7 @@ import {
   ArrowRight,
   ArrowUpDown,
   Calendar,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -315,6 +316,13 @@ function RadarPageInner() {
 
   const [search, setSearch] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const [groupData, setGroupData] = useState<
+    Map<string, { items: RadarV2SignalItem[]; loading: boolean; offset: number; total: number }>
+  >(new Map());
+  const [caseGroupData, setCaseGroupData] = useState<
+    Map<string, { items: RadarV2CaseItem[]; loading: boolean; offset: number; total: number }>
+  >(new Map());
 
   const updateParam = useCallback(
     (updates: Record<string, string>) => {
@@ -430,6 +438,87 @@ function RadarPageInner() {
       .finally(() => setCoverageLoading(false));
   };
 
+  // ── Per-group signal loading ────────────────────────────────────────────────
+  const loadGroup = useCallback(
+    async (code: string, offset = 0) => {
+      setGroupData((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(code);
+        next.set(code, { items: existing?.items ?? [], loading: true, offset, total: existing?.total ?? 0 });
+        return next;
+      });
+      try {
+        const data = await getRadarV2Signals({
+          typology: code,
+          severity: severity || undefined,
+          period_from: periodFrom || undefined,
+          period_to: periodTo || undefined,
+          corruption_type: corruptionType || undefined,
+          sphere: sphere || undefined,
+          offset,
+          limit: PAGE_SIZE,
+          sort,
+        });
+        setGroupData((prev) => {
+          const next = new Map(prev);
+          next.set(code, { items: data.items as RadarV2SignalItem[], loading: false, offset, total: data.total });
+          return next;
+        });
+      } catch {
+        setGroupData((prev) => {
+          const next = new Map(prev);
+          const existing = next.get(code);
+          next.set(code, { items: existing?.items ?? [], loading: false, offset: existing?.offset ?? 0, total: existing?.total ?? 0 });
+          return next;
+        });
+      }
+    },
+    [severity, periodFrom, periodTo, corruptionType, sphere, sort],
+  );
+
+  const loadCaseGroup = useCallback(
+    async (code: string, offset = 0) => {
+      setCaseGroupData((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(code);
+        next.set(code, { items: existing?.items ?? [], loading: true, offset, total: existing?.total ?? 0 });
+        return next;
+      });
+      try {
+        const data = await getRadarV2Cases({
+          typology: code,
+          severity: severity || undefined,
+          period_from: periodFrom || undefined,
+          period_to: periodTo || undefined,
+          corruption_type: corruptionType || undefined,
+          sphere: sphere || undefined,
+          offset,
+          limit: PAGE_SIZE,
+        });
+        setCaseGroupData((prev) => {
+          const next = new Map(prev);
+          next.set(code, { items: data.items as RadarV2CaseItem[], loading: false, offset, total: data.total });
+          return next;
+        });
+      } catch {
+        setCaseGroupData((prev) => {
+          const next = new Map(prev);
+          const existing = next.get(code);
+          next.set(code, { items: existing?.items ?? [], loading: false, offset: existing?.offset ?? 0, total: existing?.total ?? 0 });
+          return next;
+        });
+      }
+    },
+    [severity, periodFrom, periodTo, corruptionType, sphere],
+  );
+
+  // Reset group data when filters or view change
+  useEffect(() => {
+    setGroupData(new Map());
+    setCaseGroupData(new Map());
+    setOpenGroups(new Set());
+  }, [view, typology, severity, periodFrom, periodTo, corruptionType, sphere, sort]);
+
   // ── Derived ────────────────────────────────────────────────────────────────
   const activeFilterCount = useMemo(
     () => [typology, severity, periodFrom, periodTo, corruptionType, sphere].filter(Boolean).length,
@@ -447,6 +536,13 @@ function RadarPageInner() {
     const q = search.toLowerCase();
     return cases.filter((c) => c.title.toLowerCase().includes(q));
   }, [cases, search]);
+
+  const typologyGroups = useMemo(() => {
+    const counts = summary?.typology_counts ?? [];
+    if (!search.trim()) return counts;
+    const q = search.toLowerCase();
+    return counts.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+  }, [summary, search]);
 
   const totalPages  = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offsetParam / PAGE_SIZE) + 1;
@@ -722,20 +818,176 @@ function RadarPageInner() {
               </Button>
             )}
           </div>
+        ) : view === "cases" ? (
+          <div className="space-y-2">
+            {typologyGroups.map((group) => {
+              const isOpen = openGroups.has(group.code);
+              const gd = caseGroupData.get(group.code);
+              return (
+                <div key={group.code} className="rounded-xl border border-border bg-surface-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(group.code)) {
+                          next.delete(group.code);
+                        } else {
+                          next.add(group.code);
+                          if (!caseGroupData.has(group.code)) loadCaseGroup(group.code);
+                        }
+                        return next;
+                      });
+                    }}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 hover:bg-surface-subtle transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="shrink-0 font-mono text-xs font-bold text-accent bg-accent/10 border border-accent/20 rounded px-1.5 py-0.5">
+                        {group.code}
+                      </span>
+                      <span className="text-sm font-semibold text-primary truncate">{group.name}</span>
+                      {gd && (
+                        <span className="shrink-0 rounded-full bg-surface-subtle border border-border px-2 py-0.5 text-[10px] font-mono tabular-nums text-muted">
+                          {formatNumber(gd.total)}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-border">
+                      {gd?.loading ? (
+                        <div className="flex items-center justify-center py-10">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 p-3">
+                            {(gd?.items ?? []).map((item) => (
+                              <CaseCard key={item.id} item={item} onPreview={openCasePreview} />
+                            ))}
+                          </div>
+                          {gd && gd.total > PAGE_SIZE && (
+                            <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
+                              <p className="font-mono text-xs tabular-nums text-muted">
+                                {gd.offset + 1}–{Math.min(gd.offset + PAGE_SIZE, gd.total)} de {formatNumber(gd.total)}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="secondary" size="sm"
+                                  disabled={gd.offset === 0}
+                                  onClick={() => loadCaseGroup(group.code, Math.max(0, gd.offset - PAGE_SIZE))}
+                                >
+                                  <ChevronLeft className="h-3.5 w-3.5" />
+                                  Anterior
+                                </Button>
+                                <Button
+                                  variant="secondary" size="sm"
+                                  disabled={gd.offset + PAGE_SIZE >= gd.total}
+                                  onClick={() => loadCaseGroup(group.code, gd.offset + PAGE_SIZE)}
+                                >
+                                  Próxima
+                                  <ChevronRight className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {view === "signals"
-              ? filteredSignals.map((item) => (
-                  <SignalCard key={item.id} item={item} onPreview={openSignalPreview} />
-                ))
-              : filteredCases.map((item) => (
-                  <CaseCard key={item.id} item={item} onPreview={openCasePreview} />
-                ))}
+          <div className="space-y-2">
+            {typologyGroups.map((group) => {
+              const isOpen = openGroups.has(group.code);
+              const gd = groupData.get(group.code);
+              return (
+                <div key={group.code} className="rounded-xl border border-border bg-surface-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(group.code)) {
+                          next.delete(group.code);
+                        } else {
+                          next.add(group.code);
+                          if (!groupData.has(group.code)) loadGroup(group.code);
+                        }
+                        return next;
+                      });
+                    }}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 hover:bg-surface-subtle transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="shrink-0 font-mono text-xs font-bold text-accent bg-accent/10 border border-accent/20 rounded px-1.5 py-0.5">
+                        {group.code}
+                      </span>
+                      <span className="text-sm font-semibold text-primary truncate">{group.name}</span>
+                      <span className="shrink-0 rounded-full bg-surface-subtle border border-border px-2 py-0.5 text-[10px] font-mono tabular-nums text-muted">
+                        {formatNumber(group.count)}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-border">
+                      {gd?.loading ? (
+                        <div className="flex items-center justify-center py-10">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 p-3">
+                            {(gd?.items ?? []).map((item) => (
+                              <SignalCard key={item.id} item={item} onPreview={openSignalPreview} />
+                            ))}
+                          </div>
+                          {gd && gd.total > PAGE_SIZE && (
+                            <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
+                              <p className="font-mono text-xs tabular-nums text-muted">
+                                {gd.offset + 1}–{Math.min(gd.offset + PAGE_SIZE, gd.total)} de {formatNumber(gd.total)}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="secondary" size="sm"
+                                  disabled={gd.offset === 0}
+                                  onClick={() => loadGroup(group.code, Math.max(0, gd.offset - PAGE_SIZE))}
+                                >
+                                  <ChevronLeft className="h-3.5 w-3.5" />
+                                  Anterior
+                                </Button>
+                                <Button
+                                  variant="secondary" size="sm"
+                                  disabled={gd.offset + PAGE_SIZE >= gd.total}
+                                  onClick={() => loadGroup(group.code, gd.offset + PAGE_SIZE)}
+                                >
+                                  Próxima
+                                  <ChevronRight className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* ── Pagination ──────────────────────────────────────── */}
-        {!loading && !error && total > PAGE_SIZE && (
+        {/* ── Pagination (legacy fallback — both views now paginate per group) */}
+        {false && !loading && !error && total > PAGE_SIZE && (
           <div className="flex items-center justify-between border-t border-border pt-4">
             <p className="font-mono text-xs tabular-nums text-muted">
               {offsetParam + 1}–{Math.min(offsetParam + PAGE_SIZE, total)} de {formatNumber(total)}

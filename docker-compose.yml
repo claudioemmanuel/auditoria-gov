@@ -9,52 +9,63 @@ services:
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
-      -c pg_stat_statements.track=all
-      -c shared_buffers=512MB
-      -c work_mem=6MB
-      -c max_connections=50
-      -c effective_cache_size=1536MB
-      -c maintenance_work_mem=128MB
+      -c pg_stat_statements.track=top
+      -c shared_buffers=384MB
+      -c work_mem=8MB
+      -c max_connections=30
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=256MB
       -c checkpoint_completion_target=0.9
-      -c wal_buffers=64MB
-      -c synchronous_commit=off
-      -c bgwriter_lru_maxpages=200
-      -c bgwriter_delay=50
+      -c checkpoint_timeout=15min
+      -c wal_buffers=16MB
+      -c synchronous_commit=on
+      -c bgwriter_lru_maxpages=100
+      -c bgwriter_delay=100
+      -c max_wal_size=1GB
+      -c min_wal_size=128MB
+      -c pg_stat_statements.max=500
+      -c track_activity_query_size=1024
+      -c log_rotation_age=1d
+      -c log_rotation_size=50MB
+      -c log_min_duration_statement=10000
+      -c log_statement=none
+      -c log_destination=stderr
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 2.5G
+          cpus: "0.5"
+          memory: 1536M
         reservations:
           memory: 512M
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-auditoria}"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 192mb --maxmemory-policy allkeys-lru ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 768M
+          cpus: "0.15"
+          memory: 384M
         reservations:
-          memory: 256M
+          memory: 128M
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
 
@@ -63,7 +74,7 @@ services:
       context: .
       dockerfile: api/Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
       PYTHONPATH: /app
@@ -74,7 +85,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
@@ -84,18 +95,21 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
+          cpus: "0.25"
+          memory: 384M
         reservations:
-          memory: 256M
+          memory: 192M
 
-  # Incremental API ingestion (Portal Transparência, Câmara, Senado, etc.)
-  worker-ingest:
+  # Primary worker: I/O-bound tasks (ingest, normalize, ai, maintenance) + Beat scheduler.
+  # Beat is embedded here (--beat flag) to avoid a separate container.
+  # Only ONE worker-primary should ever run — duplicate beat schedulers cause double-firing.
+  # Concurrency=2: balances throughput vs resource usage on constrained hardware.
+  worker-primary:
     restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q ingest --concurrency=2 --max-memory-per-child=716800 -n worker-ingest@%h
+    command: celery -A worker.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum --concurrency=2 --max-memory-per-child=409600 -n worker-primary@%h
     env_file: .env
     environment:
       PYTHONPATH: /app
@@ -103,8 +117,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    cap_add:
-      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
@@ -113,17 +125,19 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1.5G
+          memory: 1536M
         reservations:
           memory: 512M
 
-  # Normalization processing
-  worker-normalize:
+  # Heavy worker: CPU/IO-bound tasks (ER, signals, bulk ingestion).
+  # Handles long-running resource-intensive work separately so it cannot starve primary queues.
+  # Concurrency=1: these tasks are memory-heavy; serial execution prevents OOM.
+  worker-heavy:
     restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q normalize --concurrency=3 --max-memory-per-child=614400 -n worker-normalize@%h
+    command: celery -A worker.worker_app worker --loglevel=info -Q er,signals,bulk --concurrency=1 --max-memory-per-child=614400 -n worker-heavy@%h
     env_file: .env
     environment:
       PYTHONPATH: /app
@@ -131,36 +145,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    cap_add:
-      - SYS_TIME
-    volumes:
-      - ./shared:/app/shared
-      - ./worker:/app/worker
-      - /etc/localtime:/etc/localtime:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 2G
-        reservations:
-          memory: 512M
-
-  # Bulk dataset ingestion (TSE, Receita — long-running, resource-heavy)
-  worker-bulk:
-    restart: on-failure
-    build:
-      context: .
-      dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q bulk --concurrency=1 --max-memory-per-child=1572864 -n worker-bulk@%h
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-      APP_ENV: production
-    depends_on:
-      api:
-        condition: service_healthy
-    cap_add:
-      - SYS_TIME
     volumes:
       - ./shared:/app/shared
       - ./worker:/app/worker
@@ -170,125 +154,39 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.5"
-          memory: 2G
+          cpus: "0.5"
+          memory: 1024M
         reservations:
-          memory: 1G
+          memory: 384M
 
-  # CPU-bound worker: ER matching, signal detection, baselines, coverage.
-  worker-cpu:
-    restart: on-failure
-    build:
-      context: .
-      dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q er,signals,default,vacuum --concurrency=2 --max-memory-per-child=921600 -n worker-cpu@%h
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-      APP_ENV: production
-    depends_on:
-      api:
-        condition: service_healthy
-    cap_add:
-      - SYS_TIME
-    volumes:
-      - ./shared:/app/shared
-      - ./worker:/app/worker
-      - /etc/localtime:/etc/localtime:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
-          memory: 1G
-
-  # AI worker: LLM calls (low concurrency to respect API rate limits).
-  worker-ai:
-    restart: on-failure
-    build:
-      context: .
-      dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q ai --concurrency=1 --max-memory-per-child=409600 -n worker-ai@%h
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-      APP_ENV: production
-    depends_on:
-      api:
-        condition: service_healthy
-    cap_add:
-      - SYS_TIME
-    volumes:
-      - ./shared:/app/shared
-      - ./worker:/app/worker
-      - /etc/localtime:/etc/localtime:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 512M
-        reservations:
-          memory: 256M
-
-  beat:
-    restart: on-failure
-    build:
-      context: .
-      dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app beat --loglevel=info
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-      APP_ENV: production
-    depends_on:
-      api:
-        condition: service_healthy
-    cap_add:
-      - SYS_TIME
-    volumes:
-      - ./shared:/app/shared
-      - ./worker:/app/worker
-      - /etc/localtime:/etc/localtime:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 256M
-        reservations:
-          memory: 128M
-
-  # Celery monitoring dashboard: queue backlog, task latency, worker status.
-  flower:
-    build:
-      context: .
-      dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app flower --port=5555
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
     ports:
-      - "5555:5555"
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-    depends_on:
-      redis:
-        condition: service_healthy
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
     volumes:
-      - ./shared:/app/shared
-      - ./worker:/app/worker
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 256M
+          cpus: "0.1"
+          memory: 64M
         reservations:
-          memory: 128M
+          memory: 32M
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file: .env
     depends_on:
       - api
@@ -299,12 +197,14 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: 1G
+          memory: 512M
         reservations:
-          memory: 256M
+          memory: 192M
 
 volumes:
   pgdata:
   redis_data:
   tse_data:
   receita_data:
+  caddy_data:
+  caddy_config:

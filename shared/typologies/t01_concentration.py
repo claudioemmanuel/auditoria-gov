@@ -84,11 +84,17 @@ class T01ConcentrationTypology(BaseTypology):
         procurer_result = await session.execute(procurer_stmt)
         procurers = procurer_result.scalars().all()
 
+        # Licitações sem adjudicação não têm vencedor real e distorcem o HHI
+        _VOID = frozenset({"deserta", "fracassada", "revogada", "anulada", "cancelada"})
+
         # Map event -> info; skip events with sentinel/null CATMAT (same guard as baselines)
+        # and skip void situations (no award → no real winner)
         event_info: dict[str, dict] = {}
         for e in events:
             catmat_raw = e.attrs.get("catmat_group", "") or ""
             if str(catmat_raw).strip().lower() in _CATMAT_MISSING:
+                continue
+            if e.attrs.get("situacao", "").lower().strip() in _VOID:
                 continue
             event_info[str(e.id)] = {
                 "catmat_group": catmat_raw,

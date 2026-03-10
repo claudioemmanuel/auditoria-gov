@@ -90,6 +90,16 @@ class T07CartelNetworkTypology(BaseTypology):
             elif p.role in ("procuring_entity", "buyer"):
                 event_buyers[eid] = entity_id
 
+        # Eventos void (desertos/cancelados) não têm participantes reais e distorcem o grafo
+        _VOID = frozenset({"deserta", "fracassada", "revogada", "anulada", "cancelada"})
+        events = [
+            e for e in events
+            if e.attrs.get("situacao", "").lower().strip() not in _VOID
+        ]
+
+        if len(events) < 3:
+            return []
+
         # Group events by (buyer, catmat_group); skip sentinel CATMAT to avoid
         # lumping all unclassified events into a single spurious cartel group.
         groups: dict[tuple, list[str]] = defaultdict(list)

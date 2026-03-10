@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
-  Building2, User, Landmark, GitBranch, AlertTriangle, Users, Radar,
+  Building2, User, Landmark, GitBranch, AlertTriangle, Users, Radar, Activity,
 } from "lucide-react";
 import { getEntity, getGraphNeighborhood } from "@/lib/api";
-import { GraphView } from "@/components/GraphView";
+import { EntityNetworkGraph } from "@/components/EntityNetworkGraph";
 import { EmptyState } from "@/components/EmptyState";
 import { DetailPageLayout } from "@/components/DetailPageLayout";
 import { DetailHeader } from "@/components/DetailHeader";
@@ -74,9 +74,10 @@ export default async function EntityDetailPage({
   let entity: Awaited<ReturnType<typeof getEntity>>;
   try {
     entity = await getEntity(id);
-  } catch {
-    notFound();
-    return null as never;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("404")) notFound();
+    throw err;
   }
 
   let neighborhood;
@@ -150,6 +151,43 @@ export default async function EntityDetailPage({
         )}
       </div>
 
+      {/* Health status card */}
+      {(() => {
+        const eventCount = neighborhood?.diagnostics?.entity_event_count ?? 0;
+        const cpCount = coParticipants.length;
+        let statusLabel: string;
+        let statusClass: string;
+        if (eventCount === 0) {
+          statusLabel = "Sem dados";
+          statusClass = "bg-gray-500/10 text-gray-400 border-gray-500/20";
+        } else if (cpCount === 0) {
+          statusLabel = "Baixo risco";
+          statusClass = "bg-green-500/10 text-green-400 border-green-500/20";
+        } else if (cpCount <= 5) {
+          statusLabel = "Conectividade moderada";
+          statusClass = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+        } else {
+          statusLabel = "Alta conectividade";
+          statusClass = "bg-red-500/10 text-red-400 border-red-500/20";
+        }
+        return (
+          <div className="rounded-lg border border-border bg-surface-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-muted" />
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
+                Saúde da Entidade
+              </p>
+            </div>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusClass}`}>
+              {statusLabel}
+            </span>
+            <p className="text-xs text-secondary">
+              {eventCount} evento{eventCount !== 1 ? "s" : ""} · {cpCount} conexõe{cpCount !== 1 ? "s" : ""}
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Radar link */}
       <div className="rounded-lg border border-border bg-surface-card p-4">
         <Link
@@ -194,9 +232,8 @@ export default async function EntityDetailPage({
           <GitBranch className="h-4 w-4 text-accent" />
           Rede de Relacionamentos
         </h2>
-        <GraphView
+        <EntityNetworkGraph
           entityId={entity.id}
-          height={400}
           className="border border-border rounded-lg overflow-hidden"
         />
       </section>

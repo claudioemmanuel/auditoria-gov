@@ -1,0 +1,28 @@
+# AuditorIA Gov — Caddy reverse proxy
+# Handles TLS termination via Let's Encrypt for API.
+# Flower removed — monitoring is now via /internal/celery/* API endpoints.
+# Web frontend is served by Vercel (not proxied here).
+#
+# Replace the domain names below with your actual domains before deploying.
+# Caddy auto-provisions TLS certificates for any site block with a domain name.
+
+# API — public + internal endpoints
+{$API_DOMAIN:api.auditoria.example.com} {
+    reverse_proxy localhost:8000
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/api.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+# Flower removed — use GET /internal/celery/workers, /internal/celery/queues,
+# /internal/celery/tasks/active via the API instead.

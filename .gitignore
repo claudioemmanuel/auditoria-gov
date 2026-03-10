@@ -41,6 +41,7 @@ web/.omc/
 .env
 .env.local
 .env.*.local
+.env.production
 # Keep .env.example tracked
 !.env.example
 
@@ -75,6 +76,10 @@ Desktop.ini
 *.p12
 *.pfx
 secrets/
+
+# ── Claude Code (local overrides, never commit) ───────────────────────
+CLAUDE.local.md
+.claude/settings.local.json
 
 # ── Alembic ──────────────────────────────────────────────────────────
 api/alembic/versions/__pycache__/

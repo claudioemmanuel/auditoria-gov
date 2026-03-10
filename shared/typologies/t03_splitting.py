@@ -129,6 +129,16 @@ class T03SplittingTypology(BaseTypology):
         if not dispensas:
             return []
 
+        # Dispensas canceladas/anuladas não representam gasto real — excluir
+        _VOID = frozenset({"deserta", "fracassada", "revogada", "anulada", "cancelada"})
+        dispensas = [
+            e for e in dispensas
+            if e.attrs.get("situacao", "").lower().strip() not in _VOID
+        ]
+
+        if not dispensas:
+            return []
+
         # Get procuring entities
         event_ids = [e.id for e in dispensas]
         buyer_stmt = select(EventParticipant).where(

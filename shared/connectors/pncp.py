@@ -257,12 +257,29 @@ class PNCPConnector(BaseConnector):
 
         for item in raw_items:
             d = item.data
+            # /contratacoes/publicacao nests orgao under "orgaoEntidade";
+            # other endpoints use flat "cnpjOrgao"/"nomeOrgao".
+            _orgao_ent = d.get("orgaoEntidade") or {}
+            _unidade = d.get("unidadeOrgao") or {}
+            _orgao_cnpj = (
+                d.get("cnpjOrgao")
+                or _orgao_ent.get("cnpj")
+                or d.get("cnpj")
+                or ""
+            )
+            _orgao_name = (
+                d.get("nomeOrgao")
+                or _orgao_ent.get("razaoSocial")
+                or _unidade.get("nomeUnidade")
+                or d.get("razaoSocial")
+                or ""
+            )
             orgao = CanonicalEntity(
                 source_connector="pncp",
-                source_id=d.get("cnpjOrgao", d.get("cnpj", item.raw_id)),
+                source_id=_orgao_cnpj or item.raw_id,
                 type="org",
-                name=d.get("nomeOrgao", d.get("razaoSocial", "")),
-                identifiers={"cnpj": d.get("cnpjOrgao", d.get("cnpj", ""))},
+                name=_orgao_name,
+                identifiers={"cnpj": _orgao_cnpj},
             )
             entities.append(orgao)
 

@@ -46,6 +46,8 @@ interface InvestigationCanvasProps {
   onExpandSelected: () => void;
   /** Optional ref that will be populated with the fitView function once the canvas mounts */
   fitViewRef?: React.MutableRefObject<(() => void) | null>;
+  /** Called once ELK layout finishes and nodes are positioned */
+  onLayoutDone?: () => void;
 }
 
 const DEFAULT_EDGE_OPTIONS = { type: "relation" as const };
@@ -68,6 +70,7 @@ function InvestigationCanvasInner({
   onClearSelected,
   onExpandSelected,
   fitViewRef,
+  onLayoutDone,
 }: InvestigationCanvasProps) {
   const { computeLayout } = useElkLayout();
   const { fitView } = useReactFlow();
@@ -163,8 +166,9 @@ function InvestigationCanvasInner({
       setNodes(ln);
       setEdges(le);
       setLayoutReady(true);
+      onLayoutDone?.();
     });
-  }, [rfNodes, rfEdges, computeLayout, setNodes, setEdges]);
+  }, [rfNodes, rfEdges, computeLayout, setNodes, setEdges, onLayoutDone]);
 
   // Selection: update selected flag without replacing objects / triggering fitView
   useEffect(() => {

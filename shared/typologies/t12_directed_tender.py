@@ -86,13 +86,17 @@ class T12DirectedTenderTypology(BaseTypology):
         result = await session.execute(stmt)
         events = result.scalars().all()
 
-        # Filter to competitive modalities only
+        # Licitações sem adjudicação não têm vencedor real — excluir antes da análise
+        _VOID = frozenset({"deserta", "fracassada", "revogada", "anulada", "cancelada"})
+
+        # Filter to competitive modalities only, excluding void situations
         competitive = [
             e for e in events
             if e.attrs.get("modality", "").lower() not in (
                 "inexigibilidade", "dispensa", "dispensa_licitacao",
                 "dispensa_valor", "dispensa de licitacao",
             )
+            and e.attrs.get("situacao", "").lower().strip() not in _VOID
         ]
 
         if not competitive:

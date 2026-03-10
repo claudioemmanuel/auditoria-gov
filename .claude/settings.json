@@ -1,0 +1,4 @@
+{
+  "rules": ["rules/coding.md", "rules/testing.md"],
+  "outputStyle": "output-styles/architect.md"
+}

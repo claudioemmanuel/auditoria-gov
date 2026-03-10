@@ -65,4 +65,4 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
     def _build_key(self, request: Request) -> str:
         url = str(request.url)
-        return f"cache:{hashlib.md5(url.encode()).hexdigest()}"
+        return f"cache:{hashlib.sha256(url.encode()).hexdigest()}"

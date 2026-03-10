@@ -81,8 +81,8 @@ class ContestationCreate(BaseModel):
     signal_id: Optional[uuid.UUID] = None
     requester_name: str = Field(min_length=2, max_length=255)
     requester_email: Optional[str] = Field(default=None, max_length=255)
-    reason: str = Field(min_length=8)
-    details: dict = Field(default_factory=dict)
+    reason: str = Field(min_length=8, max_length=5000)
+    details: dict = Field(default_factory=dict, max_length=50)
 
 
 class ContestationOut(BaseModel):

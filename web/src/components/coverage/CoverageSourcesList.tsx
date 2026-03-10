@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CoverageStatus, CoverageV2SourceItem, CoverageV2SourcePreviewResponse } from "@/lib/types";
 import { getCoverageV2SourcePreview } from "@/lib/api";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -82,7 +82,7 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useState(() => {
+  useEffect(() => {
     getCoverageV2SourcePreview(connector, { runs_limit: 3 })
       .then((payload) => {
         setData(payload);
@@ -93,7 +93,7 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
       .finally(() => {
         setLoading(false);
       });
-  });
+  }, [connector]);
 
   if (loading) {
     return (
@@ -120,7 +120,7 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
           <span
             className={cn(
               "font-medium",
-              run.status === "success"
+              run.status === "completed"
                 ? "text-success"
                 : run.status === "error" || run.is_stuck
                   ? "text-error"

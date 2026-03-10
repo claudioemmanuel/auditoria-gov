@@ -177,7 +177,7 @@ export function useCaseGraph(caseId: string, focusSignalId?: string) {
     graphData,
     degreeMap,
     entitySeverityMap,
-    signals: (raw?.signals ?? []) as CaseSignalBrief[],
+    signals: Array.from(new Map((raw?.signals ?? []).map((s) => [s.id, s])).values()) as CaseSignalBrief[],
     seedEntityIds,
     loading,
     error,

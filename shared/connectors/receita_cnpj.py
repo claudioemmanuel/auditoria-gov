@@ -34,6 +34,17 @@ from shared.models.raw import RawItem
 _DATA_DIR = os.environ.get("RECEITA_CNPJ_DATA_DIR", "/data/receita_cnpj")
 _RFB_BASE_URL = "https://dados.rfb.gov.br/CNPJ/"
 
+
+def _safe_extractall(zip_path: str, dest_dir: str) -> None:
+    """Extract ZIP with path traversal (Zip Slip) protection."""
+    dest = os.path.realpath(dest_dir)
+    with zipfile.ZipFile(zip_path, "r") as z:
+        for member in z.namelist():
+            member_path = os.path.realpath(os.path.join(dest, member))
+            if not member_path.startswith(dest + os.sep) and member_path != dest:
+                raise ValueError(f"Zip Slip blocked: {member}")
+        z.extractall(dest_dir)
+
 # ZIP files to download from Receita Federal
 _RFB_ZIP_FILES: dict[str, list[str]] = {
     "Empresas": [f"Empresas{i}.zip" for i in range(10)],
@@ -85,8 +96,7 @@ async def _ensure_rfb_files(data_dir: str) -> None:
 
             # Extract ZIP then delete it — each ZIP is ~600 MB and the CSV is all we need.
             try:
-                with zipfile.ZipFile(zip_path, "r") as z:
-                    z.extractall(data_dir)
+                _safe_extractall(zip_path, data_dir)
                 log.info("receita_cnpj.extracted", file=zip_name)
                 try:
                     os.remove(zip_path)
@@ -424,3 +434,18 @@ class ReceitaCNPJConnector(BaseConnector):
             )
 
         return NormalizeResult(entities=entities)
+
+    def cleanup_bulk_files(self, job: "JobSpec", raw_run: object) -> int:  # type: ignore[override]
+        """Delete all Receita Federal ZIP/CSV files once a run completes successfully."""
+        import glob as _glob
+
+        deleted = 0
+        for f in _glob.glob(os.path.join(_DATA_DIR, "*")):
+            if os.path.isfile(f):
+                try:
+                    os.remove(f)
+                    log.info("receita_cnpj.cleanup_on_complete", file=os.path.basename(f))
+                    deleted += 1
+                except OSError:
+                    pass
+        return deleted

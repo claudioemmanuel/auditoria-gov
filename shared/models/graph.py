@@ -195,6 +195,7 @@ class SignalTimelineEventOut(BaseModel):
     source_id: str
     participants: list[SignalTimelineParticipantOut] = Field(default_factory=list)
     evidence_reason: str
+    attrs: dict = Field(default_factory=dict)
 
 
 class SignalInvolvedEntityRoleOut(BaseModel):

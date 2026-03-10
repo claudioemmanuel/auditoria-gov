@@ -94,7 +94,7 @@ def _cold_start_bootstrap(sender, **kwargs):
     def _on_worker_ready(sender, **kw):
         # Only fire from the ingest worker to avoid N parallel bootstraps.
         hostname: str = getattr(sender, "hostname", "") or ""
-        if "worker-ingest" not in hostname:
+        if "worker-ingest" not in hostname and "worker-primary" not in hostname:
             return
 
         try:

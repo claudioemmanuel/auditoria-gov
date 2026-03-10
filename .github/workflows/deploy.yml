@@ -1,0 +1,68 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Prevent concurrent deploys
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # Frontend → Vercel (free tier)
+  deploy-web:
+    name: Deploy Web → Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel (production)
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # Backend → OCI Always Free ARM VM
+  deploy-backend:
+    name: Deploy Backend → OCI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to OCI via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            set -e
+            cd /opt/auditoria-gov
+
+            echo "==> Pulling latest code"
+            git pull origin main
+
+            echo "==> Building and starting services (production mode)"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            echo "==> Running database migrations"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              run --rm api alembic -c api/alembic.ini upgrade head
+
+            echo "==> Health check"
+            sleep 10
+            curl -sf http://localhost:8000/health || (echo "API health check failed" && exit 1)
+
+            echo "==> Service status"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+            echo "==> Deploy complete"

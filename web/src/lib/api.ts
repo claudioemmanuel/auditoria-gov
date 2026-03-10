@@ -27,7 +27,12 @@ import type {
   SignalProvenanceResponse,
 } from "./types";
 
-const API_BASE = "/api";
+// Client: relative URL goes through Next.js proxy rewrite (/api/* → backend)
+// Server: must use absolute URL — Next.js 15 does not resolve relative URLs in server components
+const API_BASE =
+  typeof window === "undefined"
+    ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://api:8000"}`
+    : "/api";
 
 async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);

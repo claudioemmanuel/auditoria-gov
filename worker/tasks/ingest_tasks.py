@@ -31,6 +31,10 @@ def _is_retryable(exc: Exception) -> bool:
     # Timeouts and connection errors are always retryable.
     if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError, ConnectionError, OSError)):
         return True
+    # RemoteProtocolError: server dropped connection mid-stream (e.g. TSE CDN cutting large downloads).
+    # Retrying restarts the download from scratch, which is correct for idempotent bulk connectors.
+    if isinstance(exc, httpx.RemoteProtocolError):
+        return True
     return False
 
 
@@ -81,6 +85,42 @@ def _count_recent_yields(session, connector_name: str, job_name: str) -> int:
         else:
             break
     return count
+
+
+def _check_ingest_allowed(session) -> tuple[bool, str]:
+    """Return (allowed, reason). Block ingest if disk is low or normalize backlog is too large.
+
+    Hard gates (any one fails → skip ingest):
+    - Disk free < 5 GB → refuse immediately (prevents PostgreSQL panic).
+    - Unnormalized raw_source rows > 1 M → normalize must drain before more data arrives.
+    - Celery 'normalize' queue depth > 500 K → workers are already saturated.
+    """
+    import shutil
+    from sqlalchemy import text
+
+    stat = shutil.disk_usage("/")
+    free_gb = stat.free / 1e9
+    if free_gb < 5.0:
+        return False, f"disk_full: only {free_gb:.1f}GB free (need ≥5GB)"
+
+    backlog = session.execute(
+        text("SELECT COUNT(*) FROM raw_source WHERE normalized = false")
+    ).scalar()
+    if backlog > 1_000_000:
+        return False, f"backlog_overloaded: {backlog} unnormalized rows pending (max 1M)"
+
+    # Check Celery queue depth — avoid adding work when workers are already saturated
+    try:
+        import redis as redis_lib
+        from shared.config import settings as _settings
+        r = redis_lib.from_url(_settings.REDIS_URL, socket_connect_timeout=2)
+        normalize_queue_depth = r.llen("normalize") or 0
+        if normalize_queue_depth > 500_000:
+            return False, f"queue_saturated: normalize queue has {normalize_queue_depth} pending tasks"
+    except Exception:
+        pass  # Redis unavailable — fail open
+
+    return True, "ok"
 
 
 def _finalize_stale_running_runs(session, connector_name: str, job_name: str) -> int:
@@ -160,6 +200,17 @@ def ingest_connector(
 
     with SyncSession() as session:
         _finalize_stale_running_runs(session, connector_name, job_name)
+
+        # Hard gate: refuse to start if disk or normalize backlog is overloaded
+        allowed, reason = _check_ingest_allowed(session)
+        if not allowed:
+            log.warning(
+                "ingest_connector.skipped",
+                connector=connector_name,
+                job=job_name,
+                reason=reason,
+            )
+            return {"connector": connector_name, "job": job_name, "status": "skipped", "reason": reason}
 
         # Load or create IngestState
         stmt = select(IngestState).where(
@@ -371,6 +422,17 @@ def ingest_connector(
                 run_id=str(raw_run.id),
             )
 
+            # Post-run bulk file cleanup (TSE, Receita, etc.)
+            if hasattr(connector, "cleanup_bulk_files"):
+                try:
+                    connector.cleanup_bulk_files(job, raw_run)
+                except Exception as _cleanup_exc:
+                    log.warning(
+                        "ingest.cleanup_bulk_files.failed",
+                        connector=connector_name,
+                        error=str(_cleanup_exc),
+                    )
+
             # Dispatch normalization if we got data
             if total_items > 0:
                 from worker.tasks.normalize_tasks import normalize_run
@@ -515,8 +577,35 @@ def ingest_all_incremental():
 
 @shared_task(name="worker.tasks.ingest_tasks.ingest_all_bulk")
 def ingest_all_bulk():
-    """Trigger ingestion for all enabled BULK (non-incremental) connector jobs."""
+    """Trigger ingestion for all enabled BULK (non-incremental) connector jobs.
+
+    Skips dispatch when the disk:throttle Redis flag is set (disk >= 90% full).
+    """
+    import shutil
+
     from shared.connectors import ConnectorRegistry
+
+    # Pre-flight disk check: refuse to start bulk jobs if disk is near capacity.
+    stat = shutil.disk_usage("/")
+    pct_used = (stat.used / stat.total) * 100
+    if pct_used >= 90:
+        log.warning(
+            "ingest_all_bulk.throttled_disk",
+            pct_used=round(pct_used, 1),
+            free_gb=round(stat.free / 1e9, 2),
+        )
+        return {"status": "throttled", "reason": "disk_space", "pct_used": round(pct_used, 1)}
+
+    # Also check Redis flag set by disk_space_watchdog.
+    try:
+        import redis as redis_lib
+        from shared.config import settings
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=5)
+        if r.get("disk:throttle"):
+            log.warning("ingest_all_bulk.throttled_disk_flag")
+            return {"status": "throttled", "reason": "disk_throttle_flag"}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ingest_all_bulk.redis_check_failed", error=str(exc))
 
     log.info("ingest_all_bulk.start")
     dispatched = 0

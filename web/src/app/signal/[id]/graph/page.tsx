@@ -22,6 +22,11 @@ import {
   Users,
   FileText,
   Waypoints,
+  MapPin,
+  Tag,
+  DollarSign,
+  Info,
+  ExternalLink,
 } from "lucide-react";
 
 function entityTypeLabel(nodeType: string): string {
@@ -29,6 +34,62 @@ function entityTypeLabel(nodeType: string): string {
   if (nodeType === "company") return "Empresa";
   if (nodeType === "person") return "Pessoa";
   return nodeType;
+}
+
+function entityDisplayName(name: string, entityId: string, nodeType: string): string {
+  if (name && name.trim()) return name;
+  return `${entityTypeLabel(nodeType)} (${entityId.slice(0, 8)}...)`;
+}
+
+function attrLabel(key: string): string {
+  const labels: Record<string, string> = {
+    modalidade: "Modalidade",
+    modality: "Modalidade",
+    situacao: "Situação",
+    uf: "UF",
+    catmat_group: "CATMAT",
+  };
+  return labels[key] ?? key;
+}
+
+function attrValue(val: unknown): string {
+  if (!val || val === "" || val === "nao_informado" || val === "sem classificacao") return "—";
+  return String(val);
+}
+
+function cleanSourceId(sourceId: string): string {
+  // Strip internal pagination cursors like "pncp_contracting_notices:w28p7:99"
+  // Show only meaningful identifiers
+  const parts = sourceId.split(":");
+  if (parts.length >= 2 && /^w\d+p\d+$/.test(parts[1] ?? "")) {
+    // Format: connector:w{n}p{m}:{idx} → just show connector
+    return parts[0] ?? sourceId;
+  }
+  return sourceId;
+}
+
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+function cleanUuidsInText(text: string): string {
+  // Replace bare UUIDs with shortened form only if surrounded by punctuation/spaces (not in proper nouns)
+  return text.replace(UUID_PATTERN, (match) => `[${match.slice(0, 8)}…]`);
+}
+
+function cleanDescription(description: string, sourceConnector: string): string {
+  // If description is just "Evento {uuid}", show a semantic fallback
+  if (/^Evento\s+[0-9a-f-]{36}$/i.test(description.trim())) {
+    const labels: Record<string, string> = {
+      pncp: "Contratação pública (PNCP)",
+      compras_gov: "Licitação (ComprasGov)",
+      comprasnet_contratos: "Contrato (Comprasnet)",
+      transferegov: "Transferência federal",
+      portal_transparencia: "Dado do Portal da Transparência",
+      tse: "Dado eleitoral (TSE)",
+      camara: "Despesa parlamentar (Câmara)",
+    };
+    return labels[sourceConnector] ?? "Evento público registrado";
+  }
+  return description;
 }
 
 export default function SignalGraphPage() {
@@ -230,37 +291,81 @@ export default function SignalGraphPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-lg border border-accent/20 bg-accent-subtle p-4">
+      {/* Summary cards */}
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-accent/20 bg-accent-subtle p-4 sm:col-span-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">Padrão detectado</p>
-          <p className="mt-1 text-sm text-primary">{data.pattern_story.pattern_label}</p>
-          <p className="mt-2 text-xs text-accent-hover">{data.pattern_story.why_flagged}</p>
+          <p className="mt-1 text-sm font-medium text-primary">{data.pattern_story.pattern_label}</p>
+          <p className="mt-2 text-xs text-accent-hover leading-relaxed">{cleanUuidsInText(data.pattern_story.why_flagged)}</p>
         </div>
+
+        {/* Value */}
         <div className="rounded-lg border border-border bg-surface-card p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Começou em</p>
-          <p className="mt-1 text-sm font-medium text-primary">
-            {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data não informada"}
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">
+            <DollarSign className="h-3.5 w-3.5" />
+            Valor estimado
           </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {data.pattern_story.started_from_entities.map((entity) => (
-              <span key={entity.entity_id} className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs text-secondary">
-                {entity.name}
-              </span>
-            ))}
+          {data.timeline[0]?.value_brl != null ? (
+            <p className="mt-1 text-lg font-bold text-primary tabular-nums">
+              {formatBRL(data.timeline[0].value_brl)}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-muted">Não informado</p>
+          )}
+          <p className="mt-1 text-xs text-muted">
+            {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data desconhecida"}
+          </p>
+        </div>
+
+        {/* Event attrs */}
+        <div className="rounded-lg border border-border bg-surface-card p-4">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">
+            <Info className="h-3.5 w-3.5" />
+            Atributos
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {(["modalidade", "uf", "situacao", "catmat_group"] as const).map((key) => {
+              const val = attrValue(data.timeline[0]?.attrs?.[key]);
+              return (
+                <div key={key} className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] uppercase tracking-wide text-muted">{attrLabel(key)}</span>
+                  <span className="text-xs font-medium text-secondary truncate max-w-[100px]">{val}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-surface-card p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Fluxo observado</p>
-          <p className="mt-1 text-sm font-medium text-primary">
-            {data.pattern_story.ended_at ? formatDate(data.pattern_story.ended_at) : "Data não informada"}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {data.pattern_story.flow_targets.map((entity) => (
-              <span key={entity.entity_id} className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs text-secondary">
-                {entity.name}
-              </span>
+      </div>
+
+      {/* Entities involved */}
+      <div className="mt-3 rounded-lg border border-border bg-surface-card px-4 py-3">
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-secondary">
+          <Users className="h-3.5 w-3.5" />
+          Entidades envolvidas ({data.overview.nodes.length + (data.overview.expanded_nodes?.length ?? 0)})
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {data.pattern_story.started_from_entities.map((entity) => (
+            <Link
+              key={entity.entity_id}
+              href={`/entity/${entity.entity_id}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent-subtle px-3 py-1 text-xs font-medium text-accent hover:opacity-80 transition"
+            >
+              {entityDisplayName(entity.name, entity.entity_id, entity.node_type)}
+              <ExternalLink className="h-3 w-3 opacity-60" />
+            </Link>
+          ))}
+          {data.overview.nodes
+            .filter((n) => !data.pattern_story.started_from_entities.some((e) => e.entity_id === n.entity_id))
+            .map((node) => (
+              <Link
+                key={node.entity_id}
+                href={`/entity/${node.entity_id}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs text-secondary hover:bg-surface-hover transition"
+              >
+                {entityDisplayName(node.label, node.entity_id, node.node_type)}
+                <ExternalLink className="h-3 w-3 opacity-40" />
+              </Link>
             ))}
-          </div>
         </div>
       </div>
 
@@ -315,12 +420,32 @@ export default function SignalGraphPage() {
               />
             </div>
           ) : (
-            <div className="rounded-lg border border-amber/20 bg-amber-subtle p-4">
-              <p className="text-sm font-medium text-amber">Teia insuficiente para desenhar conexões</p>
-              <p className="mt-1 text-xs text-amber/80">
-                Motivo: {data.diagnostics.fallback_reason || "sem detalhes"}.
-                Eventos carregados: {data.diagnostics.events_loaded}/{data.diagnostics.events_total}.
+            <div className="space-y-2 rounded-lg border border-amber/20 bg-amber-subtle p-4">
+              <p className="text-sm font-medium text-amber">Teia insuficiente para visualização em grafo</p>
+              <p className="text-xs text-amber/80">
+                {data.diagnostics.fallback_reason === "insufficient_entities"
+                  ? `Apenas ${data.diagnostics.unique_entities} entidade(s) identificada(s) neste sinal. São necessárias pelo menos 2 entidades distintas para desenhar a rede.`
+                  : `Motivo: ${data.diagnostics.fallback_reason || "sem detalhes"}.`}
               </p>
+              <p className="text-xs text-amber/60">
+                Eventos: {data.diagnostics.events_loaded}/{data.diagnostics.events_total} carregados · {data.diagnostics.participants_total} participações
+              </p>
+              {data.overview.nodes.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-secondary">Entidades identificadas:</p>
+                  {data.overview.nodes.map((node) => (
+                    <Link
+                      key={node.entity_id}
+                      href={`/entity/${node.entity_id}`}
+                      className="flex items-center gap-2 rounded-md bg-surface-card border border-border px-3 py-2 text-xs text-secondary hover:text-accent transition"
+                    >
+                      <span className="font-medium">{entityDisplayName(node.label, node.entity_id, node.node_type)}</span>
+                      <span className="text-muted">· {entityTypeLabel(node.node_type)}</span>
+                      <ArrowRight className="ml-auto h-3.5 w-3.5 opacity-40" />
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -336,19 +461,21 @@ export default function SignalGraphPage() {
                 {selectedEntity.photo_url ? (
                   <img
                     src={selectedEntity.photo_url}
-                    alt={`Foto de ${selectedEntity.name}`}
+                    alt={`Foto de ${entityDisplayName(selectedEntity.name, selectedEntity.entity_id, selectedEntity.node_type)}`}
                     className="h-14 w-14 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-surface-subtle text-xs text-muted">
-                    sem foto
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-surface-subtle text-lg text-muted">
+                    {selectedEntity.node_type === "org" ? "🏛" : selectedEntity.node_type === "company" ? "🏢" : "👤"}
                   </div>
                 )}
-                <div>
-                  <p className="text-sm font-semibold text-primary">{selectedEntity.name}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-primary truncate">
+                    {entityDisplayName(selectedEntity.name, selectedEntity.entity_id, selectedEntity.node_type)}
+                  </p>
                   <p className="text-xs text-muted">{entityTypeLabel(selectedEntity.node_type)}</p>
                   <p className="mt-1 text-xs text-muted">
-                    Participa de {selectedEntity.event_count} evento(s) nesta teia
+                    {selectedEntity.event_count} evento(s) · {selectedEntity.roles_in_signal.length} papel(is)
                   </p>
                 </div>
               </div>
@@ -360,13 +487,15 @@ export default function SignalGraphPage() {
                 </span>
               )}
 
-              {Object.keys(selectedEntity.identifiers).length > 0 && (
+              {Object.entries(selectedEntity.identifiers).filter(([, v]) => v && String(v).trim()).length > 0 && (
                 <div className="space-y-1">
-                  {Object.entries(selectedEntity.identifiers).map(([key, value]) => (
-                    <p key={key} className="rounded bg-surface-base px-2 py-1 text-xs text-secondary">
-                      <span className="font-semibold">{key.toUpperCase()}:</span> {value}
-                    </p>
-                  ))}
+                  {Object.entries(selectedEntity.identifiers)
+                    .filter(([, v]) => v && String(v).trim())
+                    .map(([key, value]) => (
+                      <p key={key} className="rounded bg-surface-base px-2 py-1 text-xs text-secondary">
+                        <span className="font-semibold">{key.toUpperCase()}:</span> {String(value)}
+                      </p>
+                    ))}
                 </div>
               )}
 
@@ -444,31 +573,82 @@ export default function SignalGraphPage() {
           </label>
         </div>
         <div className="mt-3 space-y-2">
-          {filteredTimeline.map((event) => (
-            <div key={event.event_id} className="rounded-lg border border-border bg-surface-base p-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {event.occurred_at ? formatDate(event.occurred_at) : "Data não informada"}
-                </span>
-                {typeof event.value_brl === "number" && (
-                  <span>{formatBRL(event.value_brl)}</span>
-                )}
-                <span>{event.source_connector}/{event.source_id}</span>
-              </div>
-              <p className="mt-1 text-sm font-medium text-primary">{event.description}</p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {event.participants.map((participant) => (
-                  <span key={`${event.event_id}-${participant.entity_id}-${participant.role}`} className="rounded-full bg-surface-card px-2 py-0.5 text-xs text-secondary">
-                    {participant.name} - {participant.role_label} ({participant.role})
+          {filteredTimeline.map((event) => {
+            const uf = attrValue(event.attrs?.uf);
+            const modalidade = attrValue(event.attrs?.modalidade);
+            const situacao = attrValue(event.attrs?.situacao);
+            const catmat = attrValue(event.attrs?.catmat_group);
+            const displayDescription = cleanDescription(event.description, event.source_connector);
+            const cleanSrc = cleanSourceId(event.source_id);
+
+            // Deduplicate participants: group roles by entity
+            const participantMap = new Map<string, { name: string; node_type: string; roles: string[] }>();
+            for (const p of event.participants) {
+              const existing = participantMap.get(p.entity_id);
+              if (existing) {
+                existing.roles.push(p.role_label);
+              } else {
+                participantMap.set(p.entity_id, { name: p.name, node_type: p.node_type, roles: [p.role_label] });
+              }
+            }
+            const dedupedParticipants = Array.from(participantMap.entries());
+
+            return (
+              <div key={event.event_id} className="rounded-lg border border-border bg-surface-base p-3 space-y-2">
+                {/* Header row */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {event.occurred_at ? formatDate(event.occurred_at) : "Data não informada"}
                   </span>
-                ))}
+                  {typeof event.value_brl === "number" && event.value_brl > 0 && (
+                    <span className="font-semibold text-primary">{formatBRL(event.value_brl)}</span>
+                  )}
+                  {uf !== "—" && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />{uf}
+                    </span>
+                  )}
+                  {modalidade !== "—" && (
+                    <span className="rounded-full bg-surface-card px-2 py-0.5">{modalidade}</span>
+                  )}
+                  {situacao !== "—" && (
+                    <span className="rounded-full bg-surface-card px-2 py-0.5 text-secondary">{situacao}</span>
+                  )}
+                  {catmat !== "—" && (
+                    <span className="inline-flex items-center gap-1 text-muted">
+                      <Tag className="h-3 w-3" />CATMAT: {catmat}
+                    </span>
+                  )}
+                </div>
+
+                {/* Description */}
+                <p className="text-sm font-medium text-primary leading-snug">{displayDescription}</p>
+
+                {/* Participants (deduped) */}
+                {dedupedParticipants.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {dedupedParticipants.map(([entityId, info]) => (
+                      <Link
+                        key={`${event.event_id}-${entityId}`}
+                        href={`/entity/${entityId}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-surface-card border border-border px-2 py-0.5 text-xs text-secondary hover:text-accent transition"
+                      >
+                        <span className="font-medium">{entityDisplayName(info.name, entityId, info.node_type)}</span>
+                        <span className="text-muted">· {info.roles.join(", ")}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {/* Source — clean display */}
+                <p className="text-[10px] text-muted">
+                  Fonte: <span className="font-mono">{event.source_connector}</span>
+                  {cleanSrc !== event.source_connector && <> / <span className="font-mono">{cleanSrc}</span></>}
+                </p>
               </div>
-              <p className="mt-2 text-xs text-secondary">
-                Porque sustenta a ligação: {event.evidence_reason}
-              </p>
-            </div>
-          ))}
+            );
+          })}
           {filteredTimeline.length === 0 && (
             <p className="text-xs text-muted">Nenhum evento para o filtro selecionado.</p>
           )}

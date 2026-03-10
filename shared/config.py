@@ -1,5 +1,6 @@
 import os
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from typing import Literal
 
@@ -11,6 +12,7 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"
+    REDIS_PASSWORD: str = ""
 
     # Portal Transparência
     PORTAL_TRANSPARENCIA_TOKEN: str = ""
@@ -51,11 +53,34 @@ class Settings(BaseSettings):
     APP_ENV: Literal["development", "staging", "production"] = "development"
     LOG_LEVEL: str = "INFO"
 
+    # CORS — comma-separated list of allowed origins
+    ALLOWED_ORIGINS: str = "http://localhost:3000"
+
+    # Internal API authentication — set a strong secret in production
+    INTERNAL_API_KEY: str = "dev-internal-key-change-in-production"
+
     # Entity Resolution thresholds
     ORG_MATCH_THRESHOLD: float = float(os.getenv("ORG_MATCH_THRESHOLD", "0.85"))
     PERSON_MATCH_THRESHOLD: float = float(os.getenv("PERSON_MATCH_THRESHOLD", "0.90"))
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        if self.APP_ENV == "production":
+            if self.CPF_HASH_SALT == "change-me-in-production":
+                raise ValueError(
+                    "CPF_HASH_SALT must be changed before running in production (LGPD compliance)"
+                )
+            if self.INTERNAL_API_KEY == "dev-internal-key-change-in-production":
+                raise ValueError(
+                    "INTERNAL_API_KEY must be changed before running in production"
+                )
+            if "auditoria:auditoria@" in self.DATABASE_URL:
+                raise ValueError(
+                    "Default database credentials must not be used in production"
+                )
+        return self
 
 
 settings = Settings()

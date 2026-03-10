@@ -533,10 +533,157 @@ def vacuum_raw_source() -> dict:
     from shared.db_sync import sync_engine
 
     with sync_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("VACUUM raw_source"))
+        conn.execute(text("VACUUM ANALYZE raw_source"))
 
     log.info("vacuum_raw_source.done")
     return {"status": "ok"}
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.purge_normalized_raw_source",
+    bind=False,
+    max_retries=1,
+    soft_time_limit=1800,
+    time_limit=1900,
+)
+def purge_normalized_raw_source(batch_size: int = 10_000) -> dict:
+    """Delete raw_source rows that have already been normalized.
+
+    Rows with normalized=True have raw_data={} and are no longer needed.
+    Entity/event data is safely stored in the entity/event tables.
+    entity_raw_source links are cascade-deleted, which is acceptable because
+    provenance is still traceable via raw_run (connector, job, cursor range).
+
+    Runs in batches to avoid long-running transactions and lock contention.
+    """
+    from sqlalchemy import text
+    from shared.db_sync import SyncSession
+
+    total_deleted = 0
+    with SyncSession() as session:
+        while True:
+            result = session.execute(
+                text(
+                    "DELETE FROM raw_source WHERE id IN ("
+                    "  SELECT id FROM raw_source WHERE normalized = true LIMIT :limit"
+                    ")"
+                ),
+                {"limit": batch_size},
+            )
+            session.commit()
+            deleted = result.rowcount
+            total_deleted += deleted
+            log.info("purge_normalized_raw_source.batch", deleted=deleted, total=total_deleted)
+            if deleted < batch_size:
+                break
+
+    log.info("purge_normalized_raw_source.done", total_deleted=total_deleted)
+    return {"status": "ok", "deleted": total_deleted}
+
+
+# Disk-usage thresholds (% of VM disk used)
+_DISK_WARN_PCT = 50       # emit warning log (was 60)
+_DISK_THROTTLE_PCT = 60   # set Redis flag, trigger cleanup (was 70)
+_DISK_HARD_STOP_GB = 5.0  # absolute floor — ingest gate refuses below this
+_DISK_THROTTLE_KEY = "disk:throttle"
+_DISK_THROTTLE_TTL = 3600  # 1 hour; watchdog will renew or clear each cycle
+
+
+def _cleanup_bulk_dirs() -> list[str]:
+    """Remove processed bulk files (TSE/Receita) that are already staged in raw_source.
+
+    Called automatically by disk_space_watchdog when usage >= _DISK_THROTTLE_PCT.
+    Returns list of deleted file paths.
+    """
+    import glob
+    import os
+
+    from shared.config import settings
+
+    deleted: list[str] = []
+    for data_dir in [settings.TSE_DATA_DIR, settings.RECEITA_CNPJ_DATA_DIR]:
+        if not os.path.isdir(data_dir):
+            continue
+        for fpath in glob.glob(os.path.join(data_dir, "**", "*"), recursive=True):
+            if not os.path.isfile(fpath):
+                continue
+            try:
+                os.remove(fpath)
+                deleted.append(fpath)
+                log.info("cleanup_bulk_dirs.deleted", path=fpath)
+            except OSError as exc:
+                log.warning("cleanup_bulk_dirs.failed", path=fpath, error=str(exc))
+    return deleted
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.disk_space_watchdog",
+    bind=False,
+    max_retries=0,
+    soft_time_limit=60,
+    time_limit=90,
+)
+def disk_space_watchdog() -> dict:
+    """Monitor Docker VM disk usage and proactively free space before Postgres panics.
+
+    Checks shutil.disk_usage("/") which reflects the shared vda1 Docker VM disk.
+    At >= 80%: emits disk.warning structured log.
+    At >= 90%: sets Redis key disk:throttle=1, triggers purge + vacuum + bulk file cleanup.
+    When below threshold: clears the throttle flag.
+    """
+    import shutil
+
+    import redis as redis_lib
+
+    from shared.config import settings
+
+    stat = shutil.disk_usage("/")
+    pct_used = (stat.used / stat.total) * 100
+    free_gb = stat.free / 1e9
+
+    log.info(
+        "disk_space_watchdog.status",
+        pct_used=round(pct_used, 1),
+        free_gb=round(free_gb, 2),
+        total_gb=round(stat.total / 1e9, 2),
+    )
+
+    try:
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=5)
+
+        if pct_used >= _DISK_THROTTLE_PCT or free_gb < _DISK_HARD_STOP_GB:
+            r.set(_DISK_THROTTLE_KEY, "1", ex=_DISK_THROTTLE_TTL)
+            log.warning(
+                "disk_space_watchdog.throttle_enabled",
+                pct_used=round(pct_used, 1),
+                free_gb=round(free_gb, 2),
+            )
+            # Proactive cleanup: purge dead rows and bulk files
+            purge_normalized_raw_source.apply_async(queue="vacuum")
+            vacuum_raw_source.apply_async(queue="vacuum")
+            deleted = _cleanup_bulk_dirs()
+            log.info("disk_space_watchdog.bulk_cleanup", files_deleted=len(deleted))
+        else:
+            r.delete(_DISK_THROTTLE_KEY)
+            if pct_used >= _DISK_WARN_PCT:
+                log.warning(
+                    "disk_space_watchdog.high_usage",
+                    pct_used=round(pct_used, 1),
+                    free_gb=round(free_gb, 2),
+                )
+                # Proactive: clean bulk dirs at warn level, not just throttle
+                deleted = _cleanup_bulk_dirs()
+                if deleted:
+                    log.info("disk_space_watchdog.warn_bulk_cleanup", files_deleted=len(deleted))
+    except Exception as exc:  # noqa: BLE001
+        # Redis unavailable: fail open, log and continue
+        log.warning("disk_space_watchdog.redis_error", error=str(exc))
+
+    return {
+        "pct_used": round(pct_used, 1),
+        "free_gb": round(free_gb, 2),
+        "total_gb": round(stat.total / 1e9, 2),
+    }
 
 
 def _watchdog_recover_orphans() -> dict | None:
@@ -702,3 +849,137 @@ def pipeline_watchdog() -> dict:
     result = run_full_pipeline.apply_async(queue="default")
     log.info("pipeline_watchdog.dispatched", task_id=str(result.id))
     return {"status": "dispatched", "task_id": str(result.id)}
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.purge_stale_t02_signals",
+    bind=False,
+    max_retries=1,
+    soft_time_limit=600,
+    time_limit=700,
+)
+def purge_stale_t02_signals() -> dict:
+    """Deleta sinais T02 vinculados a licitações dispensa ou situação void.
+
+    Deve ser executada UMA VEZ após o refinamento das regras de T02.
+    Os ~300 sinais gerados para eventos dispensa são falsos positivos
+    que devem ser removidos antes do reprocessamento limpo.
+    """
+    from sqlalchemy import text
+
+    from shared.db_sync import SyncSession
+
+    with SyncSession() as session:
+        result = session.execute(text("""
+            DELETE FROM risk_signal rs
+            USING typology t,
+                  signal_event se,
+                  event e
+            WHERE rs.typology_id = t.id
+              AND t.code = 'T02'
+              AND se.signal_id = rs.id
+              AND e.id = se.event_id
+              AND (
+                  lower(e.attrs->>'modality') LIKE '%dispensa%'
+                  OR lower(e.attrs->>'modality') LIKE '%inexigibilidade%'
+                  OR lower(e.attrs->>'situacao') IN (
+                      'deserta', 'fracassada', 'revogada', 'anulada', 'cancelada'
+                  )
+              )
+        """))
+        session.commit()
+        deleted = result.rowcount
+
+    log.info("purge_stale_t02_signals.done", deleted=deleted)
+    return {"status": "ok", "deleted": deleted}
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.trigger_normalize_drain",
+    bind=False,
+    max_retries=0,
+    soft_time_limit=60,
+    time_limit=90,
+)
+def trigger_normalize_drain() -> dict:
+    """Dispatch extra normalize tasks when the raw_source backlog is large.
+
+    When more than 500K rows are pending normalization, the regular per-run
+    normalize tasks may not drain the backlog fast enough. This task finds all
+    raw_runs with unnormalized rows and re-dispatches normalize_run for each,
+    effectively scaling out normalization work without adding new workers.
+
+    Safe to call multiple times — normalize_run is idempotent (it queries
+    normalized=False rows; if none remain, it returns immediately).
+    """
+    from sqlalchemy import text
+
+    from shared.db_sync import SyncSession
+
+    with SyncSession() as session:
+        backlog = session.execute(
+            text("SELECT COUNT(*) FROM raw_source WHERE normalized = false")
+        ).scalar() or 0
+
+        if backlog < 500_000:
+            log.info("trigger_normalize_drain.skipped", backlog=backlog, threshold=500_000)
+            return {"status": "skipped", "backlog": backlog}
+
+        # Find all raw_runs that still have unnormalized rows
+        pending_runs = session.execute(
+            text(
+                "SELECT DISTINCT run_id FROM raw_source WHERE normalized = false"
+            )
+        ).scalars().all()
+
+    dispatched = 0
+    from worker.tasks.normalize_tasks import normalize_run
+    for run_id in pending_runs:
+        normalize_run.apply_async(args=[str(run_id)], queue="normalize")
+        dispatched += 1
+
+    log.warning(
+        "trigger_normalize_drain.dispatched",
+        backlog=backlog,
+        normalize_runs_dispatched=dispatched,
+    )
+    return {"status": "dispatched", "backlog": backlog, "runs": dispatched}
+
+
+@shared_task(
+    name="worker.tasks.maintenance_tasks.docker_build_prune",
+    bind=False,
+    max_retries=0,
+    soft_time_limit=120,
+    time_limit=150,
+)
+def docker_build_prune() -> dict:
+    """Prune Docker build cache to prevent unbounded disk growth.
+
+    Docker build cache can accumulate 10-15 GB over time from repeated image
+    rebuilds. This task runs weekly via Beat to keep it under control.
+    Requires the Docker socket to be accessible inside the worker container,
+    or falls back to a no-op with a warning if docker CLI is unavailable.
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["docker", "buildx", "prune", "-f"],
+            capture_output=True,
+            text=True,
+            timeout=100,
+        )
+        stdout_tail = result.stdout[-500:] if result.stdout else ""
+        log.info(
+            "docker_build_prune.done",
+            returncode=result.returncode,
+            output=stdout_tail,
+        )
+        return {"status": "ok", "returncode": result.returncode}
+    except FileNotFoundError:
+        log.warning("docker_build_prune.skipped", reason="docker CLI not available in container")
+        return {"status": "skipped", "reason": "docker CLI not available"}
+    except subprocess.TimeoutExpired:
+        log.warning("docker_build_prune.timeout")
+        return {"status": "timeout"}

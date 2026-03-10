@@ -858,18 +858,6 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
                 </span>
               )}
             </div>
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                const { requestYieldConnector } = await import("@/lib/api");
-                await requestYieldConnector(item.connector);
-              }}
-              className="mt-1 flex items-center gap-1 rounded-md border border-amber/30 bg-amber/10 px-2 py-1 text-[10px] font-semibold text-amber hover:bg-amber/20 transition-colors"
-              title="Salvar cursor e ceder a vez para outros jobs"
-            >
-              <Clock className="h-3 w-3" />
-              Ceder vez
-            </button>
           </div>
         )}
 
@@ -1191,27 +1179,6 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
         </div>
       )}
 
-      {/* Requirements block — only shown for blocked typologies */}
-      {!item.apt && item.domains_missing.length > 0 && (
-        <div className="rounded-lg border border-amber/20 bg-amber/5 px-3 py-2.5 space-y-1.5">
-          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-amber">
-            Para iniciar o processamento:
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {item.domains_missing.map((d) => (
-              <span key={d} className="flex items-center gap-1 rounded-full border border-amber/30 bg-surface-card px-1.5 py-0.5 text-[10px] font-medium text-amber">
-                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
-                {d}
-              </span>
-            ))}
-          </div>
-          <p className="text-[10px] text-muted leading-snug">
-            {item.domains_missing.length === 1
-              ? "Aguarda ingestão e normalização deste domínio para começar a cruzar os dados."
-              : `Aguarda ${item.domains_missing.length} domínios. Sem eles, o cruzamento de dados não pode ocorrer.`}
-          </p>
-        </div>
-      )}
 
       {(item.last_run_at || item.last_run_candidates != null || item.signals_30d > 0) && (
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-border pt-2">
@@ -1597,13 +1564,6 @@ export default function CoveragePage() {
     return () => { active = false; };
   }, []);
 
-  function loadSources() {
-    getCoverageV2Sources({ limit: 100, enabled_only: enabledOnly })
-      .then((r) => { setSources(r.items); })
-      .catch(() => { setSourcesError("Falha ao carregar fontes de dados."); })
-      .finally(() => { setSourcesLoading(false); });
-  }
-
   useEffect(() => {
     let active = true;
     function fetchSources() {
@@ -1675,8 +1635,12 @@ export default function CoveragePage() {
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
-              {/* Capacity warning (only when maxed out) */}
-              {capacity && capacity.slots_available === 0 && (
+              {/* Capacity warning (maxed out — derived from capacity API or sources fallback) */}
+              {(() => {
+                const runningJobs = capacity?.running_ingest_jobs ?? sources.reduce((n, s) => n + s.runtime.running_jobs, 0);
+                const maxJobs = capacity?.max_concurrent_ingest ?? 4;
+                return !sourcesLoading && runningJobs >= maxJobs;
+              })() && (
                 <span className="group relative flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/5 px-3 py-1 text-xs text-amber cursor-help">
                   <AlertTriangle className="h-3 w-3" />
                   Capacidade máxima
@@ -1684,9 +1648,13 @@ export default function CoveragePage() {
                   <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-72 rounded-lg border border-border bg-surface-card p-3 text-left shadow-lg group-hover:block">
                     <p className="mb-2 text-xs font-semibold text-primary">Por que a capacidade está no máximo?</p>
                     <p className="mb-2 text-[11px] leading-relaxed text-secondary">
-                      Todos os <span className="font-semibold text-amber">{capacity.max_concurrent_ingest}</span> slots de ingestão simultânea estão ocupados
-                      ({capacity.running_ingest_jobs}/{capacity.max_concurrent_ingest} em uso).
-                      {capacity.er_running && " A Resolução de Entidades também está ativa."}
+                      {capacity ? (
+                        <>Todos os <span className="font-semibold text-amber">{capacity.max_concurrent_ingest}</span> slots de ingestão simultânea estão ocupados
+                        ({capacity.running_ingest_jobs}/{capacity.max_concurrent_ingest} em uso).
+                        {capacity.er_running && " A Resolução de Entidades também está ativa."}</>
+                      ) : (
+                        <>Todos os slots de ingestão simultânea estão ocupados.</>
+                      )}
                     </p>
                     {(() => {
                       const activeJobs = sources

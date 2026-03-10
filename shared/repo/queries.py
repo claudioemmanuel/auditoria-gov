@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -246,8 +246,9 @@ def _extract_photo_url(attrs: dict | None) -> str | None:
     return None
 
 
-def _actor_sort_key(actor: SignalStoryActorOut) -> tuple[int, str]:
-    return (-actor.event_count, actor.name.lower())
+def _actor_sort_key(actor: SignalStoryActorOut) -> tuple[int, int, str]:
+    has_name = 0 if actor.name.strip() else 1  # nameless actors sort last
+    return (-actor.event_count, has_name, actor.name.lower())
 
 
 def _coverage_now_utc() -> datetime:
@@ -822,7 +823,7 @@ async def resolve_entity_ids_with_clusters(
         """),
         {"ids": [str(eid) for eid in raw_entity_ids]},
     )
-    return {uuid.UUID(row[0]) for row in result.fetchall()}
+    return {uuid.UUID(str(row[0])) for row in result.fetchall()}
 
 
 async def get_case_by_id(
@@ -1265,7 +1266,6 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
     now = _coverage_now_utc()
     coverage_items = await get_coverage_list(session)
     _run_rows, latest_by_job = await _coverage_get_latest_runs(session, limit=600)
-    analytics = await get_coverage_v2_analytics(session)
 
     status_counts = _coverage_empty_status_counts()
     for item in coverage_items:
@@ -1274,49 +1274,33 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
     runtime_running = 0
     runtime_stuck = 0
     runtime_error = 0
+    # Only count errors from the last 2 hours as actively blocking.
+    # Older errors (e.g. from docker restarts) are stale and will be
+    # resolved by the next scheduled ingest — they shouldn't block the
+    # pipeline dashboard permanently.
+    _recent_error_cutoff = now - timedelta(hours=2)
     for run in latest_by_job.values():
         if run.status == "running":
             runtime_running += 1
             if _coverage_is_stuck_run(run, now):
                 runtime_stuck += 1
-        elif run.status == "error":
+        elif run.status == "error" and run.created_at and run.created_at >= _recent_error_cutoff:
             runtime_error += 1
 
-    event_count = int(
-        _coverage_scalar_one(
-            await session.execute(select(func.count()).select_from(Event)),
-            default=0,
-        )
-        or 0
+    # Use pg_class.reltuples for instant approximate counts instead of
+    # sequential COUNT(*) scans on multi-million-row tables.
+    _estimate_sql = text(
+        "SELECT relname, GREATEST(reltuples, 0)::bigint AS est "
+        "FROM pg_class "
+        "WHERE relname IN ('event', 'graph_node', 'graph_edge', 'baseline_snapshot', 'risk_signal')"
     )
-    graph_nodes = int(
-        _coverage_scalar_one(
-            await session.execute(select(func.count()).select_from(GraphNode)),
-            default=0,
-        )
-        or 0
-    )
-    graph_edges = int(
-        _coverage_scalar_one(
-            await session.execute(select(func.count()).select_from(GraphEdge)),
-            default=0,
-        )
-        or 0
-    )
-    baseline_count = int(
-        _coverage_scalar_one(
-            await session.execute(select(func.count()).select_from(BaselineSnapshot)),
-            default=0,
-        )
-        or 0
-    )
-    signal_count = int(
-        _coverage_scalar_one(
-            await session.execute(select(func.count()).select_from(RiskSignal)),
-            default=0,
-        )
-        or 0
-    )
+    _est_rows = (await session.execute(_estimate_sql)).all()
+    _est = {r.relname: int(r.est) for r in _est_rows}
+    event_count = _est.get("event", 0)
+    graph_nodes = _est.get("graph_node", 0)
+    graph_edges = _est.get("graph_edge", 0)
+    baseline_count = _est.get("baseline_snapshot", 0)
+    signal_count = _est.get("risk_signal", 0)
     er_state = _coverage_scalar_one_or_none(
         await session.execute(select(ERRunState).order_by(ERRunState.created_at.desc()).limit(1))
     )
@@ -1479,9 +1463,14 @@ async def get_coverage_v2_summary(session: AsyncSession) -> dict:
         )
 
     # ── Overall status ───────────────────────────────────────────────
+    # "blocked" = stuck workers (truly hung, need intervention)
+    # "error"   = pipeline stage errors or recent job failures (auto-retry pending)
+    # "attention" = processing/stale/pending stages (normal pipeline progression)
     stages = [ingest_stage, er_stage, baseline_stage, signal_stage]
-    if runtime_error + runtime_stuck > 0 or any(s.status == "error" for s in stages):
+    if runtime_stuck > 0 or any(s.status == "error" for s in stages):
         overall_status = "blocked"
+    elif runtime_error > 0:
+        overall_status = "attention"
     elif any(s.status in {"stale", "processing", "pending", "warning"} for s in stages):
         overall_status = "attention"
     else:
@@ -2066,6 +2055,7 @@ async def get_signal_graph(
                 source_id=event.source_id,
                 participants=event_participants,
                 evidence_reason="Compoe o fluxo cronologico e o cruzamento de participantes do sinal",
+                attrs=event.attrs or {},
             )
         )
 
@@ -3856,7 +3846,8 @@ async def search_entities(
         """)
         result = await session.execute(sql, {"q": q, "limit": limit})
     else:
-        sql = text("""
+        type_filter = "AND e.type = :type" if entity_type is not None else ""
+        sql = text(f"""
             SELECT e.id, e.name, e.name_normalized, e.type,
                    e.identifiers->>'cnpj' AS cnpj,
                    e.identifiers->>'cpf' AS cpf,
@@ -3864,11 +3855,14 @@ async def search_entities(
                    similarity(e.name_normalized, :q) AS score
             FROM entity e
             WHERE e.name_normalized % :q
-              AND (:type IS NULL OR e.type = :type)
+              {type_filter}
             ORDER BY score DESC
             LIMIT :limit
         """)
-        result = await session.execute(sql, {"q": q, "type": entity_type, "limit": limit})
+        params: dict = {"q": q, "limit": limit}
+        if entity_type is not None:
+            params["type"] = entity_type
+        result = await session.execute(sql, params)
 
     rows = result.fetchall()
     return [

@@ -538,6 +538,7 @@ export interface SignalTimelineEvent {
   source_id: string;
   participants: SignalTimelineParticipant[];
   evidence_reason: string;
+  attrs: Record<string, unknown>;
 }
 
 export interface SignalInvolvedEntityRole {
