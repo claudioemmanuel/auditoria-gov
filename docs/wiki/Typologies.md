@@ -39,6 +39,15 @@ Dispensa de licitação thresholds were updated by **Decreto 12.343/2024**:
 | T17 | Lavagem via camadas societárias | P1 | Lei 9.613/1998, Art. 1°; FATF Recomendação 24 | indirect |
 | T18 | Acúmulo ilegal de cargos | P1 | CF/88 Art. 37, XVI-XVII; Lei 8.112/1990, Arts. 118-120 | direct |
 
+## T19–T22 — Advanced Detection Typologies
+
+| Code | Typology | Priority | Legal Basis | Evidence Level |
+|------|----------|----------|-------------|----------------|
+| T19 | Bid rotation | P1 | Lei 12.529/2011, Art. 36; Lei 14.133/2021, Arts. 337-F/G/H | indirect |
+| T20 | Phantom bidders | P1 | Lei 14.133/2021, Art. 337-F; Lei 12.529/2011, Art. 36 | proxy |
+| T21 | Collusive cluster | P1 | Lei 12.529/2011, Arts. 36-38; CADE jurisprudência | indirect |
+| T22 | Political favoritism | P1 | CF/88 Art. 14, §9º; Lei 9.504/97, Art. 81; FATF Rec. 12 | indirect |
+
 ## Detector Quality Expectations
 
 - Numeric factors and transparent thresholds

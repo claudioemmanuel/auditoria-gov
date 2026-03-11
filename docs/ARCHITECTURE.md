@@ -36,7 +36,7 @@ AuditorIA Gov is a public-read citizen auditing platform that ingests Brazilian 
 4. Baselines (`worker.tasks.baseline_tasks`)
    - Computes statistical reference baselines.
 5. Typologies (`worker.tasks.signal_tasks`)
-   - Runs T01-T10 deterministic detectors.
+   - Runs T01-T22 deterministic detectors.
 6. Coverage (`worker.tasks.coverage_tasks`)
    - Updates freshness and registry visibility.
 
@@ -95,6 +95,29 @@ Registered in `shared/typologies/registry.py`:
 - T08 sanctions mismatch
 - T09 ghost payroll proxy
 - T10 outsourcing parallel payroll
+- T11 jogo de planilha
+- T12 edital direcionado
+- T13 conflito de interesses
+- T14 sequência de favorecimento (meta-typology)
+- T15 inexigibilidade indevida
+- T16 clientelismo orçamentário (emenda pix)
+- T17 lavagem via camadas societárias
+- T18 acúmulo ilegal de cargos
+- T19 bid rotation
+- T20 phantom bidders
+- T21 collusive cluster
+- T22 political favoritism
+
+## Worker Architecture
+
+The Celery task queue is split into two worker containers with distinct queue assignments and resource profiles:
+
+| Worker | Queues | Concurrency | Memory Limit | Role |
+|--------|--------|-------------|--------------|------|
+| `worker-primary` | `ingest`, `normalize`, `ai`, `default`, `vacuum` | 2 | — | High-throughput ingestion + Beat scheduler |
+| `worker-heavy` | `er`, `signals`, `bulk`, `default` | 1 | 2 GB | CPU/memory-intensive ER and signal generation |
+
+`worker-primary` also runs the Celery Beat scheduler. `worker-heavy` handles entity resolution (advisory-locked singleton) and typology signal runs, which can process hundreds of thousands of participants per wave.
 
 ## Privacy and LGPD
 

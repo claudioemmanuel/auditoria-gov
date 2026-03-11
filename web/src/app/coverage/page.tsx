@@ -156,23 +156,45 @@ function RunCard({ run }: { run: CoverageV2LatestRun }) {
           </span>
         </div>
       )}
-      {/* Progress bar for running jobs */}
+      {/* Enhanced progress for running jobs */}
       {run.status === "running" && (
-        <div className="space-y-1 mt-2">
-          {run.progress_pct != null && (
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-accent transition-all duration-500"
-                  style={{ width: `${Math.min(run.progress_pct, 100)}%` }}
-                />
-              </div>
-              <span className="font-mono text-[10px] text-accent font-bold">{run.progress_pct}%</span>
+        <div className="space-y-1.5 mt-2">
+          {/* Animated fetch progress bar */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
+              <div className="h-full rounded-full bg-accent animate-pulse" style={{ width: "100%" }} />
             </div>
-          )}
+            <span className="font-mono text-[10px] text-accent font-bold">Coletando</span>
+          </div>
+          {/* Cursor position + rate */}
+          <div className="flex items-center gap-3 text-[10px] text-muted font-mono">
+            {run.cursor_info && <span className="text-primary">{run.cursor_info}</span>}
+            {run.rate_per_min != null && run.rate_per_min > 0 && (
+              <span>~{Math.round(run.rate_per_min).toLocaleString("pt-BR")}/min</span>
+            )}
+            {run.pages_fetched != null && run.pages_fetched > 0 && (
+              <span>{run.pages_fetched.toLocaleString("pt-BR")} pags</span>
+            )}
+          </div>
           {run.elapsed_seconds != null && (
             <p className="font-mono text-[10px] text-muted">Tempo decorrido: {formatElapsed(run.elapsed_seconds)}</p>
           )}
+        </div>
+      )}
+      {/* Normalize progress for yielded/completed */}
+      {run.status === "yielded" && run.items_fetched > 0 && run.items_normalized < run.items_fetched && (
+        <div className="space-y-1 mt-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
+              <div
+                className="h-full rounded-full bg-success transition-all duration-500"
+                style={{ width: `${Math.min((run.items_normalized / run.items_fetched) * 100, 100)}%` }}
+              />
+            </div>
+            <span className="font-mono text-[10px] text-success font-bold">
+              {Math.round((run.items_normalized / run.items_fetched) * 100)}% normalizado
+            </span>
+          </div>
         </div>
       )}
       {run.error_message && (
@@ -464,7 +486,13 @@ function SourceDiagnosticModal({
                   Jobs ({preview.jobs.length})
                 </p>
                 <div className="space-y-4">
-                  {preview.jobs.map((job) => {
+                  {[...preview.jobs].sort((a, b) => {
+                    const aRun = a.latest_run?.status === "running" ? 0 : 1;
+                    const bRun = b.latest_run?.status === "running" ? 0 : 1;
+                    if (aRun !== bRun) return aRun - bRun;
+                    const order = ["error", "warning", "stale", "ok", "pending"];
+                    return order.indexOf(a.status) - order.indexOf(b.status);
+                  }).map((job) => {
                     const isJobRunning = job.latest_run?.status === "running";
                     const scfg = STATUS_CFG[job.status] ?? STATUS_CFG.pending;
                     return (
@@ -498,8 +526,13 @@ function SourceDiagnosticModal({
                         {/* Job metrics */}
                         <div className="grid grid-cols-3 gap-3">
                           <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Itens totais</p>
+                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">
+                              {isJobRunning ? "Coletados até agora" : "Itens coletados"}
+                            </p>
                             <p className="font-mono text-sm font-bold text-primary">{job.total_items.toLocaleString("pt-BR")}</p>
+                            {isJobRunning && job.latest_run?.cursor_info && (
+                              <p className="font-mono text-[9px] text-accent mt-0.5">{job.latest_run.cursor_info}</p>
+                            )}
                           </div>
                           <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
                             <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Defasagem</p>
@@ -722,17 +755,30 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  function fetchPreview(silent = false) {
+    if (!silent) {
+      setPreviewLoading(true);
+      setPreviewError(null);
+    }
+    getCoverageV2SourcePreview(item.connector, { runs_limit: 5 })
+      .then(setPreview)
+      .catch(() => { if (!silent) setPreviewError("Não foi possível carregar o diagnóstico."); })
+      .finally(() => { if (!silent) setPreviewLoading(false); });
+  }
+
   function handleOpenModal() {
     setModalOpen(true);
     if (preview === null && !previewLoading) {
-      setPreviewLoading(true);
-      setPreviewError(null);
-      getCoverageV2SourcePreview(item.connector, { runs_limit: 5 })
-        .then(setPreview)
-        .catch(() => setPreviewError("Não foi possível carregar o diagnóstico."))
-        .finally(() => setPreviewLoading(false));
+      fetchPreview();
     }
   }
+
+  // Poll every 5s while the modal is open and jobs are running
+  useEffect(() => {
+    if (!modalOpen || item.runtime.running_jobs === 0) return;
+    const interval = setInterval(() => fetchPreview(true), 5_000);
+    return () => clearInterval(interval);
+  }, [modalOpen, item.runtime.running_jobs, item.connector]);
 
   // Bar always spans 100% width: colored segments for meaningful states,
   // faded trailing segment for pending (unfilled but visible as a track).
@@ -913,6 +959,51 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
   );
 }
 
+// ── Run state helper ───────────────────────────────────────────────────────────
+
+function getRunState(item: AnalyticalCoverageItem): {
+  label: string;
+  color: string;
+  detail: string | null;
+} {
+  if (item.last_run_status === "error") {
+    return {
+      label: "Erro na execução",
+      color: "text-error",
+      detail: item.last_run_error_message ?? null,
+    };
+  }
+  if (item.last_run_status === "success") {
+    const candidates = item.last_run_candidates ?? 0;
+    const created = item.last_run_signals_created ?? 0;
+    if (candidates === 0) {
+      return {
+        label: "Sem dados de entrada",
+        color: "text-warning",
+        detail: item.domains_missing?.length
+          ? `Domínios em falta: ${item.domains_missing.join(", ")}`
+          : null,
+      };
+    }
+    if (created === 0) {
+      return {
+        label: "Sem sinais qualificados",
+        color: "text-secondary",
+        detail: `${candidates} candidatos avaliados`,
+      };
+    }
+    return {
+      label: `${created} sinal${created !== 1 ? "s" : ""} gerado${created !== 1 ? "s" : ""}`,
+      color: "text-success",
+      detail: null,
+    };
+  }
+  if (item.last_run_status === "running") {
+    return { label: "Em execução...", color: "text-accent", detail: null };
+  }
+  return { label: "Nunca executado", color: "text-muted", detail: null };
+}
+
 // ── Typology info modal ────────────────────────────────────────────────────────
 
 function TypologyInfoModal({
@@ -1077,14 +1168,20 @@ function TypologyInfoModal({
                   <p className="font-mono text-[9px] text-muted mb-0.5">Data</p>
                   <p className="font-mono text-xs text-primary">{new Date(item.last_run_at).toLocaleString("pt-BR")}</p>
                 </div>
-                {item.last_run_status && (
-                  <div>
-                    <p className="font-mono text-[9px] text-muted mb-0.5">Status</p>
-                    <p className={`font-mono text-xs font-bold ${item.last_run_status === "success" ? "text-success" : item.last_run_status === "running" ? "text-accent" : "text-error"}`}>
-                      {item.last_run_status}
-                    </p>
-                  </div>
-                )}
+                <div>
+                  <p className="font-mono text-[9px] text-muted mb-0.5">Status</p>
+                  {(() => {
+                    const state = getRunState(item);
+                    return (
+                      <div>
+                        <p className={`font-mono text-xs font-semibold ${state.color}`}>{state.label}</p>
+                        {state.detail && (
+                          <p className="mt-0.5 text-[10px] text-muted">{state.detail}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
                 {item.last_run_candidates != null && item.last_run_candidates > 0 && (
                   <div>
                     <p className="font-mono text-[9px] text-muted mb-0.5">Candidatos</p>
@@ -1212,11 +1309,21 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
               <span className="font-mono text-primary">
                 {new Date(item.last_run_at).toLocaleString("pt-BR")}
               </span>
-              {item.last_run_status && (
-                <span className={`ml-1.5 font-mono font-bold ${item.last_run_status === "success" ? "text-success" : item.last_run_status === "running" ? "text-accent" : "text-error"}`}>
-                  · {item.last_run_status}
-                </span>
-              )}
+              {(() => {
+                const state = getRunState(item);
+                const dotColor =
+                  state.color === "text-error" ? "bg-red-500" :
+                  state.color === "text-warning" ? "bg-amber-400" :
+                  state.color === "text-success" ? "bg-green-500" :
+                  state.color === "text-accent" ? "bg-accent" :
+                  "bg-muted";
+                return (
+                  <span className="ml-1.5 inline-flex items-center gap-1">
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} />
+                    <span className={`font-mono font-bold ${state.color}`}>{state.label}</span>
+                  </span>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1279,7 +1386,7 @@ const PIPELINE_STAGE_DEFS: { key: StageKey; label: string; description: string; 
   {
     key: "signals",
     label: "Sinais de Risco",
-    description: "Execução das 18 tipologias de corrupção detectadas",
+    description: "Execução das 22 tipologias de corrupção detectadas",
     worker: "worker-cpu",
   },
 ];
@@ -1557,11 +1664,14 @@ export default function CoveragePage() {
   useEffect(() => {
     let active = true;
     setSummaryLoading(true);
-    getCoverageV2Summary()
-      .then((d) => { if (active) setSummary(d); })
-      .catch(() => { if (active) setSummaryError("Não foi possível carregar o resumo da cobertura."); })
-      .finally(() => { if (active) setSummaryLoading(false); });
-    return () => { active = false; };
+    const fetchSummary = () =>
+      getCoverageV2Summary()
+        .then((d) => { if (active) setSummary(d); })
+        .catch(() => { if (active) setSummaryError("Não foi possível carregar o resumo da cobertura."); })
+        .finally(() => { if (active) setSummaryLoading(false); });
+    fetchSummary();
+    const interval = setInterval(fetchSummary, 10_000);
+    return () => { active = false; clearInterval(interval); };
   }, []);
 
   useEffect(() => {
@@ -1574,9 +1684,11 @@ export default function CoveragePage() {
     }
     setSourcesLoading(true);
     fetchSources();
-    const interval = setInterval(fetchSources, 15_000);
+    // Poll faster (5s) when jobs are running, otherwise 15s
+    const hasRunning = sources?.some((s) => s.runtime.running_jobs > 0);
+    const interval = setInterval(fetchSources, hasRunning ? 5_000 : 15_000);
     return () => { active = false; clearInterval(interval); };
-  }, [enabledOnly]);
+  }, [enabledOnly, sources?.some((s) => s.runtime.running_jobs > 0)]);
 
   useEffect(() => {
     let active = true;
@@ -1721,6 +1833,109 @@ export default function CoveragePage() {
 
         {/* Pipeline */}
         {!summaryLoading && summary && <PipelineStrip summary={summary} />}
+
+        {/* ── Live Activity Panel ──────────────────────────────── */}
+        {!sourcesLoading && (() => {
+          const activeJobs = sources
+            .filter(s => s.runtime.running_jobs > 0)
+            .flatMap(s => s.runtime.active_job_names.map(job => ({
+              connector: s.connector_label,
+              connectorKey: s.connector,
+              job,
+              itemsLive: s.runtime.items_fetched_live,
+              rate: s.runtime.estimated_rate_per_min,
+              elapsed: s.runtime.elapsed_seconds,
+            })));
+          const errorJobs = sources.filter(s => s.runtime.error_jobs > 0);
+          const pendingSources = sources.filter(s => s.worst_status === "pending" && s.runtime.running_jobs === 0);
+          const totalRunning = activeJobs.length;
+          const pipelineStages = summary?.pipeline.stages ?? [];
+          const nextStage = pipelineStages.find(s => s.status === "stale" || s.status === "pending");
+
+          return (totalRunning > 0 || errorJobs.length > 0) ? (
+            <section className="rounded-xl border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-surface-card p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+                    <Activity className="h-4.5 w-4.5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-sm font-bold text-primary">O que está acontecendo agora?</h2>
+                    <p className="font-mono text-[10px] text-muted">Atualizado a cada 5 segundos</p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-accent">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                  {totalRunning} job{totalRunning !== 1 ? "s" : ""} ativo{totalRunning !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              {/* Active jobs list */}
+              <div className="space-y-2">
+                {activeJobs.map((aj) => (
+                  <div key={`${aj.connectorKey}-${aj.job}`} className="flex items-center justify-between gap-3 rounded-lg border border-accent/20 bg-surface-card px-4 py-2.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-2 w-2 rounded-full bg-accent animate-pulse shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-mono text-xs font-bold text-primary truncate">{aj.connector} <span className="text-muted font-normal">/ {aj.job}</span></p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0 text-[10px] font-mono text-muted">
+                      {aj.itemsLive > 0 && (
+                        <span className="text-primary font-bold">{aj.itemsLive.toLocaleString("pt-BR")} itens</span>
+                      )}
+                      {aj.rate != null && aj.rate > 0 && (
+                        <span className="text-accent">~{Math.round(aj.rate).toLocaleString("pt-BR")}/min</span>
+                      )}
+                      {aj.elapsed != null && (
+                        <span>{formatElapsed(aj.elapsed)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Errors summary */}
+              {errorJobs.length > 0 && (
+                <div className="rounded-lg border border-error/20 bg-error/5 px-4 py-3">
+                  <p className="font-mono text-[10px] uppercase tracking-wide text-error font-bold mb-1.5">
+                    {errorJobs.reduce((n, s) => n + s.runtime.error_jobs, 0)} job(s) com erro
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {errorJobs.map(s => (
+                      <span key={s.connector} className="rounded-full bg-error/10 border border-error/20 px-2 py-0.5 font-mono text-[9px] text-error">
+                        {s.connector_label} ({s.runtime.error_jobs})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* What comes next? */}
+              <div className="rounded-lg border border-border bg-surface-base px-4 py-3">
+                <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">O que vem depois?</p>
+                <div className="space-y-1.5 text-xs text-secondary">
+                  {nextStage && (
+                    <div className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber shrink-0" />
+                      <span>Próxima etapa do pipeline: <strong className="text-primary">{nextStage.label}</strong> — {nextStage.reason}</span>
+                    </div>
+                  )}
+                  {pendingSources.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted/60 shrink-0" />
+                      <span>{pendingSources.length} fonte(s) aguardando início: <span className="font-mono text-[10px] text-muted">{pendingSources.slice(0, 4).map(s => s.connector_label).join(", ")}{pendingSources.length > 4 ? ` +${pendingSources.length - 4}` : ""}</span></span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent/40 shrink-0" />
+                    <span>Após ingestão: Resolução de Entidades → Baselines → Detecção de Sinais → Geração de Cases</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null;
+        })()}
 
         {/* ── Sources section ──────────────────────────────────── */}
         <section>

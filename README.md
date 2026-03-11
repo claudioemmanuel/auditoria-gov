@@ -84,6 +84,10 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 | T16 | Budget clientelism (emenda pix) | Parliamentary transfers without work plan or disproportionate to recipient capacity |
 | T17 | Layered money laundering | Circular fund flows between interconnected entities post-contract |
 | T18 | Illegal position accumulation | Simultaneous public roles or dismissed officials active in contracting companies |
+| T19 | Bid rotation | Alternância sistemática de vencedores em licitações repetidas — indicador de cartel coordenado |
+| T20 | Phantom bidders | Empresas participantes sem histórico operacional real — proxy para concorrência simulada |
+| T21 | Collusive cluster | Cluster de fornecedores com comportamento de lances estatisticamente coordenados |
+| T22 | Political favoritism | Correlação temporal entre contribuições eleitorais e contratos públicos |
 
 ## Quick Start
 

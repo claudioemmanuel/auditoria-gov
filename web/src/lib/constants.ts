@@ -24,6 +24,10 @@ export const TYPOLOGY_LABELS: Record<string, string> = {
   T16: "Clientelismo Orçamentário-Contratual",
   T17: "Lavagem via Camadas Societárias",
   T18: "Acúmulo Ilegal de Cargos",
+  T19: "Rotação de Vencedores",
+  T20: "Licitantes Fantasmas",
+  T21: "Cluster Colusivo",
+  T22: "Favorecimento Político",
 };
 
 export const TYPOLOGY_INFO: Record<string, { description: string; legal: string }> = {
@@ -116,6 +120,26 @@ export const TYPOLOGY_INFO: Record<string, { description: string; legal: string 
     description:
       "Identifica servidores com vínculos simultâneos em 2+ órgãos por mais de 90 dias, o que é vedado pela Constituição exceto em casos específicos. Cruza com o CEAF (Cadastro de Expulsados) para agravamento da severidade.",
     legal: "CF/88, Arts. 37, XVI-XVII | Lei 8.112/1990, Arts. 118-120 | TCU Acórdão 1947/2017",
+  },
+  T19: {
+    description:
+      "Detecta alternância sistemática de vencedores em licitações repetidas para os mesmos itens ou categorias: empresa A vence no mês 1, B no mês 2, A novamente no mês 3. Padrão estatisticamente improvável na ausência de coordenação prévia — indicador clássico de cartel em rodízio.",
+    legal: "Lei 12.529/2011, Art. 36, III | Lei 14.133/2021, Arts. 337-F/G/H | CP Art. 335-A",
+  },
+  T20: {
+    description:
+      "Identifica empresas que participam como licitantes mas não possuem histórico operacional real: CNPJ registrado há menos de 30 dias antes do pregão, sem funcionários no eSocial, sem contratos anteriores e sem estabelecimento verificável. Serve como proxy para concorrência simulada.",
+    legal: "Lei 14.133/2021, Art. 337-F | Lei 12.529/2011, Art. 36 | Lei 12.846/2013, Art. 5°, IV",
+  },
+  T21: {
+    description:
+      "Aplica análise de cluster estatístico a lances de um mesmo grupo de fornecedores em múltiplos certames: detecta coordenação implícita via similaridade de valor (coeficiente de variação < 5%), timing de submissão e padrão de retirada de proposta. Requer ao menos 5 licitações no janela de 12 meses.",
+    legal: "Lei 12.529/2011, Arts. 36-38 | CADE Resolução 20/2017 | Lei 14.133/2021, Art. 155, IV",
+  },
+  T22: {
+    description:
+      "Cruza dados de doações eleitorais (TSE) com contratos firmados por órgãos vinculados ao mesmo poder/esfera nos 24 meses seguintes. Alta correlação temporal entre doação e contratação do mesmo CNPJ/grupo econômico indica possível retribuição clientelista.",
+    legal: "CF/88, Art. 14, §9° | Lei 9.504/1997, Art. 81 | FATF Recomendação 12 | Lei 12.846/2013",
   },
 };
 

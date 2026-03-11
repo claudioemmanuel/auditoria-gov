@@ -1,7 +1,7 @@
 # Governance Policy — Source Integrity, Veracity & Compliance
 
-**Version:** 1.0
-**Effective date:** 2026-03-04
+**Version:** 1.1
+**Effective date:** 2026-03-11
 **Review cycle:** Quarterly
 
 ---
@@ -41,6 +41,8 @@ Non-government sources require formal approval with a time-limited exception:
 | Domain | Justification | Max Veracity | Approved | Review By |
 |--------|--------------|-------------|----------|-----------|
 | `api.queridodiario.ok.org.br` | Open Knowledge Brasil — municipal gazette aggregation; no official federal API exists | 0.85 | 2026-03-04 | 2026-09-04 |
+
+**Nota sobre o score do Querido Diário (0.435 — "low"):** O score reflete que a fonte não é hospedada em domínio governamental e não possui API oficial documentada pelo governo. A exceção é mantida porque: (1) o Querido Diário é o único agregador nacional de diários municipais disponível; (2) Open Knowledge Brasil é uma organização estabelecida e auditável; (3) sinais baseados exclusivamente nessa fonte recebem penalidade de veracidade na composição do score final. Nenhum sinal crítico depende exclusivamente desta fonte.
 
 Exceptions are defined in `DOMAIN_EXCEPTIONS` within `domain_guard.py` and enforced at the HTTP client layer.
 

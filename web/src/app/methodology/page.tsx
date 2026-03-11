@@ -2,6 +2,8 @@ import Link from "next/link";
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
 import { TableOfContents } from "./TableOfContents";
 import { BookOpen, CheckCircle2, ExternalLink, ArrowRight, Scale } from "lucide-react";
+import { fetchTypologyLegalBasis } from "@/lib/api";
+import type { TypologyLegalBasis } from "@/lib/types";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
 
@@ -127,7 +129,15 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
   );
 }
 
-export default function MethodologyPage() {
+export default async function MethodologyPage() {
+  const typologyCodes = Object.keys(TYPOLOGY_LABELS);
+  const legalBasisResults = await Promise.allSettled(
+    typologyCodes.map((code) => fetchTypologyLegalBasis(code)),
+  );
+  const legalBasisList: TypologyLegalBasis[] = legalBasisResults
+    .filter((r): r is PromiseFulfilledResult<TypologyLegalBasis> => r.status === "fulfilled")
+    .map((r) => r.value);
+
   const aside = (
     <div className="rounded-xl border border-border bg-surface-card p-4">
       <div className="flex items-center gap-2 mb-4">
@@ -304,7 +314,7 @@ export default function MethodologyPage() {
           },
           {
             title: "Metodologicamente Defensável",
-            body: "18 tipologias com base legal explícita. Scoring determinístico e reproduzível — nenhuma IA participa da geração de scores ou classificação de risco.",
+            body: "22 tipologias com base legal explícita. Scoring determinístico e reproduzível — nenhuma IA participa da geração de scores ou classificação de risco.",
           },
           {
             title: "Juridicamente Responsável",
@@ -342,6 +352,51 @@ export default function MethodologyPage() {
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
+
+      {/* ── Base Legal por Tipologia ───────────────────────────── */}
+      <SectionHeading id="base-legal-tipologia">Base Legal por Tipologia</SectionHeading>
+      <p className="mb-4 text-sm text-secondary leading-relaxed">
+        Mapeamento dos artigos legais associados a cada tipologia detectada pelo motor de análise.
+      </p>
+      {legalBasisList.length > 0 ? (
+        <div className="rounded-lg border border-border overflow-hidden mb-6">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface-base">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Código</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Tipo de Corrupção</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Base Legal (lei + artigo)</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Evidência</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-surface-card">
+              {legalBasisList.map((basis) => {
+                const firstArticle = basis.law_articles[0];
+                return (
+                  <tr key={basis.code} className="hover:bg-surface-subtle transition-colors">
+                    <td className="px-4 py-2.5">
+                      <span className="font-mono text-xs font-bold text-accent">{basis.code}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-secondary">
+                      {basis.corruption_types.join(", ")}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-primary">
+                      {firstArticle
+                        ? `${firstArticle.law_name} — ${firstArticle.article}`
+                        : basis.description_legal || "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted">
+                      {basis.evidence_level}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-muted italic mb-6">Dados de base legal não disponíveis.</p>
+      )}
 
       <p className="mt-6 text-xs text-muted leading-relaxed">
         A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência

@@ -36,6 +36,13 @@ class EvidenceRef(BaseModel):
     description: str
 
 
+_SIGNAL_DISCLAIMER = (
+    "Este resultado representa um indicador estatístico para triagem e controle social. "
+    "Não configura acusação, prova definitiva ou juízo de culpa. "
+    "A verificação adicional por autoridade competente é necessária antes de qualquer conclusão."
+)
+
+
 class RiskSignalOut(BaseModel):
     id: uuid.UUID
     typology_code: str
@@ -55,6 +62,11 @@ class RiskSignalOut(BaseModel):
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
     created_at: datetime
+    disclaimer: Literal[
+        "Este resultado representa um indicador estatístico para triagem e controle social. "
+        "Não configura acusação, prova definitiva ou juízo de culpa. "
+        "A verificação adicional por autoridade competente é necessária antes de qualquer conclusão."
+    ] = Field(default=_SIGNAL_DISCLAIMER, description="Aviso obrigatório: este sinal é hipótese estatística, não acusação.")
 
 
 class EvidencePackageOut(BaseModel):

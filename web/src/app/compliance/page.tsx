@@ -31,7 +31,7 @@ const PILLARS = [
     badge: "METODOLÓGICO",
     badgeClass: "bg-success/10 text-success border border-success/20",
     items: [
-      "18 tipologias com base legal explícita (Lei 14.133/2021, CF/88, Código Penal, Lei de Improbidade)",
+      "22 tipologias com base legal explícita (Lei 14.133/2021, CF/88, Lei 9.613/98, Lei 12.529/2011, Código Penal, Lei de Improbidade)",
       "Scoring determinístico e reproduzível — nenhuma IA participa da geração de scores ou classificação de risco",
       "Thresholds baseados em distribuições históricas dos próprios dados públicos, não em critérios subjetivos",
       "IA generativa usada exclusivamente para explicações em linguagem natural (@explanatory_only decorator — TypeError se retornar algo além de texto)",
@@ -46,7 +46,7 @@ const PILLARS = [
       "Opera sobre transparência ativa obrigatória — dados que órgãos públicos são legalmente obrigados a publicar (LAI art. 8º)",
       "CPFs são hasheados via SHA-256 + salt imediatamente na ingestão — nunca persistidos em claro (LGPD art. 12)",
       "Cada sinal carrega aviso obrigatório: indicador estatístico, não acusação",
-      "Aviso de que a plataforma não constitui processo judicial ou administrativo — contestação via GET /contestation",
+      "Aviso de que a plataforma não constitui processo judicial ou administrativo — contestação via POST /contestation",
     ],
   },
   {

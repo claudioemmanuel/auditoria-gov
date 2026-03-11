@@ -17,7 +17,7 @@ Para o documento técnico-jurídico completo, consulte [docs/COMPLIANCE.md](../C
 | Pilar | O que significa na prática |
 |-------|---------------------------|
 | **Tecnologicamente robusto** | Whitelist de domínios governamentais (`.gov.br`, `.leg.br` etc.), testes automatizados, código aberto AGPL-3.0, cadeia de proveniência rastreável de cada dado |
-| **Metodologicamente defensável** | 18 tipologias com base legal explícita, scoring determinístico e reproduzível, nenhuma IA na geração de scores |
+| **Metodologicamente defensável** | 22 tipologias com base legal explícita, scoring determinístico e reproduzível, nenhuma IA na geração de scores |
 | **Juridicamente responsável** | Opera sobre transparência ativa obrigatória — CF/88 art. 5º XXXIII, LAI, LGPD art. 7º VI, Lei Anticorrupção |
 | **Publicamente auditável** | Código-fonte aberto, `GET /public/sources` expõe todas as fontes e scores de veracidade, metodologia documentada |
 
@@ -59,6 +59,9 @@ O STF, no RE 652.777, fixou que a publicação de remuneração de servidores p�
 | [Lei 12.846/2013 (Anticorrupção)](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2013/lei/l12846.htm) | Fundamenta a detecção de irregularidades que a plataforma identifica |
 | [Lei 8.429/1992 (Improbidade)](https://www.planalto.gov.br/ccivil_03/leis/l8429.htm) | Base normativa de tipologias de peculato, enriquecimento ilícito e fraude |
 | [Lei 14.133/2021 (Licitações)](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm) | Fundamenta T01–T08 (concentração, conluio, fracionamento etc.) |
+| [Lei 9.613/1998 (Lavagem de Dinheiro)](https://www.planalto.gov.br/ccivil_03/leis/l9613.htm) | Crimes de lavagem e ocultação de bens — base de T17 |
+| [Lei 12.529/2011 (Defesa da Concorrência)](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12529.htm) | Cartel e conluio em licitações — base de T07 e T19–T21 |
+| CF/88 Art. 166-A + EC 105/2019 | Emendas parlamentares Pix — base de T16 |
 
 ---
 
@@ -85,7 +88,7 @@ A análise de dados de transparência ativa é exercício de direito constitucio
 Qualquer pessoa — cidadãos, jornalistas, advogados, auditores, pesquisadores e órgãos de controle.
 
 **Como contestar um sinal que me afeta?**
-Consulte `GET /signal/{id}/provenance` para verificar os dados brutos e `GET /contestation` para registrar impugnação.
+Consulte `GET /signal/{id}/provenance` para verificar os dados brutos e `POST /contestation` para registrar impugnação.
 
 ---
 

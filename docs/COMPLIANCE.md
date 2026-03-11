@@ -1,7 +1,7 @@
 # Compliance & Responsabilidade Legal — AuditorIA Gov
 
-**Versão:** 1.0
-**Data de vigência:** 2026-03-04
+**Versão:** 1.1
+**Data de vigência:** 2026-03-11
 **Revisão:** Trimestral
 
 ---
@@ -54,13 +54,29 @@ O princípio da publicidade da Administração Pública impõe que os atos admin
 | Benefícios sociais (BPC, Bolsa Família etc.) | LAI art. 8º, §1º, III |
 | Viagens a serviço | LAI art. 8º, §1º, VII |
 | Cartão de pagamento governamental | LAI art. 8º, §1º, III |
-| Emendas parlamentares | LAI art. 8º + EC 105/2019 |
+| Emendas parlamentares (Pix) | LAI art. 8º + EC 105/2019; CF/88 Art. 166-A; Acórdão TCU 518/2023 |
 | Convênios e transferências | LAI art. 8º, §1º, IV |
 | Candidatos e contas eleitorais | Lei 9.504/97 art. 28 + Res. TSE 23.604 |
 | CNPJ e quadro societário | Lei 8.934/94 art. 29 (dados públicos do cadastro empresarial) |
 | Diários oficiais | Constituição Federal, art. 37 (publicidade) |
 
 Todos esses dados são de **divulgação ativa obrigatória** — as entidades governamentais são legalmente obrigadas a publicá-los. A plataforma apenas os organiza, cruza e analisa.
+
+---
+
+## 3b. Legislação Complementar
+
+Além das bases de transparência ativa, as tipologias de detecção da plataforma estão ancoradas em diplomas legais específicos:
+
+| Legislação | Relevância para Tipologias |
+|-----------|---------------------------|
+| Decreto 12.343/2024 | Atualiza limites de dispensa de licitação (T03 threshold: R$ 62.725,59 bens/serviços, R$ 125.451,15 obras) |
+| Lei 9.613/1998 (Lavagem de Dinheiro) | Crimes de lavagem de dinheiro e ocultação de bens — base de T17 |
+| Lei 12.529/2011 (Defesa da Concorrência) | Defesa da concorrência, cartel e conluio — base de T07 e T19–T21 |
+| FATF Recomendação 24 | Transparência de beneficiários finais — base de T17 |
+| CF/88 Art. 166-A + EC 105/2019 | Emendas parlamentares Pix e plano de trabalho — base de T16 |
+
+Estas bases legais fundamentam as tipologias avançadas de detecção registradas no sistema.
 
 ---
 
@@ -173,7 +189,7 @@ Qualquer entidade (pessoa física ou jurídica) que apareça em um sinal da plat
 
 1. **Consultar a proveniência** — `GET /signal/{id}/provenance` expõe todos os dados brutos que geraram o sinal
 2. **Verificar a metodologia** — A lógica de cada tipologia está documentada em `/methodology` e no código-fonte aberto
-3. **Contestar o sinal** — `GET /contestation` (endpoint de mecanismo de contestação) permite registrar impugnação formal
+3. **Contestar o sinal** — `POST /contestation` (endpoint de mecanismo de contestação) permite registrar impugnação formal
 4. **Acessar o código** — O código-fonte é aberto (AGPL-3.0) e qualquer técnico pode verificar os cálculos
 
 **A plataforma não constitui processo judicial ou administrativo.** A contestação aqui se refere a sinalizações incorretas por erro de dados, não a processos legais, que devem seguir as vias próprias.
