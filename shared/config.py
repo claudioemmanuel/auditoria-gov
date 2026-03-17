@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # Rate Limits (incoming)
     PUBLIC_RATE_LIMIT_RPS: int = 10
     PUBLIC_RATE_LIMIT_BURST: int = 30
+    INTERNAL_RATE_LIMIT_BURST: int = 10  # per second, keyed on API key
 
     # Cache
     CACHE_TTL_SECONDS: int = 300

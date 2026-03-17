@@ -6,15 +6,21 @@ resource "aws_secretsmanager_secret" "app" {
   recovery_window_in_days = 0  # Allow immediate deletion for dev iteration
 }
 
+locals {
+  redis_host = aws_elasticache_replication_group.redis.primary_endpoint_address
+  # Use rediss:// (TLS) with optional AUTH token to match transit_encryption_enabled
+  redis_url_prefix = var.redis_password != "" ? "rediss://:${var.redis_password}@${local.redis_host}" : "rediss://${local.redis_host}"
+}
+
 resource "aws_secretsmanager_secret_version" "app" {
   secret_id = aws_secretsmanager_secret.app.id
 
   secret_string = jsonencode({
     DATABASE_URL               = "postgresql+asyncpg://auditoria:${var.db_password}@${aws_db_instance.postgres.endpoint}/auditoria"
     DATABASE_URL_SYNC          = "postgresql+psycopg://auditoria:${var.db_password}@${aws_db_instance.postgres.endpoint}/auditoria"
-    REDIS_URL                  = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/0"
-    CELERY_BROKER_URL          = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/1"
-    CELERY_RESULT_BACKEND      = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/2"
+    REDIS_URL                  = "${local.redis_url_prefix}:6379/0"
+    CELERY_BROKER_URL          = "${local.redis_url_prefix}:6379/1"
+    CELERY_RESULT_BACKEND      = "${local.redis_url_prefix}:6379/2"
     CPF_HASH_SALT              = var.cpf_hash_salt
     INTERNAL_API_KEY           = var.internal_api_key
     PORTAL_TRANSPARENCIA_TOKEN = var.portal_transparencia_token

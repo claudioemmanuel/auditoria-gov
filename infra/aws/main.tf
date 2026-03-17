@@ -8,11 +8,15 @@ terraform {
     }
   }
 
-  # Uncomment after first apply to use S3 backend:
+  # Remote state backend (recommended for production).
+  # Step 1: cd infra/aws/bootstrap && terraform init && terraform apply
+  # Step 2: uncomment the block below, then run: terraform init -migrate-state
   # backend "s3" {
-  #   bucket = "auditoria-gov-tfstate"
-  #   key    = "terraform.tfstate"
-  #   region = "us-east-1"
+  #   bucket         = "auditoria-gov-tfstate"
+  #   key            = "terraform.tfstate"
+  #   region         = "us-east-1"
+  #   encrypt        = true
+  #   dynamodb_table = "auditoria-gov-tflock"
   # }
 }
 
