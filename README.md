@@ -236,7 +236,6 @@ Project wiki pages are versioned in [docs/wiki](./docs/wiki/README.md) and inten
 AuditorIA Gov runs on ~$15-20/month of AWS infrastructure. If this project is useful to you, consider sponsoring:
 
 - [GitHub Sponsors](https://github.com/sponsors/claudioemmanuel)
-- [Open Collective](https://opencollective.com/auditoria-gov)
 
 See [SPONSORS.md](./SPONSORS.md) for how funds are used.
 

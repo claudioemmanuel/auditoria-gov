@@ -16,7 +16,7 @@ Full cost breakdown: [docs/COST.md](./docs/COST.md)
 ## Sponsors
 
 <!-- sponsors -->
-*Be the first sponsor! See [GitHub Sponsors](https://github.com/sponsors/claudioemmanuel) or [Open Collective](https://opencollective.com/auditoria-gov).*
+*Be the first sponsor! See [GitHub Sponsors](https://github.com/sponsors/claudioemmanuel).*
 <!-- /sponsors -->
 
 ## Contributing
