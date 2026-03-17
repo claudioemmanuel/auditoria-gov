@@ -89,6 +89,13 @@ api/alembic/versions/__pycache__/
 *.tmp
 .hypothesis/
 
+# ── Terraform ──────────────────────────────────────────────────────
+infra/aws/.terraform/
+infra/aws/*.tfstate
+infra/aws/*.tfstate.*
+infra/aws/.terraform.lock.hcl
+infra/aws/terraform.tfvars
+
 # ── Documentation ───────────────────────────────────────────────────
 docs/plans/
 .worktrees/

@@ -1,0 +1,26 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars — it contains secrets.
+#
+# Generate secrets with: openssl rand -hex 32
+
+aws_region    = "us-east-1"
+project_name  = "auditoria-gov"
+
+# Secrets (REQUIRED)
+db_password      = "CHANGE_ME"
+cpf_hash_salt    = "CHANGE_ME"
+internal_api_key = "CHANGE_ME"
+
+# Portal da Transparência token (required for data ingestion)
+portal_transparencia_token = ""
+
+# Budget
+budget_email       = "your-email@example.com"
+budget_ceiling_usd = 20
+
+# Domain (optional — leave empty to use CloudFront default domain)
+domain_name = ""
+
+# GitHub (for OIDC CI/CD)
+github_org  = "claudioemmanuel"
+github_repo = "auditoria-gov"

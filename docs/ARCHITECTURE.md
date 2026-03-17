@@ -140,6 +140,39 @@ docker compose run --rm api alembic -c api/alembic.ini upgrade head
 uv run --extra test pytest -q
 ```
 
+### AWS Production Deployment
+
+Production runs on AWS ECS Fargate with the following topology:
+
+```
+CloudFront → S3 (Next.js static export)
+ALB → ECS Fargate (API service, always-on)
+EventBridge Scheduler → ECS Fargate (Worker one-shot tasks, on-demand)
+ECS → RDS PostgreSQL 17 + pgvector (db.t3.micro)
+ECS → ElastiCache Redis 7.1 (cache.t3.micro)
+```
+
+Infrastructure is managed by Terraform in `infra/aws/`. Deploy with:
+
+```bash
+cd infra/aws
+cp terraform.tfvars.example terraform.tfvars
+# Fill in secrets — see docs/DEPLOYMENT.md
+terraform init && terraform apply
+```
+
+Worker containers run as one-shot Fargate tasks triggered by EventBridge Scheduler:
+
+- `pipeline-full` — daily 03:00 UTC (full ingest + ER + signals)
+- `pipeline-bulk` — daily 00:00 UTC (bulk connector refresh)
+- `pipeline-maintenance` — Sunday 02:00 UTC (vacuum, coverage update)
+
+CI/CD: `.github/workflows/deploy.yml` uses GitHub OIDC (no long-lived keys) to push images to ECR, update ECS task definitions, sync the frontend to S3, and run Alembic migrations via a one-shot ECS task.
+
+**Budget guardrail:** A Lambda function triggered by AWS Budgets stops all ECS services, stops RDS, and disables EventBridge rules when spend reaches $20/month.
+
+See `docs/DEPLOYMENT.md` and `docs/COST.md` for full details.
+
 ## Public-Facing Documentation Set
 
 - `README.md`: onboarding and usage

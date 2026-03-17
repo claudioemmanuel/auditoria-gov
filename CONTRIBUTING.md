@@ -44,6 +44,11 @@ Run migrations:
 docker compose run --rm api alembic -c api/alembic.ini upgrade head
 ```
 
+### Production deployment (AWS)
+
+See `docs/DEPLOYMENT.md` for the full AWS setup guide (ECS Fargate + RDS + S3/CloudFront).
+The Terraform configuration lives in `infra/aws/`. Never commit `terraform.tfvars` — it is gitignored.
+
 ## Project Layout
 
 - `api/`: FastAPI app and Alembic migrations
