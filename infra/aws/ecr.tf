@@ -1,6 +1,6 @@
 resource "aws_ecr_repository" "api" {
   name                 = "${var.project_name}/api"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
   force_delete         = true
 
   image_scanning_configuration {
@@ -10,7 +10,7 @@ resource "aws_ecr_repository" "api" {
 
 resource "aws_ecr_repository" "worker" {
   name                 = "${var.project_name}/worker"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
   force_delete         = true
 
   image_scanning_configuration {

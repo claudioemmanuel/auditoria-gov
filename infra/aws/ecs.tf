@@ -17,20 +17,26 @@ resource "aws_cloudwatch_log_group" "worker" {
   retention_in_days = 14
 }
 
+# Non-sensitive environment variables (safe to store in task definition)
 locals {
   shared_env = [
-    { name = "APP_ENV",                    value = "production" },
-    { name = "DATABASE_URL",               value = "postgresql+asyncpg://auditoria:${var.db_password}@${aws_db_instance.postgres.endpoint}/auditoria" },
-    { name = "DATABASE_URL_SYNC",          value = "postgresql+psycopg://auditoria:${var.db_password}@${aws_db_instance.postgres.endpoint}/auditoria" },
-    { name = "REDIS_URL",                  value = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/0" },
-    { name = "CELERY_BROKER_URL",          value = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/1" },
-    { name = "CELERY_RESULT_BACKEND",      value = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/2" },
-    { name = "CPF_HASH_SALT",              value = var.cpf_hash_salt },
-    { name = "INTERNAL_API_KEY",           value = var.internal_api_key },
-    { name = "PORTAL_TRANSPARENCIA_TOKEN", value = var.portal_transparencia_token },
-    { name = "PYTHONPATH",                 value = "/app" },
-    { name = "LOG_LEVEL",                  value = "INFO" },
-    { name = "LLM_PROVIDER",               value = "none" },
+    { name = "APP_ENV",      value = "production" },
+    { name = "PYTHONPATH",   value = "/app" },
+    { name = "LOG_LEVEL",    value = "INFO" },
+    { name = "LLM_PROVIDER", value = "none" },
+  ]
+
+  # Sensitive variables fetched from Secrets Manager at container startup.
+  # Format: { name = "ENV_VAR", valueFrom = "secret_arn:json_key::" }
+  shared_secrets = [
+    { name = "DATABASE_URL",               valueFrom = "${aws_secretsmanager_secret.app.arn}:DATABASE_URL::" },
+    { name = "DATABASE_URL_SYNC",          valueFrom = "${aws_secretsmanager_secret.app.arn}:DATABASE_URL_SYNC::" },
+    { name = "REDIS_URL",                  valueFrom = "${aws_secretsmanager_secret.app.arn}:REDIS_URL::" },
+    { name = "CELERY_BROKER_URL",          valueFrom = "${aws_secretsmanager_secret.app.arn}:CELERY_BROKER_URL::" },
+    { name = "CELERY_RESULT_BACKEND",      valueFrom = "${aws_secretsmanager_secret.app.arn}:CELERY_RESULT_BACKEND::" },
+    { name = "CPF_HASH_SALT",              valueFrom = "${aws_secretsmanager_secret.app.arn}:CPF_HASH_SALT::" },
+    { name = "INTERNAL_API_KEY",           valueFrom = "${aws_secretsmanager_secret.app.arn}:INTERNAL_API_KEY::" },
+    { name = "PORTAL_TRANSPARENCIA_TOKEN", valueFrom = "${aws_secretsmanager_secret.app.arn}:PORTAL_TRANSPARENCIA_TOKEN::" },
   ]
 }
 
@@ -59,6 +65,9 @@ resource "aws_ecs_task_definition" "api" {
         value = var.domain_name != "" ? "https://${var.domain_name}" : "https://${aws_cloudfront_distribution.frontend.domain_name}"
       },
     ])
+
+    # Sensitive values injected from Secrets Manager — never in plaintext task definition
+    secrets = local.shared_secrets
 
     healthCheck = {
       command     = ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
@@ -96,6 +105,9 @@ resource "aws_ecs_task_definition" "worker" {
     command = ["--run-pipeline", "--pipeline", "full"]
 
     environment = local.shared_env
+
+    # Sensitive values injected from Secrets Manager — never in plaintext task definition
+    secrets = local.shared_secrets
 
     logConfiguration = {
       logDriver = "awslogs"

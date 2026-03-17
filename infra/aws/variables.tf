@@ -59,6 +59,12 @@ variable "domain_name" {
   default     = ""
 }
 
+variable "certificate_arn" {
+  description = "ACM certificate ARN for ALB HTTPS listener. Request via: aws acm request-certificate --domain-name api.yourdomain.com --validation-method DNS. Leave empty for HTTP-only (dev/first-run)."
+  type        = string
+  default     = ""
+}
+
 variable "api_desired_count" {
   description = "Desired count for API ECS service (0 to stop)"
   type        = number

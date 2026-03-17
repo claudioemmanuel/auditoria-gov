@@ -21,6 +21,11 @@ budget_ceiling_usd = 20
 # Domain (optional — leave empty to use CloudFront default domain)
 domain_name = ""
 
+# ACM certificate ARN for ALB HTTPS (required for HTTPS — leave empty for HTTP-only first deploy)
+# Request with: aws acm request-certificate --domain-name api.yourdomain.com --validation-method DNS
+# Then fill in the ARN after the cert is issued.
+certificate_arn = ""
+
 # GitHub (for OIDC CI/CD)
 github_org  = "claudioemmanuel"
 github_repo = "auditoria-gov"

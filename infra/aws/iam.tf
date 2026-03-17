@@ -1,4 +1,4 @@
-# ECS Task Execution Role (pulls images, writes logs)
+# ECS Task Execution Role (pulls images, writes logs, reads Secrets Manager)
 resource "aws_iam_role" "ecs_execution" {
   name = "${var.project_name}-ecs-execution"
 
@@ -17,7 +17,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# ECS Task Role (what the container can do)
+# ECS Task Role (what the container can do at runtime)
 resource "aws_iam_role" "ecs_task" {
   name = "${var.project_name}-ecs-task"
 
@@ -31,7 +31,7 @@ resource "aws_iam_role" "ecs_task" {
   })
 }
 
-# EventBridge role (to invoke ECS RunTask)
+# EventBridge role (to invoke ECS RunTask for scheduled pipelines)
 resource "aws_iam_role" "eventbridge_ecs" {
   name = "${var.project_name}-eventbridge-ecs"
 
@@ -53,16 +53,16 @@ resource "aws_iam_role_policy" "eventbridge_run_task" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = "ecs:RunTask"
+        Effect = "Allow"
+        Action = "ecs:RunTask"
         Resource = [
           aws_ecs_task_definition.worker.arn,
           "${replace(aws_ecs_task_definition.worker.arn, "/:\\d+$/", "")}:*"
         ]
       },
       {
-        Effect   = "Allow"
-        Action   = "iam:PassRole"
+        Effect = "Allow"
+        Action = "iam:PassRole"
         Resource = [
           aws_iam_role.ecs_execution.arn,
           aws_iam_role.ecs_task.arn,
@@ -72,7 +72,7 @@ resource "aws_iam_role_policy" "eventbridge_run_task" {
   })
 }
 
-# GitHub Actions OIDC
+# GitHub Actions OIDC — deploy role restricted to main branch only
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
@@ -91,11 +91,11 @@ resource "aws_iam_role" "github_actions" {
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
+        # Both conditions must match (AND semantics)
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-        }
-        StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
+          # Restrict to main branch pushes only — prevents any other branch/fork from assuming this role
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"
         }
       }
     }]
@@ -109,10 +109,16 @@ resource "aws_iam_role_policy" "github_actions" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # ECR auth token — must be "*" (AWS limitation: no resource-level policy)
+      {
+        Effect   = "Allow"
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
+      },
+      # ECR image push — scoped to this project's repositories only
       {
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -121,15 +127,36 @@ resource "aws_iam_role_policy" "github_actions" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
         ]
-        Resource = "*"
+        Resource = [
+          aws_ecr_repository.api.arn,
+          aws_ecr_repository.worker.arn,
+        ]
       },
+      # ECS actions that support resource-level policies
       {
         Effect = "Allow"
         Action = [
           "ecs:UpdateService",
           "ecs:DescribeServices",
           "ecs:RunTask",
+          "ecs:StopTask",
           "ecs:DescribeTasks",
+        ]
+        Resource = [
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${var.project_name}/*",
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:task-definition/${var.project_name}-*",
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:task/${var.project_name}/*",
+        ]
+      },
+      # ECS actions that do NOT support resource-level policies (AWS limitation)
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:DescribeTaskDefinition",
+          "ecs:RegisterTaskDefinition",
+          "ecs:ListTaskDefinitions",
+          "ecs:ListServices",
+          "ecs:DescribeClusters",
         ]
         Resource = "*"
       },
@@ -138,6 +165,7 @@ resource "aws_iam_role_policy" "github_actions" {
         Action   = "iam:PassRole"
         Resource = [aws_iam_role.ecs_execution.arn, aws_iam_role.ecs_task.arn]
       },
+      # S3 frontend — scoped to this project's bucket only
       {
         Effect = "Allow"
         Action = [
@@ -150,6 +178,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "${aws_s3_bucket.frontend.arn}/*",
         ]
       },
+      # CloudFront invalidation — scoped to this project's distribution only
       {
         Effect   = "Allow"
         Action   = "cloudfront:CreateInvalidation"
@@ -159,7 +188,7 @@ resource "aws_iam_role_policy" "github_actions" {
   })
 }
 
-# Lambda budget kill-switch role
+# Lambda budget kill-switch role — scoped to project resources only
 resource "aws_iam_role" "budget_killswitch" {
   name = "${var.project_name}-budget-killswitch"
 
@@ -180,21 +209,44 @@ resource "aws_iam_role_policy" "budget_killswitch" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # ECS stop — scoped to this project's cluster and tasks
       {
         Effect = "Allow"
-        Action = [
-          "ecs:UpdateService",
-          "ecs:ListServices",
-          "ecs:StopTask",
-          "ecs:ListTasks",
-          "rds:StopDBInstance",
-          "events:DisableRule",
-          "events:ListRules",
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
+        Action = ["ecs:UpdateService", "ecs:StopTask", "ecs:DescribeServices"]
+        Resource = [
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${var.project_name}/*",
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:task/${var.project_name}/*",
         ]
+      },
+      # ECS list — no resource-level policy support (AWS limitation)
+      {
+        Effect   = "Allow"
+        Action   = ["ecs:ListTasks", "ecs:ListServices"]
         Resource = "*"
+      },
+      # RDS stop — scoped to this project's instance only
+      {
+        Effect   = "Allow"
+        Action   = "rds:StopDBInstance"
+        Resource = aws_db_instance.postgres.arn
+      },
+      # EventBridge disable — scoped to this project's rules by name prefix
+      {
+        Effect = "Allow"
+        Action = "events:DisableRule"
+        Resource = "arn:aws:events:${var.aws_region}:${data.aws_caller_identity.current.account_id}:rule/${var.project_name}-*"
+      },
+      # EventBridge list — no resource-level policy support (AWS limitation)
+      {
+        Effect   = "Allow"
+        Action   = "events:ListRules"
+        Resource = "*"
+      },
+      # CloudWatch Logs for Lambda execution
+      {
+        Effect = "Allow"
+        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project_name}-*"
       }
     ]
   })

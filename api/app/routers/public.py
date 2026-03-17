@@ -520,7 +520,7 @@ async def entity_detail(entity_id: uuid.UUID, session: DbSession):
         "id": entity.id,
         "type": entity.type,
         "name": entity.name,
-        "identifiers": entity.identifiers,
+        "identifiers": {k: v for k, v in (entity.identifiers or {}).items() if k not in ("cpf", "cpf_hash")},
         "attrs": entity.attrs,
         "cluster_id": entity.cluster_id,
         "aliases": [
