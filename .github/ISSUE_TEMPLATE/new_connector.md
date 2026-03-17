@@ -1,44 +1,22 @@
 ---
-name: New connector
+name: New Data Connector
 about: Propose a new public data source connector
-title: "[Connector]: "
-labels: ["connector", "data-source", "needs-triage"]
-assignees: []
+title: "[Connector] "
+labels: connector, enhancement
 ---
 
 ## Data Source
+- **Name:**
+- **URL:**
+- **API docs:**
+- **Access:** Public / Token required
 
-- Official name:
-- URL/API docs:
-- Public or authenticated:
-- Legal/license notes:
+## Domain Verification
+- [ ] Domain ends in `.gov.br` or `.leg.br`
+- [ ] If not, provide justification for `DomainException`
 
-## Why this source matters
+## Data Available
 
-Describe anti-corruption or accountability value.
+## Legal Basis
 
-## Expected Jobs
-
-List planned ingestion jobs (name + domain).
-
-## Data Shape
-
-What entities/events are expected (orgs, suppliers, contracts, payments, sanctions, etc.)?
-
-## Access Constraints
-
-- Rate limits:
-- Pagination/cursor pattern:
-- Historical range available:
-- Required credentials/tokens:
-
-## Normalization Notes
-
-How should records map into canonical entities/events/edges?
-
-## Acceptance Checklist
-
-- [ ] Source is stable and officially documented
-- [ ] Terms of use permit ingestion for civic auditing
-- [ ] Proposed jobs are deterministic and testable
-- [ ] Test plan for connector fetch + normalize exists
+## Estimated Volume

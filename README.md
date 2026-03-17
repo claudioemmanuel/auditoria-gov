@@ -4,6 +4,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./pyproject.toml)
 [![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](./docker-compose.yml)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red?logo=github)](https://github.com/sponsors/claudioemmanuel)
 
 Citizen auditing platform for Brazilian federal government data.
 
@@ -182,6 +183,27 @@ npm run lint
 npm run build
 ```
 
+## Deployment
+
+### Local Development (Docker Compose)
+
+The quick start above uses Docker Compose for local development.
+See [docker-compose.yml](./docker-compose.yml) for the full stack.
+
+### Production (AWS)
+
+For production deployment on AWS (ECS Fargate + RDS + S3/CloudFront):
+
+```bash
+cd infra/aws
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your secrets
+terraform init && terraform apply
+```
+
+Full guide: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) |
+Cost breakdown: [docs/COST.md](./docs/COST.md)
+
 ## Compliance & Respaldo Legal
 
 [![LAI Compliant](https://img.shields.io/badge/LAI-Lei%2012.527%2F2011-green)](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm)
@@ -208,6 +230,15 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening issues or pull requests
 ## Wiki
 
 Project wiki pages are versioned in [docs/wiki](./docs/wiki/README.md) and intended for GitHub Wiki publication.
+
+## Support This Project
+
+AuditorIA Gov runs on ~$15-20/month of AWS infrastructure. If this project is useful to you, consider sponsoring:
+
+- [GitHub Sponsors](https://github.com/sponsors/claudioemmanuel)
+- [Open Collective](https://opencollective.com/auditoria-gov)
+
+See [SPONSORS.md](./SPONSORS.md) for how funds are used.
 
 ## License
 

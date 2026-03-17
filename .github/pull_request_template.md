@@ -1,41 +1,14 @@
-## Summary
+## What
 
-Describe what changed and why.
+## Why
 
-## Type of Change
-
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Connector update
-- [ ] Typology update
-- [ ] Documentation only
-- [ ] Refactor / maintenance
-
-## Verification
-
-List commands and outcomes.
-
-```bash
-uv run --extra test pytest -q
-```
-
-If frontend changed:
-
-```bash
-cd web
-npm run lint
-npm run build
-```
-
-## Data and Security Review
-
-- [ ] No secrets/tokens/personal data were committed
-- [ ] LGPD safeguards remain intact (no raw CPF persistence)
-- [ ] Any new env vars are documented in `.env.example` and `README.md`
+## How
 
 ## Checklist
+- [ ] Tests pass (`uv run --extra test pytest -q`)
+- [ ] Frontend builds (`cd web && npm run build`)
+- [ ] No secrets or tokens in diff
+- [ ] Documentation updated (if applicable)
+- [ ] Migration added (if DB schema changed)
 
-- [ ] Tests added/updated for behavior changes
-- [ ] Docs updated (README/CONTRIBUTING/ARCHITECTURE) when relevant
-- [ ] Backward compatibility considered for API/schema changes
-- [ ] Related issues linked
+## Test Plan
