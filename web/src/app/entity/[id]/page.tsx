@@ -1,4 +1,7 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2, User, Landmark, GitBranch, AlertTriangle, Users, Radar, Activity,
@@ -8,8 +11,9 @@ import { EntityNetworkGraph } from "@/components/EntityNetworkGraph";
 import { EmptyState } from "@/components/EmptyState";
 import { DetailPageLayout } from "@/components/DetailPageLayout";
 import { DetailHeader } from "@/components/DetailHeader";
+import { DetailSkeleton } from "@/components/Skeleton";
 import { normalizeUnknownDisplay } from "@/lib/utils";
-import type { SignalSeverity } from "@/lib/types";
+import type { SignalSeverity, EntityDetail, NeighborhoodResponse } from "@/lib/types";
 
 const TYPE_ICONS = {
   pessoa_fisica: User,
@@ -64,27 +68,63 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   org: "Órgão",
 };
 
-export default async function EntityDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+export default function EntityDetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
 
-  let entity: Awaited<ReturnType<typeof getEntity>>;
-  try {
-    entity = await getEntity(id);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("404")) notFound();
-    throw err;
+  const [entity, setEntity] = useState<EntityDetail | null>(null);
+  const [neighborhood, setNeighborhood] = useState<NeighborhoodResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const e = await getEntity(id);
+        if (cancelled) return;
+        setEntity(e);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        setError(msg.includes("404") ? "not_found" : msg);
+        return;
+      }
+      try {
+        const n = await getGraphNeighborhood(id);
+        if (!cancelled) setNeighborhood(n);
+      } catch {
+        // neighborhood is optional
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (error === "not_found") {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <EmptyState title="Entidade nao encontrada" description="A entidade solicitada nao existe ou foi removida." />
+      </div>
+    );
   }
 
-  let neighborhood;
-  try {
-    neighborhood = await getGraphNeighborhood(id);
-  } catch {
-    neighborhood = null;
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <EmptyState title="Erro ao carregar entidade" description={error} />
+      </div>
+    );
+  }
+
+  if (!entity) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <DetailSkeleton />
+      </div>
+    );
   }
 
   const TypeIcon = TYPE_ICONS[entity.type as keyof typeof TYPE_ICONS] ?? Building2;

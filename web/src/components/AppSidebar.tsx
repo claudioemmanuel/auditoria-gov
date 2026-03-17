@@ -32,7 +32,7 @@ function ApiHealthDot() {
 
   const ping = useCallback(async () => {
     try {
-      const res = await fetch("/api/health", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/health`, {
         signal: AbortSignal.timeout(5000),
         cache: "no-store",
       });

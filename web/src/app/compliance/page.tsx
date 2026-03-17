@@ -322,7 +322,7 @@ export default function CompliancePage() {
               <ArrowRight className="h-3 w-3" />
             </Link>
             <a
-              href="/api/public/sources"
+              href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/sources`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-4 py-2.5 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"

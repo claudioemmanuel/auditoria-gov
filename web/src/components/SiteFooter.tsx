@@ -10,7 +10,7 @@ const LEGAL_LINKS = [
 ];
 
 const AUDIT_LINKS = [
-  { label: "Fontes & Veracidade (GET /public/sources)", href: "/api/public/sources", external: true },
+  { label: "Fontes & Veracidade (GET /public/sources)", href: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/sources`, external: true },
   { label: "Código-fonte (AGPL-3.0)", href: "https://github.com/claudioemmanuel/auditoria-gov", external: true },
   { label: "Política de Governança (GOVERNANCE.md)", href: "https://github.com/claudioemmanuel/auditoria-gov/blob/main/docs/GOVERNANCE.md", external: true },
 ];

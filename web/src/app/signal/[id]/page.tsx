@@ -1,5 +1,8 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getSignal, fetchTypologyLegalBasis, fetchRelatedSignals } from "@/lib/api";
 import type { TypologyLegalBasis, RelatedSignal } from "@/lib/types";
 import { Markdown } from "@/components/Markdown";
@@ -7,6 +10,8 @@ import { Badge } from "@/components/Badge";
 import { SignalEvidenceSection } from "@/components/SignalEvidenceSection";
 import { DetailPageLayout } from "@/components/DetailPageLayout";
 import { DetailHeader } from "@/components/DetailHeader";
+import { DetailSkeleton } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
 import { formatBRL, formatDate, normalizeUnknownDisplay, severityDotColor, cn } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
 import type { SignalDetail, FactorMeta, SignalSeverity } from "@/lib/types";
@@ -98,31 +103,56 @@ function ScorePill({ label, value }: { label: string; value: number }) {
 
 // ---- Page ----
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+export default function SignalDetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
 
-export default async function SignalDetailPage({ params }: PageProps) {
-  const { id } = await params;
+  const [signal, setSignal] = useState<SignalDetail | null>(null);
+  const [legalBasis, setLegalBasis] = useState<TypologyLegalBasis | null>(null);
+  const [relatedSignals, setRelatedSignals] = useState<RelatedSignal[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  let signal: SignalDetail;
-  let legalBasis: TypologyLegalBasis | null = null;
-  try {
-    signal = await getSignal(id);
-  } catch {
-    notFound();
-    return null as never;
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const s = await getSignal(id);
+        if (cancelled) return;
+        setSignal(s);
+
+        // Fetch legal basis and related signals in parallel
+        const [lb, rs] = await Promise.all([
+          fetchTypologyLegalBasis(s.typology_code).catch(() => null),
+          fetchRelatedSignals(id).catch((): RelatedSignal[] => []),
+        ]);
+        if (cancelled) return;
+        setLegalBasis(lb);
+        setRelatedSignals(rs);
+      } catch {
+        if (!cancelled) setError("not_found");
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (error === "not_found") {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <EmptyState title="Sinal nao encontrado" description="O sinal solicitado nao existe ou foi removido." />
+      </div>
+    );
   }
-  try {
-    legalBasis = await fetchTypologyLegalBasis(signal.typology_code);
-  } catch {
-    // legal basis not available for all typologies
-  }
-  let relatedSignals: RelatedSignal[] = [];
-  try {
-    relatedSignals = await fetchRelatedSignals(id);
-  } catch {
-    // ignore
+
+  if (!signal) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <DetailSkeleton />
+      </div>
+    );
   }
 
   const shortId = id.slice(0, 8);

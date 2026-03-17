@@ -1,18 +1,17 @@
-# --- builder ---
 FROM node:22-slim AS builder
+
 WORKDIR /app
-COPY package*.json ./
+
+COPY package.json package-lock.json* ./
 RUN npm ci
+
 COPY . .
+
+ARG NEXT_PUBLIC_API_URL=http://api:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN npm run build
 
-# --- runner ---
-FROM node:22-slim AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
-RUN npm ci --omit=dev
-EXPOSE 3000
-CMD ["npm", "start"]
+# For local dev, the docker-compose.yml overrides CMD with `npm run dev`
+# For production, the `out/` directory is deployed to S3 via CI/CD
+CMD ["npm", "run", "dev"]

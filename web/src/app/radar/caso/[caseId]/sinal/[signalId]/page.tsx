@@ -1,10 +1,17 @@
-import { permanentRedirect } from "next/navigation";
+"use client";
 
-export default async function SignalRedirectPage({
-  params,
-}: {
-  params: Promise<{ caseId: string; signalId: string }>;
-}) {
-  const { caseId, signalId } = await params;
-  permanentRedirect(`/radar/dossie/${caseId}/sinal/${signalId}`);
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function SignalRedirectPage() {
+  const params = useParams<{ caseId: string; signalId: string }>();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (params.caseId && params.signalId) {
+      router.replace(`/radar/dossie/${params.caseId}/sinal/${params.signalId}`);
+    }
+  }, [params.caseId, params.signalId, router]);
+
+  return null;
 }

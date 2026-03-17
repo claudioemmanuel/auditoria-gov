@@ -1,5 +1,8 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getCase, fetchCaseLegalHypotheses, fetchRelatedCases } from "@/lib/api";
 import { Badge } from "@/components/Badge";
 import { DetailSkeleton } from "@/components/Skeleton";
@@ -7,11 +10,11 @@ import { DetailPageLayout } from "@/components/DetailPageLayout";
 import { DetailHeader } from "@/components/DetailHeader";
 import { LegalInferencePanel } from "@/components/LegalInferencePanel";
 import { CaseTypeBadge } from "@/components/CaseTypeBadge";
-import { Suspense } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import { formatBRL, formatDate, severityDotColor, cn } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
 import { Network, Radar, Building2, User, Landmark, ExternalLink, FileText } from "lucide-react";
-import type { SignalSeverity, CaseDetail, CaseSignal, RelatedCase } from "@/lib/types";
+import type { SignalSeverity, CaseDetail, CaseSignal, RelatedCase, LegalHypothesis } from "@/lib/types";
 
 const SEVERITY_ORDER: Record<SignalSeverity, number> = {
   critical: 0,
@@ -37,17 +40,66 @@ function EntityTypeIcon({ type }: { type: string }) {
   return <Building2 className="h-3.5 w-3.5 shrink-0 text-muted" />;
 }
 
-async function CaseContent({ id }: { id: string }) {
-  let caseData: CaseDetail;
-  try {
-    caseData = await getCase(id);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("404")) notFound();
-    throw err;
+export default function CaseDetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+
+  const [caseData, setCaseData] = useState<CaseDetail | null>(null);
+  const [hypotheses, setHypotheses] = useState<LegalHypothesis[]>([]);
+  const [relatedCases, setRelatedCases] = useState<RelatedCase[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const c = await getCase(id);
+        if (cancelled) return;
+        setCaseData(c);
+
+        const [h, rc] = await Promise.all([
+          fetchCaseLegalHypotheses(id),
+          fetchRelatedCases(id).catch((): RelatedCase[] => []),
+        ]);
+        if (cancelled) return;
+        setHypotheses(h);
+        setRelatedCases(rc);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "";
+        setError(msg.includes("404") ? "not_found" : msg);
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (error === "not_found") {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <EmptyState title="Caso nao encontrado" description="O caso solicitado nao existe ou foi removido." />
+      </div>
+    );
   }
-  const hypotheses = await fetchCaseLegalHypotheses(id);
-  const relatedCases = await fetchRelatedCases(id).catch((): RelatedCase[] => []);
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <EmptyState title="Erro ao carregar caso" description={error} />
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <DetailSkeleton />
+      </div>
+    );
+  }
 
   const shortId = caseData.id.slice(0, 8).toUpperCase();
   const entityNames = caseData.entity_names ?? [];
@@ -333,25 +385,5 @@ async function CaseContent({ id }: { id: string }) {
         </>
       }
     />
-  );
-}
-
-export default async function CaseDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-
-  return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-          <DetailSkeleton />
-        </div>
-      }
-    >
-      <CaseContent id={id} />
-    </Suspense>
   );
 }

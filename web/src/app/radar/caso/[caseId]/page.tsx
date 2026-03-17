@@ -1,10 +1,17 @@
-import { permanentRedirect } from "next/navigation";
+"use client";
 
-export default async function CaseRedirectPage({
-  params,
-}: {
-  params: Promise<{ caseId: string }>;
-}) {
-  const { caseId } = await params;
-  permanentRedirect(`/radar/dossie/${caseId}`);
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function CaseRedirectPage() {
+  const params = useParams<{ caseId: string }>();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (params.caseId) {
+      router.replace(`/radar/dossie/${params.caseId}`);
+    }
+  }, [params.caseId, router]);
+
+  return null;
 }

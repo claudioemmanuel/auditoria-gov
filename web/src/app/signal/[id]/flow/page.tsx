@@ -1,10 +1,17 @@
-import { redirect } from "next/navigation";
+"use client";
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default async function SignalFlowPage({ params }: Props) {
-  const { id } = await params;
-  redirect(`/signal/${id}/graph`);
+export default function SignalFlowPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (params.id) {
+      router.replace(`/signal/${params.id}/graph`);
+    }
+  }, [params.id, router]);
+
+  return null;
 }

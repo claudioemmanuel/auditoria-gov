@@ -36,12 +36,9 @@ import type {
   EntityPathResponse,
 } from "./types";
 
-// Client: relative URL goes through Next.js proxy rewrite (/api/* → backend)
-// Server: must use absolute URL — Next.js 15 does not resolve relative URLs in server components
-const API_BASE =
-  typeof window === "undefined"
-    ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://api:8000"}`
-    : "/api";
+// Static export — all API calls go directly to the backend via absolute URL.
+// NEXT_PUBLIC_API_URL is baked at build time (e.g. https://api.auditoria.gov.br).
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);

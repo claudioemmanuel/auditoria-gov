@@ -205,7 +205,7 @@ export function EvidenceList({
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      const url = `/api/public/signals/${signalId}/evidence/export?format=csv`;
+      const url = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/signals/${signalId}/evidence/export?format=csv`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Export failed: ${res.status}`);
       const blob = await res.blob();
@@ -331,7 +331,7 @@ export function EvidenceList({
                   </td>
                   <td className="px-3 py-2.5">
                     <a
-                      href={`/api/public/event/${item.source_id}`}
+                      href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/event/${item.source_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 text-xs text-accent hover:opacity-80"
