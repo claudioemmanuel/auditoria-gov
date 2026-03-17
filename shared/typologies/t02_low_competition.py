@@ -14,6 +14,7 @@ from shared.models.signals import (
 )
 from shared.repo.queries import get_baseline
 from shared.typologies.base import BaseTypology
+from shared.utils.query import execute_chunked_in
 
 # Modalidades não-competitivas: 0 licitantes é esperado por lei (Lei 14.133/2021 Art. 72-74)
 _NON_COMPETITIVE_MODALITIES: frozenset[str] = frozenset({
@@ -84,14 +85,16 @@ class T02LowCompetitionTypology(BaseTypology):
         event_ids = [e.id for e in events]
 
         # Query all relevant participants (bidders for count + all roles for entity_ids)
-        parts_stmt = select(EventParticipant).where(
-            EventParticipant.event_id.in_(event_ids),
-            EventParticipant.role.in_(
-                ["procuring_entity", "buyer", "supplier", "winner", "bidder"]
+        all_participants = await execute_chunked_in(
+            session,
+            lambda batch: select(EventParticipant).where(
+                EventParticipant.event_id.in_(batch),
+                EventParticipant.role.in_(
+                    ["procuring_entity", "buyer", "supplier", "winner", "bidder"]
+                ),
             ),
+            event_ids,
         )
-        parts_result = await session.execute(parts_stmt)
-        all_participants = parts_result.scalars().all()
 
         bidder_counts: dict[str, set[str]] = defaultdict(set)
         event_entity_ids: dict[str, list] = defaultdict(list)

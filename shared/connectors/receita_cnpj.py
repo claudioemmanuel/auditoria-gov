@@ -5,16 +5,19 @@ Reads the publicly available CNPJ open data published by Receita Federal:
 - Socios (partners/shareholders — QSA)
 - Estabelecimentos (branch offices)
 
-Data is published monthly at: https://dados.rfb.gov.br/CNPJ/
+Data is published monthly via Nextcloud at: https://arquivos.receitafederal.gov.br
 Format: ~10 CSV files per category, semicolon-delimited, ISO-8859-1 encoding.
 
-On first run, auto-downloads all ZIP files from dados.rfb.gov.br (total ~6GB).
-Subsequent runs use already-extracted CSVs.
-Configure data directory via RECEITA_CNPJ_DATA_DIR env var (default: /data/receita_cnpj).
+Download strategy: lazy per-file — only ONE ZIP is downloaded and extracted at a time.
+When fetch() exhausts a file, the CSV is deleted immediately before moving to the next.
+Peak disk usage: ~600MB–1.5GB (one active CSV) instead of ~6-10GB (all files).
+
+Data directory is configurable via RECEITA_CNPJ_DATA_DIR (default: /data/receita_cnpj).
 """
 
 import csv
 import os
+import shutil
 import zipfile
 from typing import Optional
 
@@ -32,7 +35,47 @@ from shared.models.raw import RawItem
 
 
 _DATA_DIR = os.environ.get("RECEITA_CNPJ_DATA_DIR", "/data/receita_cnpj")
-_RFB_BASE_URL = "https://dados.rfb.gov.br/CNPJ/"
+_RFB_NEXTCLOUD_BASE = os.environ.get(
+    "RECEITA_CNPJ_NEXTCLOUD_BASE",
+    "https://arquivos.receitafederal.gov.br",
+)
+_RFB_SHARE_TOKEN = os.environ.get("RECEITA_CNPJ_SHARE_TOKEN", "gn672Ad4CF8N6TK")
+_RFB_CNPJ_WEBDAV_PATH = "/public.php/webdav/Dados/Cadastros/CNPJ"
+_MIN_FREE_BYTES = 2 * 1024 ** 3  # 2 GB
+
+
+class InsufficientDiskError(RuntimeError):
+    """Raised when available disk space is below the minimum required to download a ZIP."""
+
+
+async def _discover_latest_month() -> str:
+    """Query Nextcloud WebDAV to find the latest available CNPJ month (YYYY-MM)."""
+    webdav_url = f"{_RFB_NEXTCLOUD_BASE}{_RFB_CNPJ_WEBDAV_PATH}/"
+    auth = (_RFB_SHARE_TOKEN, "")
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+        resp = await client.request(
+            "PROPFIND",
+            webdav_url,
+            headers={"Depth": "1"},
+            auth=auth,
+        )
+        resp.raise_for_status()
+
+    # Parse <d:href> values matching /YYYY-MM/ pattern
+    import re
+    months = re.findall(r"/(\d{4}-\d{2})/?(?:</|$)", resp.text)
+    if not months:
+        raise RuntimeError("receita_cnpj: no CNPJ month directories found via WebDAV")
+    return sorted(set(months))[-1]  # Latest YYYY-MM
+
+
+def _build_download_url(month: str, zip_name: str) -> str:
+    """Build the Nextcloud direct-download URL for a given CNPJ ZIP."""
+    path = f"/Dados/Cadastros/CNPJ/{month}"
+    return (
+        f"{_RFB_NEXTCLOUD_BASE}/index.php/s/{_RFB_SHARE_TOKEN}"
+        f"/download?path={path}&files={zip_name}"
+    )
 
 
 def _safe_extractall(zip_path: str, dest_dir: str) -> None:
@@ -45,7 +88,8 @@ def _safe_extractall(zip_path: str, dest_dir: str) -> None:
                 raise ValueError(f"Zip Slip blocked: {member}")
         z.extractall(dest_dir)
 
-# ZIP files to download from Receita Federal
+
+# ZIP files published by Receita Federal
 _RFB_ZIP_FILES: dict[str, list[str]] = {
     "Empresas": [f"Empresas{i}.zip" for i in range(10)],
     "Socios": [f"Socios{i}.zip" for i in range(10)],
@@ -61,51 +105,69 @@ _RFB_ZIP_FILES: dict[str, list[str]] = {
 }
 
 
-async def _ensure_rfb_files(data_dir: str) -> None:
-    """Download and extract Receita Federal CNPJ bulk files if not present.
+async def _ensure_single_file(data_dir: str, zip_name: str, url: str) -> None:
+    """Download and extract ONE ZIP file if its CSV is not already present.
 
-    Files are large (~600MB each ZIP). Downloads are streamed and idempotent:
-    if the extracted CSV already exists, the download is skipped.
+    Idempotent: returns immediately if the CSV already exists on disk.
+    Raises InsufficientDiskError if free disk space is below 2 GB.
     """
     os.makedirs(data_dir, exist_ok=True)
 
-    for _category, zip_names in _RFB_ZIP_FILES.items():
-        for zip_name in zip_names:
-            csv_name = zip_name.replace(".zip", ".csv")
-            csv_path = os.path.join(data_dir, csv_name)
-            if os.path.exists(csv_path):
-                continue  # Already extracted
+    csv_name = zip_name.replace(".zip", ".csv")
+    csv_path = os.path.join(data_dir, csv_name)
+    if os.path.exists(csv_path):
+        return  # Already extracted — nothing to do
 
-            zip_path = os.path.join(data_dir, zip_name)
-            if not os.path.exists(zip_path):
-                url = f"{_RFB_BASE_URL}{zip_name}"
-                log.info("receita_cnpj.downloading", file=zip_name)
-                async with httpx.AsyncClient(
-                    timeout=httpx.Timeout(600.0),
-                    follow_redirects=True,
-                ) as client:
-                    async with client.stream("GET", url) as response:
-                        if response.status_code == 404:
-                            log.warning("receita_cnpj.file_not_found", file=zip_name)
-                            continue
-                        response.raise_for_status()
-                        with open(zip_path, "wb") as f:
-                            async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):
-                                f.write(chunk)
-                log.info("receita_cnpj.downloaded", file=zip_name)
+    free = shutil.disk_usage(data_dir).free
+    if free < _MIN_FREE_BYTES:
+        raise InsufficientDiskError(
+            f"Insufficient disk space to download {zip_name}: "
+            f"need ≥2 GB, have {free / 1024**3:.1f} GB free in {data_dir}"
+        )
 
-            # Extract ZIP then delete it — each ZIP is ~600 MB and the CSV is all we need.
-            try:
-                _safe_extractall(zip_path, data_dir)
-                log.info("receita_cnpj.extracted", file=zip_name)
-                try:
-                    os.remove(zip_path)
-                    log.info("receita_cnpj.zip_deleted", file=zip_name)
-                except OSError:
-                    pass
-            except zipfile.BadZipFile:
-                log.error("receita_cnpj.bad_zip", file=zip_name)
-                os.remove(zip_path)
+    zip_path = os.path.join(data_dir, zip_name)
+    if not os.path.exists(zip_path):
+        log.info("receita_cnpj.downloading", file=zip_name)
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(600.0),
+            follow_redirects=True,
+        ) as client:
+            async with client.stream("GET", url) as response:
+                if response.status_code == 404:
+                    log.warning("receita_cnpj.file_not_found", file=zip_name)
+                    return
+                response.raise_for_status()
+                with open(zip_path, "wb") as f:
+                    async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):
+                        f.write(chunk)
+        log.info("receita_cnpj.downloaded", file=zip_name)
+
+    try:
+        _safe_extractall(zip_path, data_dir)
+        log.info("receita_cnpj.extracted", file=zip_name)
+        try:
+            os.remove(zip_path)
+            log.info("receita_cnpj.zip_deleted", file=zip_name)
+        except OSError:
+            pass
+    except zipfile.BadZipFile:
+        log.error("receita_cnpj.bad_zip", file=zip_name)
+        try:
+            os.remove(zip_path)
+        except OSError:
+            pass
+
+    log.info("receita_cnpj.file_ready", file=csv_name)
+
+
+def _delete_exhausted_file(data_dir: str, csv_name: str) -> None:
+    """Delete a CSV that has been fully consumed by fetch() to reclaim disk space."""
+    path = os.path.join(data_dir, csv_name)
+    try:
+        os.remove(path)
+        log.info("receita_cnpj.file_exhausted_deleted", file=csv_name)
+    except FileNotFoundError:
+        pass
 
 
 # Natureza jurídica codes for relevant entity types
@@ -120,9 +182,28 @@ _NATUREZA_PUBLICA = {
     "1082",  # Órgão Público do Poder Judiciário Estadual
 }
 
+_JOB_PREFIX = {
+    "rf_empresas":        "Empresas",
+    "rf_socios":          "Socios",
+    "rf_estabelecimentos":"Estabelecimentos",
+}
+
 
 class ReceitaCNPJConnector(BaseConnector):
-    """Bulk CSV connector for Receita Federal CNPJ open data."""
+    """Bulk CSV connector for Receita Federal CNPJ open data.
+
+    All three jobs (rf_empresas, rf_socios, rf_estabelecimentos) are always enabled.
+    Files are downloaded lazily — one ZIP at a time — and deleted immediately after
+    being fully consumed, keeping peak disk usage under ~1.5 GB.
+    """
+
+    _cnpj_month: Optional[str] = None
+
+    async def _get_month(self) -> str:
+        if self._cnpj_month is None:
+            self._cnpj_month = await _discover_latest_month()
+            log.info("receita_cnpj.month_discovered", month=self._cnpj_month)
+        return self._cnpj_month
 
     @property
     def name(self) -> str:
@@ -154,7 +235,7 @@ class ReceitaCNPJConnector(BaseConnector):
         ]
 
     def rate_limit_policy(self) -> RateLimitPolicy:
-        return RateLimitPolicy(requests_per_second=1000, burst=1000)  # Local file
+        return RateLimitPolicy(requests_per_second=1000, burst=1000)  # Local file read
 
     async def fetch(
         self,
@@ -162,31 +243,20 @@ class ReceitaCNPJConnector(BaseConnector):
         cursor: Optional[str] = None,
         params: Optional[dict] = None,
     ) -> tuple[list[RawItem], Optional[str]]:
-        """Read CSV in chunks from local files.
+        """Read CSV rows in pages of 10,000, downloading each file lazily on demand.
 
-        On first invocation, auto-downloads all bulk files from dados.rfb.gov.br.
-        cursor = "file_idx:byte_offset" for resumption.
+        cursor = "file_idx:byte_offset"
+        When a file is exhausted the CSV is deleted immediately before moving to next.
         """
-        # Auto-download if files are not present
-        await _ensure_rfb_files(_DATA_DIR)
+        prefix = _JOB_PREFIX.get(job.name, job.name)
+        zip_names: list[str] = _RFB_ZIP_FILES.get(prefix, [])
+        csv_names = [z.replace(".zip", ".csv") for z in zip_names]
+        total_files = len(csv_names)
 
-        file_map = {
-            "rf_empresas": "Empresas",
-            "rf_socios": "Socios",
-            "rf_estabelecimentos": "Estabelecimentos",
-        }
-
-        prefix = file_map.get(job.name, job.name)
-        # Receita publishes multiple numbered files: Empresas0.csv, Empresas1.csv, ...
-        csv_files = sorted(
-            f for f in os.listdir(_DATA_DIR)
-            if f.startswith(prefix) and f.endswith(".csv")
-        ) if os.path.isdir(_DATA_DIR) else []
-
-        if not csv_files:
+        if not total_files:
             return [], None
 
-        # Parse cursor: "file_idx:byte_offset"
+        # Parse cursor
         file_idx = 0
         byte_offset = 0
         if cursor:
@@ -194,36 +264,43 @@ class ReceitaCNPJConnector(BaseConnector):
             file_idx = int(parts[0])
             byte_offset = int(parts[1]) if len(parts) > 1 else 0
 
-        if file_idx >= len(csv_files):
+        if file_idx >= total_files:
             return [], None
 
+        current_csv = csv_names[file_idx]
+        month = await self._get_month()
+        url = _build_download_url(month, zip_names[file_idx])
+
+        # Lazily download only the file we need right now
+        await _ensure_single_file(_DATA_DIR, zip_names[file_idx], url)
+
+        filepath = os.path.join(_DATA_DIR, current_csv)
         page_size = 10_000
         items: list[RawItem] = []
-        current_file = csv_files[file_idx]
-        filepath = os.path.join(_DATA_DIR, current_file)
 
         try:
             with open(filepath, "r", encoding="iso-8859-1") as f:
                 f.seek(byte_offset)
-                reader = csv.reader(f, delimiter=";")
-                for i, row in enumerate(reader):
-                    if i >= page_size:
+                for _ in range(page_size):
+                    line = f.readline()
+                    if not line:
                         break
-                    raw_id = f"{job.name}:{file_idx}:{byte_offset + f.tell()}"
-                    items.append(RawItem(raw_id=raw_id, data={"row": row, "file": current_file}))
-
+                    row = next(csv.reader([line], delimiter=";"))
+                    raw_id = f"{job.name}:{file_idx}:{f.tell()}"
+                    items.append(RawItem(raw_id=raw_id, data={"row": row, "file": current_csv}))
                 new_offset = f.tell()
         except FileNotFoundError:
             return [], None
 
-        # Determine next cursor
+        # Determine next cursor and clean up exhausted files
         if len(items) < page_size:
-            # Move to next file
+            # This file is fully consumed — delete it immediately to reclaim disk
+            _delete_exhausted_file(_DATA_DIR, current_csv)
+
             next_file_idx = file_idx + 1
-            if next_file_idx < len(csv_files):
-                next_cursor = f"{next_file_idx}:0"
-            else:
-                next_cursor = None
+            next_cursor: Optional[str] = (
+                f"{next_file_idx}:0" if next_file_idx < total_files else None
+            )
         else:
             next_cursor = f"{file_idx}:{new_offset}"
 
@@ -308,7 +385,6 @@ class ReceitaCNPJConnector(BaseConnector):
             if not nome_socio:
                 continue
 
-            # Create entity for the partner
             entity_type = "company" if tipo_socio == "1" else "person"
             identifiers: dict = {}
             if tipo_socio == "1" and doc_socio:
@@ -331,7 +407,6 @@ class ReceitaCNPJConnector(BaseConnector):
             )
             entities.append(partner_entity)
 
-            # Create/reference the company entity for the partnership.
             # source_id matches _normalize_empresas so upsert merges them.
             company_entity = CanonicalEntity(
                 source_connector="receita_cnpj",
@@ -342,8 +417,6 @@ class ReceitaCNPJConnector(BaseConnector):
             )
             entities.append(company_entity)
 
-            # Create partnership event with BOTH company and partner
-            # so build_structural_edges() can create Company↔Owner edges.
             events.append(
                 CanonicalEvent(
                     source_connector="receita_cnpj",
@@ -358,14 +431,8 @@ class ReceitaCNPJConnector(BaseConnector):
                         "tipo_socio": tipo_socio,
                     },
                     participants=[
-                        CanonicalEventParticipant(
-                            entity_ref=company_entity,
-                            role="company",
-                        ),
-                        CanonicalEventParticipant(
-                            entity_ref=partner_entity,
-                            role="partner",
-                        ),
+                        CanonicalEventParticipant(entity_ref=company_entity, role="company"),
+                        CanonicalEventParticipant(entity_ref=partner_entity, role="partner"),
                     ],
                 )
             )
@@ -392,17 +459,13 @@ class ReceitaCNPJConnector(BaseConnector):
             data_abertura = row[10].strip() if len(row) > 10 else ""
             cnae_principal = row[11].strip() if len(row) > 11 else ""
 
-            # Build full CNPJ
             cnpj_full = f"{cnpj_basico}{cnpj_ordem}{cnpj_dv}"
 
-            # Address fields
             logradouro = row[13].strip() if len(row) > 13 else ""
             numero = row[14].strip() if len(row) > 14 else ""
             municipio = row[18].strip() if len(row) > 18 else ""
             uf = row[19].strip() if len(row) > 19 else ""
             cep = row[17].strip() if len(row) > 17 else ""
-
-            # Contact
             telefone = row[20].strip() if len(row) > 20 else ""
             email = row[27].strip() if len(row) > 27 else ""
 
@@ -414,10 +477,7 @@ class ReceitaCNPJConnector(BaseConnector):
                     source_id=f"estab:{cnpj_full}",
                     type="company",
                     name=f"Estabelecimento {cnpj_full}",
-                    identifiers={
-                        "cnpj": cnpj_full,
-                        "cnpj_basico": cnpj_basico,
-                    },
+                    identifiers={"cnpj": cnpj_full, "cnpj_basico": cnpj_basico},
                     attrs={
                         "cnae_principal": cnae_principal,
                         "situacao_cadastral": situacao_cadastral,
@@ -436,7 +496,7 @@ class ReceitaCNPJConnector(BaseConnector):
         return NormalizeResult(entities=entities)
 
     def cleanup_bulk_files(self, job: "JobSpec", raw_run: object) -> int:  # type: ignore[override]
-        """Delete all Receita Federal ZIP/CSV files once a run completes successfully."""
+        """Delete any remaining Receita Federal CSV/ZIP files after a run completes."""
         import glob as _glob
 
         deleted = 0

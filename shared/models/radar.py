@@ -63,6 +63,7 @@ class RadarV2CaseListItemOut(BaseModel):
     status: str
     severity: SignalSeverity
     summary: Optional[str] = None
+    case_type: Optional[str] = None
     signal_count: int = 0
     entity_count: int = 0
     typology_codes: list[str] = Field(default_factory=list)

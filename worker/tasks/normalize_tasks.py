@@ -207,6 +207,10 @@ def normalize_run(self, run_id: str):
                 # Vacuum after purge to reclaim disk space from deleted rows
                 vacuum_raw_source.apply_async(queue="vacuum", countdown=180)
 
+            # ── Reactive pipeline: trigger ER when all ingests are done ────
+            if total_normalized > 0:
+                _maybe_trigger_er()
+
             return {
                 "run_id": run_id,
                 "status": "completed",
@@ -249,3 +253,23 @@ def normalize_run(self, run_id: str):
             )
             session.invalidate()
             raise
+
+
+def _maybe_trigger_er() -> None:
+    """Dispatch ER reactively after normalization completes.
+
+    Called after each normalize_run completes. The ER task itself holds
+    a pg_try_advisory_lock so concurrent dispatches are safe — the second
+    one will return ``status: skipped`` immediately.
+
+    ER is incremental (watermark_at) so it's safe to run while ingest
+    continues — it only processes already-normalized entities.
+    """
+    try:
+        from worker.tasks.er_tasks import run_entity_resolution
+
+        run_entity_resolution.apply_async(queue="er", countdown=30)
+        log.info("_maybe_trigger_er.dispatched", countdown=30)
+    except Exception as exc:
+        # Never fail the normalize task because of a trigger error
+        log.warning("_maybe_trigger_er.error", error=str(exc))

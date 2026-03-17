@@ -101,6 +101,11 @@ class CoverageV2LatestRun(BaseModel):
     error_message: Optional[str] = None
     elapsed_seconds: Optional[float] = None
     progress_pct: Optional[float] = None
+    # Enhanced progress tracking
+    fetch_progress_pct: Optional[float] = None
+    pages_fetched: Optional[int] = None
+    rate_per_min: Optional[float] = None
+    cursor_info: Optional[str] = None  # e.g. "Window 3, Page 500"
 
 
 class CoverageV2SourcePreviewConnector(BaseModel):

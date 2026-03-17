@@ -191,15 +191,17 @@ class PNCPConnector(BaseConnector):
                 else:
                     body = response.json()
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 500:
+            if exc.response.status_code in (400, 500):
                 # PNCP 500s on specific windows are common (corrupted/unavailable data).
+                # PNCP 400s occur when the API changes required parameters for a window.
                 # Skip this window rather than failing the entire task.
                 from shared.logging import log as _log
                 _log.warning(
-                    "pncp.window_skip_500",
+                    "pncp.window_skip",
                     endpoint=endpoint,
                     window=f"{di}/{df}",
                     job=job.name,
+                    status=exc.response.status_code,
                 )
                 if window_idx + 1 < len(windows):
                     return [], f"w{window_idx + 1}p1"

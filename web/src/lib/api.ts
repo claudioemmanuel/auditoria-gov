@@ -8,23 +8,32 @@ import type {
   CoverageV2SourcePreviewResponse,
   CoverageV2SourcesResponse,
   CoverageV2SummaryResponse,
+  DossierSummaryResponse,
+  DossierTimelineResponse,
   EntityDetail,
   EventRawSourcesResponse,
   IngestRunDetailResponse,
+  LegalHypothesis,
   NeighborhoodResponse,
   OrgSummary,
   PaginatedResponse,
   PriceComparisonResult,
   RadarV2CaseItem,
+  RadarV2CaseBatchPreviewItem,
   RadarV2CasePreviewResponse,
   RadarV2CoverageResponse,
   RadarV2SignalItem,
   RadarV2SignalPreviewResponse,
   RadarV2SummaryResponse,
+  RelatedCase,
+  RelatedSignal,
   SignalEvidencePage,
   SignalDetail,
   SignalGraphResponse,
   SignalProvenanceResponse,
+  TypologyLegalBasis,
+  EntitySearchResponse,
+  EntityPathResponse,
 } from "./types";
 
 // Client: relative URL goes through Next.js proxy rewrite (/api/* → backend)
@@ -189,6 +198,22 @@ export function getRadarV2CasePreview(caseId: string): Promise<RadarV2CasePrevie
   return fetchJSON(`/public/radar/v2/case/${caseId}/preview`);
 }
 
+export async function getRadarV2CaseBatchPreview(
+  caseIds: string[],
+): Promise<Record<string, RadarV2CaseBatchPreviewItem>> {
+  if (caseIds.length === 0) return {};
+  const res = await fetch(`${API_BASE}/public/radar/v2/cases/batch-preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ case_ids: caseIds }),
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  const data = await res.json();
+  return data.previews ?? {};
+}
+
 export function getRadarV2Coverage(): Promise<RadarV2CoverageResponse> {
   return fetchJSON("/public/radar/v2/coverage");
 }
@@ -331,4 +356,50 @@ export function getPipelineCapacity(): Promise<PipelineCapacity> {
 
 export function dispatchNextPending(): Promise<DispatchNextResponse> {
   return postJSON("/internal/pipeline/dispatch-next");
+}
+
+export function fetchTypologyLegalBasis(code: string): Promise<TypologyLegalBasis> {
+  return fetchJSON(`/public/typology/${code}/legal-basis`);
+}
+
+export async function fetchCaseLegalHypotheses(caseId: string): Promise<LegalHypothesis[]> {
+  const res = await fetch(`${API_BASE}/public/case/${caseId}/legal-hypothesis`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchRelatedSignals(signalId: string): Promise<RelatedSignal[]> {
+  try {
+    return await fetchJSON<RelatedSignal[]>(`/public/signal/${signalId}/related`);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchRelatedCases(caseId: string): Promise<RelatedCase[]> {
+  try {
+    return await fetchJSON<RelatedCase[]>(`/public/case/${caseId}/related`);
+  } catch {
+    return [];
+  }
+}
+
+export function searchEntities(q: string, type?: string, limit?: number): Promise<EntitySearchResponse> {
+  const search = new URLSearchParams();
+  search.set("q", q);
+  if (type) search.set("type", type);
+  if (limit != null) search.set("limit", String(limit));
+  return fetchJSON(`/public/entity/search?${search.toString()}`);
+}
+
+export function getGraphPath(sourceId: string, targetId: string): Promise<EntityPathResponse> {
+  return fetchJSON(`/public/graph/path?source=${sourceId}&target=${targetId}`);
+}
+
+export function getDossierSummary(caseId: string): Promise<DossierSummaryResponse> {
+  return fetchJSON(`/public/case/${caseId}/dossier-summary`);
+}
+
+export function getDossierTimeline(caseId: string): Promise<DossierTimelineResponse> {
+  return fetchJSON(`/public/case/${caseId}/dossier-timeline`);
 }

@@ -117,6 +117,15 @@ class T16BudgetClientelismTypology(BaseTypology):
                 beneficiary = beneficiaries[0] if beneficiaries else "unknown"
                 relator_beneficiary_value[relator_id][beneficiary] += event.value_brl
 
+        # Pre-compute HHI per relator once (O(relators)) instead of per-event (O(events × beneficiaries))
+        relator_hhi_cache: dict[str, float] = {}
+        for relator_id, bmap in relator_beneficiary_value.items():
+            total = sum(bmap.values())
+            if total > 0:
+                relator_hhi_cache[relator_id] = sum((v / total) ** 2 for v in bmap.values())
+            else:
+                relator_hhi_cache[relator_id] = 0.0
+
         signals: list[RiskSignalOut] = []
 
         for event in events:
@@ -149,17 +158,14 @@ class T16BudgetClientelismTypology(BaseTypology):
             if n_flags < 2:
                 continue
 
-            # Compute relator HHI for this relator if applicable
+            # Lookup pre-computed relator HHI (O(1) instead of O(beneficiaries))
             relator_hhi = 0.0
             if relator_id:
-                bmap = relator_beneficiary_value.get(relator_id, {})
-                total = sum(bmap.values())
-                if total > 0:
-                    relator_hhi = sum((v / total) ** 2 for v in bmap.values())
-                    if relator_hhi >= _RELATOR_HHI_THRESHOLD:
-                        if "relator_concentration" not in flag_reasons:
-                            n_flags += 1
-                            flag_reasons.append("relator_concentration")
+                relator_hhi = relator_hhi_cache.get(relator_id, 0.0)
+                if relator_hhi >= _RELATOR_HHI_THRESHOLD:
+                    if "relator_concentration" not in flag_reasons:
+                        n_flags += 1
+                        flag_reasons.append("relator_concentration")
 
             if n_flags >= 3:
                 severity = SignalSeverity.CRITICAL

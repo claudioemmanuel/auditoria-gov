@@ -382,6 +382,9 @@ def _coverage_run_error_message(run: RawRun) -> Optional[str]:
     if not run.errors:
         return None
     if isinstance(run.errors, dict):
+        # Yielded runs store operational metadata, not errors.
+        if run.errors.get("yielded"):
+            return None
         for key in ("message", "error", "detail"):
             value = run.errors.get(key)
             if isinstance(value, str) and value.strip():
@@ -389,13 +392,50 @@ def _coverage_run_error_message(run: RawRun) -> Optional[str]:
     return str(run.errors)
 
 
+def _parse_cursor_info(cursor: str | None) -> tuple[str | None, int | None, int | None]:
+    """Parse cursor like 'w3p500' or 'd2w3p500' into human-readable info."""
+    if not cursor:
+        return None, None, None
+    import re
+    m = re.match(r"(?:d(\d+))?w(\d+)p(\d+)", cursor)
+    if m:
+        dim, window_idx, page = m.group(1), int(m.group(2)), int(m.group(3))
+        prefix = f"Dim {dim}, " if dim else ""
+        label = f"{prefix}Janela {window_idx + 1}, Pag {page}"
+        return label, window_idx, page
+    if cursor.isdigit():
+        return f"Pag {cursor}", None, int(cursor)
+    return None, None, None
+
+
 def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2LatestRun:
     elapsed_seconds = None
     progress_pct = None
+    pages_fetched = None
+    rate_per_min = None
+    cursor_info = None
+
     if run.status == "running" and run.created_at:
         elapsed_seconds = round((now - run.created_at).total_seconds(), 1)
+
     if run.items_fetched and run.items_normalized:
         progress_pct = round((run.items_normalized / max(run.items_fetched, 1)) * 100, 1)
+
+    # Extract progress metadata from _progress key in errors JSONB
+    if run.errors and isinstance(run.errors, dict):
+        pm = run.errors.get("_progress")
+        if pm and isinstance(pm, dict):
+            pages_fetched = pm.get("pages")
+            rate_per_min = pm.get("rate_per_min")
+
+    # Parse cursor for human-readable position
+    label, _win_idx, _page = _parse_cursor_info(run.cursor_end)
+    if label:
+        cursor_info = label
+
+    # For completed/yielded, fetch is done — normalize progress is what matters
+    fetch_progress_pct = 100.0 if run.status in ("completed", "yielded") else None
+
     return CoverageV2LatestRun(
         id=run.id,
         status=run.status,
@@ -407,6 +447,10 @@ def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2Lates
         error_message=_coverage_run_error_message(run),
         elapsed_seconds=elapsed_seconds,
         progress_pct=progress_pct,
+        fetch_progress_pct=fetch_progress_pct,
+        pages_fetched=pages_fetched,
+        rate_per_min=rate_per_min,
+        cursor_info=cursor_info,
     )
 
 
@@ -952,16 +996,31 @@ async def get_coverage_list(session: AsyncSession) -> list[CoverageItem]:
                 last_success = cov.last_success_at
                 lag = cov.freshness_lag_hours
                 total = cov.total_items
-                # Only override to error if latest run failed AND there's
-                # no prior successful run (i.e., coverage was never ok)
+                # Live overrides: correct stale registry with latest run status
                 if run and run.status == "error":
                     if not cov.last_success_at:
                         status = "error"
                     else:
                         last_run_error = True
+                elif run and run.status == "yielded" and (run.items_fetched or 0) > 0:
+                    # Yielded run with data = partial success; override stale
+                    # registry until the periodic task refreshes it.
+                    if not cov.last_success_at:
+                        status = "ok"
+                        last_success = run.finished_at
+                        lag_delta = (now - run.finished_at) if run.finished_at else None
+                        lag = lag_delta.total_seconds() / 3600 if lag_delta else None
             elif run:
                 # No pre-computed coverage, derive from latest run
                 if run.status == "completed":
+                    status = "ok"
+                    last_success = run.finished_at
+                    lag_delta = (now - run.finished_at) if run.finished_at else None
+                    lag = lag_delta.total_seconds() / 3600 if lag_delta else None
+                elif run.status == "yielded" and (run.items_fetched or 0) > 0:
+                    # Yielded runs that fetched data are partial successes —
+                    # the job will resume automatically.  Treat as "ok" so
+                    # the pipeline badge reflects reality.
                     status = "ok"
                     last_success = run.finished_at
                     lag_delta = (now - run.finished_at) if run.finished_at else None
@@ -974,7 +1033,10 @@ async def get_coverage_list(session: AsyncSession) -> list[CoverageItem]:
                     status = "pending"
                     last_success = None
                     lag = None
-                total = run.items_fetched or 0
+                # Use items_normalized (persisted data), not items_fetched
+                # (transient raw_source). items_fetched = items_normalized
+                # only after normalization completes — before that they differ.
+                total = run.items_normalized or 0
             else:
                 status = "pending"
                 last_success = None
@@ -1705,6 +1767,8 @@ async def get_coverage_v2_run_detail(
     if run is None:
         return None
 
+    now = datetime.now(timezone.utc)
+
     summary_row = _coverage_row_one_or_none(
         await session.execute(
             select(
@@ -1715,9 +1779,13 @@ async def get_coverage_v2_run_detail(
             ).where(RawSource.run_id == run_id)
         )
     )
-    records_stored = int(getattr(summary_row, "records_stored", 0) or 0)
+    # raw_source rows are deleted after normalization, so count from raw_source is always 0.
+    # Use items_normalized from the run record as the canonical "records persisted" count.
+    records_stored = int(run.items_normalized or 0)
     distinct_raw_ids = int(getattr(summary_row, "distinct_raw_ids", 0) or 0)
-    duplicate_raw_ids = max(records_stored - distinct_raw_ids, 0)
+    # Duplicate detection is only possible while raw_source exists (pre-normalization).
+    # After deletion distinct_raw_ids==0, so avoid falsely reporting everything as duplicate.
+    duplicate_raw_ids = max(records_stored - distinct_raw_ids, 0) if distinct_raw_ids > 0 else 0
 
     profile_sources = (
         await session.execute(
@@ -1783,6 +1851,17 @@ async def get_coverage_v2_run_detail(
         for row in sample_rows
     ]
 
+    # Parse progress metadata for live tracking
+    cursor_label, _win_idx, _page_num = _parse_cursor_info(run.cursor_end)
+    progress_meta: dict[str, Any] = {}
+    if run.errors and isinstance(run.errors, dict):
+        pm = run.errors.get("_progress")
+        if pm and isinstance(pm, dict):
+            progress_meta = pm
+    elapsed_seconds = None
+    if run.status == "running" and run.created_at:
+        elapsed_seconds = round((now - run.created_at).total_seconds(), 1)
+
     return CoverageV2RunDetailResponse(
         run={
             "id": str(run.id),
@@ -1791,11 +1870,15 @@ async def get_coverage_v2_run_detail(
             "status": run.status,
             "cursor_start": run.cursor_start,
             "cursor_end": run.cursor_end,
+            "cursor_info": cursor_label,
             "items_fetched": run.items_fetched,
             "items_normalized": run.items_normalized,
             "errors": run.errors,
             "started_at": _coverage_safe_iso(run.created_at),
             "finished_at": _coverage_safe_iso(run.finished_at),
+            "elapsed_seconds": elapsed_seconds,
+            "rate_per_min": progress_meta.get("rate_per_min"),
+            "pages_fetched": progress_meta.get("pages"),
         },
         job=_coverage_build_job_info(run.connector, run.job),
         summary={
@@ -2909,6 +2992,11 @@ async def get_radar_v2_cases(
     corruption_type: Optional[str] = None,
     sphere: Optional[str] = None,
 ) -> tuple[list[RadarV2CaseListItemOut], int]:
+    """Paginated case list with SQL-level filtering.
+
+    Filters are pushed to SQL so only matching rows are fetched — O(page_size)
+    instead of O(N_total).
+    """
     allowed_typology_codes: set[str] | None = None
     if corruption_type or sphere:
         from shared.typologies.factor_metadata import get_typology_codes_for_filter
@@ -2919,57 +3007,96 @@ async def get_radar_v2_cases(
         )
         allowed_typology_codes = set(allowed or [])
 
-    base_stmt = (
-        select(Case)
-        .options(
-            selectinload(Case.items)
-            .selectinload(CaseItem.signal)
-            .selectinload(RiskSignal.typology)
+    # ── Build signal filter subquery ──────────────────────────────────────
+    # Find case_ids that have at least one matching signal.
+    sig_filter = (
+        select(CaseItem.case_id)
+        .join(RiskSignal, CaseItem.signal_id == RiskSignal.id)
+        .join(Typology, RiskSignal.typology_id == Typology.id)
+    )
+
+    conditions = []
+    if typology_code:
+        conditions.append(Typology.code == typology_code)
+    if severity:
+        conditions.append(RiskSignal.severity == severity)
+    if period_from:
+        conditions.append(RiskSignal.period_end >= period_from)
+    if period_to:
+        conditions.append(RiskSignal.period_start <= period_to)
+    if allowed_typology_codes is not None:
+        conditions.append(Typology.code.in_(allowed_typology_codes))
+
+    if conditions:
+        sig_filter = sig_filter.where(*conditions)
+
+    matching_case_ids = sig_filter.distinct().subquery()
+
+    # ── Count total matching cases ────────────────────────────────────────
+    count_stmt = select(func.count()).select_from(matching_case_ids)
+    total = int((await session.execute(count_stmt)).scalar_one())
+
+    if total == 0:
+        return [], 0
+
+    # ── Fetch paginated case IDs (ordered by created_at desc) ─────────────
+    paged_ids_stmt = (
+        select(Case.id)
+        .where(Case.id.in_(select(matching_case_ids.c.case_id)))
+        .order_by(Case.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    paged_ids = list((await session.execute(paged_ids_stmt)).scalars().all())
+
+    if not paged_ids:
+        return [], total
+
+    # ── Aggregate signal stats for paginated cases only ───────────────────
+    stats_stmt = (
+        select(
+            CaseItem.case_id,
+            func.count(RiskSignal.id).label("signal_count"),
+            func.array_agg(func.distinct(Typology.code)).label("typology_codes"),
+            func.min(RiskSignal.period_start).label("period_start"),
+            func.max(RiskSignal.period_end).label("period_end"),
         )
+        .join(RiskSignal, CaseItem.signal_id == RiskSignal.id)
+        .join(Typology, RiskSignal.typology_id == Typology.id)
+        .where(CaseItem.case_id.in_(paged_ids))
+    )
+    stats_stmt = stats_stmt.group_by(CaseItem.case_id)
+    stats_rows = (await session.execute(stats_stmt)).all()
+    stats_map = {row.case_id: row for row in stats_rows}
+
+    # ── Collect entity_ids per case (O(page_size)) ────────────────────────
+    eid_stmt = (
+        select(CaseItem.case_id, RiskSignal.entity_ids)
+        .join(RiskSignal, CaseItem.signal_id == RiskSignal.id)
+        .join(Typology, RiskSignal.typology_id == Typology.id)
+        .where(CaseItem.case_id.in_(paged_ids))
+    )
+
+    eid_rows = (await session.execute(eid_stmt)).all()
+    entity_sets: dict[uuid.UUID, set[str]] = {}
+    for row in eid_rows:
+        s = entity_sets.setdefault(row.case_id, set())
+        for eid in row.entity_ids or []:
+            s.add(str(eid))
+    entity_map = {cid: len(eids) for cid, eids in entity_sets.items()}
+
+    # ── Fetch Case objects for metadata ───────────────────────────────────
+    cases_stmt = (
+        select(Case)
+        .where(Case.id.in_(paged_ids))
         .order_by(Case.created_at.desc())
     )
-    raw_cases = list((await session.execute(base_stmt)).scalars().all())
+    case_objs = list((await session.execute(cases_stmt)).scalars().all())
 
-    filtered_cases: list[Case] = []
-    case_signals_map: dict[uuid.UUID, list[RiskSignal]] = {}
-    for case in raw_cases:
-        matched_signals: list[RiskSignal] = []
-        for item in case.items:
-            sig = item.signal
-            if sig is None or sig.typology is None:
-                continue
-            if _risk_signal_matches_filters(
-                sig,
-                typology_code=typology_code,
-                severity=severity,
-                period_from=period_from,
-                period_to=period_to,
-                allowed_typology_codes=allowed_typology_codes,
-            ):
-                matched_signals.append(sig)
-        if matched_signals:
-            filtered_cases.append(case)
-            case_signals_map[case.id] = matched_signals
-
-    total = len(filtered_cases)
-    paged_cases = filtered_cases[offset : offset + limit]
-
+    # ── Build response ────────────────────────────────────────────────────
     items: list[RadarV2CaseListItemOut] = []
-    for case in paged_cases:
-        signals = case_signals_map.get(case.id, [])
-        entity_ids: set[str] = set()
-        typology_codes: set[str] = set()
-        period_start: datetime | None = None
-        period_end: datetime | None = None
-        for sig in signals:
-            typology_codes.add(sig.typology.code)
-            for eid in sig.entity_ids or []:
-                entity_ids.add(str(eid))
-            if sig.period_start and (period_start is None or sig.period_start < period_start):
-                period_start = sig.period_start
-            if sig.period_end and (period_end is None or sig.period_end > period_end):
-                period_end = sig.period_end
-
+    for case in case_objs:
+        stats = stats_map.get(case.id)
         items.append(
             RadarV2CaseListItemOut(
                 id=case.id,
@@ -2977,16 +3104,197 @@ async def get_radar_v2_cases(
                 status=case.status,
                 severity=SignalSeverity(case.severity),
                 summary=case.summary,
-                signal_count=len(signals),
-                entity_count=len(entity_ids),
-                typology_codes=sorted(typology_codes),
-                period_start=period_start,
-                period_end=period_end,
+                signal_count=stats.signal_count if stats else 0,
+                entity_count=entity_map.get(case.id, 0),
+                typology_codes=sorted(stats.typology_codes or []) if stats else [],
+                period_start=stats.period_start if stats else None,
+                period_end=stats.period_end if stats else None,
                 created_at=case.created_at,
             )
         )
 
     return items, total
+
+
+async def get_dossier_summary(
+    session: AsyncSession,
+    case_id: uuid.UUID,
+) -> dict | None:
+    """Full dossier summary for a case: chapters by typology, entity roster, legal hypotheses."""
+    from shared.models.orm import CaseItem, Typology, LegalViolationHypothesis
+
+    # Fetch case
+    case_stmt = select(Case).where(Case.id == case_id)
+    case = (await session.execute(case_stmt)).scalar_one_or_none()
+    if case is None:
+        return None
+
+    # Fetch all signals for this case with typology info
+    signals_stmt = (
+        select(
+            RiskSignal.id,
+            RiskSignal.typology_id,
+            RiskSignal.severity,
+            RiskSignal.confidence,
+            RiskSignal.title,
+            RiskSignal.summary,
+            RiskSignal.period_start,
+            RiskSignal.period_end,
+            RiskSignal.entity_ids,
+            RiskSignal.factors,
+            Typology.code.label("typology_code"),
+            Typology.name.label("typology_name"),
+        )
+        .join(CaseItem, CaseItem.signal_id == RiskSignal.id)
+        .join(Typology, RiskSignal.typology_id == Typology.id)
+        .where(CaseItem.case_id == case_id)
+        .order_by(Typology.code, RiskSignal.confidence.desc())
+    )
+    sig_rows = (await session.execute(signals_stmt)).all()
+
+    # Group signals by typology → chapters
+    from collections import defaultdict
+    chapters_map: dict[str, dict] = {}
+    for r in sig_rows:
+        code = r.typology_code
+        if code not in chapters_map:
+            chapters_map[code] = {
+                "typology_code": code,
+                "typology_name": r.typology_name,
+                "signal_count": 0,
+                "max_severity": r.severity,
+                "total_value_brl": 0.0,
+                "period_start": None,
+                "period_end": None,
+                "top_signal_summary": r.summary or r.title,
+                "signal_ids": [],
+            }
+        ch = chapters_map[code]
+        ch["signal_count"] += 1
+        ch["signal_ids"].append(str(r.id))
+
+        # Update max severity
+        sev_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+        if sev_order.get(r.severity, 0) > sev_order.get(ch["max_severity"], 0):
+            ch["max_severity"] = r.severity
+
+        # Accumulate value from factors (check all known value keys)
+        if r.factors and isinstance(r.factors, dict):
+            val = (
+                r.factors.get("total_value_brl")
+                or r.factors.get("observed_total_brl")
+                or r.factors.get("contract_value_brl")
+                or r.factors.get("intra_community_value")
+                or 0
+            )
+            if isinstance(val, (int, float)):
+                ch["total_value_brl"] += val
+
+        # Expand period
+        if r.period_start:
+            if ch["period_start"] is None or r.period_start < ch["period_start"]:
+                ch["period_start"] = r.period_start
+        if r.period_end:
+            if ch["period_end"] is None or r.period_end > ch["period_end"]:
+                ch["period_end"] = r.period_end
+
+    chapters = sorted(chapters_map.values(), key=lambda c: -{"critical": 4, "high": 3, "medium": 2, "low": 1}.get(c["max_severity"], 0))
+
+    # Serialize datetimes in chapters
+    for ch in chapters:
+        if ch["period_start"]:
+            ch["period_start"] = ch["period_start"].isoformat()
+        if ch["period_end"]:
+            ch["period_end"] = ch["period_end"].isoformat()
+
+    # Entity roster
+    entity_ids: set[str] = set()
+    for r in sig_rows:
+        for eid in r.entity_ids or []:
+            entity_ids.add(str(eid))
+
+    entity_roster = []
+    if entity_ids:
+        from shared.models.orm import Entity
+        entity_stmt = select(Entity).where(Entity.id.in_([uuid.UUID(e) for e in entity_ids]))
+        entities = (await session.execute(entity_stmt)).scalars().all()
+        entity_roster = [
+            {
+                "id": str(e.id),
+                "type": e.type,
+                "name": e.name,
+                "identifiers": e.identifiers or {},
+            }
+            for e in entities
+        ]
+
+    # Legal hypotheses
+    legal_stmt = (
+        select(LegalViolationHypothesis)
+        .where(LegalViolationHypothesis.case_id == case_id)
+    )
+    legal_rows = (await session.execute(legal_stmt)).scalars().all()
+    legal_hypotheses = [
+        {
+            "id": f"{case_id}-{i}",
+            "law": lh.law_name,
+            "article": lh.article,
+            "violation_type": lh.violation_type,
+            "description": None,
+            "confidence": lh.confidence,
+            "signal_cluster": lh.signal_cluster or [],
+        }
+        for i, lh in enumerate(legal_rows)
+    ]
+
+    # Related cases (share entity names)
+    entity_names = list((case.attrs or {}).get("entity_names", []))
+    related_cases = []
+    if entity_names:
+        from sqlalchemy import text
+        related_stmt = text("""
+            SELECT c.id, c.title, c.severity, c.case_type, c.created_at
+            FROM "case" c,
+            LATERAL jsonb_array_elements_text(COALESCE(c.attrs->'entity_names', '[]'::jsonb)) AS name
+            WHERE c.id != :case_id
+              AND name = ANY(:entity_names)
+            GROUP BY c.id, c.title, c.severity, c.case_type, c.created_at
+            ORDER BY c.created_at DESC
+            LIMIT 5
+        """)
+        result = await session.execute(
+            related_stmt,
+            {"case_id": case_id, "entity_names": entity_names},
+        )
+        related_cases = [
+            {
+                "id": str(r.id),
+                "title": r.title,
+                "severity": r.severity,
+                "case_type": r.case_type,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in result.all()
+        ]
+
+    return {
+        "case": {
+            "id": str(case.id),
+            "title": case.title,
+            "status": case.status,
+            "severity": case.severity,
+            "summary": case.summary,
+            "created_at": case.created_at.isoformat() if case.created_at else None,
+            "entity_names": entity_names,
+            "total_value_brl": sum(ch["total_value_brl"] for ch in chapters) or (case.attrs or {}).get("total_value_brl"),
+            "signal_count": len(sig_rows),
+            "entity_count": len(entity_ids),
+        },
+        "chapters": chapters,
+        "entity_roster": entity_roster,
+        "legal_hypotheses": legal_hypotheses,
+        "related_cases": related_cases,
+    }
 
 
 # --- Graph queries ---
@@ -3078,7 +3386,55 @@ async def get_graph_neighborhood(
         else None
     )
 
+    # ── Fallback: graph not materialized but co_participants exist ──────────────
+    # Build virtual nodes + edges from co-occurrence data so the graph is not empty.
     if center_node is None:
+        virtual_nodes: list[GraphNodeOut] = []
+        virtual_edges: list[GraphEdgeOut] = []
+
+        if entity is not None and co_participants:
+            # Synthetic center node id (deterministic from entity_id)
+            center_virtual_id = uuid.uuid5(uuid.UUID("00000000-0000-0000-0000-000000000001"), str(entity_id))
+            virtual_nodes.append(GraphNodeOut(
+                id=center_virtual_id,
+                entity_id=entity_id,
+                label=entity.name,
+                node_type=entity.type,
+                attrs={},
+            ))
+            for cp in co_participants:
+                cp_virtual_id = uuid.uuid5(uuid.UUID("00000000-0000-0000-0000-000000000001"), str(cp.entity_id))
+                virtual_nodes.append(GraphNodeOut(
+                    id=cp_virtual_id,
+                    entity_id=cp.entity_id,
+                    label=cp.label,
+                    node_type=cp.node_type,
+                    attrs={"shared_events": cp.shared_events},
+                ))
+                edge_virtual_id = uuid.uuid5(uuid.UUID("00000000-0000-0000-0000-000000000002"), f"{center_virtual_id}-{cp_virtual_id}")
+                virtual_edges.append(GraphEdgeOut(
+                    id=edge_virtual_id,
+                    from_node_id=center_virtual_id,
+                    to_node_id=cp_virtual_id,
+                    type="coparticipacao_evento",
+                    weight=float(cp.shared_events),
+                    edge_strength="strong" if cp.shared_events >= 3 else "weak",
+                    verification_method="co_occurrence",
+                    verification_confidence=min(0.9, 0.2 + cp.shared_events * 0.07),
+                    attrs={"shared_events": cp.shared_events, "virtual": True},
+                ))
+
+            return NeighborhoodResponse(
+                center_node_id=center_virtual_id,
+                nodes=virtual_nodes,
+                edges=virtual_edges,
+                depth=depth,
+                truncated=False,
+                diagnostics=diagnostics,
+                virtual_center_node=virtual_center_node,
+                co_participants=co_participants,
+            )
+
         return NeighborhoodResponse(
             center_node_id=entity_id,
             nodes=[],
@@ -3090,6 +3446,7 @@ async def get_graph_neighborhood(
             co_participants=co_participants,
         )
 
+    # ── BFS expansion through graph edges ──────────────────────────────────────
     visited_node_ids: set[uuid.UUID] = {center_node.id}
     frontier: set[uuid.UUID] = {center_node.id}
     all_edges: list[GraphEdge] = []
@@ -3098,7 +3455,6 @@ async def get_graph_neighborhood(
         if not frontier:
             break
 
-        # Find edges from/to frontier nodes
         edge_stmt = select(GraphEdge).where(
             (GraphEdge.from_node_id.in_(frontier))
             | (GraphEdge.to_node_id.in_(frontier))
@@ -3107,7 +3463,6 @@ async def get_graph_neighborhood(
         edges = list(edge_result.scalars().all())
         all_edges.extend(edges)
 
-        # Expand frontier
         new_frontier: set[uuid.UUID] = set()
         for e in edges:
             if e.from_node_id not in visited_node_ids:
@@ -3136,32 +3491,84 @@ async def get_graph_neighborhood(
             seen_edges.add(e.id)
             unique_edges.append(e)
 
+    # ── Cluster siblings: add same-cluster entities with synthetic edges ────────
+    # Connects all representations of the same real-world entity across sources.
+    extra_nodes: list[GraphNodeOut] = []
+    extra_edges: list[GraphEdgeOut] = []
+
+    if entity is not None and entity.cluster_id is not None:
+        sibling_stmt = (
+            select(Entity, GraphNode)
+            .join(GraphNode, GraphNode.entity_id == Entity.id, isouter=True)
+            .where(
+                Entity.cluster_id == entity.cluster_id,
+                Entity.id != entity_id,
+            )
+        )
+        sibling_rows = (await session.execute(sibling_stmt)).all()
+        existing_entity_ids = {n.entity_id for n in nodes}
+
+        for sibling_entity, sibling_node in sibling_rows:
+            if sibling_entity.id in existing_entity_ids:
+                continue
+            # Use real GraphNode id if materialized, else synthetic
+            if sibling_node is not None:
+                sibling_gid = sibling_node.id
+                extra_nodes.append(GraphNodeOut(
+                    id=sibling_gid,
+                    entity_id=sibling_entity.id,
+                    label=sibling_node.label,
+                    node_type=sibling_node.node_type,
+                    attrs=sibling_node.attrs,
+                ))
+            else:
+                sibling_gid = uuid.uuid5(uuid.UUID("00000000-0000-0000-0000-000000000001"), str(sibling_entity.id))
+                extra_nodes.append(GraphNodeOut(
+                    id=sibling_gid,
+                    entity_id=sibling_entity.id,
+                    label=sibling_entity.name,
+                    node_type=sibling_entity.type,
+                    attrs={},
+                ))
+            existing_entity_ids.add(sibling_entity.id)
+
+            edge_id = uuid.uuid5(uuid.UUID("00000000-0000-0000-0000-000000000003"), f"{center_node.id}-{sibling_gid}")
+            extra_edges.append(GraphEdgeOut(
+                id=edge_id,
+                from_node_id=center_node.id,
+                to_node_id=sibling_gid,
+                type="same_cluster_entity",
+                weight=3.0,
+                edge_strength="strong",
+                verification_method="cluster_resolution",
+                verification_confidence=0.95,
+                attrs={"cluster_id": str(entity.cluster_id), "virtual": True},
+            ))
+
+    out_nodes = [
+        GraphNodeOut(id=n.id, entity_id=n.entity_id, label=n.label, node_type=n.node_type, attrs=n.attrs)
+        for n in nodes
+    ] + extra_nodes
+
+    out_edges = [
+        GraphEdgeOut(
+            id=e.id,
+            from_node_id=e.from_node_id,
+            to_node_id=e.to_node_id,
+            type=e.type,
+            weight=e.weight,
+            edge_strength=e.edge_strength,
+            verification_method=e.verification_method,
+            verification_confidence=e.verification_confidence,
+            attrs=e.attrs,
+        )
+        for e in unique_edges
+    ] + extra_edges
+
     return NeighborhoodResponse(
-        center_node_id=entity_id,
-        nodes=[
-            GraphNodeOut(
-                id=n.id,
-                entity_id=n.entity_id,
-                label=n.label,
-                node_type=n.node_type,
-                attrs=n.attrs,
-            )
-            for n in nodes
-        ],
-        edges=[
-            GraphEdgeOut(
-                id=e.id,
-                from_node_id=e.from_node_id,
-                to_node_id=e.to_node_id,
-                type=e.type,
-                weight=e.weight,
-                edge_strength=e.edge_strength,
-                verification_method=e.verification_method,
-                verification_confidence=e.verification_confidence,
-                attrs=e.attrs,
-            )
-            for e in unique_edges
-        ],
+        center_node_id=center_node.id,  # GraphNode PK — matches n.id in frontend
+        nodes=out_nodes,
+        edges=out_edges,
         depth=depth,
         truncated=truncated,
         diagnostics=diagnostics,
@@ -3327,30 +3734,40 @@ async def get_case_graph(
     frontier: set[uuid.UUID] = set(visited_node_ids)
     all_edges: list[GraphEdge] = []
 
-    for _ in range(depth):
-        if not frontier:
-            break
+    if depth == 0:
+        # Seed-only mode: only edges where BOTH endpoints are seed nodes
+        if visited_node_ids:
+            edge_stmt = select(GraphEdge).where(
+                GraphEdge.from_node_id.in_(visited_node_ids),
+                GraphEdge.to_node_id.in_(visited_node_ids),
+            )
+            edge_result = await session.execute(edge_stmt)
+            all_edges = list(edge_result.scalars().all())
+    else:
+        for _ in range(depth):
+            if not frontier:
+                break
 
-        edge_stmt = select(GraphEdge).where(
-            (GraphEdge.from_node_id.in_(frontier))
-            | (GraphEdge.to_node_id.in_(frontier))
-        )
-        edge_result = await session.execute(edge_stmt)
-        edges = list(edge_result.scalars().all())
-        all_edges.extend(edges)
+            edge_stmt = select(GraphEdge).where(
+                (GraphEdge.from_node_id.in_(frontier))
+                | (GraphEdge.to_node_id.in_(frontier))
+            )
+            edge_result = await session.execute(edge_stmt)
+            edges = list(edge_result.scalars().all())
+            all_edges.extend(edges)
 
-        new_frontier: set[uuid.UUID] = set()
-        for e in edges:
-            if e.from_node_id not in visited_node_ids:
-                new_frontier.add(e.from_node_id)
-            if e.to_node_id not in visited_node_ids:
-                new_frontier.add(e.to_node_id)
+            new_frontier: set[uuid.UUID] = set()
+            for e in edges:
+                if e.from_node_id not in visited_node_ids:
+                    new_frontier.add(e.from_node_id)
+                if e.to_node_id not in visited_node_ids:
+                    new_frontier.add(e.to_node_id)
 
-        visited_node_ids |= new_frontier
-        frontier = new_frontier
+            visited_node_ids |= new_frontier
+            frontier = new_frontier
 
-        if len(visited_node_ids) >= limit:
-            break
+            if len(visited_node_ids) >= limit:
+                break
 
     truncated = len(visited_node_ids) >= limit
 
@@ -4070,3 +4487,241 @@ async def get_entity_path(
         )
 
     return EntityPathResponse(found=True, hops=depth, path=hops)
+
+
+async def get_dossier_timeline(
+    session: AsyncSession,
+    case_id: uuid.UUID,
+) -> dict | None:
+    """Full timeline data for a case dossier: events with participants, signals, entities, legal hypotheses."""
+    from shared.models.orm import LegalViolationHypothesis
+    from shared.typologies.factor_metadata import get_factor_descriptions
+    from shared.utils.query import execute_chunked_in
+
+    # 1. Fetch case
+    case_stmt = select(Case).where(Case.id == case_id)
+    case = (await session.execute(case_stmt)).scalar_one_or_none()
+    if case is None:
+        return None
+
+    # 2. Fetch all signals for this case with typology info
+    signals_stmt = (
+        select(
+            RiskSignal.id,
+            RiskSignal.typology_id,
+            RiskSignal.severity,
+            RiskSignal.confidence,
+            RiskSignal.title,
+            RiskSignal.summary,
+            RiskSignal.period_start,
+            RiskSignal.period_end,
+            RiskSignal.entity_ids,
+            RiskSignal.event_ids,
+            RiskSignal.factors,
+            Typology.code.label("typology_code"),
+            Typology.name.label("typology_name"),
+        )
+        .join(CaseItem, CaseItem.signal_id == RiskSignal.id)
+        .join(Typology, RiskSignal.typology_id == Typology.id)
+        .where(CaseItem.case_id == case_id)
+        .order_by(RiskSignal.confidence.desc())
+    )
+    sig_rows = (await session.execute(signals_stmt)).all()
+
+    # 3. Collect all event_ids and entity_ids from signals
+    all_event_ids_str: set[str] = set()
+    all_entity_ids_str: set[str] = set()
+    for r in sig_rows:
+        for eid in r.event_ids or []:
+            all_event_ids_str.add(str(eid))
+        for eid in r.entity_ids or []:
+            all_entity_ids_str.add(str(eid))
+
+    all_event_uuids = _to_uuid_list(list(all_event_ids_str))
+    all_entity_uuids = _to_uuid_list(list(all_entity_ids_str))
+
+    # 4. Fetch events with attrs
+    events_list = await execute_chunked_in(
+        session,
+        lambda batch: select(Event).where(Event.id.in_(batch)),
+        all_event_uuids,
+    )
+    events_by_id: dict[uuid.UUID, Any] = {e.id: e for e in events_list}
+
+    # 5. Fetch participants for all events
+    participants_list = await execute_chunked_in(
+        session,
+        lambda batch: select(EventParticipant).where(EventParticipant.event_id.in_(batch)),
+        all_event_uuids,
+    )
+    participants_by_event: dict[uuid.UUID, list] = defaultdict(list)
+    for p in participants_list:
+        participants_by_event[p.event_id].append(p)
+        all_entity_ids_str.add(str(p.entity_id))
+
+    # Re-collect entity UUIDs (participants may reference entities not in signal.entity_ids)
+    all_entity_uuids = _to_uuid_list(list(all_entity_ids_str))
+
+    # 6. Fetch all entities (full identifiers, NO masking)
+    entities_list = await execute_chunked_in(
+        session,
+        lambda batch: select(Entity).where(Entity.id.in_(batch)),
+        all_entity_uuids,
+    )
+    entities_by_id: dict[uuid.UUID, Any] = {e.id: e for e in entities_list}
+
+    # 7. Build signal-to-event index (which signals reference which events)
+    signal_events_map: dict[uuid.UUID, list[str]] = defaultdict(list)
+    for r in sig_rows:
+        for eid_str in r.event_ids or []:
+            try:
+                signal_events_map[uuid.UUID(str(eid_str))].append(str(r.id))
+            except (ValueError, TypeError):
+                continue
+
+    # 8. Build signals output
+    signals_out = []
+    for r in sig_rows:
+        factor_descs = get_factor_descriptions(
+            r.factors or {},
+            typology_code=r.typology_code,
+        )
+        signals_out.append({
+            "id": str(r.id),
+            "typology_code": r.typology_code,
+            "typology_name": r.typology_name,
+            "severity": r.severity,
+            "title": r.title,
+            "summary": r.summary,
+            "confidence": r.confidence,
+            "factors": r.factors or {},
+            "factor_descriptions": factor_descs,
+            "period_start": r.period_start.isoformat() if r.period_start else None,
+            "period_end": r.period_end.isoformat() if r.period_end else None,
+            "entity_count": len(r.entity_ids or []),
+            "event_count": len(r.event_ids or []),
+        })
+
+    # 9. Build events output (with participants and linked signals)
+    events_out = []
+    for eid in all_event_uuids:
+        ev = events_by_id.get(eid)
+        if ev is None:
+            continue
+        ev_participants = participants_by_event.get(eid, [])
+        ev_signal_ids = signal_events_map.get(eid, [])
+
+        # Build signal snippets for this event
+        ev_signals = []
+        for sid_str in ev_signal_ids:
+            for r in sig_rows:
+                if str(r.id) == sid_str:
+                    ev_signals.append({
+                        "id": str(r.id),
+                        "typology_code": r.typology_code,
+                        "typology_name": r.typology_name,
+                        "severity": r.severity,
+                        "title": r.title,
+                        "factors": r.factors or {},
+                        "period_start": r.period_start.isoformat() if r.period_start else None,
+                        "period_end": r.period_end.isoformat() if r.period_end else None,
+                        "confidence": r.confidence,
+                    })
+                    break
+
+        events_out.append({
+            "id": str(ev.id),
+            "type": ev.type,
+            "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+            "description": ev.description,
+            "value_brl": ev.value_brl,
+            "source_connector": ev.source_connector,
+            "attrs": ev.attrs or {},
+            "participants": [
+                {
+                    "entity_id": str(p.entity_id),
+                    "role": p.role,
+                    "role_label": _role_label(p.role),
+                }
+                for p in ev_participants
+            ],
+            "signals": ev_signals,
+        })
+
+    # Sort events by occurred_at (nulls last)
+    events_out.sort(key=lambda e: e["occurred_at"] or "9999")
+
+    # 10. Build entities output
+    entities_out = [
+        {
+            "id": str(e.id),
+            "type": e.type,
+            "name": e.name,
+            "identifiers": e.identifiers or {},
+            "attrs": e.attrs or {},
+        }
+        for e in entities_list
+    ]
+
+    # 11. Legal hypotheses
+    legal_stmt = (
+        select(LegalViolationHypothesis)
+        .where(LegalViolationHypothesis.case_id == case_id)
+        .order_by(LegalViolationHypothesis.confidence.desc())
+    )
+    legal_rows = (await session.execute(legal_stmt)).scalars().all()
+    legal_hypotheses = [
+        {
+            "law": lh.law_name,
+            "article": lh.article,
+            "violation_type": lh.violation_type,
+            "description": None,
+            "signal_cluster": lh.signal_cluster or [],
+            "confidence": lh.confidence,
+        }
+        for lh in legal_rows
+    ]
+
+    # 12. Related cases
+    entity_names = list((case.attrs or {}).get("entity_names", []))
+    related_cases = []
+    if entity_names:
+        related_stmt = text("""
+            SELECT c.id, c.title, c.severity
+            FROM "case" c,
+            LATERAL jsonb_array_elements_text(COALESCE(c.attrs->'entity_names', '[]'::jsonb)) AS name
+            WHERE c.id != :case_id
+              AND name = ANY(:entity_names)
+            GROUP BY c.id, c.title, c.severity
+            ORDER BY c.created_at DESC
+            LIMIT 5
+        """)
+        result = await session.execute(
+            related_stmt,
+            {"case_id": case_id, "entity_names": entity_names},
+        )
+        related_cases = [
+            {
+                "id": str(r.id),
+                "title": r.title,
+                "severity": r.severity,
+            }
+            for r in result.all()
+        ]
+
+    return {
+        "case": {
+            "id": str(case.id),
+            "title": case.title,
+            "severity": case.severity,
+            "status": case.status,
+            "summary": case.summary,
+            "case_type": case.case_type,
+            "attrs": case.attrs or {},
+        },
+        "entities": entities_out,
+        "events": events_out,
+        "signals": signals_out,
+        "legal_hypotheses": legal_hypotheses,
+        "related_cases": related_cases,
+    }

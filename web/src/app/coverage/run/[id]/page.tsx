@@ -8,6 +8,7 @@ import { Button } from "@/components/Button";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import type { IngestRunDetailResponse, IngestRunFieldProfile } from "@/lib/types";
 import {
+  Activity,
   AlertTriangle,
   ArrowDownUp,
   ArrowLeft,
@@ -24,8 +25,10 @@ import {
   FileText,
   Hash,
   Loader2,
+  MapPin,
   RefreshCw,
   Timer,
+  Zap,
 } from "lucide-react";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -33,6 +36,7 @@ import {
 const STATUS_CONFIG: Record<string, { label: string; border: string; bg: string; text: string; dot: string; Icon: typeof CheckCircle2 }> = {
   completed: { label: "Concluído",    border: "border-success/30", bg: "bg-success/5",  text: "text-success", dot: "bg-success",  Icon: CheckCircle2 },
   running:   { label: "Em execução",  border: "border-accent/30",  bg: "bg-accent/5",   text: "text-accent",  dot: "bg-accent",   Icon: Loader2      },
+  yielded:   { label: "Cedeu vez",    border: "border-amber/30",   bg: "bg-amber/5",    text: "text-amber",   dot: "bg-amber",    Icon: Clock        },
   failed:    { label: "Falhou",       border: "border-error/30",   bg: "bg-error/5",    text: "text-error",   dot: "bg-error",    Icon: CircleX      },
   error:     { label: "Erro",         border: "border-error/30",   bg: "bg-error/5",    text: "text-error",   dot: "bg-error",    Icon: CircleX      },
 };
@@ -192,7 +196,28 @@ export default function CoverageRunDetailPage() {
       .finally(() => setLoading(false));
   }
 
+  function fetchSilent() {
+    if (!runId) return;
+    getIngestRunDetail(runId).then(setDetail).catch(() => {});
+  }
+
+  // Initial fetch
   useEffect(fetchDetail, [runId]);
+
+  // Poll every 5s while the run is still active
+  useEffect(() => {
+    if (detail?.run.status !== "running") return;
+    const interval = setInterval(fetchSilent, 5_000);
+    return () => clearInterval(interval);
+  }, [detail?.run.status, runId]);
+
+  // Live elapsed timer for running jobs
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (detail?.run.status !== "running") return;
+    const id = setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, [detail?.run.status]);
 
   const normalizedPct = useMemo(() => {
     if (!detail) return 0;
@@ -204,9 +229,28 @@ export default function CoverageRunDetailPage() {
     return pct(detail.summary.duplicate_raw_ids, detail.summary.records_stored);
   }, [detail]);
 
+  const isRunning = detail?.run.status === "running";
+  const isYielded = detail?.run.status === "yielded";
+  const startMs = detail?.run.started_at ? new Date(detail.run.started_at).getTime() : 0;
+  const liveElapsedMs = startMs > 0 ? nowMs - startMs : 0;
+  const liveElapsedStr = isRunning && liveElapsedMs > 0
+    ? liveElapsedMs >= 3600_000
+      ? `${Math.floor(liveElapsedMs / 3600_000)}h ${Math.floor((liveElapsedMs % 3600_000) / 60_000)}min`
+      : liveElapsedMs >= 60_000
+        ? `${Math.floor(liveElapsedMs / 60_000)}min ${Math.floor((liveElapsedMs % 60_000) / 1_000)}s`
+        : `${Math.floor(liveElapsedMs / 1_000)}s`
+    : null;
+
   const duration = detail ? formatDuration(detail.run.started_at, detail.run.finished_at) : "—";
   const statusCfg = detail ? getStatusCfg(detail.run.status) : getStatusCfg("running");
   const StatusIcon = statusCfg.Icon;
+
+  // Determine current phase
+  const currentPhase: "ingest" | "normalize" | "done" | "error" = !detail ? "ingest"
+    : detail.run.status === "error" ? "error"
+    : isRunning ? "ingest"
+    : normalizedPct >= 100 ? "done"
+    : "normalize";
 
   const totalSamplePages = detail ? Math.ceil(detail.samples.length / SAMPLES_PER_PAGE) : 0;
   const globalOffset = samplesPage * SAMPLES_PER_PAGE;
@@ -297,16 +341,11 @@ export default function CoverageRunDetailPage() {
                 <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl font-mono">
                   {detail.run.connector}<span className="text-muted font-normal"> / </span>{detail.run.job}
                 </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  {detail.job.domain && (
-                    <span className="font-mono text-xs text-accent bg-accent-subtle border border-accent/20 px-2 py-0.5 rounded-full">
-                      {detail.job.domain}
-                    </span>
-                  )}
-                  {detail.job.description && (
-                    <span className="text-sm text-secondary leading-relaxed">{detail.job.description}</span>
-                  )}
-                </div>
+                {detail.job.domain && (
+                  <span className="inline-block mt-1.5 font-mono text-xs font-bold text-accent bg-accent-subtle border border-accent/20 px-2 py-0.5 rounded-full">
+                    {detail.job.domain}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
@@ -337,26 +376,144 @@ export default function CoverageRunDetailPage() {
       {/* ── Body ────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-6">
 
+        {/* ── Live progress (prominent for running/yielded) ───── */}
+        {(isRunning || isYielded) && (
+          <section className={`rounded-xl border-2 p-5 space-y-4 ${
+            isRunning ? "border-accent/40 bg-accent/5" : "border-amber/30 bg-amber/5"
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className={`h-5 w-5 ${isRunning ? "text-accent animate-pulse" : "text-amber"}`} />
+                <p className="font-display text-sm font-bold text-primary">
+                  {isRunning ? "Execução em Andamento" : "Ingestão concluída — Normalizando"}
+                </p>
+              </div>
+              {liveElapsedStr && (
+                <span className="font-mono text-sm font-bold text-accent tabular-nums">{liveElapsedStr}</span>
+              )}
+            </div>
+
+            {/* Phase pipeline strip */}
+            <div className="flex items-stretch gap-1">
+              <div className={`flex-1 rounded-lg border px-4 py-3 ${
+                currentPhase === "ingest" ? "border-accent/40 bg-accent/10" :
+                currentPhase === "error" ? "border-red-500/30 bg-red-500/5" :
+                "border-success/30 bg-success/5"
+              }`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  {currentPhase === "ingest" && <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />}
+                  {currentPhase !== "ingest" && currentPhase !== "error" && <span className="h-2 w-2 rounded-full bg-success" />}
+                  {currentPhase === "error" && <span className="h-2 w-2 rounded-full bg-red-500" />}
+                  <p className={`font-mono text-xs font-bold uppercase ${
+                    currentPhase === "ingest" ? "text-accent" :
+                    currentPhase === "error" ? "text-red-400" : "text-success"
+                  }`}>Ingestão</p>
+                </div>
+                <p className="font-mono text-[10px] text-secondary">
+                  {detail.run.items_fetched.toLocaleString("pt-BR")} coletados
+                </p>
+                {isRunning && (
+                  <div className="mt-1.5 h-1 rounded-full bg-surface-subtle overflow-hidden">
+                    <div className="h-full w-full rounded-full bg-accent animate-pulse" />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center px-1 text-muted">→</div>
+              <div className={`flex-1 rounded-lg border px-4 py-3 ${
+                currentPhase === "normalize" ? "border-accent/40 bg-accent/10" :
+                currentPhase === "done" ? "border-success/30 bg-success/5" :
+                "border-border bg-surface-subtle"
+              }`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  {currentPhase === "normalize" && <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />}
+                  {currentPhase === "done" && <span className="h-2 w-2 rounded-full bg-success" />}
+                  {currentPhase !== "normalize" && currentPhase !== "done" && <span className="h-2 w-2 rounded-full bg-muted/40" />}
+                  <p className={`font-mono text-xs font-bold uppercase ${
+                    currentPhase === "normalize" ? "text-accent" :
+                    currentPhase === "done" ? "text-success" : "text-muted"
+                  }`}>Normalização</p>
+                </div>
+                <p className="font-mono text-[10px] text-secondary">
+                  {currentPhase === "ingest" ? "Aguardando ingestão" :
+                   `${detail.run.items_normalized.toLocaleString("pt-BR")} (${normalizedPct}%)`}
+                </p>
+                {currentPhase === "normalize" && detail.run.items_fetched > 0 && (
+                  <div className="mt-1.5 h-1 rounded-full bg-surface-subtle overflow-hidden">
+                    <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: `${normalizedPct}%` }} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Live metrics grid */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {detail.run.cursor_info && (
+                <div className="rounded-lg border border-border bg-surface-card px-3 py-2">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <MapPin className="h-3 w-3 text-accent" />
+                    <p className="font-mono text-[9px] uppercase tracking-wide text-muted">Posição</p>
+                  </div>
+                  <p className="font-mono text-xs font-bold text-primary">{detail.run.cursor_info}</p>
+                </div>
+              )}
+              {detail.run.rate_per_min != null && detail.run.rate_per_min > 0 && (
+                <div className="rounded-lg border border-border bg-surface-card px-3 py-2">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Zap className="h-3 w-3 text-accent" />
+                    <p className="font-mono text-[9px] uppercase tracking-wide text-muted">Velocidade</p>
+                  </div>
+                  <p className="font-mono text-xs font-bold text-primary">~{Math.round(detail.run.rate_per_min).toLocaleString("pt-BR")}/min</p>
+                </div>
+              )}
+              {detail.run.pages_fetched != null && detail.run.pages_fetched > 0 && (
+                <div className="rounded-lg border border-border bg-surface-card px-3 py-2">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <FileText className="h-3 w-3 text-accent" />
+                    <p className="font-mono text-[9px] uppercase tracking-wide text-muted">Páginas</p>
+                  </div>
+                  <p className="font-mono text-xs font-bold text-primary">{detail.run.pages_fetched.toLocaleString("pt-BR")}</p>
+                </div>
+              )}
+              {detail.run.cursor_end && (
+                <div className="rounded-lg border border-border bg-surface-card px-3 py-2">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Database className="h-3 w-3 text-accent" />
+                    <p className="font-mono text-[9px] uppercase tracking-wide text-muted">Cursor</p>
+                  </div>
+                  <p className="font-mono text-[10px] font-bold text-primary break-all">{detail.run.cursor_end}</p>
+                </div>
+              )}
+            </div>
+
+            <p className="font-mono text-[10px] text-muted">
+              {isRunning
+                ? "Dados atualizados a cada 5 segundos automaticamente."
+                : "A ingestão foi concluída. A normalização processa os dados brutos em eventos estruturados."}
+            </p>
+          </section>
+        )}
+
         {/* ── KPI strip ────────────────────────────────────────── */}
         <section>
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted mb-3">Métricas da Execução</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <KpiCard
               icon={Database}
-              label="Itens Buscados"
+              label={isRunning ? "Coletados até agora" : "Itens Coletados"}
               value={detail.run.items_fetched}
+              sub={isRunning && detail.run.cursor_info ? detail.run.cursor_info : undefined}
             />
             <KpiCard
               icon={ArrowDownUp}
               label="Itens Normalizados"
               value={detail.run.items_normalized}
-              sub={`${normalizedPct}% do total buscado`}
+              sub={`${normalizedPct}% do total coletado`}
             />
             <KpiCard
               icon={Hash}
               label="Registros Persistidos"
               value={detail.summary.records_stored}
-              sub={`${formatNumber(detail.summary.distinct_raw_ids)} IDs únicos`}
+              sub={`${normalizedPct}% normalizado com sucesso`}
             />
             <KpiCard
               icon={Copy}
@@ -380,7 +537,7 @@ export default function CoverageRunDetailPage() {
                 {[
                   { label: "Início",   value: fmtDate(detail.run.started_at)  },
                   { label: "Fim",      value: fmtDate(detail.run.finished_at) },
-                  { label: "Duração",  value: duration                        },
+                  { label: "Duração",  value: isRunning && liveElapsedStr ? liveElapsedStr : duration },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between text-xs">
                     <span className="text-muted">{row.label}</span>
@@ -399,7 +556,8 @@ export default function CoverageRunDetailPage() {
                 {[
                   { label: "Registro mais antigo",  value: fmtDate(detail.summary.first_record_at) },
                   { label: "Registro mais recente", value: fmtDate(detail.summary.last_record_at)  },
-                  ...(detail.run.cursor_end ? [{ label: "Cursor fim", value: detail.run.cursor_end }] : []),
+                  ...(detail.run.cursor_info ? [{ label: "Posição atual", value: detail.run.cursor_info }] : []),
+                  ...(detail.run.cursor_end ? [{ label: "Cursor técnico", value: detail.run.cursor_end }] : []),
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between text-xs">
                     <span className="text-muted">{row.label}</span>
@@ -412,17 +570,39 @@ export default function CoverageRunDetailPage() {
         </section>
 
         {/* ── Errors ───────────────────────────────────────────── */}
-        {detail.run.errors && Object.keys(detail.run.errors).length > 0 && (
-          <section className="rounded-xl border border-error/20 bg-error/5 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <CircleX className="h-4 w-4 text-error" />
-              <p className="font-mono text-[10px] uppercase tracking-widest text-error">Erros Registrados</p>
-            </div>
-            <pre className="max-h-40 overflow-auto rounded-lg bg-surface-card border border-border p-3 font-mono text-xs text-error leading-relaxed">
-              {stringifyJson(detail.run.errors)}
-            </pre>
-          </section>
-        )}
+        {detail.run.errors && (() => {
+          // Filter out internal metadata keys (_progress, yielded)
+          const displayErrors = Object.fromEntries(
+            Object.entries(detail.run.errors).filter(([k]) => !k.startsWith("_") && k !== "yielded")
+          );
+          if (Object.keys(displayErrors).length === 0) return null;
+          const isPartial = (detail.run.errors as Record<string, unknown>).partial === true;
+          return isPartial ? (
+            <section className="rounded-xl border border-amber/20 bg-amber/5 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="h-4 w-4 text-amber" />
+                <p className="font-mono text-[10px] uppercase tracking-widest text-amber">Interrupção Parcial</p>
+              </div>
+              <p className="text-xs text-secondary mb-3">
+                A execução foi interrompida por timeout da API externa, mas todos os itens buscados foram normalizados com sucesso.
+                O próximo ciclo retomará automaticamente a partir do cursor salvo.
+              </p>
+              <pre className="max-h-40 overflow-auto rounded-lg bg-surface-card border border-border p-3 font-mono text-xs text-secondary leading-relaxed">
+                {stringifyJson(displayErrors)}
+              </pre>
+            </section>
+          ) : (
+            <section className="rounded-xl border border-error/20 bg-error/5 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <CircleX className="h-4 w-4 text-error" />
+                <p className="font-mono text-[10px] uppercase tracking-widest text-error">Erros Registrados</p>
+              </div>
+              <pre className="max-h-40 overflow-auto rounded-lg bg-error/10 border border-error/20 p-3 font-mono text-xs text-error leading-relaxed">
+                {stringifyJson(displayErrors)}
+              </pre>
+            </section>
+          );
+        })()}
 
         {/* ── Field profile ─────────────────────────────────────── */}
         {detail.field_profile.length > 0 && (
@@ -461,9 +641,9 @@ export default function CoverageRunDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {detail.field_profile.map((field) => (
+                      {detail.field_profile.map((field, idx) => (
                         <FieldProfileRow
-                          key={field.key}
+                          key={`${idx}-${field.key}`}
                           field={field}
                           total={detail.summary.profile_sampled_records}
                         />

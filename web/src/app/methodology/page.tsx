@@ -284,8 +284,8 @@ export default async function MethodologyPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-surface-card">
-            {LEGAL_REFS.map(([name, ref, url]) => (
-              <tr key={name} className="hover:bg-surface-subtle transition-colors">
+            {LEGAL_REFS.map(([name, ref, url], i) => (
+              <tr key={`${name}-${i}`} className="hover:bg-surface-subtle transition-colors">
                 <td className="px-4 py-2.5 text-sm text-primary">{name}</td>
                 <td className="px-4 py-2.5">
                   <a
@@ -370,10 +370,10 @@ export default async function MethodologyPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface-card">
-              {legalBasisList.map((basis) => {
+              {legalBasisList.map((basis, i) => {
                 const firstArticle = basis.law_articles[0];
                 return (
-                  <tr key={basis.code} className="hover:bg-surface-subtle transition-colors">
+                  <tr key={`${basis.code}-${i}`} className="hover:bg-surface-subtle transition-colors">
                     <td className="px-4 py-2.5">
                       <span className="font-mono text-xs font-bold text-accent">{basis.code}</span>
                     </td>

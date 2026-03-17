@@ -492,108 +492,214 @@ TYPOLOGY_LEGAL_METADATA: dict[str, dict[str, list[str] | str]] = {
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Concentracao de mercado pode indicar conluio ou captura de fornecedor unico sem competicao real.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 9°, IV", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T02": {
         "corruption_types": ["fraude_licitatoria"],
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Baixa competicao sistematica pode indicar restricao deliberada de participantes.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-F", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T03": {
         "corruption_types": ["fraude_licitatoria"],
         "spheres": ["administrativa"],
         "evidence_level": "direct",
         "description_legal": "Fracionamento de despesa para evitar licitacao obrigatoria e infracoes a Lei 14.133/2021.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-E", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 8.666/1993", "article": "Art. 24", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T04": {
         "corruption_types": ["fraude_licitatoria", "corrupcao_passiva"],
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Aditivos excessivos podem indicar sobrepreco oculto ou favorecimento contratual.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-K", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T05": {
         "corruption_types": ["fraude_licitatoria"],
         "spheres": ["administrativa", "privada"],
         "evidence_level": "direct",
         "description_legal": "Sobrepreco em relacao a mediana historica sugere superfaturamento.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-K", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Código Penal", "article": "Art. 312", "violation_type": "peculato"},
+        ],
     },
     "T06": {
         "corruption_types": ["lavagem", "corrupcao_ativa"],
         "spheres": ["privada", "administrativa"],
         "evidence_level": "proxy",
         "description_legal": "Empresa com indicadores de fachada (baixo capital, recente, endereco compartilhado) pode ser veiculo de desvio.",
+        "law_articles": [
+            {"law_name": "Lei 9.613/1998", "article": "Art. 1°", "violation_type": "lavagem"},
+            {"law_name": "Lei 12.846/2013", "article": "Art. 5°", "violation_type": "corrupcao_ativa"},
+        ],
     },
     "T07": {
         "corruption_types": ["fraude_licitatoria", "corrupcao_ativa"],
         "spheres": ["privada", "sistemica"],
         "evidence_level": "indirect",
         "description_legal": "Padrao de rodizio de vencedores e propostas coordenadas indica possivel cartel (CADE/Lei 12.846).",
+        "law_articles": [
+            {"law_name": "Lei 12.529/2011", "article": "Art. 36", "violation_type": "corrupcao_ativa"},
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-F", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T08": {
         "corruption_types": ["corrupcao_passiva", "prevaricacao"],
         "spheres": ["administrativa"],
         "evidence_level": "direct",
         "description_legal": "Contratar entidade com sancao ativa viola normas de impedimento e pode indicar favorecimento.",
+        "law_articles": [
+            {"law_name": "Lei 8.429/1992", "article": "Art. 9°", "violation_type": "corrupcao_passiva"},
+            {"law_name": "Lei 14.133/2021", "article": "Art. 14", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T09": {
         "corruption_types": ["peculato"],
         "spheres": ["administrativa"],
         "evidence_level": "proxy",
         "description_legal": "Anomalias em folha de pagamento podem indicar folha fantasma (art. 312 CP).",
+        "law_articles": [
+            {"law_name": "Código Penal", "article": "Art. 312", "violation_type": "peculato"},
+        ],
     },
     "T10": {
         "corruption_types": ["peculato", "fraude_licitatoria"],
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Terceirizacao com concentracao excessiva e aditivos pode ocultar desvio ou sobrepreco sistematico.",
+        "law_articles": [
+            {"law_name": "Código Penal", "article": "Art. 312", "violation_type": "peculato"},
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-K", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T11": {
         "corruption_types": ["fraude_licitatoria", "peculato"],
         "spheres": ["administrativa", "privada"],
         "evidence_level": "direct",
         "description_legal": "Jogo de planilha: manipulacao de precos unitarios para desviar via aditivos (CGU Guia Superfaturamento 2025, Tipo 4; TCU Fiscobras achado #1).",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-K", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Código Penal", "article": "Art. 312", "violation_type": "peculato"},
+        ],
     },
     "T12": {
         "corruption_types": ["fraude_licitatoria", "corrupcao_ativa_passiva"],
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Edital direcionado: exigencias restritivas eliminam competidores, garantindo vitoria do fornecedor pre-escolhido (Lei 14.133/2021, Art. 9°, IV).",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 9°, IV", "violation_type": "fraude_licitatoria"},
+        ],
     },
     "T13": {
         "corruption_types": ["nepotismo_clientelismo", "corrupcao_ativa_passiva"],
         "spheres": ["administrativa", "politica"],
         "evidence_level": "indirect",
         "description_legal": "Conflito de interesses: vinculo familiar, comercial ou societario entre agente publico contratante e fornecedor vencedor (Lei 12.813/2013; TCU Acordao 1798/2024).",
+        "law_articles": [
+            {"law_name": "Lei 8.429/1992", "article": "Art. 9°, I", "violation_type": "corrupcao_passiva"},
+            {"law_name": "Lei 12.813/2013", "article": "Art. 5°", "violation_type": "nepotismo_clientelismo"},
+        ],
     },
     "T14": {
         "corruption_types": ["corrupcao_ativa_passiva", "fraude_licitatoria"],
         "spheres": ["administrativa", "sistemica"],
         "evidence_level": "indirect",
         "description_legal": "Sequencia de favorecimento: acumulo persistente de sinais T01/T02/T04/T05 para o mesmo par entidade-fornecedor indica captura sistematica (CP Arts. 317/333).",
+        "law_articles": [
+            {"law_name": "Código Penal", "article": "Art. 317", "violation_type": "corrupcao_passiva"},
+            {"law_name": "Código Penal", "article": "Art. 333", "violation_type": "corrupcao_ativa"},
+        ],
     },
     "T15": {
         "corruption_types": ["fraude_licitatoria", "prevaricacao"],
         "spheres": ["administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Inexigibilidade indevida: contrato declarado como inexigivel quando existem fornecedores alternativos qualificados (Lei 14.133/2021, Art. 74; Lei 8.429/92, Art. 10, VII).",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 74", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 8.429/1992", "article": "Art. 10, VII", "violation_type": "corrupcao_passiva"},
+        ],
     },
     "T16": {
         "corruption_types": ["nepotismo_clientelismo", "peculato"],
         "spheres": ["politica", "administrativa"],
         "evidence_level": "indirect",
         "description_legal": "Clientelismo orcamentario: emendas parlamentares sem plano de trabalho ou desproporcionais a capacidade do municipio (TCU Acordao 518/2023; STF Min. Dino 2024).",
+        "law_articles": [
+            {"law_name": "CF/88", "article": "Art. 166, §9°", "violation_type": "nepotismo_clientelismo"},
+            {"law_name": "Código Penal", "article": "Art. 312", "violation_type": "peculato"},
+        ],
     },
     "T17": {
         "corruption_types": ["lavagem"],
         "spheres": ["privada", "sistemica"],
         "evidence_level": "indirect",
         "description_legal": "Lavagem via camadas societarias: fluxo circular de recursos por estrutura de empresas relacionadas oculta origem (Lei 9.613/1998; FATF Recomendacao 24).",
+        "law_articles": [
+            {"law_name": "Lei 9.613/1998", "article": "Art. 1°", "violation_type": "lavagem"},
+        ],
     },
     "T18": {
         "corruption_types": ["peculato", "nepotismo_clientelismo"],
         "spheres": ["administrativa"],
         "evidence_level": "direct",
         "description_legal": "Acumulo ilegal de cargos: servidor em dois ou mais orgaos simultaneamente (CF/88 Art. 37, XVI-XVII) ou expulso (CEAF) como socio de empresa contratante.",
+        "law_articles": [
+            {"law_name": "CF/88", "article": "Art. 37, XVI–XVII", "violation_type": "nepotismo_clientelismo"},
+            {"law_name": "Lei 8.112/1990", "article": "Art. 118", "violation_type": "peculato"},
+        ],
+    },
+    "T19": {
+        "corruption_types": ["fraude_licitatoria"],
+        "spheres": ["privada", "sistemica"],
+        "evidence_level": "indirect",
+        "description_legal": "Rodizio sistematico de vencedores entre empresas participantes sugere conluio cartelizado em licitacoes publicas.",
+        "law_articles": [
+            {"law_name": "Lei 12.529/2011", "article": "Art. 36, §3°, I", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-F", "violation_type": "fraude_licitatoria"},
+        ],
+    },
+    "T20": {
+        "corruption_types": ["fraude_licitatoria"],
+        "spheres": ["privada"],
+        "evidence_level": "indirect",
+        "description_legal": "Participacao reiterada em licitacoes sem nenhuma vitoria, sempre ao lado do mesmo vencedor, indica licitante fantasma para simular competicao.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-E", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 8.429/1992", "article": "Art. 10, VIII", "violation_type": "fraude_licitatoria"},
+        ],
+    },
+    "T21": {
+        "corruption_types": ["fraude_licitatoria"],
+        "spheres": ["privada", "sistemica"],
+        "evidence_level": "indirect",
+        "description_legal": "Cluster colusivo detectado por analise de rede: grupo de empresas com taxa dominante de vitoria conjunta em licitacoes da mesma categoria.",
+        "law_articles": [
+            {"law_name": "Lei 12.529/2011", "article": "Art. 36", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 14.133/2021", "article": "Art. 337-F", "violation_type": "fraude_licitatoria"},
+        ],
+    },
+    "T22": {
+        "corruption_types": ["nepotismo_clientelismo", "corrupcao_ativa_passiva"],
+        "spheres": ["politica", "privada"],
+        "evidence_level": "indirect",
+        "description_legal": "Favorecimento politico: doacao eleitoral seguida de contrato publico em curto intervalo indica troca de favores entre doador e ente publico.",
+        "law_articles": [
+            {"law_name": "Lei 9.504/1997", "article": "Art. 81-A", "violation_type": "corrupcao_ativa_passiva"},
+            {"law_name": "Lei 8.429/1992", "article": "Art. 9°, III", "violation_type": "nepotismo_clientelismo"},
+        ],
     },
 }
 

@@ -143,6 +143,31 @@ export const TYPOLOGY_INFO: Record<string, { description: string; legal: string 
   },
 };
 
+export const TYPOLOGY_META: Record<string, { corruption_types: string[]; spheres: string[] }> = {
+  T01: { corruption_types: ["fraude_licitatoria"],                          spheres: ["administrativa"] },
+  T02: { corruption_types: ["fraude_licitatoria"],                          spheres: ["administrativa"] },
+  T03: { corruption_types: ["fraude_licitatoria"],                          spheres: ["administrativa"] },
+  T04: { corruption_types: ["fraude_licitatoria", "corrupcao_passiva"],     spheres: ["administrativa"] },
+  T05: { corruption_types: ["fraude_licitatoria"],                          spheres: ["administrativa", "privada"] },
+  T06: { corruption_types: ["lavagem", "corrupcao_ativa"],                  spheres: ["privada", "administrativa"] },
+  T07: { corruption_types: ["fraude_licitatoria", "corrupcao_ativa"],       spheres: ["privada", "sistemica"] },
+  T08: { corruption_types: ["corrupcao_passiva", "prevaricacao"],           spheres: ["administrativa"] },
+  T09: { corruption_types: ["peculato"],                                    spheres: ["administrativa"] },
+  T10: { corruption_types: ["peculato", "fraude_licitatoria"],              spheres: ["administrativa"] },
+  T11: { corruption_types: ["fraude_licitatoria", "peculato"],              spheres: ["administrativa", "privada"] },
+  T12: { corruption_types: ["fraude_licitatoria", "corrupcao_ativa_passiva"], spheres: ["administrativa"] },
+  T13: { corruption_types: ["nepotismo_clientelismo", "corrupcao_ativa_passiva"], spheres: ["administrativa", "politica"] },
+  T14: { corruption_types: ["corrupcao_ativa_passiva", "fraude_licitatoria"], spheres: ["administrativa", "sistemica"] },
+  T15: { corruption_types: ["fraude_licitatoria", "prevaricacao"],          spheres: ["administrativa"] },
+  T16: { corruption_types: ["nepotismo_clientelismo", "peculato"],          spheres: ["politica", "administrativa"] },
+  T17: { corruption_types: ["lavagem"],                                     spheres: ["privada", "sistemica"] },
+  T18: { corruption_types: ["peculato", "nepotismo_clientelismo"],          spheres: ["administrativa"] },
+  T19: { corruption_types: ["fraude_licitatoria"],                          spheres: ["privada", "sistemica"] },
+  T20: { corruption_types: ["fraude_licitatoria"],                          spheres: ["privada"] },
+  T21: { corruption_types: ["fraude_licitatoria"],                          spheres: ["privada", "sistemica"] },
+  T22: { corruption_types: ["nepotismo_clientelismo", "corrupcao_ativa_passiva"], spheres: ["politica", "privada"] },
+};
+
 export const COVERAGE_STATUS_LABELS: Record<string, string> = {
   ok: "Atualizado",
   warning: "Alerta",

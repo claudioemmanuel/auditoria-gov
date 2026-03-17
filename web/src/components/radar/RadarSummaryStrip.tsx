@@ -2,7 +2,13 @@
 
 import type { RadarV2SummaryResponse, SignalSeverity } from "@/lib/types";
 import { SEVERITY_LABELS } from "@/lib/constants";
-import { Activity, BriefcaseBusiness, Filter, Info } from "lucide-react";
+
+const SEV_DOT: Record<string, string> = {
+  critical: "bg-severity-critical",
+  high:     "bg-amber",
+  medium:   "bg-yellow-500",
+  low:      "bg-severity-low",
+};
 
 interface RadarSummaryStripProps {
   summary: RadarV2SummaryResponse | null;
@@ -19,97 +25,73 @@ export function RadarSummaryStrip({
 }: RadarSummaryStripProps) {
   if (loading || !summary) {
     return (
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={`radar-summary-skeleton-${i}`}
-            className="h-24 animate-pulse rounded-xl border border-border bg-surface-card"
-          />
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-16 animate-pulse rounded-lg border border-border bg-surface-card" />
         ))}
       </div>
     );
   }
 
-  return (
-    <div className="mt-6 space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Total de sinais
-            </p>
-            <Activity className="h-4 w-4 text-accent" />
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-primary">
-            {summary.totals.signals}
-          </p>
-        </div>
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Total de casos
-            </p>
-            <BriefcaseBusiness className="h-4 w-4 text-accent" />
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-primary">
-            {summary.totals.cases}
-          </p>
-        </div>
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Filtros ativos
-            </p>
-            <Filter className="h-4 w-4 text-accent" />
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-primary">
-            {summary.active_filters_count}
-          </p>
-        </div>
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Tipologias detectadas
-            </p>
-            <Info className="h-4 w-4 text-accent" />
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-primary">
-            {summary.typology_counts.length}
-          </p>
-        </div>
-      </div>
+  const sc = summary.severity_counts;
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {(["critical", "high", "medium", "low"] as const).map((severity) => {
-          const isActive = activeSeverity === severity;
-          const severityTone = severity === "critical"
-            ? "text-severity-critical"
-            : severity === "high"
-              ? "text-severity-high"
-              : severity === "medium"
-                ? "text-severity-medium"
-                : "text-severity-low";
+  const kpis: {
+    label: string;
+    value: number;
+    dot: string | null;
+    severity?: SignalSeverity;
+  }[] = [
+    { label: "Sinais",   value: summary.totals.signals, dot: null },
+    { label: "Casos",    value: summary.totals.cases,   dot: null },
+    { label: SEVERITY_LABELS.critical, value: sc.critical, dot: SEV_DOT.critical, severity: "critical" },
+    { label: SEVERITY_LABELS.high,     value: sc.high,     dot: SEV_DOT.high,     severity: "high"     },
+    { label: SEVERITY_LABELS.medium,   value: sc.medium,   dot: SEV_DOT.medium,   severity: "medium"   },
+    { label: SEVERITY_LABELS.low,      value: sc.low,      dot: SEV_DOT.low,      severity: "low"      },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+      {kpis.map((k) => {
+        const isActive = k.severity && activeSeverity === k.severity;
+        const inner = (
+          <>
+            {k.dot ? (
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`h-1.5 w-1.5 rounded-full ${k.dot}`} />
+                <p className="font-mono text-[9px] uppercase tracking-widest text-muted">{k.label}</p>
+              </div>
+            ) : (
+              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">{k.label}</p>
+            )}
+            <p className="font-mono text-lg font-bold tabular-nums text-primary leading-none">
+              {k.value.toLocaleString("pt-BR")}
+            </p>
+          </>
+        );
+
+        if (k.severity) {
           return (
             <button
-              key={severity}
+              key={k.label}
               type="button"
-              onClick={() => onSeverityClick(severity)}
-              className={`rounded-xl border p-3 text-left transition ${
+              onClick={() => onSeverityClick(k.severity!)}
+              className={`rounded-lg border px-3 py-3 text-left transition-colors ${
                 isActive
                   ? "border-accent bg-accent-subtle"
-                  : "border-border bg-surface-card hover:border-accent/20"
+                  : "border-border bg-surface-card hover:border-accent/40"
               }`}
             >
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                {SEVERITY_LABELS[severity]}
-              </p>
-              <p className={`mt-1 text-xl font-semibold ${severityTone}`}>
-                {summary.severity_counts[severity]}
-              </p>
+              {inner}
             </button>
           );
-        })}
-      </div>
+        }
+
+        return (
+          <div key={k.label} className="rounded-lg border border-border bg-surface-card px-3 py-3">
+            {inner}
+          </div>
+        );
+      })}
     </div>
   );
 }

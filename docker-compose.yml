@@ -103,17 +103,23 @@ services:
   # Primary worker: I/O-bound tasks (ingest, normalize, ai, maintenance) + Beat scheduler.
   # Beat is embedded here (--beat flag) to avoid a separate container.
   # Only ONE worker-primary should ever run — duplicate beat schedulers cause double-firing.
-  # Concurrency=2: balances throughput vs resource usage on constrained hardware.
+  # Concurrency=6: ingest tasks are network-bound; high concurrency is safe.
   worker-primary:
     restart: on-failure
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum --concurrency=2 --max-memory-per-child=409600 -n worker-primary@%h
+    command: celery -A worker.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum --concurrency=6 --max-memory-per-child=262144 -n worker-primary@%h
     env_file: .env
     environment:
       PYTHONPATH: /app
       APP_ENV: production
+      MEM_WARN_PCT: "75"
+      MEM_BLOCK_PCT: "85"
+      CPU_WARN_PCT: "85"
+      BACKLOG_WARN_ETA_MINUTES: "30"
+      INFRA_ALERT_WEBHOOK_URL: ""
+      INFRA_ALERT_COOLDOWN_SECONDS: "1800"
     depends_on:
       api:
         condition: service_healthy
@@ -137,11 +143,17 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: celery -A worker.worker_app worker --loglevel=info -Q er,signals,bulk --concurrency=1 --max-memory-per-child=614400 -n worker-heavy@%h
+    command: celery -A worker.worker_app worker --loglevel=info -Q er,signals,bulk,default --concurrency=1 --max-memory-per-child=1024000 -n worker-heavy@%h
     env_file: .env
     environment:
       PYTHONPATH: /app
       APP_ENV: production
+      MEM_WARN_PCT: "75"
+      MEM_BLOCK_PCT: "85"
+      CPU_WARN_PCT: "85"
+      BACKLOG_WARN_ETA_MINUTES: "30"
+      INFRA_ALERT_WEBHOOK_URL: ""
+      INFRA_ALERT_COOLDOWN_SECONDS: "1800"
     depends_on:
       api:
         condition: service_healthy
@@ -154,10 +166,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 1024M
+          cpus: "1.0"
+          memory: 2048M
         reservations:
-          memory: 384M
+          memory: 512M
 
   caddy:
     image: caddy:2-alpine
@@ -185,6 +197,11 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      target: builder
+    command: npm run dev
+    environment:
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=1024"
     ports:
       - "127.0.0.1:3000:3000"
     env_file: .env
@@ -196,10 +213,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 512M
+          cpus: "1.0"
+          memory: 1536M
         reservations:
-          memory: 192M
+          memory: 512M
 
 volumes:
   pgdata:

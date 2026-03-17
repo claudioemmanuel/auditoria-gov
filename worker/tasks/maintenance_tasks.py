@@ -121,6 +121,16 @@ def _log_dead_letter(sender=None, task_id=None, exception=None, traceback=None, 
             error=str(exception),
             error_type=type(exception).__name__,
         )
+        try:
+            from shared.services.infra_alerts import _send_infra_alert
+            _send_infra_alert(
+                "dead_letter",
+                task=sender.name if sender else "unknown",
+                error=str(exception),
+                retries=retry_count,
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @shared_task(name="worker.tasks.maintenance_tasks.cleanup_stale_runs", soft_time_limit=300, time_limit=360, max_retries=1)
@@ -624,33 +634,52 @@ def _cleanup_bulk_dirs() -> list[str]:
     time_limit=90,
 )
 def disk_space_watchdog() -> dict:
-    """Monitor Docker VM disk usage and proactively free space before Postgres panics.
+    """Monitor Docker VM disk, CPU, and memory; proactively free space before Postgres panics.
 
-    Checks shutil.disk_usage("/") which reflects the shared vda1 Docker VM disk.
-    At >= 80%: emits disk.warning structured log.
-    At >= 90%: sets Redis key disk:throttle=1, triggers purge + vacuum + bulk file cleanup.
-    When below threshold: clears the throttle flag.
+    Disk checks shutil.disk_usage("/") which reflects the shared vda1 Docker VM disk.
+    At >= DISK_THROTTLE_PCT: sets Redis key disk:throttle=1, triggers purge + vacuum + bulk cleanup.
+    Memory checks psutil.virtual_memory().  At >= MEM_BLOCK_PCT: sets memory:throttle Redis key
+    which gates ingest tasks.  At >= MEM_WARN_PCT: logs warning.
+    CPU checks psutil.cpu_percent(interval=1).  At >= CPU_WARN_PCT: logs warning + sends alert.
     """
+    import os
     import shutil
 
+    import psutil
     import redis as redis_lib
 
     from shared.config import settings
 
+    MEM_WARN_PCT = int(os.environ.get("MEM_WARN_PCT", "75"))
+    MEM_BLOCK_PCT = int(os.environ.get("MEM_BLOCK_PCT", "85"))
+    CPU_WARN_PCT = int(os.environ.get("CPU_WARN_PCT", "85"))
+    _MEM_THROTTLE_KEY = "memory:throttle"
+    _MEM_THROTTLE_TTL = 3600  # 1 h; watchdog renews or clears each cycle
+
     stat = shutil.disk_usage("/")
     pct_used = (stat.used / stat.total) * 100
     free_gb = stat.free / 1e9
+
+    # CPU — non-blocking 1 s sample (uses cached kernel stat)
+    cpu_pct = psutil.cpu_percent(interval=1)
+
+    # Memory
+    mem = psutil.virtual_memory()
+    mem_pct = mem.percent
 
     log.info(
         "disk_space_watchdog.status",
         pct_used=round(pct_used, 1),
         free_gb=round(free_gb, 2),
         total_gb=round(stat.total / 1e9, 2),
+        cpu_pct=round(cpu_pct, 1),
+        mem_pct=round(mem_pct, 1),
     )
 
     try:
         r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=5)
 
+        # ── Disk ──────────────────────────────────────────────────────
         if pct_used >= _DISK_THROTTLE_PCT or free_gb < _DISK_HARD_STOP_GB:
             r.set(_DISK_THROTTLE_KEY, "1", ex=_DISK_THROTTLE_TTL)
             log.warning(
@@ -675,14 +704,44 @@ def disk_space_watchdog() -> dict:
                 deleted = _cleanup_bulk_dirs()
                 if deleted:
                     log.info("disk_space_watchdog.warn_bulk_cleanup", files_deleted=len(deleted))
+
+        # ── Memory ────────────────────────────────────────────────────
+        if mem_pct >= MEM_BLOCK_PCT:
+            r.setex(_MEM_THROTTLE_KEY, _MEM_THROTTLE_TTL, "1")
+            log.warning(
+                "system_health.memory_throttle_set",
+                pct=round(mem_pct, 1),
+                available_gb=round(mem.available / 1e9, 2),
+            )
+            try:
+                from shared.services.infra_alerts import _send_infra_alert
+                _send_infra_alert("memory_throttle", pct=round(mem_pct, 1))
+            except Exception:  # noqa: BLE001
+                pass
+        elif mem_pct >= MEM_WARN_PCT:
+            log.warning("system_health.memory_warn", pct=round(mem_pct, 1))
+        else:
+            r.delete(_MEM_THROTTLE_KEY)
+
+        # ── CPU ───────────────────────────────────────────────────────
+        if cpu_pct >= CPU_WARN_PCT:
+            log.warning("system_health.cpu_high", pct=round(cpu_pct, 1))
+            try:
+                from shared.services.infra_alerts import _send_infra_alert
+                _send_infra_alert("cpu_high", pct=round(cpu_pct, 1))
+            except Exception:  # noqa: BLE001
+                pass
+
     except Exception as exc:  # noqa: BLE001
         # Redis unavailable: fail open, log and continue
         log.warning("disk_space_watchdog.redis_error", error=str(exc))
 
     return {
-        "pct_used": round(pct_used, 1),
+        "disk_pct": round(pct_used, 1),
         "free_gb": round(free_gb, 2),
         "total_gb": round(stat.total / 1e9, 2),
+        "cpu_pct": round(cpu_pct, 1),
+        "mem_pct": round(mem_pct, 1),
     }
 
 
@@ -753,20 +812,20 @@ def _watchdog_recover_orphans() -> dict | None:
     max_retries=0,
 )
 def pipeline_watchdog() -> dict:
-    """Check DB state every 15 min and drive the full pipeline.
+    """Check DB state every 5 min and drive the full pipeline.
 
-    Two triggers:
+    Three triggers:
     1. ER stale (new ingest data not yet entity-resolved) → run_full_pipeline
        (ER → baselines → signals).
-    2. Procurement data exists but baselines are absent → dispatch baselines +
-       signals immediately, even when ER is up-to-date. This fires the signal
-       pipeline as soon as PNCP/comprasnet data normalises, without waiting for
-       the next ER run watermark update.
+    2. ER up-to-date + procurement events exist → dispatch baselines → signals
+       chain. Both are incremental: baselines skip types with no new events,
+       signals skip typologies with no new data. Cheap no-op when nothing changed.
+    3. Orphan recovery: auto-recover stale "running" RawRun entries older than 2h.
     """
     from sqlalchemy import func, select
 
     from shared.db_sync import SyncSession
-    from shared.models.orm import BaselineSnapshot, ERRunState, Event, RawRun
+    from shared.models.orm import BaselineSnapshot, ERRunState, Event, RawRun, RawSource
 
     # ── Auto-recover orphaned runs (safety net) ─────────────────────
     recovery = _watchdog_recover_orphans()
@@ -774,23 +833,58 @@ def pipeline_watchdog() -> dict:
         return recovery
 
     with SyncSession() as session:
-        # Skip immediately if any ingest job is still running — data is incomplete.
+        # ER is incremental (watermark_at) and holds an advisory lock, so it
+        # is safe to run alongside ingest.  Do NOT skip when ingest is running
+        # — the pipeline must advance continuously like an assembly line.
         ingest_running_count = session.execute(
             select(func.count()).select_from(RawRun).where(RawRun.status == "running")
         ).scalar_one()
-        if ingest_running_count > 0:
-            log.info("pipeline_watchdog.skip", reason="ingest_running", count=ingest_running_count)
-            return {"status": "skip", "reason": "ingest_running"}
 
         er_running = session.execute(
             select(ERRunState).where(ERRunState.status == "running").limit(1)
         ).scalar_one_or_none()
-        if er_running is not None:
-            log.info("pipeline_watchdog.skip", reason="er_running")
-            return {"status": "skip", "reason": "er_running"}
 
+        if er_running is not None:
+            # Check if this ER run is genuinely in-progress or stale (crashed worker).
+            # Any 'running' state older than 9000 s must be from a dead worker —
+            # Celery's hard_time_limit=7500 s would have killed it by then.
+            from sqlalchemy import text as _text
+            stale_threshold = datetime.now(timezone.utc) - timedelta(seconds=9000)
+            if er_running.created_at < stale_threshold:
+                can_lock = session.execute(
+                    _text("SELECT pg_try_advisory_lock(7349812)")
+                ).scalar()
+                if can_lock:
+                    er_running.status = "failed"
+                    session.commit()
+                    session.execute(_text("SELECT pg_advisory_unlock(7349812)"))
+                    age_s = (datetime.now(timezone.utc) - er_running.created_at).total_seconds()
+                    log.warning(
+                        "pipeline_watchdog.er_stale_recovered",
+                        er_id=str(er_running.id),
+                        age_seconds=round(age_s),
+                    )
+                    try:
+                        from shared.services.infra_alerts import _send_infra_alert
+                        _send_infra_alert(
+                            "er_stale_recovered",
+                            source="watchdog",
+                            er_id=str(er_running.id),
+                            auto_resolved=True,
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+                    er_running = None  # fall through — treat as if ER is idle
+
+            if er_running is not None:
+                log.info("pipeline_watchdog.skip", reason="er_running")
+                return {"status": "skip", "reason": "er_running"}
+
+        # Include "yielded" runs — they produced data even if time-sliced.
         last_ingest_at = session.execute(
-            select(func.max(RawRun.finished_at)).where(RawRun.status == "completed")
+            select(func.max(RawRun.finished_at)).where(
+                RawRun.status.in_(["completed", "yielded"])
+            )
         ).scalar_one()
         if last_ingest_at is None:
             log.info("pipeline_watchdog.skip", reason="no_completed_ingest")
@@ -803,49 +897,123 @@ def pipeline_watchdog() -> dict:
             .limit(1)
         ).scalar_one_or_none()
 
+        # ── Check if baselines/signals need running (independent of ER staleness) ──
+        procurement_count = session.execute(
+            select(func.count()).select_from(Event).where(
+                Event.type.in_(["licitacao", "contrato"])
+            )
+        ).scalar_one()
+
+        baseline_count = session.execute(
+            select(func.count()).select_from(BaselineSnapshot)
+        ).scalar_one()
+
         if er_completed is not None and er_completed.watermark_at >= last_ingest_at:
-            # ER is up-to-date with latest ingest. Check if procurement data
-            # appeared since baselines were last computed.
-            procurement_count = session.execute(
-                select(func.count()).select_from(Event).where(
-                    Event.type.in_(["licitacao", "contrato"])
-                )
-            ).scalar_one()
-
+            # ER is up-to-date with latest ingest.
+            # Dispatch baselines → signals chain.  Both are now incremental:
+            # baselines skip types with no new events, signals skip typologies
+            # with no new data.  Cheap no-op when nothing changed.
             if procurement_count > 0:
-                baseline_count = session.execute(
-                    select(func.count()).select_from(BaselineSnapshot)
-                ).scalar_one()
+                from celery import chain, signature
+                pipeline = chain(
+                    signature(
+                        "worker.tasks.baseline_tasks.compute_all_baselines",
+                        immutable=True,
+                        queue="default",
+                    ),
+                    signature(
+                        "worker.tasks.signal_tasks.run_all_signals",
+                        immutable=True,
+                        queue="signals",
+                    ),
+                )
+                result = pipeline.apply_async()
+                log.info(
+                    "pipeline_watchdog.dispatched_baselines_signals",
+                    procurement_events=procurement_count,
+                    baseline_count=baseline_count,
+                    chain_id=str(result.id),
+                )
+                return {
+                    "status": "dispatched_baselines_signals",
+                    "procurement_events": procurement_count,
+                    "chain_id": str(result.id),
+                }
 
-                if baseline_count == 0:
-                    from celery import chain, signature
-                    pipeline = chain(
-                        signature(
-                            "worker.tasks.baseline_tasks.compute_all_baselines",
-                            immutable=True,
-                            queue="default",
-                        ),
-                        signature(
-                            "worker.tasks.signal_tasks.run_all_signals",
-                            immutable=True,
-                            queue="signals",
-                        ),
-                    )
-                    result = pipeline.apply_async()
+            log.info("pipeline_watchdog.skip", reason="er_up_to_date_no_procurement")
+            return {"status": "skip", "reason": "er_up_to_date_no_procurement"}
+
+        # ── Backlog prediction ─────────────────────────────────────────────
+        import json
+        import time as _time
+
+        import redis as redis_lib
+        from sqlalchemy import func as _func
+
+        from shared.config import settings as _settings
+
+        BACKLOG_LIMIT = 1_000_000
+        BACKLOG_WARN_ETA_MINUTES = int(
+            __import__("os").environ.get("BACKLOG_WARN_ETA_MINUTES", "30")
+        )
+
+        current_backlog = session.execute(
+            select(_func.count()).select_from(RawSource).where(RawSource.normalized == False)  # noqa: E712
+        ).scalar_one()
+
+        try:
+            _r = redis_lib.from_url(_settings.REDIS_URL, socket_connect_timeout=5)
+            sample = json.dumps({"t": _time.time(), "v": current_backlog})
+            _r.lpush("backlog:samples", sample)
+            _r.ltrim("backlog:samples", 0, 11)   # keep last 12 samples (~60 min at 5 min watchdog)
+            _r.expire("backlog:samples", 7200)
+
+            raw_samples = _r.lrange("backlog:samples", 0, 5)   # last 6 = 30 min
+            if len(raw_samples) >= 2:
+                newest = json.loads(raw_samples[0])
+                oldest = json.loads(raw_samples[-1])
+                elapsed_min = max((newest["t"] - oldest["t"]) / 60, 0.1)
+                growth_rate = (newest["v"] - oldest["v"]) / elapsed_min  # rows/min
+
+                if growth_rate > 0:
+                    eta_minutes = (BACKLOG_LIMIT - current_backlog) / growth_rate
                     log.info(
-                        "pipeline_watchdog.dispatched_baselines",
-                        procurement_events=procurement_count,
-                        chain_id=str(result.id),
+                        "backlog.trend",
+                        current=current_backlog,
+                        rate_per_min=round(growth_rate, 1),
+                        eta_minutes=round(eta_minutes, 1),
                     )
-                    return {
-                        "status": "dispatched_baselines",
-                        "procurement_events": procurement_count,
-                        "chain_id": str(result.id),
-                    }
+                    if eta_minutes < BACKLOG_WARN_ETA_MINUTES:
+                        log.warning(
+                            "backlog.approaching_limit",
+                            current=current_backlog,
+                            rate_per_min=round(growth_rate, 1),
+                            eta_minutes=round(eta_minutes, 1),
+                        )
+                        try:
+                            from shared.services.infra_alerts import _send_infra_alert
+                            _send_infra_alert(
+                                "backlog_critical",
+                                current=current_backlog,
+                                rate_per_min=round(growth_rate, 1),
+                                eta_minutes=round(eta_minutes, 1),
+                            )
+                        except Exception:  # noqa: BLE001
+                            pass
+                        # Pre-emptive drain — don't wait for the 3 h scheduled task
+                        trigger_normalize_drain.apply_async(queue="vacuum", countdown=5)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backlog.trend_error", error=str(exc))
 
-            log.info("pipeline_watchdog.skip", reason="er_up_to_date")
-            return {"status": "skip", "reason": "er_up_to_date"}
-
+        # ── ER is stale or never ran — dispatch full pipeline ──────────
+        # Even if ingest is running, ER is incremental (watermark_at) and
+        # holds an advisory lock, so concurrent dispatch is safe.
+        log.info(
+            "pipeline_watchdog.er_stale",
+            ingest_running=ingest_running_count,
+            er_watermark=str(er_completed.watermark_at) if er_completed else None,
+            last_ingest=str(last_ingest_at),
+        )
     result = run_full_pipeline.apply_async(queue="default")
     log.info("pipeline_watchdog.dispatched", task_id=str(result.id))
     return {"status": "dispatched", "task_id": str(result.id)}

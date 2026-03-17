@@ -14,6 +14,7 @@ from shared.models.signals import (
 )
 from shared.repo.queries import get_baseline
 from shared.typologies.base import BaseTypology
+from shared.utils.query import execute_chunked_in
 
 
 class T04AmendmentsOutlierTypology(BaseTypology):
@@ -65,14 +66,16 @@ class T04AmendmentsOutlierTypology(BaseTypology):
 
         # Query participants for entity_ids
         contract_ids = [c.id for c in contracts]
-        parts_stmt = select(EventParticipant).where(
-            EventParticipant.event_id.in_(contract_ids),
-            EventParticipant.role.in_(
-                ["procuring_entity", "buyer", "supplier", "winner"]
+        all_participants = await execute_chunked_in(
+            session,
+            lambda batch: select(EventParticipant).where(
+                EventParticipant.event_id.in_(batch),
+                EventParticipant.role.in_(
+                    ["procuring_entity", "buyer", "supplier", "winner"]
+                ),
             ),
+            contract_ids,
         )
-        parts_result = await session.execute(parts_stmt)
-        all_participants = parts_result.scalars().all()
 
         event_entity_ids: dict[str, list] = defaultdict(list)
         _seen: set[tuple[str, str]] = set()

@@ -120,6 +120,16 @@ def _check_ingest_allowed(session) -> tuple[bool, str]:
     except Exception:
         pass  # Redis unavailable — fail open
 
+    # Memory throttle gate — set by disk_space_watchdog when mem >= MEM_BLOCK_PCT
+    try:
+        import redis as redis_lib
+        from shared.config import settings as _settings
+        _r = redis_lib.from_url(_settings.REDIS_URL, socket_connect_timeout=2)
+        if _r.get("memory:throttle"):
+            return False, "memory_throttle: system memory usage critical — waiting for relief"
+    except Exception:
+        pass  # Redis unavailable — fail open
+
     return True, "ok"
 
 
@@ -383,6 +393,16 @@ def ingest_connector(
 
                 raw_run.items_fetched = total_items
                 raw_run.cursor_end = current_cursor
+                # Store progress metadata for monitoring UI
+                elapsed_so_far = time.monotonic() - slice_start
+                rate = round(total_items / max(elapsed_so_far, 1) * 60, 1)
+                raw_run.errors = {
+                    "_progress": {
+                        "pages": pages,
+                        "rate_per_min": rate,
+                        "elapsed_s": int(elapsed_so_far),
+                    },
+                }
                 # Save cursor on every page so re-runs resume from here on crash/error.
                 ingest_state.last_cursor = current_cursor
                 session.commit()
@@ -542,6 +562,16 @@ def ingest_connector(
                 error_type=type(exc).__name__,
                 retryable=retryable,
             )
+
+            # Normalize any data collected before the error — don't waste it.
+            if total_items > 0:
+                from worker.tasks.normalize_tasks import normalize_run
+                normalize_run.delay(str(raw_run.id))
+                log.info(
+                    "ingest_connector.error_normalize_dispatched",
+                    run_id=str(raw_run.id),
+                    items=total_items,
+                )
 
             if retryable:
                 backoff = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s

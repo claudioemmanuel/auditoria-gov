@@ -187,12 +187,16 @@ export default function ApiHealthPage() {
           </div>
 
           {/* Last checked */}
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-muted">
-            <Clock className="h-3.5 w-3.5" />
-            Última verificação:{" "}
-            <span className="font-mono tabular-nums">
-              {checkedAt ? new Date(checkedAt).toLocaleString("pt-BR") : "Aguardando…"}
-            </span>
+          <div className="mt-3">
+            <div className="rounded-lg border border-border bg-surface-base px-3 py-2 inline-flex flex-col">
+              <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+                <Clock className="h-3 w-3" />
+                Última verificação
+              </p>
+              <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
+                {checkedAt ? new Date(checkedAt).toLocaleString("pt-BR") : "Aguardando…"}
+              </p>
+            </div>
           </div>
         </div>
       </div>

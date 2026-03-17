@@ -275,12 +275,15 @@ export function CoverageSourcePreviewDrawer({
                 <section>
                   <p className="font-mono text-[10px] uppercase tracking-widest text-muted mb-2">Insights</p>
                   <div className="space-y-2">
-                    {data.insights.map((insight, i) => (
-                      <div key={i} className="flex items-start gap-2 rounded-lg border border-accent/20 bg-accent-subtle/30 px-3 py-2.5">
-                        <Lightbulb className="h-3.5 w-3.5 shrink-0 text-accent mt-0.5" />
-                        <p className="text-xs text-secondary leading-relaxed">{insight}</p>
-                      </div>
-                    ))}
+                    {data.insights.map((insight, i) => {
+                      const isHealthy = connector?.worst_status === "ok";
+                      return (
+                        <div key={i} className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${isHealthy ? "border-success/20 bg-success/5" : "border-accent/20 bg-accent-subtle/30"}`}>
+                          <Lightbulb className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isHealthy ? "text-success" : "text-accent"}`} />
+                          <p className="text-xs text-secondary leading-relaxed">{insight}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               )}

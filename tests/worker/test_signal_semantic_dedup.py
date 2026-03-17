@@ -9,12 +9,25 @@ Covers:
 """
 
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from worker.tasks.signal_tasks import run_single_signal
+
+
+def _make_savepoint():
+    """Return a callable that produces an async context manager for session.begin_nested().
+
+    AsyncMock children are also AsyncMock; calling begin_nested() returns a coroutine,
+    not an async context manager.  This helper fixes that so the SAVEPOINT block works.
+    """
+    savepoint = MagicMock()
+    savepoint.__aenter__ = AsyncMock(return_value=None)
+    savepoint.__aexit__ = AsyncMock(return_value=False)
+    return MagicMock(return_value=savepoint)
 
 
 def _make_fake_signal(summary="Test summary", severity_value="high"):
@@ -83,6 +96,7 @@ class TestSemanticSignalDedup:
         mock_session.execute = _fake_execute
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
+        mock_session.begin_nested = _make_savepoint()
 
         with patch("shared.typologies.registry.get_typology", return_value=typology), \
              patch("shared.db.async_session", return_value=mock_session), \
@@ -177,6 +191,7 @@ class TestSemanticSignalDedup:
         mock_session.execute = _fake_execute
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
+        mock_session.begin_nested = _make_savepoint()
 
         with patch("shared.typologies.registry.get_typology", return_value=typology), \
              patch("shared.db.async_session", return_value=mock_session), \
@@ -225,6 +240,7 @@ class TestSemanticSignalDedup:
         mock_session.execute = _fake_execute
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
+        mock_session.begin_nested = _make_savepoint()
 
         embed_calls = []
 
@@ -276,6 +292,7 @@ class TestSemanticSignalDedup:
         mock_session.execute = _fake_execute
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
+        mock_session.begin_nested = _make_savepoint()
 
         with patch("shared.typologies.registry.get_typology", return_value=typology), \
              patch("shared.db.async_session", return_value=mock_session), \

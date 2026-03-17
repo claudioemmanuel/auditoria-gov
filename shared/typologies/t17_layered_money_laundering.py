@@ -261,6 +261,7 @@ class T17LayeredMoneyLaunderingTypology(BaseTypology):
                     factors={
                         "cycle_length": cycle_length,
                         "community_size": community_size,
+                        "contract_value_brl": round(contract.value_brl, 2),
                         "intra_community_value": round(intra_value, 2),
                         "ubo_convergence": ubo_convergence,
                         "n_intra_subcontractors": len(intra_community_subcontractors),

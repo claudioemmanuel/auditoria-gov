@@ -73,8 +73,15 @@ async def test_get_coverage_v2_summary_marks_blocked_when_runtime_stuck(monkeypa
                         )
                     ]
                 )
-            if self.calls in {2, 3, 4, 5, 6}:
-                return _ExecResult(rows=[0])
+            # Call 2: pg_class approximate counts (relname + est columns)
+            if self.calls == 2:
+                return _ExecResult(rows=[
+                    SimpleNamespace(relname="event", est=100),
+                    SimpleNamespace(relname="graph_node", est=50),
+                    SimpleNamespace(relname="graph_edge", est=30),
+                    SimpleNamespace(relname="baseline_snapshot", est=10),
+                    SimpleNamespace(relname="risk_signal", est=5),
+                ])
             return _ExecResult(rows=[])
 
     monkeypatch.setattr(queries, "get_coverage_list", _fake_get_coverage_list)
@@ -248,14 +255,9 @@ class _PipelineSession:
 
     The get_coverage_v2_summary function issues these queries in order:
       1. get_coverage_list (monkeypatched)
-      2. _coverage_get_latest_runs (monkeypatched via session.execute for RawRun)
-      3. get_coverage_v2_analytics (monkeypatched)
-      4. session.execute(count Event)        → event_count
-      5. session.execute(count GraphNode)     → graph_nodes
-      6. session.execute(count GraphEdge)     → graph_edges
-      7. session.execute(count Baseline)      → baseline_count
-      8. session.execute(count RiskSignal)    → signal_count
-      9. session.execute(select ERRunState)   → er_state
+      2. _coverage_get_latest_runs → session.execute for RawRun rows
+      3. session.execute(pg_class SELECT relname/est) → event/graph_node/graph_edge/baseline_snapshot/risk_signal
+      4. session.execute(select ERRunState)            → er_state
     """
     def __init__(
         self,
@@ -267,7 +269,11 @@ class _PipelineSession:
         er_state=None,
         latest_runs=None,
     ):
-        self._counts = [event_count, graph_nodes, graph_edges, baseline_count, signal_count]
+        self._event_count = event_count
+        self._graph_nodes = graph_nodes
+        self._graph_edges = graph_edges
+        self._baseline_count = baseline_count
+        self._signal_count = signal_count
         self._er_state = er_state
         self._latest_runs = latest_runs or []
         self._call = 0
@@ -277,11 +283,16 @@ class _PipelineSession:
         # First call: latest runs query (from _coverage_get_latest_runs)
         if self._call == 1:
             return _ExecResult(rows=self._latest_runs)
-        # Calls 2-6: scalar counts
-        idx = self._call - 2
-        if idx < len(self._counts):
-            return _ExecResult(rows=[self._counts[idx]])
-        # Call 7: ERRunState
+        # Second call: pg_class approximate counts (relname + est columns)
+        if self._call == 2:
+            return _ExecResult(rows=[
+                SimpleNamespace(relname="event", est=self._event_count),
+                SimpleNamespace(relname="graph_node", est=self._graph_nodes),
+                SimpleNamespace(relname="graph_edge", est=self._graph_edges),
+                SimpleNamespace(relname="baseline_snapshot", est=self._baseline_count),
+                SimpleNamespace(relname="risk_signal", est=self._signal_count),
+            ])
+        # Third call: ERRunState
         if self._er_state is not None:
             return _ExecResult(rows=[self._er_state])
         return _ExecResult(rows=[])

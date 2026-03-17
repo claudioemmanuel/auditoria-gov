@@ -174,9 +174,10 @@ export function EntityNetworkGraph({ entityId, className }: EntityNetworkGraphPr
     );
   }
 
-  // Build positions
-  const centerNode = data.nodes.find((n) => n.id === data.center_node_id) ?? data.nodes[0]!;
-  const peripheralNodes = data.nodes.filter((n) => n.id !== data.center_node_id);
+  // Build positions (deduplicate nodes by id — API may return duplicates)
+  const uniqueNodes = Array.from(new Map(data.nodes.map((n) => [n.id, n])).values());
+  const centerNode = uniqueNodes.find((n) => n.id === data.center_node_id) ?? uniqueNodes[0]!;
+  const peripheralNodes = uniqueNodes.filter((n) => n.id !== centerNode.id);
   const outerNodes = peripheralNodes.slice(0, MAX_OUTER);
   const innerNodes = peripheralNodes.slice(MAX_OUTER);
 

@@ -19,7 +19,7 @@ from shared.models.coverage_v2 import (
     PublicSourcesResponse,
 )
 from shared.models.graph import CaseGraphResponse, EntityPathResponse, NeighborhoodResponse, SignalGraphResponse
-from shared.models.orm import Case, Contestation, RiskSignal
+from shared.models.orm import Case, CaseItem, Contestation, RiskSignal, Typology
 from shared.models.radar import (
     RadarV2CaseListResponse,
     RadarV2CasePreviewResponse,
@@ -39,6 +39,8 @@ from shared.repo.queries import (
     get_case_by_id,
     get_case_entities_with_roles,
     get_case_graph,
+    get_dossier_summary,
+    get_dossier_timeline,
     get_coverage_v2_analytics,
     get_coverage_v2_map,
     get_coverage_v2_run_detail,
@@ -251,6 +253,112 @@ async def radar_v2_case_preview(
     return preview
 
 
+@router.post("/radar/v2/cases/batch-preview")
+async def radar_v2_batch_preview(
+    payload: dict,
+    session: DbSession,
+):
+    """Batch case previews — replaces 20 individual calls with 1."""
+    case_ids_raw = payload.get("case_ids", [])
+    if not case_ids_raw or len(case_ids_raw) > 50:
+        raise HTTPException(status_code=400, detail="Provide 1-50 case_ids")
+
+    case_ids = []
+    for cid in case_ids_raw:
+        try:
+            case_ids.append(uuid.UUID(str(cid)))
+        except (ValueError, TypeError):
+            pass
+
+    if not case_ids:
+        return {"previews": {}}
+
+    # Fetch all cases in one query
+    cases_stmt = select(Case).where(Case.id.in_(case_ids))
+    cases = {c.id: c for c in (await session.execute(cases_stmt)).scalars().all()}
+
+    # Fetch top 3 signals per case (instead of 10)
+    signals_stmt = (
+        select(
+            CaseItem.case_id,
+            RiskSignal.id,
+            RiskSignal.typology_id,
+            RiskSignal.severity,
+            RiskSignal.confidence,
+            RiskSignal.title,
+            RiskSignal.summary,
+            RiskSignal.period_start,
+            RiskSignal.period_end,
+            RiskSignal.entity_ids,
+            RiskSignal.event_ids,
+        )
+        .join(RiskSignal, CaseItem.signal_id == RiskSignal.id)
+        .where(CaseItem.case_id.in_(case_ids))
+        .order_by(CaseItem.case_id, RiskSignal.confidence.desc())
+    )
+    sig_rows = (await session.execute(signals_stmt)).all()
+
+    # Fetch typologies for the signals
+    typology_ids = {r.typology_id for r in sig_rows if r.typology_id}
+    typo_map = {}
+    if typology_ids:
+        typo_stmt = select(Typology).where(Typology.id.in_(typology_ids))
+        typo_map = {t.id: t for t in (await session.execute(typo_stmt)).scalars().all()}
+
+    # Group signals by case, keep top 3
+    from collections import defaultdict
+    case_signals: dict[uuid.UUID, list] = defaultdict(list)
+    for r in sig_rows:
+        case_signals[r.case_id].append(r)
+
+    previews = {}
+    for cid in case_ids:
+        case = cases.get(cid)
+        if not case:
+            continue
+
+        sigs = case_signals.get(cid, [])
+        entity_names = list((case.attrs or {}).get("entity_names", []))
+        total_value = (case.attrs or {}).get("total_value_brl")
+
+        top_sigs = sigs[:3]
+        top_signals_out = []
+        for s in top_sigs:
+            typo = typo_map.get(s.typology_id)
+            top_signals_out.append({
+                "id": str(s.id),
+                "typology_code": typo.code if typo else None,
+                "typology_name": typo.name if typo else None,
+                "severity": s.severity,
+                "confidence": s.confidence,
+                "title": s.title,
+                "summary": s.summary,
+                "period_start": s.period_start.isoformat() if s.period_start else None,
+                "period_end": s.period_end.isoformat() if s.period_end else None,
+                "entity_count": len(s.entity_ids or []),
+                "event_count": len(s.event_ids or []),
+            })
+
+        previews[str(cid)] = {
+            "case": {
+                "id": str(case.id),
+                "title": case.title,
+                "status": case.status,
+                "severity": case.severity,
+                "summary": case.summary,
+                "entity_names": entity_names,
+                "signal_count": len(sigs),
+                "period_start": case.attrs.get("period_start") if case.attrs else None,
+                "period_end": case.attrs.get("period_end") if case.attrs else None,
+                "total_value_brl": total_value,
+                "created_at": case.created_at.isoformat() if case.created_at else None,
+            },
+            "top_signals": top_signals_out,
+        }
+
+    return {"previews": previews}
+
+
 @router.get("/radar/v2/coverage", response_model=RadarV2CoverageResponse)
 async def radar_v2_coverage(session: DbSession):
     return await get_radar_v2_coverage(session)
@@ -458,13 +566,13 @@ async def get_graph_path(
 async def case_graph(
     case_id: uuid.UUID,
     session: DbSession,
-    depth: int = Query(1, ge=1, le=2, description="Traversal depth (1-2)"),
+    depth: int = Query(1, ge=0, le=2, description="Traversal depth (0=seed-only, 1-2=BFS expansion)"),
     focus_signal_id: Optional[uuid.UUID] = Query(
         None,
         description="Optional signal id to highlight entities/edges linked to one signal",
     ),
 ):
-    """Case investigation graph — all entities from case signals + BFS neighborhood."""
+    """Case investigation graph — all entities from case signals + optional BFS neighborhood."""
     result = await get_case_graph(
         session,
         case_id,
@@ -561,31 +669,45 @@ async def signal_related(signal_id: uuid.UUID, session: DbSession):
     if signal is None:
         raise HTTPException(status_code=404, detail="Signal not found")
 
-    stmt = (
-        select(RiskSignal)
-        .where(RiskSignal.id != signal_id)
-        .options(selectinload(RiskSignal.typology))
-        .order_by(RiskSignal.created_at.desc())
-        .limit(200)
+    signal_entity_ids = signal.entity_ids or []
+    if not signal_entity_ids:
+        return []
+
+    # SQL: find signals that share at least one entity_id via JSONB overlap
+    from sqlalchemy import text
+
+    entity_id_strs = [str(e) for e in signal_entity_ids]
+    overlap_stmt = text("""
+        SELECT rs.id, rs.severity, rs.confidence, rs.title, rs.created_at,
+               t.code AS typology_code, t.name AS typology_name
+        FROM risk_signal rs
+        LEFT JOIN typology t ON t.id = rs.typology_id
+        WHERE rs.id != :signal_id
+          AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(rs.entity_ids) AS eid
+              WHERE eid = ANY(:entity_ids)
+          )
+        ORDER BY rs.created_at DESC
+        LIMIT 5
+    """)
+    result = await session.execute(
+        overlap_stmt,
+        {"signal_id": signal_id, "entity_ids": entity_id_strs},
     )
-    candidates = (await session.execute(stmt)).scalars().all()
-    signal_entity_set = {str(e) for e in (signal.entity_ids or [])}
-    related = [
-        s for s in candidates
-        if signal_entity_set & {str(e) for e in (s.entity_ids or [])}
-    ][:5]
+    related = result.all()
 
     return [
         {
-            "id": s.id,
-            "typology_code": s.typology.code if s.typology else None,
-            "typology_name": s.typology.name if s.typology else None,
-            "title": s.title,
-            "severity": s.severity,
-            "confidence": s.confidence,
-            "created_at": s.created_at,
+            "id": r.id,
+            "typology_code": r.typology_code,
+            "typology_name": r.typology_name,
+            "title": r.title,
+            "severity": r.severity,
+            "confidence": r.confidence,
+            "created_at": r.created_at,
         }
-        for s in related
+        for r in related
     ]
 
 
@@ -782,31 +904,58 @@ async def case_related(case_id: uuid.UUID, session: DbSession):
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    entity_name_set = set((case.attrs or {}).get("entity_names", []))
+    entity_name_set = list((case.attrs or {}).get("entity_names", []))
+    if not entity_name_set:
+        return []
 
-    stmt = (
-        select(Case)
-        .where(Case.id != case_id)
-        .order_by(Case.created_at.desc())
-        .limit(100)
+    # SQL: find cases whose attrs->'entity_names' overlaps with this case's entity names
+    from sqlalchemy import text
+
+    related_stmt = text("""
+        SELECT c.id, c.title, c.severity, c.case_type, c.attrs, c.created_at
+        FROM "case" c,
+        LATERAL jsonb_array_elements_text(COALESCE(c.attrs->'entity_names', '[]'::jsonb)) AS name
+        WHERE c.id != :case_id
+          AND name = ANY(:entity_names)
+        GROUP BY c.id, c.title, c.severity, c.case_type, c.attrs, c.created_at
+        ORDER BY c.created_at DESC
+        LIMIT 3
+    """)
+    result = await session.execute(
+        related_stmt,
+        {"case_id": case_id, "entity_names": entity_name_set},
     )
-    candidates = (await session.execute(stmt)).scalars().all()
-    related = [
-        c for c in candidates
-        if entity_name_set & set((c.attrs or {}).get("entity_names", []))
-    ][:3]
+    rows = result.all()
 
     return [
         {
-            "id": c.id,
-            "title": c.title,
-            "severity": c.severity,
-            "case_type": c.case_type,
-            "signal_count": (c.attrs or {}).get("signal_count"),
-            "created_at": c.created_at,
+            "id": r.id,
+            "title": r.title,
+            "severity": r.severity,
+            "case_type": r.case_type,
+            "signal_count": (r.attrs or {}).get("signal_count") if r.attrs else None,
+            "created_at": r.created_at,
         }
-        for c in related
+        for r in rows
     ]
+
+
+@router.get("/case/{case_id}/dossier-summary")
+async def case_dossier_summary(case_id: uuid.UUID, session: DbSession):
+    """Full dossier summary — one call replaces case preview + legal + related."""
+    result = await get_dossier_summary(session, case_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return result
+
+
+@router.get("/case/{case_id}/dossier-timeline")
+async def case_dossier_timeline(case_id: uuid.UUID, session: DbSession):
+    """Full timeline data for a case dossier — events, participants, signals, entities."""
+    result = await get_dossier_timeline(session, case_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return result
 
 
 @router.post("/contestation", response_model=ContestationOut, status_code=status.HTTP_201_CREATED)

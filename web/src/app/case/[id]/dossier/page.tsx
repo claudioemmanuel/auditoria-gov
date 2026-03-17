@@ -282,7 +282,7 @@ export default async function DossierPage({ params }: PageProps) {
                       {entity.signal_ids.length > 0 && (
                         <span className="text-[10px] text-muted">
                           ·{" "}
-                          {entity.signal_ids.length} sinal{entity.signal_ids.length !== 1 ? "is" : ""}
+                          {entity.signal_ids.length} {entity.signal_ids.length !== 1 ? "sinais" : "sinal"}
                         </span>
                       )}
                     </div>

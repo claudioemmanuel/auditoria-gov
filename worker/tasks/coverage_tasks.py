@@ -7,7 +7,7 @@ from shared.connectors import ConnectorRegistry
 from shared.connectors.veracity import SOURCE_VERACITY_REGISTRY
 from shared.db_sync import SyncSession
 from shared.logging import log
-from shared.models.orm import CoverageRegistry, IngestState, RawRun, RawSource
+from shared.models.orm import CoverageRegistry, IngestState, RawRun
 
 
 @shared_task(name="worker.tasks.coverage_tasks.update_coverage_registry")
@@ -38,25 +38,33 @@ def update_coverage_registry():
                 )
                 ingest_state = session.execute(stmt).scalar_one_or_none()
 
-                # Get latest successful RawRun (completed/done)
+                # Get latest successful RawRun (completed/done/yielded-with-data)
+                # "yielded" runs that fetched items are partial successes — the
+                # job will resume automatically, so they count for freshness.
                 run_stmt = (
                     select(RawRun)
                     .where(
                         RawRun.connector == name,
                         RawRun.job == job.name,
-                        RawRun.status.in_(["completed", "done"]),
+                        RawRun.status.in_(["completed", "done", "yielded"]),
                     )
                     .order_by(RawRun.finished_at.desc())
                     .limit(1)
                 )
                 latest_success_run = session.execute(run_stmt).scalar_one_or_none()
 
-                # Count raw items
-                count_stmt = select(func.count()).select_from(RawSource).where(
-                    RawSource.connector == name,
-                    RawSource.job == job.name,
+                # Count total items normalized across all completed/yielded runs.
+                # raw_source is transient (deleted after normalization), so we
+                # use the canonical items_normalized from raw_run as ground truth.
+                total_items = int(
+                    session.execute(
+                        select(func.coalesce(func.sum(RawRun.items_normalized), 0)).where(
+                            RawRun.connector == name,
+                            RawRun.job == job.name,
+                            RawRun.status.in_(["completed", "yielded"]),
+                        )
+                    ).scalar_one()
                 )
-                total_items = session.execute(count_stmt).scalar_one()
 
                 # Compute freshness — use the most recent successful timestamp
                 ingest_ts = ingest_state.last_run_at if ingest_state else None

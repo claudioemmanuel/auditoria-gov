@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
   Radar,
   Database,
   BookOpen,
@@ -12,8 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const COMMANDS = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard, shortcut: "D" },
-  { label: "Radar — Central de Riscos", href: "/radar", icon: Radar, shortcut: "R" },
+  { label: "Investigacao — Central de Riscos", href: "/radar", icon: Radar, shortcut: "R" },
   { label: "Cobertura de Dados", href: "/coverage", icon: Database, shortcut: "C" },
   { label: "Metodologia", href: "/methodology", icon: BookOpen, shortcut: "M" },
   { label: "Saude da API", href: "/api-health", icon: Activity, shortcut: "H" },

@@ -94,42 +94,124 @@ def _compute_evidence_signature(db_signal, evidence_package) -> str:
 
 
 async def _populate_signal_links(session, signal_id, entity_ids, event_ids):
+    # Batch insert event links
+    event_rows = []
     for eid_str in (event_ids or []):
         try:
-            eid = uuid.UUID(str(eid_str))
-            stmt = pg_insert(SignalEvent).values(
-                signal_id=signal_id, event_id=eid,
-            ).on_conflict_do_nothing(constraint='uq_signal_event')
-            await session.execute(stmt)
+            event_rows.append({"signal_id": signal_id, "event_id": uuid.UUID(str(eid_str))})
         except (ValueError, TypeError):
             pass
+    if event_rows:
+        stmt = pg_insert(SignalEvent).values(event_rows).on_conflict_do_nothing(constraint='uq_signal_event')
+        await session.execute(stmt)
+
+    # Batch insert entity links
+    entity_rows = []
     for eid_str in (entity_ids or []):
         try:
-            eid = uuid.UUID(str(eid_str))
-            stmt = pg_insert(SignalEntity).values(
-                signal_id=signal_id, entity_id=eid,
-            ).on_conflict_do_nothing(constraint='uq_signal_entity')
-            await session.execute(stmt)
+            entity_rows.append({"signal_id": signal_id, "entity_id": uuid.UUID(str(eid_str))})
         except (ValueError, TypeError):
             pass
+    if entity_rows:
+        stmt = pg_insert(SignalEntity).values(entity_rows).on_conflict_do_nothing(constraint='uq_signal_entity')
+        await session.execute(stmt)
+
+
+def _should_run_typology(
+    typology, last_runs: dict, domain_freshness: dict,
+) -> bool:
+    """Check if a typology has new data since its last successful run.
+
+    Uses pre-computed domain_freshness map (domain → MAX(event.created_at))
+    to avoid per-typology DB queries.
+    Returns True if the typology should run (new data exists or never ran).
+    """
+    last_run = last_runs.get(typology.id)
+    if last_run is None or last_run.finished_at is None:
+        return True  # Never ran successfully — must run
+
+    domains = typology.required_domains
+    if not domains:
+        return True  # No domain filter — always run
+
+    # Check if ANY required domain has events newer than last run
+    finished = last_run.finished_at
+    if finished.tzinfo is None:
+        from datetime import timezone
+        finished = finished.replace(tzinfo=timezone.utc)
+
+    for domain in domains:
+        last_event_at = domain_freshness.get(domain)
+        if last_event_at is not None and last_event_at > finished:
+            return True
+
+    return False
 
 
 @shared_task(name="worker.tasks.signal_tasks.run_all_signals", max_retries=1)
-def run_all_signals(dry_run: bool = False):
-    """Execute all active typology detectors in dependency order.
+def run_all_signals(dry_run: bool = False, force: bool = False):
+    """Execute all active typology detectors in dependency order (incremental).
+
+    Skips typologies whose required event domains have no new data since
+    the last successful run. Pass force=True to run all regardless.
 
     Wave 1: Independent typologies (no ER/meta dependency).
     Wave 2: ER-dependent typologies (T13, T17).
     Wave 3: Meta-typology that depends on wave 1+2 results (T14), dispatched with a delay.
     """
+    from sqlalchemy import func, select
+
+    from shared.db_sync import SyncSession
+    from shared.models.orm import Event, TypologyRunLog
     from shared.typologies.registry import get_all_typologies
 
-    log.info("run_all_signals", dry_run=dry_run)
+    log.info("run_all_signals", dry_run=dry_run, force=force)
     typologies = get_all_typologies()
     log.info("loaded_typologies", count=len(typologies))
 
+    # Pre-fetch all incremental state in ONE session (2-3 queries total
+    # instead of 22+ per-typology queries)
+    last_runs: dict = {}
+    domain_freshness: dict = {}
+    if not force:
+        with SyncSession() as session:
+            # 1. Last successful run per typology code (single query with window function)
+            from sqlalchemy import text as sa_text
+            rows = session.execute(sa_text("""
+                SELECT DISTINCT ON (typology_code)
+                    typology_code, finished_at
+                FROM typology_run_log
+                WHERE status = 'success' AND dry_run = false
+                ORDER BY typology_code, finished_at DESC
+            """)).fetchall()
+            for row in rows:
+                last_runs[row.typology_code] = row
+
+            # 2. Domain freshness: MAX(event.created_at) per event type
+            # Covers all unique domains across all typologies in one query
+            all_domains = set()
+            for t in typologies:
+                all_domains.update(t.required_domains)
+            if all_domains:
+                freshness_rows = session.execute(
+                    select(Event.type, func.max(Event.created_at))
+                    .where(Event.type.in_(list(all_domains)))
+                    .group_by(Event.type)
+                ).fetchall()
+                for row in freshness_rows:
+                    ts = row[1]
+                    if ts is not None and ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=datetime.now(timezone.utc).tzinfo)
+                    domain_freshness[row[0]] = ts
+
+        log.info(
+            "run_all_signals.incremental_state",
+            last_runs=len(last_runs),
+            domains_checked=len(domain_freshness),
+        )
+
     # Wave 1: Independent typologies (no ER/meta dependency)
-    wave1_codes = {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18"}
+    wave1_codes = {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18","T19","T20","T21","T22"}
     # Wave 2: ER-dependent
     wave2_codes = {"T13","T17"}
     # Wave 3: Meta-typology (depends on wave 1+2 results)
@@ -139,23 +221,93 @@ def run_all_signals(dry_run: bool = False):
     wave2 = [t for t in typologies if t.id in wave2_codes]
     wave3 = [t for t in typologies if t.id in wave3_codes]
 
+    dispatched = 0
+    skipped = 0
+
     log.info("run_all_signals.wave1", codes=[t.id for t in wave1])
     for t in wave1:
-        run_single_signal.delay(t.id, dry_run=dry_run)
+        if force or _should_run_typology(t, last_runs, domain_freshness):
+            run_single_signal.delay(t.id, dry_run=dry_run)
+            dispatched += 1
+        else:
+            skipped += 1
+            log.info("run_all_signals.skipped", typology=t.id, reason="no_new_events")
 
     log.info("run_all_signals.wave2_er_dependent", codes=[t.id for t in wave2])
     for t in wave2:
-        run_single_signal.delay(t.id, dry_run=dry_run)
+        if force or _should_run_typology(t, last_runs, domain_freshness):
+            run_single_signal.delay(t.id, dry_run=dry_run)
+            dispatched += 1
+        else:
+            skipped += 1
+            log.info("run_all_signals.skipped", typology=t.id, reason="no_new_events")
 
+    # Wave 3: Meta-typology — run if any wave 1/2 typology was dispatched
+    # (new signals from earlier waves may produce new compound signals)
     log.info("run_all_signals.wave3_meta", codes=[t.id for t in wave3])
     for t in wave3:
-        run_single_signal.apply_async(
-            args=[t.id],
-            kwargs={"dry_run": dry_run},
-            countdown=60,
-        )
+        if force or dispatched > 0:
+            run_single_signal.apply_async(
+                args=[t.id],
+                kwargs={"dry_run": dry_run},
+                countdown=60,
+            )
+            dispatched += 1
+        else:
+            skipped += 1
+            log.info("run_all_signals.skipped", typology=t.id, reason="no_new_signals")
 
-    return {"status": "dispatched", "count": len(typologies), "dry_run": dry_run, "waves": [len(wave1), len(wave2), len(wave3)]}
+    log.info(
+        "run_all_signals.dispatch_summary",
+        dispatched=dispatched,
+        skipped=skipped,
+        force=force,
+    )
+
+    # ── Reactive pipeline: trigger case building after signals settle ────
+    # Only dispatch downstream work if at least one typology was dispatched.
+    if not dry_run and dispatched > 0:
+        try:
+            from worker.tasks.case_tasks import build_cases
+
+            build_cases.apply_async(queue="default", countdown=300)
+            log.info("run_all_signals.triggered_cases", countdown=300)
+        except Exception as exc:
+            log.warning("run_all_signals.trigger_cases_error", error=str(exc))
+
+        # Invalidate radar/signal/case cache entries so the public API
+        # serves fresh data after new signals are generated.
+        try:
+            import redis as redis_lib
+            from shared.config import settings as _settings
+
+            r = redis_lib.from_url(_settings.REDIS_URL, socket_connect_timeout=5)
+            deleted = 0
+            for pattern in ("cache:*radar*", "cache:*case*", "cache:*signal*"):
+                cursor = 0
+                while True:
+                    cursor, keys = r.scan(cursor, match=pattern, count=200)
+                    if keys:
+                        r.delete(*keys)
+                        deleted += len(keys)
+                    if cursor == 0:
+                        break
+            r.close()
+            log.info("run_all_signals.cache_invalidated", deleted=deleted)
+        except Exception as exc:
+            log.warning("run_all_signals.cache_invalidate_error", error=str(exc))
+    elif not dry_run and dispatched == 0:
+        log.info("run_all_signals.all_skipped", reason="no_new_data")
+
+    return {
+        "status": "dispatched" if dispatched > 0 else "skipped",
+        "dispatched": dispatched,
+        "skipped": skipped,
+        "count": len(typologies),
+        "dry_run": dry_run,
+        "force": force,
+        "waves": [len(wave1), len(wave2), len(wave3)],
+    }
 
 
 @shared_task(name="worker.tasks.signal_tasks.run_single_signal", max_retries=2)
@@ -231,14 +383,32 @@ def run_single_signal(
                 blocked = 0
                 has_high_critical = False
 
+                # Pre-compute all dedup keys and batch-check existing signals
+                # to avoid N individual DB queries (O(n) → O(1) batch lookup).
+                signal_dedup_keys: list[str] = []
                 for signal in signals:
-                    dedup_key = _compute_dedup_key(
+                    signal_dedup_keys.append(_compute_dedup_key(
                         typology_code,
                         signal.entity_ids,
                         signal.event_ids,
                         signal.period_start,
                         signal.period_end,
-                    )
+                    ))
+
+                existing_by_dedup: dict[str, object] = {}
+                if not dry_run and signal_dedup_keys:
+                    _DEDUP_CHUNK = 5_000
+                    for _di in range(0, len(signal_dedup_keys), _DEDUP_CHUNK):
+                        _dk_batch = signal_dedup_keys[_di : _di + _DEDUP_CHUNK]
+                        for _existing in (
+                            await session.execute(
+                                select(RiskSignal).where(RiskSignal.dedup_key.in_(_dk_batch))
+                            )
+                        ).scalars().all():
+                            existing_by_dedup[_existing.dedup_key] = _existing
+
+                for sig_idx, signal in enumerate(signals):
+                    dedup_key = signal_dedup_keys[sig_idx]
                     completeness_score, completeness_status = _compute_completeness(signal)
                     signal_factors = dict(signal.factors or {})
                     stored_severity = signal.severity.value
@@ -251,11 +421,9 @@ def run_single_signal(
 
                     if not dry_run:
                         # Check dedup — skip if signal already exists unless force_refresh=True.
-                        existing_signal = (
-                            await session.execute(
-                                select(RiskSignal).where(RiskSignal.dedup_key == dedup_key).limit(1)
-                            )
-                        ).scalar_one_or_none()
+                        # This also catches intra-batch duplicates (same dedup_key
+                        # generated multiple times within a single typology run).
+                        existing_signal = existing_by_dedup.get(dedup_key)
 
                         if existing_signal is not None and not force_refresh:
                             deduped += 1
@@ -349,7 +517,22 @@ def run_single_signal(
                                 dedup_key=dedup_key,
                             )
                             session.add(db_signal)
-                            await session.flush()
+                            try:
+                                async with session.begin_nested():
+                                    await session.flush()
+                            except Exception as _flush_exc:
+                                # Safety net: SAVEPOINT rollback only undoes
+                                # this single signal INSERT, not the whole txn.
+                                deduped += 1
+                                log.warning(
+                                    "run_single_signal.intra_batch_dup",
+                                    dedup_key=dedup_key,
+                                    error=str(_flush_exc)[:200],
+                                )
+                                continue
+                            # Register in cache so later duplicates within
+                            # the same batch are caught by the dedup check.
+                            existing_by_dedup[dedup_key] = db_signal
                             await _populate_signal_links(session, db_signal.id, db_signal.entity_ids, db_signal.event_ids)
                             created += 1
 

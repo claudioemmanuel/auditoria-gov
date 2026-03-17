@@ -104,6 +104,10 @@ def test_ingest_all_bulk_dispatches_only_non_incremental(monkeypatch):
 
     monkeypatch.setattr(ingest_tasks.ingest_connector, "apply_async", _fake_apply_async)
 
+    import shutil
+    from types import SimpleNamespace
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: SimpleNamespace(total=1000, used=400, free=600))
+
     import shared.connectors as connectors_module
 
     monkeypatch.setattr(
@@ -146,6 +150,10 @@ def test_ingest_all_bulk_skips_disabled(monkeypatch):
         dispatched_calls.append({"args": kwargs.get("args"), "queue": kwargs.get("queue")})
 
     monkeypatch.setattr(ingest_tasks.ingest_connector, "apply_async", _fake_apply_async)
+
+    import shutil
+    from types import SimpleNamespace
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: SimpleNamespace(total=1000, used=400, free=600))
 
     import shared.connectors as connectors_module
 

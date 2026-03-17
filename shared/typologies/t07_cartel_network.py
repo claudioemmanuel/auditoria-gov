@@ -13,6 +13,7 @@ from shared.models.signals import (
     SignalSeverity,
 )
 from shared.typologies.base import BaseTypology
+from shared.utils.query import execute_chunked_in
 
 
 class T07CartelNetworkTypology(BaseTypology):
@@ -68,11 +69,13 @@ class T07CartelNetworkTypology(BaseTypology):
         event_map: dict[str, Event] = {str(e.id): e for e in events}
 
         # Get all participants
-        part_stmt = select(EventParticipant).where(
-            EventParticipant.event_id.in_(event_ids),
+        participants = await execute_chunked_in(
+            session,
+            lambda batch: select(EventParticipant).where(
+                EventParticipant.event_id.in_(batch),
+            ),
+            event_ids,
         )
-        part_result = await session.execute(part_stmt)
-        participants = part_result.scalars().all()
 
         # Group by event
         event_bidders: dict[str, set[str]] = defaultdict(set)
@@ -130,12 +133,17 @@ class T07CartelNetworkTypology(BaseTypology):
             alternation_flag = alternation_ratio < 0.3 and n_unique_winners >= 2
 
             # 2. Co-participation density
-            # Build co-bidding matrix: how often pairs of bidders appear together
+            # Build co-bidding matrix: how often pairs of bidders appear together.
+            # Cap bidders per event at 50 to avoid O(k²) explosion:
+            # C(50,2)=1225 pairs is tractable; C(500,2)=124750 is not.
+            _MAX_BIDDERS_PER_EVENT = 50
             pair_counts: dict[tuple, int] = defaultdict(int)
             all_bidders: set[str] = set()
             for eid in group_event_ids:
                 bidders = sorted(event_bidders.get(eid, set()))
                 all_bidders |= set(bidders)
+                if len(bidders) > _MAX_BIDDERS_PER_EVENT:
+                    bidders = bidders[:_MAX_BIDDERS_PER_EVENT]
                 for i in range(len(bidders)):
                     for j in range(i + 1, len(bidders)):
                         pair = (bidders[i], bidders[j])

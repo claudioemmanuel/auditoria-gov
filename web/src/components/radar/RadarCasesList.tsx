@@ -3,6 +3,7 @@
 import type { RadarV2CaseItem, RadarV2CasePreviewResponse } from "@/lib/types";
 import { cn, formatBRL, severityDotColor } from "@/lib/utils";
 import { Badge } from "@/components/Badge"
+import { CaseTypeBadge } from "@/components/CaseTypeBadge";
 import { relativeTime } from "@/lib/utils";
 
 interface RadarCasesListProps {
@@ -63,6 +64,7 @@ export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
                   <span className="block truncate text-xs font-medium text-primary" title={item.title}>
                     {item.title}
                   </span>
+                  <CaseTypeBadge caseType={item.case_type} />
                 </td>
 
                 {/* Entity names (first 2) */}

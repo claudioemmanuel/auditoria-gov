@@ -196,7 +196,7 @@ async function CaseContent({ id }: { id: string }) {
       {/* Grouping rationale */}
       {(() => {
         const rationale = (caseData.attrs as Record<string, unknown> | undefined)?.grouping_rationale as string | null | undefined;
-        const fallback = `${caseData.signals.length} sinal${caseData.signals.length !== 1 ? "is" : ""} agrupado${caseData.signals.length !== 1 ? "s" : ""} por entidade compartilhada.`;
+        const fallback = `${caseData.signals.length} ${caseData.signals.length !== 1 ? "sinais" : "sinal"} agrupado${caseData.signals.length !== 1 ? "s" : ""} por entidade compartilhada.`;
         const text = rationale ?? fallback;
         return (
           <details className="rounded-lg border border-border bg-surface-card p-4">
@@ -232,7 +232,7 @@ async function CaseContent({ id }: { id: string }) {
                     </Link>
                     {entity.signal_ids.length > 0 && (
                       <span className="font-mono tabular-nums text-[10px] text-muted shrink-0">
-                        {entity.signal_ids.length} sinal{entity.signal_ids.length !== 1 ? "is" : ""}
+                        {entity.signal_ids.length} {entity.signal_ids.length !== 1 ? "sinais" : "sinal"}
                       </span>
                     )}
                   </li>

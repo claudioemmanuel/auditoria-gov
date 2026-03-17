@@ -48,7 +48,7 @@ BEAT_SCHEDULE = {
     },
     "pipeline-watchdog": {
         "task": "worker.tasks.maintenance_tasks.pipeline_watchdog",
-        "schedule": crontab(minute="*/15"),  # Every 15 minutes
+        "schedule": crontab(minute="*/5"),  # Every 5 minutes — ER is incremental & advisory-locked
         "options": {"queue": "default"},
     },
     "cleanup-stale-runs": {
@@ -63,7 +63,7 @@ BEAT_SCHEDULE = {
     },
     "purge-normalized-raw-source": {
         "task": "worker.tasks.maintenance_tasks.purge_normalized_raw_source",
-        "schedule": crontab(minute=15, hour="*/2"),  # Every 2 hours at :15
+        "schedule": crontab(minute=15, hour="*/6"),  # Every 6 hours (dev-friendly)
         "options": {"queue": "vacuum"},
     },
     "vacuum-raw-source": {
@@ -73,7 +73,7 @@ BEAT_SCHEDULE = {
     },
     "disk-space-watchdog": {
         "task": "worker.tasks.maintenance_tasks.disk_space_watchdog",
-        "schedule": crontab(minute="*/5"),  # Every 5 minutes
+        "schedule": crontab(minute=0, hour="*/4"),  # Every 4 hours (dev-friendly)
         "options": {"queue": "default"},
     },
     "check-source-compliance-weekly": {
@@ -83,7 +83,7 @@ BEAT_SCHEDULE = {
     },
     "normalize-drain-check": {
         "task": "worker.tasks.maintenance_tasks.trigger_normalize_drain",
-        "schedule": crontab(minute="*/30"),  # Every 30 minutes
+        "schedule": crontab(minute=0, hour="*/3"),  # Every 3 hours (dev-friendly)
         "options": {"queue": "vacuum"},
     },
     "docker-build-prune-weekly": {

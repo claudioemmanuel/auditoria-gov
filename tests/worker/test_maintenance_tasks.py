@@ -115,18 +115,27 @@ class TestPipelineWatchdog:
         self._orphan_patcher.stop()
 
     def test_skips_when_ingest_running(self):
-        """Active ingest runs → skip immediately without checking ER."""
-        session = _make_session(_q(scalar_one=3))
+        """Active ingest runs no longer cause an early skip — pipeline advances concurrently.
+        Without a completed ingest, the watchdog skips with 'no_completed_ingest'."""
+        session = _make_session(
+            _q(scalar_one=3),              # ingest count = 3 (running)
+            _q(scalar_one_or_none=None),   # no ER running
+            _q(scalar_one=None),           # no completed ingest → skip
+        )
         with patch("shared.db_sync.SyncSession", return_value=session):
             result = self.watchdog()
-        assert result == {"status": "skip", "reason": "ingest_running"}
-        assert session.execute.call_count == 1
+        assert result == {"status": "skip", "reason": "no_completed_ingest"}
+        assert session.execute.call_count == 3
 
     def test_skips_when_er_running(self):
         """No active ingest but ER currently running → skip."""
+        # Give the mock a real (recent) created_at so the stale-threshold
+        # comparison doesn't raise TypeError.
+        er_running_mock = MagicMock()
+        er_running_mock.created_at = datetime.now(timezone.utc)
         session = _make_session(
-            _q(scalar_one=0),                        # ingest count
-            _q(scalar_one_or_none=MagicMock()),      # ER running
+            _q(scalar_one=0),                           # ingest count
+            _q(scalar_one_or_none=er_running_mock),     # ER running (recent, not stale)
         )
         with patch("shared.db_sync.SyncSession", return_value=session):
             result = self.watchdog()
@@ -158,10 +167,11 @@ class TestPipelineWatchdog:
             _q(scalar_one=ingest_at),      # last_ingest_at
             _q(scalar_one_or_none=er_completed),  # ER completed with recent watermark
             _q(scalar_one=0),              # procurement_count=0 → no baseline dispatch needed
+            _q(scalar_one=0),              # baseline_count
         )
         with patch("shared.db_sync.SyncSession", return_value=session):
             result = self.watchdog()
-        assert result == {"status": "skip", "reason": "er_up_to_date"}
+        assert result == {"status": "skip", "reason": "er_up_to_date_no_procurement"}
 
     def test_dispatches_when_ingest_done_and_er_stale(self):
         """Ingest idle + ER watermark older than last ingest → dispatch pipeline."""
@@ -177,6 +187,9 @@ class TestPipelineWatchdog:
             _q(scalar_one_or_none=None),   # no ER running
             _q(scalar_one=ingest_at),      # last_ingest_at
             _q(scalar_one_or_none=er_completed),  # stale ER watermark
+            _q(scalar_one=0),              # procurement_count
+            _q(scalar_one=0),              # baseline_count
+            _q(scalar_one=0),              # backlog prediction: current_backlog count
         )
 
         mock_task_result = MagicMock()
@@ -203,6 +216,9 @@ class TestPipelineWatchdog:
             _q(scalar_one_or_none=None),   # no ER running
             _q(scalar_one=now),            # last_ingest_at present
             _q(scalar_one_or_none=None),   # no completed ER ever
+            _q(scalar_one=0),              # procurement_count
+            _q(scalar_one=0),              # baseline_count
+            _q(scalar_one=0),              # backlog prediction: current_backlog count
         )
 
         mock_task_result = MagicMock()

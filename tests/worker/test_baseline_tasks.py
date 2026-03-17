@@ -98,7 +98,7 @@ async def test_hhi_baselines_excludes_null_catmat_group():
 
 
 def test_compute_all_baselines_uses_async_session(monkeypatch):
-    async def _fake_compute(_session):
+    async def _fake_compute(_session, force=False):
         return ["baseline-a", "baseline-b"]
 
     class _FakeAsyncSession:

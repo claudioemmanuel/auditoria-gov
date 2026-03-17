@@ -279,9 +279,13 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
   return (
     <div className="rounded-xl border border-border bg-surface-card p-6">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Pipeline de Ingestão</p>
-          <p className="text-sm font-semibold text-primary mt-0.5">Estado atual de cada etapa de processamento</p>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle">
+            <Zap className="h-4 w-4 text-muted" />
+          </div>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Pipeline de Ingestão</p>
+          </div>
         </div>
         <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${ocfg.cls}`}>
           {ocfg.label}
@@ -1654,12 +1658,9 @@ export default function CoveragePage() {
   const [analytics, setAnalytics] = useState<CoverageV2AnalyticsResponse | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
-  const [capacity, setCapacity] = useState<PipelineCapacity | null>(null);
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | CoverageStatus>("");
   const [enabledOnly, setEnabledOnly] = useState(false);
-  const [pipelineModalOpen, setPipelineModalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -1699,15 +1700,6 @@ export default function CoveragePage() {
     return () => { active = false; };
   }, []);
 
-  // Capacity polling every 10s
-  useEffect(() => {
-    let active = true;
-    const load = () => getPipelineCapacity().then((c) => { if (active) setCapacity(c); }).catch(() => {});
-    load();
-    const interval = setInterval(load, 10_000);
-    return () => { active = false; clearInterval(interval); };
-  }, []);
-
   const filteredSources = useMemo(() => {
     return sources
       .filter((s) => {
@@ -1729,96 +1721,42 @@ export default function CoveragePage() {
   }, [sources, search, statusFilter]);
 
   return (
-    <>
-    <PipelineModal open={pipelineModalOpen} onClose={() => setPipelineModalOpen(false)} />
     <div className="min-h-screen">
 
       {/* ── Page header ─────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">
         <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
-                <Database className="h-6 w-6 text-accent" />
-              </div>
-              <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Cobertura de Dados</h1>
-                <p className="mt-1.5 text-sm text-secondary leading-relaxed">Estado operacional do pipeline de ingestão e qualidade das fontes públicas federais</p>
-              </div>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
+              <Database className="h-6 w-6 text-accent" />
             </div>
-            <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
-              {/* Capacity warning (maxed out — derived from capacity API or sources fallback) */}
-              {(() => {
-                const runningJobs = capacity?.running_ingest_jobs ?? sources.reduce((n, s) => n + s.runtime.running_jobs, 0);
-                const maxJobs = capacity?.max_concurrent_ingest ?? 4;
-                return !sourcesLoading && runningJobs >= maxJobs;
-              })() && (
-                <span className="group relative flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/5 px-3 py-1 text-xs text-amber cursor-help">
-                  <AlertTriangle className="h-3 w-3" />
-                  Capacidade máxima
-                  {/* Hover tooltip */}
-                  <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-72 rounded-lg border border-border bg-surface-card p-3 text-left shadow-lg group-hover:block">
-                    <p className="mb-2 text-xs font-semibold text-primary">Por que a capacidade está no máximo?</p>
-                    <p className="mb-2 text-[11px] leading-relaxed text-secondary">
-                      {capacity ? (
-                        <>Todos os <span className="font-semibold text-amber">{capacity.max_concurrent_ingest}</span> slots de ingestão simultânea estão ocupados
-                        ({capacity.running_ingest_jobs}/{capacity.max_concurrent_ingest} em uso).
-                        {capacity.er_running && " A Resolução de Entidades também está ativa."}</>
-                      ) : (
-                        <>Todos os slots de ingestão simultânea estão ocupados.</>
-                      )}
-                    </p>
-                    {(() => {
-                      const activeJobs = sources
-                        .filter((s) => s.runtime.active_job_names && s.runtime.active_job_names.length > 0)
-                        .flatMap((s) => s.runtime.active_job_names!.map((job) => ({ connector: s.connector_label || s.connector, job })));
-                      return activeJobs.length > 0 ? (
-                        <div className="mb-1.5">
-                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">Jobs ativos agora:</p>
-                          <ul className="space-y-0.5">
-                            {activeJobs.slice(0, 6).map((aj, i) => (
-                              <li key={i} className="flex items-center gap-1.5 text-[11px] text-secondary">
-                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent animate-pulse" />
-                                <span className="truncate font-medium">{aj.connector}</span>
-                                <span className="text-muted">— {aj.job}</span>
-                              </li>
-                            ))}
-                            {activeJobs.length > 6 && (
-                              <li className="text-[10px] text-muted">+{activeJobs.length - 6} mais...</li>
-                            )}
-                          </ul>
-                        </div>
-                      ) : null;
-                    })()}
-                    <p className="text-[10px] text-muted">Novos jobs serão enfileirados até que um slot seja liberado.</p>
-                  </div>
-                </span>
-              )}
-              <button
-                onClick={() => setPipelineModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent-subtle px-3 py-2 text-xs font-semibold text-accent transition-opacity hover:opacity-80"
-              >
-                <Play className="h-3.5 w-3.5" />
-                Executar Pipeline
-              </button>
-              <div className="rounded-lg border border-border bg-surface-base px-3 py-2 text-right">
-                <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
-                  <Clock className="h-3 w-3" />
-                  Snapshot
-                </p>
-                <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
-                  {summary?.snapshot_at
-                    ? new Date(summary.snapshot_at).toLocaleString("pt-BR")
-                    : "Aguardando dados"}
-                </p>
-              </div>
+            <div className="flex-1">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Cobertura de Dados</h1>
+              <p className="mt-1.5 text-sm text-secondary leading-relaxed">Estado operacional do pipeline de ingestão e qualidade das fontes públicas federais</p>
             </div>
           </div>
 
-          {/* KPI Strip */}
-          <div className="mt-6">
-            <KpiStrip summary={summary} loading={summaryLoading} />
+          <div className="mt-3">
+            <div className="rounded-lg border border-border bg-surface-base px-3 py-2 inline-flex flex-col">
+              <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+                <Clock className="h-3 w-3" />
+                Snapshot
+              </p>
+              <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
+                {summary?.snapshot_at
+                  ? new Date(summary.snapshot_at).toLocaleString("pt-BR")
+                  : "Aguardando dados"}
+              </p>
+            </div>
           </div>
+
+        </div>
+      </div>
+
+      {/* ── KPI Strip ────────────────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card">
+        <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
+          <KpiStrip summary={summary} loading={summaryLoading} />
         </div>
       </div>
 
@@ -1853,15 +1791,14 @@ export default function CoveragePage() {
           const nextStage = pipelineStages.find(s => s.status === "stale" || s.status === "pending");
 
           return (totalRunning > 0 || errorJobs.length > 0) ? (
-            <section className="rounded-xl border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-surface-card p-6 space-y-5">
+            <section className="rounded-xl border border-border bg-surface-card p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
-                    <Activity className="h-4.5 w-4.5 text-accent" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle">
+                    <Activity className="h-4 w-4 text-muted" />
                   </div>
                   <div>
-                    <h2 className="font-display text-sm font-bold text-primary">O que está acontecendo agora?</h2>
-                    <p className="font-mono text-[10px] text-muted">Atualizado a cada 5 segundos</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-muted">O que está acontecendo agora?</p>
                   </div>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-accent">
@@ -1938,14 +1875,15 @@ export default function CoveragePage() {
         })()}
 
         {/* ── Sources section ──────────────────────────────────── */}
-        <section>
+        <section className="rounded-xl border border-border bg-surface-card p-6">
           <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Fontes de Dados</p>
-              <p className="text-sm font-semibold text-primary mt-0.5">
-                {filteredSources.length} de {sources.length} fontes
-              </p>
-              <p className="text-xs text-secondary mt-0.5">Clique em "Ver diagnóstico detalhado" para abrir o painel completo de cada fonte</p>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle shrink-0">
+                <Database className="h-4 w-4 text-muted" />
+              </div>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Fontes de Dados</p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
@@ -2009,14 +1947,15 @@ export default function CoveragePage() {
         </section>
 
         {/* ── Analytics section ────────────────────────────────── */}
-        <section>
+        <section className="rounded-xl border border-border bg-surface-card p-6">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Cobertura Analítica por Tipologia</p>
-              <p className="text-sm font-semibold text-primary mt-0.5">
-                {analytics ? `${analytics.items.length} tipologias` : "Carregando…"}
-              </p>
-              <p className="text-xs text-secondary mt-0.5">Aptidão para detecção baseada em domínios disponíveis e execuções recentes</p>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle shrink-0">
+                <Lightbulb className="h-4 w-4 text-muted" />
+              </div>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Cobertura Analítica por Tipologia</p>
+              </div>
             </div>
             {analytics && (
               <div className="flex gap-2 flex-wrap">
@@ -2049,6 +1988,5 @@ export default function CoveragePage() {
         </section>
       </div>
     </div>
-    </>
   );
 }

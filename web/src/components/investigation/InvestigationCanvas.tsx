@@ -129,6 +129,7 @@ function InvestigationCanvasInner({
           edge_strength: link.edge_strength,
           verification_method: link.verification_method,
           verification_confidence: link.verification_confidence,
+          context: link.context,
         },
         animated: link.type === "socio_oculto",
         markerEnd: {

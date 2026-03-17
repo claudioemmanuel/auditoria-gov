@@ -296,7 +296,11 @@ _ER_EDGE_BATCH_SIZE = 10_000  # participants per edge-building batch (keep IN pa
 _IN_CHUNK = 5_000             # max IDs per IN clause
 
 
-@shared_task(name="worker.tasks.er_tasks.run_entity_resolution")
+@shared_task(
+    name="worker.tasks.er_tasks.run_entity_resolution",
+    soft_time_limit=7200,   # 2h soft (large entity sets + edge building)
+    time_limit=7500,        # 2h 5min hard kill
+)
 def run_entity_resolution():
     """Run batched entity resolution pipeline.
 
@@ -354,15 +358,15 @@ def run_entity_resolution():
         now = datetime.now(timezone.utc)
         _er_cols = (Entity.id, Entity.name, Entity.type, Entity.identifiers, Entity.attrs)
 
-        base_filter = (
-            or_(
-                Entity.cluster_id.is_(None),
-                Entity.updated_at > watermark,
-                Entity.er_processed_at.is_(None),
-            )
-            if watermark
-            else Entity.cluster_id.is_(None)
-        )
+        # Incremental filter: only process entities not yet handled by ER.
+        # New entities from ingest/normalize have er_processed_at=NULL.
+        # After ER processes them, it stamps er_processed_at=now, so
+        # subsequent runs skip them unless they are re-created.
+        # NOTE: Do NOT use updated_at — it has onupdate=func.now(), so the
+        # ER batch UPDATE itself bumps updated_at, causing full re-scans.
+        # NOTE: Do NOT use cluster_id IS NULL — most entities have no
+        # matches and will never get a cluster_id.
+        base_filter = Entity.er_processed_at.is_(None)
 
         # Cross-batch identifier index: maps unique identifier value → cluster_id
         # so entities in different batches that share a CNPJ/CPF still get merged.
@@ -498,6 +502,10 @@ def run_entity_resolution():
                 det=det_count,
                 prob=prob_count,
                 clusters=len(clusters),
+                cnpj_index_size=len(cnpj_cluster),
+                cpf_index_size=len(cpf_hash_cluster),
+                semantic_candidates=len(all_entities_for_semantic),
+                semantic_matched=len(all_matched_ids_for_semantic),
             )
             del batch, matches, clusters, batch_ids  # free memory before next batch
 
@@ -692,16 +700,19 @@ def run_entity_resolution():
             to_ids = list({k[1] for k in edge_payloads})
             edge_types = list({k[2] for k in edge_payloads})
             existing_edges: dict = {}
+            # Chunk BOTH from_ids and to_ids to avoid O(from × to) DB planner explosion
             for _i in range(0, len(from_ids), _IN_CHUNK):
                 _from_chunk = from_ids[_i : _i + _IN_CHUNK]
-                for e in session.execute(
-                    select(GraphEdge).where(
-                        GraphEdge.from_node_id.in_(_from_chunk),
-                        GraphEdge.to_node_id.in_(to_ids),
-                        GraphEdge.type.in_(edge_types),
-                    )
-                ).scalars().all():
-                    existing_edges[(e.from_node_id, e.to_node_id, e.type)] = e
+                for _j in range(0, len(to_ids), _IN_CHUNK):
+                    _to_chunk = to_ids[_j : _j + _IN_CHUNK]
+                    for e in session.execute(
+                        select(GraphEdge).where(
+                            GraphEdge.from_node_id.in_(_from_chunk),
+                            GraphEdge.to_node_id.in_(_to_chunk),
+                            GraphEdge.type.in_(edge_types),
+                        )
+                    ).scalars().all():
+                        existing_edges[(e.from_node_id, e.to_node_id, e.type)] = e
 
             created = 0
             for key, payload in edge_payloads.items():
@@ -754,8 +765,10 @@ def run_entity_resolution():
                     }
                 )
                 if len(part_batch) >= _ER_EDGE_BATCH_SIZE:
-                    edges_created += _flush_edges(part_batch)
-                    log.info("er.edge_batch_done", total_edges=edges_created)
+                    _batch_edges = _flush_edges(part_batch)
+                    edges_created += _batch_edges
+                    if _batch_edges > 0:
+                        log.info("er.edge_batch_done", batch_edges=_batch_edges, total_edges=edges_created)
                     part_batch = []
 
         if part_batch:
@@ -823,16 +836,19 @@ def run_entity_resolution():
             corp_edge_types = list({ce.edge_type for ce in corp_edges})
 
             corp_existing_edges: dict = {}
+            # Chunk both dimensions to avoid O(from × to) planner explosion
             for _ci in range(0, len(corp_from_ids), _IN_CHUNK):
                 _cf = corp_from_ids[_ci : _ci + _IN_CHUNK]
-                for ge in session.execute(
-                    select(GraphEdge).where(
-                        GraphEdge.from_node_id.in_(_cf),
-                        GraphEdge.to_node_id.in_(corp_to_ids),
-                        GraphEdge.type.in_(corp_edge_types),
-                    )
-                ).scalars().all():
-                    corp_existing_edges[(ge.from_node_id, ge.to_node_id, ge.type)] = ge
+                for _cj in range(0, len(corp_to_ids), _IN_CHUNK):
+                    _ct = corp_to_ids[_cj : _cj + _IN_CHUNK]
+                    for ge in session.execute(
+                        select(GraphEdge).where(
+                            GraphEdge.from_node_id.in_(_cf),
+                            GraphEdge.to_node_id.in_(_ct),
+                            GraphEdge.type.in_(corp_edge_types),
+                        )
+                    ).scalars().all():
+                        corp_existing_edges[(ge.from_node_id, ge.to_node_id, ge.type)] = ge
 
             for ce in corp_edges:
                 from_node = corp_node_by_entity.get(ce.from_entity_id)
@@ -891,4 +907,14 @@ def run_entity_resolution():
         "incremental": watermark is not None,
     }
     log.info("run_entity_resolution.done", **result)
+
+    # ── Reactive pipeline: trigger baselines after ER completes ────
+    try:
+        from worker.tasks.baseline_tasks import compute_all_baselines
+
+        compute_all_baselines.apply_async(queue="default", countdown=10)
+        log.info("run_entity_resolution.triggered_baselines", countdown=10)
+    except Exception as exc:
+        log.warning("run_entity_resolution.trigger_baselines_error", error=str(exc))
+
     return result

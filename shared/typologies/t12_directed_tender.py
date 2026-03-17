@@ -15,6 +15,7 @@ from shared.models.signals import (
 )
 from shared.repo.queries import get_baseline
 from shared.typologies.base import BaseTypology
+from shared.utils.query import execute_chunked_in
 
 # Maximum number of bidders to consider "suspiciously restricted"
 _MAX_BIDDERS_THRESHOLD = 2
@@ -103,11 +104,13 @@ class T12DirectedTenderTypology(BaseTypology):
             return []
 
         event_ids = [e.id for e in competitive]
-        parts_stmt = select(EventParticipant).where(
-            EventParticipant.event_id.in_(event_ids),
+        participants = await execute_chunked_in(
+            session,
+            lambda batch: select(EventParticipant).where(
+                EventParticipant.event_id.in_(batch),
+            ),
+            event_ids,
         )
-        parts_result = await session.execute(parts_stmt)
-        participants = parts_result.scalars().all()
 
         # Build indexes
         event_bidders: dict[str, set] = defaultdict(set)

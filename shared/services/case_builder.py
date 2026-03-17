@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from shared.logging import log
 from shared.models.orm import Case, CaseItem, Entity, RiskSignal, Typology
+from shared.services.legal_inference import infer_legal_hypotheses_sync
 
 
 _SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
@@ -39,6 +40,10 @@ _TYPOLOGY_SHORT: dict[str, str] = {
     "T16": "Clientelismo Orcamentario",
     "T17": "Lavagem Societaria",
     "T18": "Acumulo de Cargos",
+    "T19": "Rodizio de Vencedores",
+    "T20": "Licitante Fantasma",
+    "T21": "Cluster Colusivo",
+    "T22": "Favorecimento Politico",
 }
 
 
@@ -54,6 +59,46 @@ def _should_create_case(signals: list) -> bool:
     if signals:
         return signals[0].severity in ("high", "critical")
     return False
+
+
+def classify_case_type(typology_codes: set[str]) -> str:
+    """Classify a case by its dominant typology pattern.
+
+    Rules are checked in priority order (highest specificity first).
+    Returns a string code for the case type.
+    """
+    codes = frozenset(typology_codes)
+
+    # Priority order: most specific patterns first
+    if "T07" in codes:
+        return "CARTEL_NETWORK"
+    if "T21" in codes:
+        return "CARTEL_NETWORK"
+    if "T19" in codes or "T20" in codes:
+        return "CARTEL_NETWORK"
+    if "T13" in codes:
+        return "CONFLICT_OF_INTEREST"
+    if "T22" in codes:
+        return "CONFLICT_OF_INTEREST"
+    if "T08" in codes:
+        return "SANCTIONED_ENTITY"
+    if "T17" in codes:
+        return "MONEY_LAUNDERING_PROXY"
+    if "T18" in codes:
+        return "ILLEGAL_ACCUMULATION"
+    if {"T02", "T12"}.issubset(codes):
+        return "DIRECTED_TENDER"
+    if "T12" in codes:
+        return "DIRECTED_TENDER"
+    if {"T03", "T11"}.issubset(codes) or {"T03", "T05"}.issubset(codes):
+        return "PROCUREMENT_FRAUD"
+    if "T14" in codes and len(codes) >= 3:
+        return "HIGH_RISK_COMPOUND"
+    if "T14" in codes:
+        return "COMPOUND_FAVORITISM"
+    if len(codes) >= 4:
+        return "HIGH_RISK_COMPOUND"
+    return "OTHER"
 
 
 def build_cases_from_signals(session: Session) -> list[Case]:
@@ -95,8 +140,15 @@ def build_cases_from_signals(session: Session) -> list[Case]:
 
     cluster_map: dict[uuid.UUID, uuid.UUID] = {}
     if all_entity_ids:
-        entity_stmt = select(Entity).where(Entity.id.in_(all_entity_ids))
-        entities = session.execute(entity_stmt).scalars().all()
+        # Chunked to avoid asyncpg/psycopg 32K param limit at scale
+        _entity_id_list = list(all_entity_ids)
+        _IN_CHUNK = 5_000
+        entities: list[Entity] = []
+        for _i in range(0, len(_entity_id_list), _IN_CHUNK):
+            _chunk = _entity_id_list[_i : _i + _IN_CHUNK]
+            entities.extend(
+                session.execute(select(Entity).where(Entity.id.in_(_chunk))).scalars().all()
+            )
         for e in entities:
             if e.cluster_id is not None:
                 cluster_map[e.id] = e.cluster_id
@@ -126,7 +178,25 @@ def build_cases_from_signals(session: Session) -> list[Case]:
         else:
             ungrouped.append(s)
 
-    # 5. Create cases from clusters with 2+ signals
+    # 5. Pre-fetch ALL entity names to avoid N+1 queries in the grouping loop
+    _all_group_entity_ids: set[uuid.UUID] = set()
+    for _sigs in cluster_signals.values():
+        for _s in _sigs:
+            for _eid_str in _s.entity_ids:
+                try:
+                    _all_group_entity_ids.add(uuid.UUID(str(_eid_str)))
+                except (ValueError, TypeError):
+                    pass
+    _entity_name_cache: dict[uuid.UUID, str] = {}
+    if _all_group_entity_ids:
+        _eid_list = list(_all_group_entity_ids)
+        for _i in range(0, len(_eid_list), _IN_CHUNK):
+            _chunk = _eid_list[_i : _i + _IN_CHUNK]
+            for _e in session.execute(select(Entity).where(Entity.id.in_(_chunk))).scalars().all():
+                if _e.name:
+                    _entity_name_cache[_e.id] = _e.name
+
+    # Create cases from clusters with 2+ signals
     created_cases: list[Case] = []
 
     for cluster_id, signals in cluster_signals.items():
@@ -169,12 +239,12 @@ def build_cases_from_signals(session: Session) -> list[Case]:
                     except (ValueError, TypeError):
                         pass
 
-            # Resolve entity names for title
-            entity_names: list[str] = []
-            if group_entity_ids:
-                ent_stmt = select(Entity).where(Entity.id.in_(group_entity_ids))
-                ents = session.execute(ent_stmt).scalars().all()
-                entity_names = [e.name for e in ents if e.name]
+            # Resolve entity names from pre-fetched cache (no N+1 queries)
+            entity_names: list[str] = [
+                _entity_name_cache[eid]
+                for eid in group_entity_ids
+                if eid in _entity_name_cache
+            ]
 
             # Build human-readable title
             typology_labels = sorted(
@@ -216,6 +286,7 @@ def build_cases_from_signals(session: Session) -> list[Case]:
                 status="open",
                 severity=max_sev,
                 summary=summary,
+                case_type=classify_case_type(typology_codes),
                 attrs={
                     "cluster_id": str(cluster_id),
                     "signal_count": len(group),
@@ -224,10 +295,16 @@ def build_cases_from_signals(session: Session) -> list[Case]:
                     "total_value_brl": total_value,
                     "period_start": period_min.isoformat() if period_min else None,
                     "period_end": period_max.isoformat() if period_max else None,
+                    "grouping_rationale": (
+                        f"Agrupado por {len(group_entity_ids)} entidade(s) compartilhada(s). "
+                        f"Tipologias detectadas: {', '.join(sorted(typology_codes))}. "
+                        f"Janela temporal: 90 dias."
+                    ),
                 },
             )
             session.add(case)
             session.flush()
+            infer_legal_hypotheses_sync(case.id, typology_codes, session)
 
             for s in group:
                 item = CaseItem(case_id=case.id, signal_id=s.id)
@@ -251,6 +328,7 @@ def build_cases_from_signals(session: Session) -> list[Case]:
                 f"Sinal de risco {s.severity} sem vínculo a cluster de entidades. "
                 f"Tipologia: {typology_label}."
             ),
+            case_type=classify_case_type({typology_code}),
             attrs={
                 "signal_count": 1,
                 "typology_codes": [typology_code],
@@ -259,6 +337,7 @@ def build_cases_from_signals(session: Session) -> list[Case]:
         )
         session.add(case)
         session.flush()
+        infer_legal_hypotheses_sync(case.id, {typology_code}, session)
 
         item = CaseItem(case_id=case.id, signal_id=s.id)
         session.add(item)

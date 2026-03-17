@@ -86,22 +86,32 @@ def test_watchdog_recover_orphans_returns_none_when_no_orphans(monkeypatch):
 
 
 def test_watchdog_pipeline_skips_when_no_orphans_and_ingest_running(monkeypatch):
-    """pipeline_watchdog proceeds to normal logic when _watchdog_recover_orphans returns None."""
+    """pipeline_watchdog proceeds to normal logic when _watchdog_recover_orphans returns None.
+
+    Active ingest no longer causes an early skip — the pipeline advances concurrently.
+    Without a completed ingest on record the watchdog skips with 'no_completed_ingest'.
+    """
     monkeypatch.setattr(maintenance_tasks, "_watchdog_recover_orphans", lambda: None)
+
+    def _q(scalar_one=None, scalar_one_or_none=None):
+        m = MagicMock()
+        m.scalar_one.return_value = scalar_one
+        m.scalar_one_or_none.return_value = scalar_one_or_none
+        return m
 
     session = MagicMock()
     session.__enter__ = MagicMock(return_value=session)
     session.__exit__ = MagicMock(return_value=False)
-
-    # First execute: ingest_running_count = 2
-    result_mock = MagicMock()
-    result_mock.scalar_one.return_value = 2
-    session.execute.return_value = result_mock
+    session.execute.side_effect = [
+        _q(scalar_one=2),           # ingest_running_count = 2
+        _q(scalar_one_or_none=None),  # er_running = None (not running)
+        _q(scalar_one=None),         # last_ingest_at = None → skip
+    ]
 
     with patch("shared.db_sync.SyncSession", return_value=session):
         result = maintenance_tasks.pipeline_watchdog()
 
-    assert result == {"status": "skip", "reason": "ingest_running"}
+    assert result == {"status": "skip", "reason": "no_completed_ingest"}
 
 
 def test_watchdog_pipeline_returns_recovery_when_orphans_found(monkeypatch):

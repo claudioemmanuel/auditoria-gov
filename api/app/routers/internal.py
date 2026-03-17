@@ -733,9 +733,11 @@ async def pipeline_capacity():
         MAX_CONCURRENT_INGEST = 4
 
         can_ingest_more = running_ingest < MAX_CONCURRENT_INGEST
-        can_run_er = er_running is None and running_ingest == 0
-        can_run_baselines = running_ingest == 0
-        can_run_signals = running_ingest == 0 and er_running is None
+        # ER is incremental (watermark_at + advisory lock) — safe to run
+        # alongside ingest.  Baselines/signals only need ER to be idle.
+        can_run_er = er_running is None
+        can_run_baselines = er_running is None
+        can_run_signals = er_running is None
 
         return {
             "running_ingest_jobs": running_ingest,
@@ -938,6 +940,26 @@ async def get_pipeline_metrics():
     # Admission gate status
     gate_blocked = raw_backlog > 1_000_000 or (stat.free / 1e9) < 5.0
 
+    # ── Backlog trend (from watchdog's Redis time-series) ──────────────────
+    import json as _json
+    backlog_rate_per_min: Optional[float] = None
+    backlog_eta_minutes: Optional[float] = None
+    try:
+        _tr = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        _samples = _tr.lrange("backlog:samples", 0, 5)
+        if len(_samples) >= 2:
+            _newest = _json.loads(_samples[0])
+            _oldest = _json.loads(_samples[-1])
+            _elapsed_min = max((_newest["t"] - _oldest["t"]) / 60, 0.1)
+            _rate = (_newest["v"] - _oldest["v"]) / _elapsed_min
+            backlog_rate_per_min = round(_rate, 1)
+            if _rate > 0:
+                backlog_eta_minutes = round(
+                    (1_000_000 - raw_backlog) / _rate, 1
+                )
+    except Exception:
+        pass
+
     return {
         "raw_backlog": raw_backlog,
         "normalized_count": normalized_count,
@@ -952,6 +974,8 @@ async def get_pipeline_metrics():
         },
         "gate_blocked": gate_blocked,
         "throttled": throttled,
+        "backlog_rate_per_min": backlog_rate_per_min,
+        "backlog_eta_minutes": backlog_eta_minutes,
     }
 
 
@@ -1005,17 +1029,17 @@ async def trigger_full_pipeline():
             )
 
     pipeline = chain(
-        celery_app.signature('worker.tasks.ingest_tasks.ingest_all_incremental', queue='ingest'),
+        celery_app.signature('worker.tasks.ingest_tasks.ingest_all_incremental', queue='ingest', immutable=True),
         chord(
             group(
-                celery_app.signature('worker.tasks.er_tasks.run_entity_resolution', queue='er'),
-                celery_app.signature('worker.tasks.baseline_tasks.compute_all_baselines', queue='default'),
+                celery_app.signature('worker.tasks.er_tasks.run_entity_resolution', queue='er', immutable=True),
+                celery_app.signature('worker.tasks.baseline_tasks.compute_all_baselines', queue='default', immutable=True),
             ),
-            celery_app.signature('worker.tasks.signal_tasks.run_all_signals', queue='signals'),
+            celery_app.signature('worker.tasks.signal_tasks.run_all_signals', queue='signals', immutable=True),
         ),
         group(
-            celery_app.signature('worker.tasks.case_tasks.build_cases', queue='default'),
-            celery_app.signature('worker.tasks.coverage_tasks.update_coverage_registry', queue='default'),
+            celery_app.signature('worker.tasks.case_tasks.build_cases', queue='default', immutable=True),
+            celery_app.signature('worker.tasks.coverage_tasks.update_coverage_registry', queue='default', immutable=True),
         ),
     )
     result = pipeline.apply_async()

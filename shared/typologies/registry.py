@@ -17,6 +17,10 @@ from shared.typologies.t15_false_sole_source import T15FalseSoleSourceTypology
 from shared.typologies.t16_budget_clientelism import T16BudgetClientelismTypology
 from shared.typologies.t17_layered_money_laundering import T17LayeredMoneyLaunderingTypology
 from shared.typologies.t18_illegal_position_accumulation import T18IllegalPositionAccumulationTypology
+from shared.typologies.t19_bid_rotation import T19BidRotationTypology
+from shared.typologies.t20_phantom_bidders import T20PhantomBidderTypology
+from shared.typologies.t21_collusive_cluster import T21CollusiveClusterTypology
+from shared.typologies.t22_political_favoritism import T22PoliticalFavoritismTypology
 
 TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T01": T01ConcentrationTypology,
@@ -37,6 +41,10 @@ TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T16": T16BudgetClientelismTypology,
     "T17": T17LayeredMoneyLaunderingTypology,
     "T18": T18IllegalPositionAccumulationTypology,
+    "T19": T19BidRotationTypology,
+    "T20": T20PhantomBidderTypology,
+    "T21": T21CollusiveClusterTypology,
+    "T22": T22PoliticalFavoritismTypology,
 }
 
 

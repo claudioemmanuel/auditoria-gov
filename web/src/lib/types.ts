@@ -183,6 +183,35 @@ export interface RadarV2CasePreviewResponse {
   }[];
 }
 
+export interface RadarV2CaseBatchPreviewItem {
+  case: {
+    id: string;
+    title: string;
+    status: string;
+    severity: SignalSeverity;
+    summary?: string | null;
+    entity_names: string[];
+    signal_count: number;
+    period_start?: string | null;
+    period_end?: string | null;
+    total_value_brl?: number | null;
+    created_at: string;
+  };
+  top_signals: {
+    id: string;
+    typology_code: string;
+    typology_name: string;
+    severity: SignalSeverity;
+    confidence: number;
+    title: string;
+    summary?: string | null;
+    period_start?: string | null;
+    period_end?: string | null;
+    entity_count: number;
+    event_count: number;
+  }[];
+}
+
 export interface RadarV2CoverageSummary {
   apt_count: number;
   with_signals_30d: number;
@@ -275,6 +304,10 @@ export interface CoverageV2LatestRun {
   error_message?: string | null;
   elapsed_seconds: number | null;
   progress_pct: number | null;
+  fetch_progress_pct?: number | null;
+  pages_fetched?: number | null;
+  rate_per_min?: number | null;
+  cursor_info?: string | null;
 }
 
 export interface CoverageV2SourcePreviewResponse {
@@ -360,11 +393,15 @@ export interface IngestRunDetailResponse {
     status: string;
     cursor_start?: string | null;
     cursor_end?: string | null;
+    cursor_info?: string | null;
     items_fetched: number;
     items_normalized: number;
     errors?: Record<string, unknown> | null;
     started_at?: string | null;
     finished_at?: string | null;
+    elapsed_seconds?: number | null;
+    rate_per_min?: number | null;
+    pages_fetched?: number | null;
   };
   job: {
     connector: string;
@@ -838,4 +875,200 @@ export interface LegalHypothesis {
   article: string | null;
   violation_type: string | null;
   confidence: number;
+}
+
+// Dossier timeline types (book navigation)
+
+export interface TimelineEntityDTO {
+  id: string;
+  type: string;
+  name: string;
+  identifiers: Record<string, string>;
+  attrs: Record<string, unknown>;
+}
+
+export interface TimelineEventParticipantDTO {
+  entity_id: string;
+  role: string;
+  role_label: string;
+}
+
+export interface TimelineEventSignalDTO {
+  id: string;
+  typology_code: string;
+  typology_name: string;
+  severity: SignalSeverity;
+  title: string;
+  factors: string[];
+  period_start: string;
+  period_end: string;
+  confidence: number;
+}
+
+export interface TimelineEventDTO {
+  id: string;
+  type: string;
+  occurred_at: string;
+  description: string;
+  value_brl: number | null;
+  source_connector: string;
+  attrs: Record<string, unknown>;
+  participants: TimelineEventParticipantDTO[];
+  signals: TimelineEventSignalDTO[];
+}
+
+export interface TimelineSignalDTO {
+  id: string;
+  typology_code: string;
+  typology_name: string;
+  severity: SignalSeverity;
+  title: string;
+  summary?: string | null;
+  confidence: number;
+  factors: Record<string, unknown>;
+  factor_descriptions?: Record<string, FactorMeta>;
+  period_start?: string | null;
+  period_end?: string | null;
+  entity_count: number;
+  event_count: number;
+}
+
+export interface LegalHypothesisDTO {
+  law: string;
+  article: string;
+  violation_type: string;
+  description: string | null;
+  signal_cluster?: string[];
+  confidence?: number;
+}
+
+export interface RelatedCaseDTO {
+  id: string;
+  title: string;
+  severity: SignalSeverity;
+}
+
+export interface DossierTimelineResponse {
+  case: {
+    id: string;
+    title: string;
+    severity: SignalSeverity;
+    status: string;
+    summary: string;
+    case_type?: string | null;
+    attrs: Record<string, unknown>;
+  };
+  entities: TimelineEntityDTO[];
+  events: TimelineEventDTO[];
+  signals: TimelineSignalDTO[];
+  legal_hypotheses: LegalHypothesisDTO[];
+  related_cases: RelatedCaseDTO[];
+}
+
+export type BookPage =
+  | { type: "overview"; href: string; label: string }
+  | { type: "chapter"; href: string; label: string; typologyCode: string; severity: string }
+  | { type: "signal"; href: string; label: string; signalId: string; typologyCode: string }
+  | { type: "network"; href: string; label: string }
+  | { type: "legal"; href: string; label: string };
+
+export interface DossieBookContextValue {
+  data: DossierTimelineResponse | null;
+  loading: boolean;
+  error: string | null;
+  pages: BookPage[];
+  currentIndex: number;
+}
+
+// Entity search types
+export interface EntitySearchResult {
+  id: string;
+  type: "person" | "company" | "org";
+  name: string;
+  identifiers: Record<string, string>;
+  cluster_id?: string;
+  attrs?: Record<string, unknown>;
+}
+
+export interface EntitySearchResponse {
+  items: EntitySearchResult[];
+  total: number;
+}
+
+export interface EntityPathNode {
+  entity_id: string;
+  label: string;
+  node_type: string;
+}
+
+export interface EntityPathEdge {
+  from_entity_id: string;
+  to_entity_id: string;
+  edge_type: string;
+  weight: number;
+}
+
+export interface EntityPathResponse {
+  source: EntityPathNode;
+  target: EntityPathNode;
+  path: EntityPathNode[];
+  edges: EntityPathEdge[];
+  hops: number;
+  found: boolean;
+}
+
+// Dossier types (Capa do Inquerito)
+export interface DossierChapter {
+  typology_code: string;
+  typology_name: string;
+  signal_count: number;
+  max_severity: SignalSeverity;
+  total_value_brl: number;
+  period_start?: string | null;
+  period_end?: string | null;
+  top_signal_summary: string;
+  signal_ids: string[];
+}
+
+export interface DossierEntity {
+  id: string;
+  type: string;
+  name: string;
+  identifiers: Record<string, string>;
+}
+
+export interface DossierLegalHypothesis {
+  id: string;
+  law: string;
+  article: string;
+  violation_type: string;
+  description: string;
+  confidence: number;
+}
+
+export interface DossierRelatedCase {
+  id: string;
+  title: string;
+  severity: SignalSeverity;
+  case_type?: string | null;
+  created_at?: string | null;
+}
+
+export interface DossierSummaryResponse {
+  case: {
+    id: string;
+    title: string;
+    status: string;
+    severity: SignalSeverity;
+    summary?: string | null;
+    created_at?: string | null;
+    entity_names: string[];
+    total_value_brl?: number | null;
+    signal_count: number;
+    entity_count: number;
+  };
+  chapters: DossierChapter[];
+  entity_roster: DossierEntity[];
+  legal_hypotheses: DossierLegalHypothesis[];
+  related_cases: DossierRelatedCase[];
 }

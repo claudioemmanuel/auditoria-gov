@@ -23,6 +23,18 @@ export interface GNode {
   y?: number;
 }
 
+export interface EdgeContext {
+  sharedEventCount: number;
+  totalValueBrl: number;
+  dateRange: { earliest: string; latest: string } | null;
+  topEvents: Array<{
+    occurred_at: string;
+    description: string;
+    value_brl: number | null;
+    source_connector: string;
+  }>;
+}
+
 export interface GLink {
   id: string;
   source: string;
@@ -34,6 +46,7 @@ export interface GLink {
   edge_strength?: string;
   verification_method?: string;
   verification_confidence?: number;
+  context?: EdgeContext;
 }
 
 export interface CaseGraphData {
@@ -41,7 +54,7 @@ export interface CaseGraphData {
   links: GLink[];
 }
 
-export function useCaseGraph(caseId: string, focusSignalId?: string) {
+export function useCaseGraph(caseId: string, focusSignalId?: string, depth: number = 1) {
   const [raw, setRaw] = useState<CaseGraphResponse | null>(null);
   const [extraNodes, setExtraNodes] = useState<GraphNode[]>([]);
   const [extraEdges, setExtraEdges] = useState<GraphEdge[]>([]);
@@ -53,7 +66,7 @@ export function useCaseGraph(caseId: string, focusSignalId?: string) {
     setLoading(true);
     setError(null);
 
-    getCaseGraph(caseId, 1, { focus_signal_id: focusSignalId })
+    getCaseGraph(caseId, depth, { focus_signal_id: focusSignalId })
       .then((data) => {
         setRaw(data);
         setExtraNodes([]);
@@ -61,7 +74,7 @@ export function useCaseGraph(caseId: string, focusSignalId?: string) {
       })
       .catch(() => setError("Erro ao carregar grafo do caso"))
       .finally(() => setLoading(false));
-  }, [caseId, focusSignalId]);
+  }, [caseId, focusSignalId, depth]);
 
   const allNodes = useMemo(() => {
     if (!raw) return [];

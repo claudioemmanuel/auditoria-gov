@@ -42,6 +42,8 @@ services:
 
   caddy:
     restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN must be set in .env (e.g. api.yourdomain.com)}
 
   # Frontend deployed to Vercel — web container not needed in production
   web:

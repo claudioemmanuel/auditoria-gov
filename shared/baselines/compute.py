@@ -2,12 +2,13 @@ import statistics
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.baselines.models import BaselineMetrics, BaselineType, MIN_SAMPLE_SIZE
 from shared.logging import log
 from shared.models.orm import BaselineSnapshot, Event, EventParticipant
+from shared.utils.query import execute_chunked_in
 
 # Sentinel values indicating missing/unknown CATMAT group — excluded from baselines.
 # Includes both ASCII-normalised and accented Portuguese variants so all callers
@@ -156,13 +157,15 @@ async def _compute_participants_baselines(
     if not event_ids:
         return []
 
-    # Count participants per event
-    part_stmt = select(EventParticipant).where(
-        EventParticipant.event_id.in_(event_ids),
-        EventParticipant.role == "bidder",
+    # Count participants per event (chunked to avoid asyncpg 32K param limit)
+    participants = await execute_chunked_in(
+        session,
+        lambda batch: select(EventParticipant).where(
+            EventParticipant.event_id.in_(batch),
+            EventParticipant.role == "bidder",
+        ),
+        event_ids,
     )
-    part_result = await session.execute(part_stmt)
-    participants = part_result.scalars().all()
 
     counts: dict[str, int] = defaultdict(int)
     event_modality: dict[str, str] = {}
@@ -222,13 +225,15 @@ async def _compute_hhi_baselines(
     if not event_ids:
         return []
 
-    # Get winners
-    winner_stmt = select(EventParticipant).where(
-        EventParticipant.event_id.in_(event_ids),
-        EventParticipant.role == "winner",
+    # Get winners (chunked to avoid asyncpg 32K param limit)
+    winners = await execute_chunked_in(
+        session,
+        lambda batch: select(EventParticipant).where(
+            EventParticipant.event_id.in_(batch),
+            EventParticipant.role == "winner",
+        ),
+        event_ids,
     )
-    winner_result = await session.execute(winner_stmt)
-    winners = winner_result.scalars().all()
 
     # Map event -> (catmat_group, procuring_entity, value)
     event_info: dict[str, dict] = {}
@@ -386,8 +391,60 @@ async def _upsert_baseline_snapshot(
         session.add(snapshot)
 
 
-async def compute_all_baselines(session: AsyncSession) -> list[BaselineMetrics]:
+async def _has_new_events_since(
+    session: AsyncSession,
+    event_types: list[str],
+    baseline_type_value: str,
+) -> bool:
+    """Check if new events exist since the last baseline computation for this type.
+
+    Compares MAX(event.created_at) for the given event types against
+    MAX(baseline_snapshot.updated_at) for this baseline type.
+    Returns True if baselines should be recomputed (new data exists).
+    """
+    from shared.models.orm import BaselineSnapshot
+
+    last_baseline_at = (
+        await session.execute(
+            select(func.max(BaselineSnapshot.updated_at)).where(
+                BaselineSnapshot.baseline_type == baseline_type_value
+            )
+        )
+    ).scalar_one()
+
+    if last_baseline_at is None:
+        # Baselines never computed — must run
+        return True
+
+    last_event_at = (
+        await session.execute(
+            select(func.max(Event.created_at)).where(
+                Event.type.in_(event_types)
+            )
+        )
+    ).scalar_one()
+
+    if last_event_at is None:
+        # No events at all — nothing to compute
+        return False
+
+    # Ensure both timestamps are timezone-aware before comparing.
+    # asyncpg may return naive datetimes from aggregate functions.
+    if last_event_at.tzinfo is None:
+        last_event_at = last_event_at.replace(tzinfo=timezone.utc)
+    if last_baseline_at.tzinfo is None:
+        last_baseline_at = last_baseline_at.replace(tzinfo=timezone.utc)
+
+    return last_event_at > last_baseline_at
+
+
+async def compute_all_baselines(
+    session: AsyncSession, force: bool = False,
+) -> list[BaselineMetrics]:
     """Compute all baseline types over a 24-month window.
+
+    Incremental: skips baseline types when no new events have been created
+    since the last computation. Pass force=True to recompute everything.
 
     For each baseline type, queries events within the window,
     aggregates values, computes percentiles, and stores snapshots.
@@ -397,48 +454,91 @@ async def compute_all_baselines(session: AsyncSession) -> list[BaselineMetrics]:
     window_start = window_end - timedelta(days=730)  # 24 months
 
     results: list[BaselineMetrics] = []
+    skipped = 0
 
-    # Compute and persist each baseline type incrementally so snapshots are
-    # available as soon as each block finishes rather than waiting for all blocks.
-    price_baselines = await _compute_price_baselines(session, window_start, window_end)
-    results.extend(price_baselines)
-    for m in price_baselines:
-        await _upsert_baseline_snapshot(session, m, window_start, window_end)
-    await session.commit()
-    log.info("compute_all_baselines.price_done", count=len(price_baselines))
+    # Each baseline type is checked independently — only recompute if new
+    # events of the relevant type have been created since last run.
 
-    participants_baselines = await _compute_participants_baselines(
-        session, window_start, window_end
+    # ── PRICE_BY_ITEM: depends on licitacao + contrato events ──
+    if force or await _has_new_events_since(
+        session, ["licitacao", "contrato"], BaselineType.PRICE_BY_ITEM.value
+    ):
+        price_baselines = await _compute_price_baselines(session, window_start, window_end)
+        results.extend(price_baselines)
+        for m in price_baselines:
+            await _upsert_baseline_snapshot(session, m, window_start, window_end)
+        await session.commit()
+        log.info("compute_all_baselines.price_done", count=len(price_baselines))
+    else:
+        skipped += 1
+        log.info("compute_all_baselines.price_skipped", reason="no_new_events")
+
+    # ── PARTICIPANTS_PER_PROCUREMENT: depends on licitacao events ──
+    if force or await _has_new_events_since(
+        session, ["licitacao"], BaselineType.PARTICIPANTS_PER_PROCUREMENT.value
+    ):
+        participants_baselines = await _compute_participants_baselines(
+            session, window_start, window_end
+        )
+        results.extend(participants_baselines)
+        for m in participants_baselines:
+            await _upsert_baseline_snapshot(session, m, window_start, window_end)
+        await session.commit()
+        log.info("compute_all_baselines.participants_done", count=len(participants_baselines))
+    else:
+        skipped += 1
+        log.info("compute_all_baselines.participants_skipped", reason="no_new_events")
+
+    # ── HHI_DISTRIBUTION: depends on licitacao events ──
+    if force or await _has_new_events_since(
+        session, ["licitacao"], BaselineType.HHI_DISTRIBUTION.value
+    ):
+        hhi_baselines = await _compute_hhi_baselines(session, window_start, window_end)
+        results.extend(hhi_baselines)
+        for m in hhi_baselines:
+            await _upsert_baseline_snapshot(session, m, window_start, window_end)
+        await session.commit()
+        log.info("compute_all_baselines.hhi_done", count=len(hhi_baselines))
+    else:
+        skipped += 1
+        log.info("compute_all_baselines.hhi_skipped", reason="no_new_events")
+
+    # ── AMENDMENT_DISTRIBUTION: depends on contrato events ──
+    if force or await _has_new_events_since(
+        session, ["contrato"], BaselineType.AMENDMENT_DISTRIBUTION.value
+    ):
+        amendment_baselines = await _compute_amendment_baselines(
+            session, window_start, window_end
+        )
+        results.extend(amendment_baselines)
+        for m in amendment_baselines:
+            await _upsert_baseline_snapshot(session, m, window_start, window_end)
+        await session.commit()
+        log.info("compute_all_baselines.amendment_done", count=len(amendment_baselines))
+    else:
+        skipped += 1
+        log.info("compute_all_baselines.amendment_skipped", reason="no_new_events")
+
+    # ── CONTRACT_DURATION: depends on contrato events ──
+    if force or await _has_new_events_since(
+        session, ["contrato"], BaselineType.CONTRACT_DURATION.value
+    ):
+        duration_baselines = await _compute_duration_baselines(
+            session, window_start, window_end
+        )
+        results.extend(duration_baselines)
+        for m in duration_baselines:
+            await _upsert_baseline_snapshot(session, m, window_start, window_end)
+        await session.commit()
+        log.info("compute_all_baselines.duration_done", count=len(duration_baselines))
+    else:
+        skipped += 1
+        log.info("compute_all_baselines.duration_skipped", reason="no_new_events")
+
+    log.info(
+        "compute_all_baselines.summary",
+        computed=len(results),
+        skipped_types=skipped,
+        force=force,
     )
-    results.extend(participants_baselines)
-    for m in participants_baselines:
-        await _upsert_baseline_snapshot(session, m, window_start, window_end)
-    await session.commit()
-    log.info("compute_all_baselines.participants_done", count=len(participants_baselines))
-
-    hhi_baselines = await _compute_hhi_baselines(session, window_start, window_end)
-    results.extend(hhi_baselines)
-    for m in hhi_baselines:
-        await _upsert_baseline_snapshot(session, m, window_start, window_end)
-    await session.commit()
-    log.info("compute_all_baselines.hhi_done", count=len(hhi_baselines))
-
-    amendment_baselines = await _compute_amendment_baselines(
-        session, window_start, window_end
-    )
-    results.extend(amendment_baselines)
-    for m in amendment_baselines:
-        await _upsert_baseline_snapshot(session, m, window_start, window_end)
-    await session.commit()
-    log.info("compute_all_baselines.amendment_done", count=len(amendment_baselines))
-
-    duration_baselines = await _compute_duration_baselines(
-        session, window_start, window_end
-    )
-    results.extend(duration_baselines)
-    for m in duration_baselines:
-        await _upsert_baseline_snapshot(session, m, window_start, window_end)
-    await session.commit()
-    log.info("compute_all_baselines.duration_done", count=len(duration_baselines))
-
     return results

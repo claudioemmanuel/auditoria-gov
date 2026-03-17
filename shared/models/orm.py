@@ -15,7 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models.base import Base
@@ -271,6 +271,8 @@ class Case(Base):
     status: Mapped[str] = mapped_column(String(20), default="open")
     severity: Mapped[str] = mapped_column(String(20))
     summary: Mapped[Optional[str]] = mapped_column(Text)
+    case_type: Mapped[Optional[str]] = mapped_column(String(50))
+    case_category: Mapped[Optional[str]] = mapped_column(String(50))
     attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     items: Mapped[list["CaseItem"]] = relationship(back_populates="case")
@@ -509,4 +511,43 @@ class ReferenceData(Base):
     __table_args__ = (
         UniqueConstraint("category", "code", name="uq_reference_data_category_code"),
         Index("ix_reference_data_category", "category"),
+    )
+
+
+class SignalEvidence(Base):
+    __tablename__ = "signal_evidence"
+
+    signal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("risk_signal.id", ondelete="CASCADE")
+    )
+    dataset: Mapped[str] = mapped_column(Text)
+    record_id: Mapped[str] = mapped_column(Text)
+    field_name: Mapped[Optional[str]] = mapped_column(Text)
+    field_value: Mapped[Optional[str]] = mapped_column(Text)
+    reference_url: Mapped[Optional[str]] = mapped_column(Text)
+
+    signal: Mapped["RiskSignal"] = relationship()
+
+    __table_args__ = (
+        Index("ix_signal_evidence_signal", "signal_id"),
+    )
+
+
+class LegalViolationHypothesis(Base):
+    __tablename__ = "legal_violation_hypothesis"
+
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("case.id", ondelete="CASCADE")
+    )
+    signal_cluster: Mapped[list] = mapped_column(ARRAY(Text), default=list)
+    law_name: Mapped[str] = mapped_column(Text)
+    article: Mapped[Optional[str]] = mapped_column(Text)
+    violation_type: Mapped[Optional[str]] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+
+    case: Mapped["Case"] = relationship()
+
+    __table_args__ = (
+        Index("ix_legal_hypothesis_case", "case_id"),
+        UniqueConstraint("case_id", "law_name", "article", name="uq_legal_hypothesis_case_law"),
     )

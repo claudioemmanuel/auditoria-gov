@@ -74,6 +74,15 @@ def _reset_sync_engine_after_fork(**kwargs):
         async_engine.sync_engine.dispose()
     except Exception:  # noqa: BLE001
         pass
+    # Reset structlog's cached logger after fork. The parent process
+    # caches a bound logger (cache_logger_on_first_use=True) that may
+    # hold stale file descriptors in the forked child.  Re-configuring
+    # forces fresh logger instances in each worker process.
+    try:
+        from shared.logging import setup_logging
+        setup_logging()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # ── Cold-start bootstrap ──────────────────────────────────────────────────────
@@ -105,6 +114,8 @@ def _cold_start_bootstrap(sender, **kwargs):
 
             # ── Auto-recover orphaned runs after restart ──────────────
             _recover_orphaned_runs(log, select, SyncSession, RawRun, IngestState)
+            # ── Auto-recover stale ER state (crash recovery) ──────────
+            _recover_stale_er_state()
 
             with SyncSession() as session:
                 # Check if any ingest run has ever completed.
@@ -134,6 +145,53 @@ def _cold_start_bootstrap(sender, **kwargs):
 
         except Exception as exc:  # noqa: BLE001
             log.warning("cold_start: skipped due to error: %s", exc)
+
+
+def _recover_stale_er_state() -> int:
+    """On startup: recover any ERRunState stuck in 'running' due to a worker crash.
+
+    Uses the advisory lock as ground truth: if the lock is acquirable the ER
+    worker is dead and the row is safe to mark failed.  Returns 1 if recovered,
+    0 if ER is legitimately running or no stale state exists.
+    """
+    from sqlalchemy import select, text
+
+    from shared.db_sync import SyncSession
+    from shared.models.orm import ERRunState
+
+    try:
+        with SyncSession() as session:
+            stale = session.execute(
+                select(ERRunState)
+                .where(ERRunState.status == "running")
+                .limit(1)
+            ).scalar_one_or_none()
+            if stale is None:
+                return 0
+            # Advisory lock is the truth: acquirable → worker is dead
+            can_lock = session.execute(
+                text("SELECT pg_try_advisory_lock(7349812)")
+            ).scalar()
+            if can_lock:
+                stale.status = "failed"
+                session.commit()
+                session.execute(text("SELECT pg_advisory_unlock(7349812)"))
+                log.warning("startup.er_stale_recovered", er_id=str(stale.id))
+                try:
+                    from shared.services.infra_alerts import _send_infra_alert
+                    _send_infra_alert(
+                        "er_stale_recovered",
+                        source="startup",
+                        er_id=str(stale.id),
+                        auto_resolved=True,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                return 1
+            return 0  # ER still running legitimately
+    except Exception as exc:  # noqa: BLE001
+        log.warning("startup.er_stale_recovery_failed", error=str(exc))
+        return 0
 
 
 def _recover_orphaned_runs(log, select, SyncSession, RawRun, IngestState):

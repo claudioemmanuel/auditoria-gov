@@ -8,6 +8,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { tokens } from "@/lib/design-tokens";
+import type { EdgeContext } from "@/hooks/useCaseGraph";
 
 const EDGE_LABELS: Record<string, string> = {
   contrato: "Contrato",
@@ -59,6 +60,7 @@ function RelationEdgeComponent({
   const weight = (data?.weight as number) ?? 1;
   const isFocused = Boolean(data?.isFocused);
   const edgeStrength = (data?.edge_strength as string) ?? "weak";
+  const context = data?.context as EdgeContext | undefined;
   const baseColor = EDGE_COLORS[edgeType] ?? "#94a3b8";
   const color = selected ? tokens.accent : isFocused ? "#1d4ed8" : baseColor;
   const label = EDGE_LABELS[edgeType] ?? edgeType.replace(/_/g, " ");
@@ -115,14 +117,62 @@ function RelationEdgeComponent({
       {(hovered || selected) && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan pointer-events-none absolute"
+            className="nodrag nopan pointer-events-auto absolute"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
           >
-            <span className="rounded-full border border-accent-subtle bg-accent-subtle px-2 py-0.5 text-[9px] font-semibold leading-none text-accent shadow-sm">
-              {label}
-            </span>
+            {hovered && context ? (
+              <div className="w-56 rounded-lg border border-border bg-surface-card p-3 shadow-lg">
+                <span className="mb-2 inline-block rounded-full border border-accent-subtle bg-accent-subtle px-2 py-0.5 text-[9px] font-semibold leading-none text-accent">
+                  {label}
+                </span>
+                <div className="mt-1.5 space-y-1.5 text-[10px]">
+                  <p className="font-mono text-secondary">
+                    <span className="text-muted">Eventos em comum:</span>{" "}
+                    {context.sharedEventCount}
+                  </p>
+                  {context.totalValueBrl > 0 && (
+                    <p className="font-mono text-secondary">
+                      <span className="text-muted">Valor total:</span>{" "}
+                      {context.totalValueBrl.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </p>
+                  )}
+                  {context.dateRange && (
+                    <p className="font-mono text-secondary">
+                      <span className="text-muted">Periodo:</span>{" "}
+                      {context.dateRange.earliest.slice(0, 10)} —{" "}
+                      {context.dateRange.latest.slice(0, 10)}
+                    </p>
+                  )}
+                  {context.topEvents.length > 0 && (
+                    <div className="mt-1 border-t border-border pt-1.5">
+                      {context.topEvents.map((ev, i) => (
+                        <div key={i} className="mb-1 last:mb-0">
+                          <p className="line-clamp-1 text-primary">
+                            {ev.description}
+                          </p>
+                          <p className="text-muted">
+                            {ev.occurred_at.slice(0, 10)}
+                            {ev.value_brl != null &&
+                              ` · ${ev.value_brl.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <span className="rounded-full border border-accent-subtle bg-accent-subtle px-2 py-0.5 text-[9px] font-semibold leading-none text-accent shadow-sm">
+                {label}
+              </span>
+            )}
           </div>
         </EdgeLabelRenderer>
       )}

@@ -85,6 +85,12 @@ class TransfereGovConnector(BaseConnector):
                 params=query_params,
                 headers=headers,
             )
+            # 416 Range Not Satisfiable = offset beyond total row count → end of data.
+            if response.status_code == 416:
+                return [], None
+            # 503 Service Unavailable = maintenance; let ingest_tasks retry.
+            if response.status_code == 503:
+                response.raise_for_status()
             response.raise_for_status()
             body = [] if response.status_code == 204 else response.json()
 

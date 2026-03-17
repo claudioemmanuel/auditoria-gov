@@ -49,25 +49,30 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Operational metrics strip */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        </div>
+      </div>
+
+      {/* ── Operational metrics strip ──────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card">
+        <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { icon: Target, value: typologyCount, label: "Tipologias ativas", mono: true },
-              { icon: Database, value: sourceCount, label: "Fontes públicas", mono: true },
-              { icon: Layers, value: "3", label: "Eixos de score", mono: true },
-              { icon: GitBranch, value: "5", label: "Etapas do pipeline", mono: true },
+              { icon: Target, value: typologyCount, label: "Tipologias ativas" },
+              { icon: Database, value: sourceCount, label: "Fontes públicas" },
+              { icon: Layers, value: "3", label: "Eixos de score" },
+              { icon: GitBranch, value: "5", label: "Etapas do pipeline" },
             ].map((item) => (
               <div
                 key={item.label}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface-base px-3 py-2.5"
+                className="rounded-lg border border-border bg-surface-card px-3 py-3"
               >
-                <item.icon className="h-4 w-4 shrink-0 text-accent" />
-                <div>
-                  <p className="font-mono tabular-nums text-lg font-bold text-primary leading-none">
-                    {item.value}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted">{item.label}</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <item.icon className="h-3 w-3 shrink-0 text-muted" />
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted">{item.label}</p>
                 </div>
+                <p className="font-mono text-lg font-bold tabular-nums text-primary leading-none">
+                  {item.value}
+                </p>
               </div>
             ))}
           </div>
@@ -75,7 +80,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Institutional positioning ──────────────────────────────── */}
-      <div className="border-b border-border bg-surface-base/50">
+      <div className="bg-surface-base/50">
         <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
           <div className="flex items-center justify-between mb-4">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">

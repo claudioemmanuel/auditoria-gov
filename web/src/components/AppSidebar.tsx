@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Radar,
   Database,
   BookOpen,
@@ -22,8 +21,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const STORAGE_KEY = "ui:sidebar-collapsed";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true, shortcut: "D" },
-  { href: "/radar", label: "Radar", icon: Radar, exact: false, shortcut: "R" },
+  { href: "/radar", label: "Investigacao", icon: Radar, exact: false, shortcut: "R" },
   { href: "/coverage", label: "Cobertura", icon: Database, exact: false, shortcut: "C" },
   { href: "/methodology", label: "Metodologia", icon: BookOpen, exact: false, shortcut: "M" },
   { href: "/api-health", label: "Saude API", icon: Activity, exact: false, shortcut: "H" },
@@ -153,18 +151,6 @@ export function AppSidebar() {
         )}
       </div>
 
-      {/* ── Search trigger (Cmd+K) ─────────────────────── */}
-      {(!collapsed || isMobile) && (
-        <div className="px-3 pt-3 pb-1">
-          <button className="flex w-full items-center gap-2 rounded-[10px] border border-sidebar-border bg-sidebar-hover px-2.5 py-2 text-xs text-sidebar-text transition-colors hover:bg-sidebar-active hover:text-sidebar-text-active">
-            <Search className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-left">Buscar...</span>
-            <kbd className="rounded-[4px] border border-sidebar-border bg-sidebar-bg px-1 py-0.5 font-mono text-[10px] text-sidebar-text/70">
-              ⌘K
-            </kbd>
-          </button>
-        </div>
-      )}
 
       {/* ── Navigation ─────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto px-2 pt-2 pb-2">

@@ -1,328 +1,295 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
-  getRadarV2CasePreview,
   getRadarV2Cases,
   getRadarV2Coverage,
-  getRadarV2SignalPreview,
-  getRadarV2Signals,
   getRadarV2Summary,
 } from "@/lib/api";
 import type {
   RadarV2CaseItem,
-  RadarV2CasePreviewResponse,
   RadarV2CoverageResponse,
-  RadarV2SignalItem,
-  RadarV2SignalPreviewResponse,
   RadarV2SummaryResponse,
 } from "@/lib/types";
-import { RadarPreviewDrawer } from "@/components/radar/RadarPreviewDrawer";
+import { RadarSummaryStrip } from "@/components/radar/RadarSummaryStrip";
+import { RadarInlineFilters } from "@/components/radar/RadarInlineFilters";
+import { RadarBreadcrumb } from "@/components/radar/RadarBreadcrumb";
 import { RadarCoveragePanel } from "@/components/radar/RadarCoveragePanel";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/Button";
-import { CORRUPTION_TYPE_LABELS, SEVERITY_LABELS, SPHERE_LABELS, TYPOLOGY_INFO, TYPOLOGY_LABELS } from "@/lib/constants";
-import { formatNumber, relativeTime } from "@/lib/utils";
-import {
-  AlertTriangle,
-  ArrowRight,
-  ArrowUpDown,
-  Calendar,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Network,
-  Radar,
-  Search,
-  ShieldCheck,
-  SlidersHorizontal,
-  Users,
-  X,
-} from "lucide-react";
+import { TYPOLOGY_LABELS, TYPOLOGY_META, CORRUPTION_TYPE_LABELS, SPHERE_LABELS } from "@/lib/constants";
+import { ChevronDown, ChevronRight, ChevronLeft, Radio, CalendarRange } from "lucide-react";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
-// ── Severity config ──────────────────────────────────────────────────────────
+const SEVERITY_ORDER = ["critical", "high", "medium", "low"] as const;
+type SeverityLevel = typeof SEVERITY_ORDER[number];
 
-const SEV: Record<string, { label: string; dot: string; text: string; border: string; bg: string }> = {
-  critical: { label: "Crítico",  dot: "bg-error",        text: "text-error",        border: "border-error/30",        bg: "bg-error/5"        },
-  high:     { label: "Alto",     dot: "bg-amber",         text: "text-amber",         border: "border-amber/30",         bg: "bg-amber/5"         },
-  medium:   { label: "Médio",    dot: "bg-yellow-500",    text: "text-yellow-600",    border: "border-yellow-500/30",    bg: "bg-yellow-500/5"    },
-  low:      { label: "Baixo",    dot: "bg-info",          text: "text-info",          border: "border-info/30",          bg: "bg-info/5"          },
+const SEV: Record<SeverityLevel, { dot: string; text: string; border: string; bg: string; bar: string; label: string }> = {
+  critical: { dot: "bg-error",      text: "text-error",      border: "border-error/25",      bg: "bg-error/5",      bar: "bg-error",      label: "Crítico" },
+  high:     { dot: "bg-amber",      text: "text-amber",      border: "border-amber/25",      bg: "bg-amber/5",      bar: "bg-amber",      label: "Alto"    },
+  medium:   { dot: "bg-yellow-500", text: "text-yellow-600", border: "border-yellow-500/25", bg: "bg-yellow-500/5", bar: "bg-yellow-500", label: "Médio"   },
+  low:      { dot: "bg-sky-500",    text: "text-sky-500",    border: "border-sky-500/25",    bg: "bg-sky-500/5",    bar: "bg-sky-500",    label: "Baixo"   },
 };
 
-function SeverityBadge({ severity }: { severity: string }) {
-  const s = SEV[severity] ?? SEV.low;
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.border} ${s.bg} ${s.text}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {s.label}
-    </span>
-  );
-}
-
-function ConfidenceBar({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
-  const color = pct >= 80 ? "bg-success" : pct >= 50 ? "bg-amber" : "bg-error";
-  return (
-    <div
-      className="flex items-center gap-1.5 cursor-help"
-      title={`Confiança do algoritmo: ${pct}% — probabilidade de que o padrão detectado seja genuíno e não um falso positivo. Verde ≥ 80%, Âmbar ≥ 50%, Vermelho < 50%.`}
-    >
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-subtle">
-        <div className={`h-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="font-mono text-[10px] tabular-nums text-muted">{pct}%</span>
-    </div>
-  );
-}
-
-// ── Signal card ──────────────────────────────────────────────────────────────
-
-function SignalCard({ item, onPreview }: { item: RadarV2SignalItem; onPreview: (id: string) => void }) {
-  const s = SEV[item.severity] ?? SEV.low;
-  const period = [item.period_start, item.period_end]
-    .filter(Boolean)
-    .map((d) => new Date(d!).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }))
-    .join(" → ");
-
-  return (
-    <button
-      onClick={() => onPreview(item.id)}
-      className={`group w-full text-left rounded-xl border-l-4 ${s.border} border border-border bg-surface-card p-4 transition-all hover:shadow-md hover:border-l-accent`}
-      style={{ borderLeftColor: undefined }}
-    >
-      <div className="flex items-start justify-between gap-3 mb-2.5">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <SeverityBadge severity={item.severity} />
-          <span className="font-mono text-xs font-bold text-accent shrink-0">{item.typology_code}</span>
-          <span className="text-xs text-muted truncate">{item.typology_name}</span>
-        </div>
-        <ConfidenceBar value={item.confidence} />
-      </div>
-
-      <h3 className="font-display text-sm font-semibold text-primary leading-snug line-clamp-2 mb-1.5">
-        {item.title}
-      </h3>
-
-      {item.summary && (
-        <p className="text-xs text-secondary leading-relaxed line-clamp-2 mb-3">{item.summary}</p>
-      )}
-
-      <div className="flex items-center justify-between gap-2 mt-auto pt-1 border-t border-border/50">
-        <div className="flex items-center gap-3 text-xs text-muted flex-wrap">
-          <span className="flex items-center gap-1">
-            <Users className="h-3 w-3 shrink-0" />
-            {item.entity_count} {item.entity_count === 1 ? "entidade" : "entidades"}
-          </span>
-          <span className="flex items-center gap-1">
-            <FileText className="h-3 w-3 shrink-0" />
-            {item.event_count} eventos
-          </span>
-          {period && (
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3 shrink-0" />
-              {period}
-            </span>
-          )}
-          {item.has_graph && (
-            <span className="flex items-center gap-1 text-accent font-semibold">
-              <Network className="h-3 w-3 shrink-0" />
-              Grafo
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="font-mono text-[10px] text-muted">{relativeTime(item.created_at)}</span>
-          <ArrowRight className="h-3.5 w-3.5 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
-        </div>
-      </div>
-    </button>
-  );
-}
+type FilterState = {
+  typology: string;
+  periodFrom: string;
+  periodTo: string;
+  corruptionType: string;
+  sphere: string;
+};
 
 // ── Case card ────────────────────────────────────────────────────────────────
 
-function CaseCard({ item, onPreview }: { item: RadarV2CaseItem; onPreview: (id: string) => void }) {
-  const s = SEV[item.severity] ?? SEV.low;
-  const period = [item.period_start, item.period_end]
-    .filter(Boolean)
-    .map((d) => new Date(d!).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }))
-    .join(" → ");
+function CaseListCard({ item }: { item: RadarV2CaseItem }) {
+  const s = SEV[item.severity as SeverityLevel] ?? SEV.low;
+  const formatPeriod = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }) : null;
+  const periodFrom = formatPeriod(item.period_start);
+  const periodTo = formatPeriod(item.period_end);
+  const periodStr = periodFrom && periodTo ? `${periodFrom} → ${periodTo}` : periodFrom ?? periodTo ?? null;
+  const foundDate = new Date(item.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+
+  const corruptionTypes = [...new Set(item.typology_codes.flatMap((c) => TYPOLOGY_META[c]?.corruption_types ?? []))];
+  const spheres = [...new Set(item.typology_codes.flatMap((c) => TYPOLOGY_META[c]?.spheres ?? []))];
 
   return (
-    <button
-      onClick={() => onPreview(item.id)}
-      className={`group w-full text-left rounded-xl border border-border bg-surface-card p-4 transition-all hover:shadow-md hover:border-accent/30`}
-    >
-      <div className="flex items-start justify-between gap-3 mb-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <SeverityBadge severity={item.severity} />
-          <span className="font-mono text-xs text-muted">
-            {item.signal_count} {item.signal_count === 1 ? "sinal" : "sinais"}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-1 justify-end shrink-0">
-          {item.typology_codes.slice(0, 3).map((code) => (
-            <span key={code} className="font-mono text-[10px] font-bold text-accent bg-accent-subtle border border-accent/20 px-1.5 py-0.5 rounded">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface-card transition-all hover:border-accent/40 hover:shadow-md">
+
+      {/* Header: title + severity badge */}
+      <div className="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
+        <p className="min-w-0 flex-1 text-sm font-bold text-primary leading-snug line-clamp-2" title={item.title}>
+          {item.title}
+        </p>
+        <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.border} ${s.bg} ${s.text}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+          {s.label}
+        </span>
+      </div>
+
+      {/* Subheader: found date */}
+      <p className="px-4 pb-3 font-mono text-[10px] tabular-nums text-muted">{foundDate}</p>
+
+      {/* Accent line */}
+      <div className={`h-0.5 w-full ${s.bar} opacity-60`} />
+
+      {/* Body */}
+      <div className="flex-1 px-4 py-3 space-y-2.5">
+
+        {/* Typology pills */}
+        <div className="flex flex-wrap gap-1">
+          {item.typology_codes.map((code) => (
+            <span key={code} className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent" title={TYPOLOGY_LABELS[code]}>
               {code}
             </span>
           ))}
-          {item.typology_codes.length > 3 && (
-            <span className="text-[10px] text-muted self-center">+{item.typology_codes.length - 3}</span>
-          )}
         </div>
-      </div>
 
-      <h3 className="font-display text-sm font-semibold text-primary leading-snug line-clamp-2 mb-1.5">
-        {item.title}
-      </h3>
-
-      {item.summary && (
-        <p className="text-xs text-secondary leading-relaxed line-clamp-2 mb-3">{item.summary}</p>
-      )}
-
-      <div className="flex items-center justify-between gap-2 mt-auto pt-1 border-t border-border/50">
-        <div className="flex items-center gap-3 text-xs text-muted flex-wrap">
-          <span className="flex items-center gap-1">
-            <Users className="h-3 w-3 shrink-0" />
-            {item.entity_count} {item.entity_count === 1 ? "entidade" : "entidades"}
+        {/* Signals + period */}
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-[11px]">
+            <Radio className={`h-3 w-3 shrink-0 ${s.text}`} />
+            <span className={`font-bold tabular-nums ${s.text}`}>{item.signal_count}</span>
+            <span className="text-muted">{item.signal_count !== 1 ? "sinais" : "sinal"}</span>
           </span>
-          {period && (
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3 shrink-0" />
-              {period}
+          {periodStr && (
+            <span className="flex items-center gap-1 text-[11px] text-muted">
+              <CalendarRange className="h-3 w-3 shrink-0" />
+              <span className="tabular-nums">{periodStr}</span>
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="font-mono text-[10px] text-muted">{relativeTime(item.created_at)}</span>
-          <ArrowRight className="h-3.5 w-3.5 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
-        </div>
-      </div>
-    </button>
-  );
-}
 
-// ── KPI strip ────────────────────────────────────────────────────────────────
-
-function KpiStrip({ summary, loading }: { summary: RadarV2SummaryResponse | null; loading: boolean }) {
-  const sevItems = [
-    { key: "critical", label: "Crítico", dot: "bg-error",     count: summary?.severity_counts.critical ?? 0 },
-    { key: "high",     label: "Alto",    dot: "bg-amber",      count: summary?.severity_counts.high     ?? 0 },
-    { key: "medium",   label: "Médio",   dot: "bg-yellow-500", count: summary?.severity_counts.medium   ?? 0 },
-    { key: "low",      label: "Baixo",   dot: "bg-info",       count: summary?.severity_counts.low      ?? 0 },
-  ];
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-lg border border-border bg-surface-card animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-      <div className="rounded-lg border border-border bg-surface-card px-3 py-3">
-        <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Sinais</p>
-        <p className="font-mono text-xl font-bold tabular-nums text-primary">{formatNumber(summary?.totals.signals ?? 0)}</p>
-      </div>
-      <div className="rounded-lg border border-border bg-surface-card px-3 py-3">
-        <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Casos</p>
-        <p className="font-mono text-xl font-bold tabular-nums text-primary">{formatNumber(summary?.totals.cases ?? 0)}</p>
-      </div>
-      {sevItems.map((sev) => (
-        <div key={sev.key} className="rounded-lg border border-border bg-surface-card px-3 py-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} />
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted">{sev.label}</p>
+        {/* Corruption types */}
+        {corruptionTypes.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {corruptionTypes.map((ct) => (
+              <span key={ct} className="rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-secondary">
+                {CORRUPTION_TYPE_LABELS[ct] ?? ct}
+              </span>
+            ))}
+            {spheres.map((sp) => (
+              <span key={sp} className="rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted">
+                {SPHERE_LABELS[sp] ?? sp}
+              </span>
+            ))}
           </div>
-          <p className="font-mono text-xl font-bold tabular-nums text-primary">{formatNumber(sev.count)}</p>
-        </div>
-      ))}
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-border px-4 py-2.5">
+        <span className="text-[11px] text-accent">Ver dossiê →</span>
+      </div>
     </div>
   );
 }
 
-// ── Typology pills strip ─────────────────────────────────────────────────────
+// ── Severity accordion section ───────────────────────────────────────────────
 
-function TypologyPills({
-  summary,
-  activeTypology,
-  onSelect,
+function SeverityAccordionSection({
+  severity,
+  count,
+  filters,
+  search,
+  defaultOpen = false,
 }: {
-  summary: RadarV2SummaryResponse | null;
-  activeTypology: string;
-  onSelect: (code: string) => void;
+  severity: SeverityLevel;
+  count: number;
+  filters: FilterState;
+  search: string;
+  defaultOpen?: boolean;
 }) {
-  if (!summary || summary.typology_counts.length === 0) return null;
-  const top = summary.typology_counts.slice(0, 8);
+  const s = SEV[severity];
+  const [open, setOpen] = useState(defaultOpen);
+  const [offset, setOffset] = useState(0);
+  const [cases, setCases] = useState<RadarV2CaseItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const filterKey = JSON.stringify(filters);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Reset offset when filters change
+  useEffect(() => {
+    setOffset(0);
+  }, [filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch cases when open (or when offset/filters change while open)
+  useEffect(() => {
+    if (!open) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    setLoading(true);
+    setError(null);
+
+    getRadarV2Cases({
+      severity,
+      offset,
+      limit: PAGE_SIZE,
+      typology: filters.typology || undefined,
+      period_from: filters.periodFrom || undefined,
+      period_to: filters.periodTo || undefined,
+      corruption_type: filters.corruptionType || undefined,
+      sphere: filters.sphere || undefined,
+    })
+      .then((data) => {
+        if (ctrl.signal.aborted) return;
+        setTotal(data.total);
+        setCases(data.items as RadarV2CaseItem[]);
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) setError("Erro ao carregar casos.");
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+
+    return () => ctrl.abort();
+  }, [open, offset, filterKey, severity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filteredCases = search.trim()
+    ? cases.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
+    : cases;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {top.map((t) => (
-        <button
-          key={t.code}
-          onClick={() => onSelect(activeTypology === t.code ? "" : t.code)}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide transition-all ${
-            activeTypology === t.code
-              ? "border-accent bg-accent text-white"
-              : "border-border bg-surface-card text-muted hover:border-accent/40 hover:text-accent"
-          }`}
-        >
-          <span className="font-mono">{t.code}</span>
-          <span className="font-mono opacity-70">{t.count}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ── Active filter chips ──────────────────────────────────────────────────────
-
-function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent-subtle px-2 py-0.5 text-[10px] font-semibold text-accent">
-      {label}
-      <button type="button" onClick={onRemove} className="ml-0.5 rounded-full hover:text-error transition-colors">
-        <X className="h-2.5 w-2.5" />
+    <div className={`rounded-xl border ${s.border} overflow-hidden`}>
+      {/* Header */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${s.bg} hover:opacity-90`}
+      >
+        <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
+        <span className={`text-sm font-semibold ${s.text}`}>{s.label}</span>
+        <span className={`ml-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums ${s.border} ${s.text}`}>
+          {count.toLocaleString("pt-BR")} caso{count !== 1 ? "s" : ""}
+        </span>
+        <div className="flex-1" />
+        {open
+          ? <ChevronDown className={`h-4 w-4 ${s.text}`} />
+          : <ChevronRight className={`h-4 w-4 ${s.text}`} />
+        }
       </button>
-    </span>
+
+      {/* Body */}
+      {open && (
+        <div className="border-t border-border bg-surface-base px-4 py-4">
+          {loading && <TableSkeleton rows={3} />}
+
+          {error && (
+            <p className="text-xs text-error text-center py-4">{error}</p>
+          )}
+
+          {!loading && !error && filteredCases.length === 0 && (
+            <p className="text-xs text-muted text-center py-4">
+              {search.trim() ? "Nenhum caso encontrado para esta busca." : "Nenhum caso nesta severidade."}
+            </p>
+          )}
+
+          {!loading && !error && filteredCases.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredCases.map((c) => (
+                <Link key={c.id} href={`/radar/dossie/${c.id}`} className="block">
+                  <CaseListCard item={c} />
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && !search.trim() && totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-border pt-3 mt-1">
+              <span className="text-xs text-muted">
+                Página {currentPage} de {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={(e) => { e.preventDefault(); setOffset(Math.max(0, offset - PAGE_SIZE)); }}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={(e) => { e.preventDefault(); setOffset(offset + PAGE_SIZE); }}
+                >
+                  Próxima
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
 // ── Main page inner ──────────────────────────────────────────────────────────
 
-type RadarViewMode = "signals" | "cases";
-
 function RadarPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const view           = (searchParams.get("view") as RadarViewMode) || "signals";
   const typology       = searchParams.get("typology") || "";
-  const severity       = searchParams.get("severity") || "";
-  const sort           = (searchParams.get("sort") as "analysis_date" | "ingestion_date") || "analysis_date";
   const periodFrom     = searchParams.get("period_from") || "";
   const periodTo       = searchParams.get("period_to") || "";
   const corruptionType = searchParams.get("corruption_type") || "";
   const sphere         = searchParams.get("sphere") || "";
-  const offsetParam    = Number(searchParams.get("offset") || "0");
-
-  const [search, setSearch] = useState("");
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
-  const [groupData, setGroupData] = useState<
-    Map<string, { items: RadarV2SignalItem[]; loading: boolean; offset: number; total: number }>
-  >(new Map());
-  const [caseGroupData, setCaseGroupData] = useState<
-    Map<string, { items: RadarV2CaseItem[]; loading: boolean; offset: number; total: number }>
-  >(new Map());
 
   const updateParam = useCallback(
     (updates: Record<string, string>) => {
@@ -335,44 +302,28 @@ function RadarPageInner() {
     [router, searchParams],
   );
 
-  const setView            = (v: RadarViewMode) => updateParam({ view: v, offset: "" });
-  const setTypology        = (v: string) => updateParam({ typology: v, offset: "" });
-  const setSeverity        = (v: string) => updateParam({ severity: v, offset: "" });
-  const setSort            = (v: string) => updateParam({ sort: v, offset: "" });
-  const setPeriodFrom      = (v: string) => updateParam({ period_from: v, offset: "" });
-  const setPeriodTo        = (v: string) => updateParam({ period_to: v, offset: "" });
-  const setCorruptionType  = (v: string) => updateParam({ corruption_type: v, offset: "" });
-  const setSphere          = (v: string) => updateParam({ sphere: v, offset: "" });
-  const setOffset          = (v: number) => updateParam({ offset: v > 0 ? String(v) : "" });
-  const clearAllFilters    = () => { router.replace("?", { scroll: false }); setSearch(""); };
+  const setTypology       = (v: string) => updateParam({ typology: v });
+  const setPeriodFrom     = (v: string) => updateParam({ period_from: v });
+  const setPeriodTo       = (v: string) => updateParam({ period_to: v });
+  const setCorruptionType = (v: string) => updateParam({ corruption_type: v });
+  const setSphere         = (v: string) => updateParam({ sphere: v });
+  const clearAllFilters   = () => { router.replace("/radar", { scroll: false }); };
 
-  // ── State ──────────────────────────────────────────────────────────────────
   const [summary, setSummary]               = useState<RadarV2SummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
-  const [signals, setSignals]               = useState<RadarV2SignalItem[]>([]);
-  const [cases, setCases]                   = useState<RadarV2CaseItem[]>([]);
-  const [total, setTotal]                   = useState(0);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState<string | null>(null);
-
-  const [previewOpen, setPreviewOpen]         = useState(false);
-  const [previewType, setPreviewType]         = useState<"signal" | "case" | null>(null);
-  const [previewLoading, setPreviewLoading]   = useState(false);
-  const [previewError, setPreviewError]       = useState<string | null>(null);
-  const [signalPreview, setSignalPreview]     = useState<RadarV2SignalPreviewResponse | null>(null);
-  const [casePreview, setCasePreview]         = useState<RadarV2CasePreviewResponse | null>(null);
+  const [search, setSearch]                 = useState("");
 
   const [coverageOpen, setCoverageOpen]       = useState(false);
   const [coverageLoading, setCoverageLoading] = useState(false);
   const [coverageError, setCoverageError]     = useState<string | null>(null);
   const [coverage, setCoverage]               = useState<RadarV2CoverageResponse | null>(null);
 
-  // ── Data loading ───────────────────────────────────────────────────────────
+  const filters: FilterState = { typology, periodFrom, periodTo, corruptionType, sphere };
+
   useEffect(() => {
     setSummaryLoading(true);
     getRadarV2Summary({
       typology: typology || undefined,
-      severity: severity || undefined,
       period_from: periodFrom || undefined,
       period_to: periodTo || undefined,
       corruption_type: corruptionType || undefined,
@@ -381,669 +332,89 @@ function RadarPageInner() {
       .then(setSummary)
       .catch(() => setSummary(null))
       .finally(() => setSummaryLoading(false));
-  }, [typology, severity, periodFrom, periodTo, corruptionType, sphere]);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    const common = {
-      offset: offsetParam,
-      limit: PAGE_SIZE,
-      typology: typology || undefined,
-      severity: severity || undefined,
-      period_from: periodFrom || undefined,
-      period_to: periodTo || undefined,
-      corruption_type: corruptionType || undefined,
-      sphere: sphere || undefined,
-    };
-    const task = view === "signals"
-      ? getRadarV2Signals({ ...common, sort })
-      : getRadarV2Cases(common);
-    task
-      .then((data) => {
-        setTotal(data.total);
-        if (view === "signals") { setSignals(data.items as RadarV2SignalItem[]); setCases([]); }
-        else { setCases(data.items as RadarV2CaseItem[]); setSignals([]); }
-      })
-      .catch(() => setError("Erro ao carregar dados do Radar. Verifique a API e tente novamente."))
-      .finally(() => setLoading(false));
-  }, [view, offsetParam, typology, severity, sort, periodFrom, periodTo, corruptionType, sphere]);
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const openSignalPreview = (signalId: string) => {
-    setPreviewOpen(true); setPreviewType("signal"); setPreviewLoading(true);
-    setPreviewError(null); setSignalPreview(null); setCasePreview(null);
-    getRadarV2SignalPreview(signalId, { limit: 10 })
-      .then(setSignalPreview)
-      .catch(() => setPreviewError("Não foi possível carregar a prévia do sinal"))
-      .finally(() => setPreviewLoading(false));
-  };
-
-  const openCasePreview = (caseId: string) => {
-    setPreviewOpen(true); setPreviewType("case"); setPreviewLoading(true);
-    setPreviewError(null); setSignalPreview(null); setCasePreview(null);
-    getRadarV2CasePreview(caseId)
-      .then(setCasePreview)
-      .catch(() => setPreviewError("Não foi possível carregar a prévia do caso"))
-      .finally(() => setPreviewLoading(false));
-  };
+  }, [typology, periodFrom, periodTo, corruptionType, sphere]);
 
   const openCoverage = () => {
     setCoverageOpen(true);
     if (coverage || coverageLoading) return;
-    setCoverageLoading(true); setCoverageError(null);
+    setCoverageLoading(true);
+    setCoverageError(null);
     getRadarV2Coverage()
       .then(setCoverage)
       .catch(() => setCoverageError("Não foi possível carregar a cobertura analítica"))
       .finally(() => setCoverageLoading(false));
   };
 
-  // ── Per-group signal loading ────────────────────────────────────────────────
-  const loadGroup = useCallback(
-    async (code: string, offset = 0) => {
-      setGroupData((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(code);
-        next.set(code, { items: existing?.items ?? [], loading: true, offset, total: existing?.total ?? 0 });
-        return next;
-      });
-      try {
-        const data = await getRadarV2Signals({
-          typology: code,
-          severity: severity || undefined,
-          period_from: periodFrom || undefined,
-          period_to: periodTo || undefined,
-          corruption_type: corruptionType || undefined,
-          sphere: sphere || undefined,
-          offset,
-          limit: PAGE_SIZE,
-          sort,
-        });
-        setGroupData((prev) => {
-          const next = new Map(prev);
-          next.set(code, { items: data.items as RadarV2SignalItem[], loading: false, offset, total: data.total });
-          return next;
-        });
-      } catch {
-        setGroupData((prev) => {
-          const next = new Map(prev);
-          const existing = next.get(code);
-          next.set(code, { items: existing?.items ?? [], loading: false, offset: existing?.offset ?? 0, total: existing?.total ?? 0 });
-          return next;
-        });
-      }
-    },
-    [severity, periodFrom, periodTo, corruptionType, sphere, sort],
-  );
-
-  const loadCaseGroup = useCallback(
-    async (code: string, offset = 0) => {
-      setCaseGroupData((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(code);
-        next.set(code, { items: existing?.items ?? [], loading: true, offset, total: existing?.total ?? 0 });
-        return next;
-      });
-      try {
-        const data = await getRadarV2Cases({
-          typology: code,
-          severity: severity || undefined,
-          period_from: periodFrom || undefined,
-          period_to: periodTo || undefined,
-          corruption_type: corruptionType || undefined,
-          sphere: sphere || undefined,
-          offset,
-          limit: PAGE_SIZE,
-        });
-        setCaseGroupData((prev) => {
-          const next = new Map(prev);
-          next.set(code, { items: data.items as RadarV2CaseItem[], loading: false, offset, total: data.total });
-          return next;
-        });
-      } catch {
-        setCaseGroupData((prev) => {
-          const next = new Map(prev);
-          const existing = next.get(code);
-          next.set(code, { items: existing?.items ?? [], loading: false, offset: existing?.offset ?? 0, total: existing?.total ?? 0 });
-          return next;
-        });
-      }
-    },
-    [severity, periodFrom, periodTo, corruptionType, sphere],
-  );
-
-  // Reset group data when filters or view change
-  useEffect(() => {
-    setGroupData(new Map());
-    setCaseGroupData(new Map());
-    setOpenGroups(new Set());
-  }, [view, typology, severity, periodFrom, periodTo, corruptionType, sphere, sort]);
-
-  // ── Derived ────────────────────────────────────────────────────────────────
-  const activeFilterCount = useMemo(
-    () => [typology, severity, periodFrom, periodTo, corruptionType, sphere].filter(Boolean).length,
-    [typology, severity, periodFrom, periodTo, corruptionType, sphere],
-  );
-
-  const filteredSignals = useMemo(() => {
-    if (!search.trim()) return signals;
-    const q = search.toLowerCase();
-    return signals.filter((s) => s.title.toLowerCase().includes(q) || s.typology_name.toLowerCase().includes(q));
-  }, [signals, search]);
-
-  const filteredCases = useMemo(() => {
-    if (!search.trim()) return cases;
-    const q = search.toLowerCase();
-    return cases.filter((c) => c.title.toLowerCase().includes(q));
-  }, [cases, search]);
-
-  const typologyGroups = useMemo(() => {
-    const counts = summary?.typology_counts ?? [];
-    if (!search.trim()) return counts;
-    const q = search.toLowerCase();
-    return counts.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
-  }, [summary, search]);
-
-  const totalPages  = Math.ceil(total / PAGE_SIZE);
-  const currentPage = Math.floor(offsetParam / PAGE_SIZE) + 1;
-  const items       = view === "signals" ? filteredSignals : filteredCases;
-
   return (
-    <div className="flex min-h-screen flex-col">
-
-      {/* ── Page header ────────────────────────────────────────── */}
+    <>
+      {/* Summary strip */}
       <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
-                <Radar className="h-6 w-6 text-accent" />
-              </div>
-              <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Radar de Riscos</h1>
-                <p className="mt-1.5 text-sm text-secondary leading-relaxed">Monitoramento de sinais e casos de risco em dados públicos federais</p>
-              </div>
-            </div>
-            <Button variant="secondary" size="sm" onClick={openCoverage} className="shrink-0 mt-1">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Confiabilidade
-            </Button>
-          </div>
-
-          {/* KPI strip */}
-          <div className="mt-6">
-            <KpiStrip summary={summary} loading={summaryLoading} />
-          </div>
+        <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
+          <RadarSummaryStrip
+            summary={summary}
+            loading={summaryLoading}
+            activeSeverity=""
+            onSeverityClick={() => {}}
+          />
         </div>
       </div>
 
-      {/* ── Body ───────────────────────────────────────────────── */}
-      <div className="flex-1 mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 space-y-5">
-
-        {/* ── View tabs + search + sort row ───────────────────── */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* View tabs */}
-          <div className="flex rounded-lg border border-border bg-surface-card overflow-hidden">
-            {(["signals", "cases"] as RadarViewMode[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-5 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
-                  view === v
-                    ? "bg-accent text-white"
-                    : "text-secondary hover:text-primary hover:bg-surface-subtle"
-                }`}
-              >
-                {v === "signals" ? "Sinais" : "Casos"}
-              </button>
-            ))}
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
+        {/* Header + filters */}
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <RadarBreadcrumb crumbs={[{ label: "Radar" }]} />
+            <p className="text-xs text-secondary mt-0.5">
+              Casos agrupados por severidade — clique em uma seção para expandir
+            </p>
           </div>
-
-          {/* Filter toggle */}
-          <button
-            onClick={() => setFiltersExpanded((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
-              filtersExpanded || activeFilterCount > 0
-                ? "border-accent bg-accent-subtle text-accent"
-                : "border-border bg-surface-card text-secondary hover:text-primary"
-            }`}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filtros
-            {activeFilterCount > 0 && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-
-          <div className="ml-auto flex items-center gap-2">
-            {/* Search */}
-            <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-2">
-              <Search className="h-3.5 w-3.5 shrink-0 text-muted" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar..."
-                className="w-40 bg-transparent text-xs text-primary outline-none placeholder:text-placeholder"
-              />
-              {search && (
-                <button type="button" onClick={() => setSearch("")} className="text-muted hover:text-primary">
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </label>
-
-            {/* Sort */}
-            {view === "signals" && (
-              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-2">
-                <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted" />
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  className="bg-transparent text-xs text-primary outline-none cursor-pointer"
-                >
-                  <option value="analysis_date">Data de análise</option>
-                  <option value="ingestion_date">Data de ingestão</option>
-                </select>
-              </label>
-            )}
-          </div>
+          <RadarInlineFilters
+            search={search}
+            onSearchChange={setSearch}
+            typology={typology}
+            periodFrom={periodFrom}
+            periodTo={periodTo}
+            corruptionType={corruptionType}
+            sphere={sphere}
+            onTypologyChange={setTypology}
+            onPeriodFromChange={setPeriodFrom}
+            onPeriodToChange={setPeriodTo}
+            onCorruptionTypeChange={setCorruptionType}
+            onSphereChange={setSphere}
+            onClearAll={clearAllFilters}
+            onCoverageClick={openCoverage}
+          />
         </div>
 
-        {/* ── Expandable filter panel ─────────────────────────── */}
-        {filtersExpanded && (
-          <div className="rounded-xl border border-accent/20 bg-surface-card p-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-              {/* Tipologia */}
-              <div className="col-span-2 sm:col-span-2 lg:col-span-2">
-                <label className="block font-mono text-[9px] uppercase tracking-widest text-muted mb-1.5">Tipologia</label>
-                <select
-                  value={typology}
-                  onChange={(e) => setTypology(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface-base px-2.5 py-2 text-xs text-primary outline-none focus:border-accent"
-                >
-                  <option value="">Todas</option>
-                  {Object.entries(TYPOLOGY_LABELS).map(([code, label]) => (
-                    <option key={code} value={code}>{code} – {label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Severidade */}
-              <div>
-                <label className="block font-mono text-[9px] uppercase tracking-widest text-muted mb-1.5">Severidade</label>
-                <select
-                  value={severity}
-                  onChange={(e) => setSeverity(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface-base px-2.5 py-2 text-xs text-primary outline-none focus:border-accent"
-                >
-                  <option value="">Todas</option>
-                  {Object.entries(SEVERITY_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Corrupção */}
-              <div>
-                <label className="block font-mono text-[9px] uppercase tracking-widest text-muted mb-1.5">Tipo de Corrupção</label>
-                <select
-                  value={corruptionType}
-                  onChange={(e) => setCorruptionType(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface-base px-2.5 py-2 text-xs text-primary outline-none focus:border-accent"
-                >
-                  <option value="">Todos</option>
-                  {Object.entries(CORRUPTION_TYPE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Esfera */}
-              <div>
-                <label className="block font-mono text-[9px] uppercase tracking-widest text-muted mb-1.5">Esfera</label>
-                <select
-                  value={sphere}
-                  onChange={(e) => setSphere(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface-base px-2.5 py-2 text-xs text-primary outline-none focus:border-accent"
-                >
-                  <option value="">Todas</option>
-                  {Object.entries(SPHERE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Período */}
-              <div className="col-span-2 sm:col-span-3 lg:col-span-2">
-                <label className="block font-mono text-[9px] uppercase tracking-widest text-muted mb-1.5">Período</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={periodFrom}
-                    onChange={(e) => setPeriodFrom(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-surface-base px-2.5 py-2 text-xs text-primary outline-none focus:border-accent"
-                  />
-                  <span className="text-xs text-muted shrink-0">→</span>
-                  <input
-                    type="date"
-                    value={periodTo}
-                    onChange={(e) => setPeriodTo(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-surface-base px-2.5 py-2 text-xs text-primary outline-none focus:border-accent"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {activeFilterCount > 0 && (
-              <div className="mt-3 pt-3 border-t border-border flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="text-xs text-error hover:underline flex items-center gap-1"
-                >
-                  <X className="h-3 w-3" />
-                  Limpar todos os filtros
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Active filter chips ─────────────────────────────── */}
-        {activeFilterCount > 0 && !filtersExpanded && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted">Filtros:</span>
-            {typology && <FilterChip label={`Tipologia: ${typology}`} onRemove={() => setTypology("")} />}
-            {severity && <FilterChip label={`Sev: ${SEVERITY_LABELS[severity] ?? severity}`} onRemove={() => setSeverity("")} />}
-            {(periodFrom || periodTo) && <FilterChip label={`Período: ${periodFrom || "…"} → ${periodTo || "…"}`} onRemove={() => { setPeriodFrom(""); setPeriodTo(""); }} />}
-            {corruptionType && <FilterChip label={CORRUPTION_TYPE_LABELS[corruptionType] ?? corruptionType} onRemove={() => setCorruptionType("")} />}
-            {sphere && <FilterChip label={SPHERE_LABELS[sphere] ?? sphere} onRemove={() => setSphere("")} />}
-            <button type="button" onClick={clearAllFilters} className="text-[10px] text-error hover:underline">Limpar tudo</button>
-          </div>
-        )}
-
-        {/* ── Typology info banner ────────────────────────────── */}
-        {typology && !filtersExpanded && TYPOLOGY_INFO[typology] && (
-          <div className="rounded-lg border border-accent/20 bg-accent/5 px-4 py-3 space-y-1">
-            <p className="font-mono text-[9px] uppercase tracking-widest text-accent">
-              {typology} — {TYPOLOGY_LABELS[typology]}
-            </p>
-            <p className="text-xs text-secondary leading-relaxed">{TYPOLOGY_INFO[typology].description}</p>
-            <p className="font-mono text-[10px] text-muted">{TYPOLOGY_INFO[typology].legal}</p>
-          </div>
-        )}
-
-        {/* ── Typology pills ──────────────────────────────────── */}
-        {!summaryLoading && (
-          <TypologyPills summary={summary} activeTypology={typology} onSelect={setTypology} />
-        )}
-
-        {/* ── Result count ────────────────────────────────────── */}
-        {!loading && !error && (
-          <div className="flex items-center justify-between">
-            <p className="font-mono text-[11px] tabular-nums text-muted">
-              {formatNumber(total)} {view === "signals" ? "sinais" : "casos"} encontrados
-              {search.trim() && ` · ${items.length} visíveis (filtro local)`}
-            </p>
-          </div>
-        )}
-
-        {/* ── Content ─────────────────────────────────────────── */}
-        {loading ? (
-          <TableSkeleton rows={6} />
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-error/20 bg-error-subtle py-12 gap-3">
-            <AlertTriangle className="h-8 w-8 text-error" />
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface-card py-20 gap-3">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-subtle border border-border">
-              <Radar className="h-8 w-8 text-muted" />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-primary">
-                Nenhum {view === "signals" ? "sinal" : "caso"} encontrado
-              </p>
-              <p className="text-xs text-muted mt-1 max-w-sm">
-                Não há dados para os filtros selecionados. Ajuste os critérios de busca ou aguarde a próxima execução do pipeline.
-              </p>
-            </div>
-            {activeFilterCount > 0 && (
-              <Button variant="secondary" size="sm" onClick={clearAllFilters}>
-                Limpar filtros
-              </Button>
-            )}
-          </div>
-        ) : view === "cases" ? (
-          <div className="space-y-2">
-            {typologyGroups.map((group) => {
-              const isOpen = openGroups.has(group.code);
-              const gd = caseGroupData.get(group.code);
-              return (
-                <div key={group.code} className="rounded-xl border border-border bg-surface-card overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenGroups((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(group.code)) {
-                          next.delete(group.code);
-                        } else {
-                          next.add(group.code);
-                          if (!caseGroupData.has(group.code)) loadCaseGroup(group.code);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 hover:bg-surface-subtle transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="shrink-0 font-mono text-xs font-bold text-accent bg-accent/10 border border-accent/20 rounded px-1.5 py-0.5">
-                        {group.code}
-                      </span>
-                      <span className="text-sm font-semibold text-primary truncate">{group.name}</span>
-                      {gd && (
-                        <span className="shrink-0 rounded-full bg-surface-subtle border border-border px-2 py-0.5 text-[10px] font-mono tabular-nums text-muted">
-                          {formatNumber(gd.total)}
-                        </span>
-                      )}
-                    </div>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 text-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  {isOpen && (
-                    <div className="border-t border-border">
-                      {gd?.loading ? (
-                        <div className="flex items-center justify-center py-10">
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 p-3">
-                            {(gd?.items ?? []).map((item) => (
-                              <CaseCard key={item.id} item={item} onPreview={openCasePreview} />
-                            ))}
-                          </div>
-                          {gd && gd.total > PAGE_SIZE && (
-                            <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-                              <p className="font-mono text-xs tabular-nums text-muted">
-                                {gd.offset + 1}–{Math.min(gd.offset + PAGE_SIZE, gd.total)} de {formatNumber(gd.total)}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="secondary" size="sm"
-                                  disabled={gd.offset === 0}
-                                  onClick={() => loadCaseGroup(group.code, Math.max(0, gd.offset - PAGE_SIZE))}
-                                >
-                                  <ChevronLeft className="h-3.5 w-3.5" />
-                                  Anterior
-                                </Button>
-                                <Button
-                                  variant="secondary" size="sm"
-                                  disabled={gd.offset + PAGE_SIZE >= gd.total}
-                                  onClick={() => loadCaseGroup(group.code, gd.offset + PAGE_SIZE)}
-                                >
-                                  Próxima
-                                  <ChevronRight className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {typologyGroups.map((group) => {
-              const isOpen = openGroups.has(group.code);
-              const gd = groupData.get(group.code);
-              return (
-                <div key={group.code} className="rounded-xl border border-border bg-surface-card overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenGroups((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(group.code)) {
-                          next.delete(group.code);
-                        } else {
-                          next.add(group.code);
-                          if (!groupData.has(group.code)) loadGroup(group.code);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 hover:bg-surface-subtle transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="shrink-0 font-mono text-xs font-bold text-accent bg-accent/10 border border-accent/20 rounded px-1.5 py-0.5">
-                        {group.code}
-                      </span>
-                      <span className="text-sm font-semibold text-primary truncate">{group.name}</span>
-                      <span className="shrink-0 rounded-full bg-surface-subtle border border-border px-2 py-0.5 text-[10px] font-mono tabular-nums text-muted">
-                        {formatNumber(group.count)}
-                      </span>
-                    </div>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 text-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  {isOpen && (
-                    <div className="border-t border-border">
-                      {gd?.loading ? (
-                        <div className="flex items-center justify-center py-10">
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 p-3">
-                            {(gd?.items ?? []).map((item) => (
-                              <SignalCard key={item.id} item={item} onPreview={openSignalPreview} />
-                            ))}
-                          </div>
-                          {gd && gd.total > PAGE_SIZE && (
-                            <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-                              <p className="font-mono text-xs tabular-nums text-muted">
-                                {gd.offset + 1}–{Math.min(gd.offset + PAGE_SIZE, gd.total)} de {formatNumber(gd.total)}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="secondary" size="sm"
-                                  disabled={gd.offset === 0}
-                                  onClick={() => loadGroup(group.code, Math.max(0, gd.offset - PAGE_SIZE))}
-                                >
-                                  <ChevronLeft className="h-3.5 w-3.5" />
-                                  Anterior
-                                </Button>
-                                <Button
-                                  variant="secondary" size="sm"
-                                  disabled={gd.offset + PAGE_SIZE >= gd.total}
-                                  onClick={() => loadGroup(group.code, gd.offset + PAGE_SIZE)}
-                                >
-                                  Próxima
-                                  <ChevronRight className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Pagination (legacy fallback — both views now paginate per group) */}
-        {false && !loading && !error && total > PAGE_SIZE && (
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            <p className="font-mono text-xs tabular-nums text-muted">
-              {offsetParam + 1}–{Math.min(offsetParam + PAGE_SIZE, total)} de {formatNumber(total)}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary" size="sm"
-                disabled={offsetParam === 0}
-                onClick={() => setOffset(Math.max(0, offsetParam - PAGE_SIZE))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                Anterior
-              </Button>
-              <span className="text-xs text-muted font-mono tabular-nums">
-                {currentPage}/{totalPages}
-              </span>
-              <Button
-                variant="secondary" size="sm"
-                disabled={offsetParam + PAGE_SIZE >= total}
-                onClick={() => setOffset(offsetParam + PAGE_SIZE)}
-              >
-                Próxima
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Severity accordions */}
+        <div className="space-y-3">
+          {SEVERITY_ORDER.map((sev, i) => (
+            <SeverityAccordionSection
+              key={sev}
+              severity={sev}
+              count={summary?.severity_counts[sev] ?? 0}
+              filters={filters}
+              search={search}
+              defaultOpen={i === 0}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* ── Drawers ─────────────────────────────────────────────── */}
-      <RadarPreviewDrawer
-        open={previewOpen}
-        type={previewType}
-        loading={previewLoading}
-        error={previewError}
-        signalPreview={signalPreview}
-        casePreview={casePreview}
-        onClose={() => {
-          setPreviewOpen(false); setPreviewType(null);
-          setPreviewError(null); setSignalPreview(null); setCasePreview(null);
-        }}
-      />
       <RadarCoveragePanel
         open={coverageOpen}
+        onClose={() => setCoverageOpen(false)}
         loading={coverageLoading}
         error={coverageError}
         data={coverage}
-        onClose={() => setCoverageOpen(false)}
       />
-    </div>
+    </>
   );
 }
 
 export default function RadarPage() {
   return (
-    <Suspense fallback={<TableSkeleton rows={8} />}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><TableSkeleton rows={6} /></div>}>
       <RadarPageInner />
     </Suspense>
   );
