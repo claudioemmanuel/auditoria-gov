@@ -75,7 +75,11 @@ class SecurityEventsMiddleware(BaseHTTPMiddleware):
         body_threats: list[str] = []
         content_length = request.headers.get("Content-Length")
         if method in ("POST", "PUT", "PATCH"):
-            if content_length and int(content_length) > 10 * 1024 * 1024:
+            try:
+                content_length_int = int(content_length) if content_length else None
+            except ValueError:
+                content_length_int = None
+            if content_length_int is not None and content_length_int > 10 * 1024 * 1024:
                 # Log oversized payload before FastAPI rejects it
                 log.warning(
                     "security_event",
@@ -87,7 +91,7 @@ class SecurityEventsMiddleware(BaseHTTPMiddleware):
                     user_agent=user_agent,
                 )
             # Only scan small payloads for patterns (avoid buffering huge requests)
-            if not content_length or int(content_length) <= _SCAN_LIMIT:
+            if content_length_int is None or content_length_int <= _SCAN_LIMIT:
                 try:
                     body_bytes = await request.body()
                     body_threats = _detect_suspicious(body_bytes.decode("utf-8", errors="ignore"))
