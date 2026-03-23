@@ -182,9 +182,9 @@ class T16BudgetClientelismTypology(BaseTypology):
             pix_factors: list[str] = []
             if attrs.get("plano_trabalho_registered") is False:
                 pix_factors.append("plano_trabalho_ausente")
-            if not attrs.get("beneficiario_final_identificado"):
+            if attrs.get("beneficiario_final_identificado") is not True:
                 pix_factors.append("beneficiario_nao_identificado")
-            if not attrs.get("conta_dedicada"):
+            if attrs.get("conta_dedicada") is not True:
                 pix_factors.append("conta_dedicada_ausente")
             if pix_factors:
                 signals.append(
