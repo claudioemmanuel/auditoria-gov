@@ -103,6 +103,11 @@ class ERMergeEvidence(Base):
     )  # cnpj_exact | cpf_exact | name_fuzzy | co_participation
     evidence_detail: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
+    __table_args__ = (
+        Index("ix_er_merge_evidence_entity_a", "entity_a_id"),
+        Index("ix_er_merge_evidence_entity_b", "entity_b_id"),
+    )
+
 
 class Event(Base):
     __tablename__ = "event"

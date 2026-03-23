@@ -49,8 +49,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['entity_b_id'], ['entity.id']),
         sa.PrimaryKeyConstraint('id'),
     )
+    op.create_index("ix_er_merge_evidence_entity_a", "er_merge_evidence", ["entity_a_id"])
+    op.create_index("ix_er_merge_evidence_entity_b", "er_merge_evidence", ["entity_b_id"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_er_merge_evidence_entity_a", table_name="er_merge_evidence")
+    op.drop_index("ix_er_merge_evidence_entity_b", table_name="er_merge_evidence")
     op.drop_table('er_merge_evidence')
     op.drop_column('entity', 'cluster_confidence')

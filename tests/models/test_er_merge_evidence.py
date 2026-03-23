@@ -1,5 +1,6 @@
 import uuid
 import pytest
+from sqlalchemy.exc import IntegrityError
 from shared.models.orm import Entity, ERMergeEvidence
 
 @pytest.mark.asyncio
@@ -45,3 +46,17 @@ async def test_er_merge_evidence_confidence_score_boundary(async_session):
         )
         async_session.add(ev)
     await async_session.flush()
+
+@pytest.mark.asyncio
+async def test_er_merge_evidence_rejects_invalid_score(async_session):
+    e1 = Entity(type="company", name="X", name_normalized="x", identifiers={})
+    e2 = Entity(type="company", name="Y", name_normalized="y", identifiers={})
+    async_session.add_all([e1, e2])
+    await async_session.flush()
+    ev = ERMergeEvidence(
+        entity_a_id=e1.id, entity_b_id=e2.id,
+        confidence_score=101, evidence_type="cnpj_exact",
+    )
+    async_session.add(ev)
+    with pytest.raises(IntegrityError):
+        await async_session.flush()
