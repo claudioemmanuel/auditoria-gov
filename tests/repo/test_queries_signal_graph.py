@@ -37,7 +37,7 @@ async def test_get_signal_graph_orders_timeline_and_sets_story_bounds(monkeypatc
         id=signal_id,
         typology=SimpleNamespace(code="T03", name="Fracionamento de Despesa"),
         severity="high",
-        confidence=0.91,
+        data_completeness=0.91,
         title="Possivel fracionamento",
         summary="Cluster temporal suspeito",
         factors={
@@ -174,7 +174,7 @@ async def test_get_signal_graph_preview_mode_truncates_timeline(monkeypatch):
         id=signal_id,
         typology=SimpleNamespace(code="T03", name="Fracionamento de Despesa"),
         severity="high",
-        confidence=0.8,
+        data_completeness=0.8,
         title="Sinal",
         summary="Resumo",
         factors={"n_purchases": 10, "total_value_brl": 100000.0},

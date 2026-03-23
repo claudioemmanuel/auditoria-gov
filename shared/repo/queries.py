@@ -658,7 +658,7 @@ async def get_signals_paginated(
             typology_code=s.typology.code,
             typology_name=s.typology.name,
             severity=SignalSeverity(s.severity),
-            confidence=s.confidence,
+            confidence=s.data_completeness,
             title=s.title,
             summary=s.summary,
             explanation_md=s.explanation_md,
@@ -1901,7 +1901,7 @@ def build_signal_replay_hash(signal: RiskSignal, evidence_package: EvidencePacka
             "id": str(signal.id),
             "typology_id": str(signal.typology_id),
             "severity": signal.severity,
-            "confidence": signal.confidence,
+            "confidence": signal.data_completeness,
             "title": signal.title,
             "summary": signal.summary,
             "completeness_score": signal.completeness_score,
@@ -2054,7 +2054,7 @@ async def get_signal_detail(
         "typology_code": signal.typology.code,
         "typology_name": signal.typology.name,
         "severity": signal.severity,
-        "confidence": signal.confidence,
+        "confidence": signal.data_completeness,
         "title": signal.title,
         "summary": signal.summary,
         "explanation_md": signal.explanation_md,
@@ -2096,7 +2096,7 @@ async def get_signal_graph(
         typology_code=signal.typology.code,
         typology_name=signal.typology.name,
         severity=signal.severity,
-        confidence=signal.confidence,
+        confidence=signal.data_completeness,
         title=signal.title,
         period_start=signal.period_start,
         period_end=signal.period_end,
@@ -2671,7 +2671,7 @@ async def get_radar_v2_case_preview(
                 "typology_code": signal.typology.code,
                 "typology_name": signal.typology.name,
                 "severity": signal.severity,
-                "confidence": signal.confidence,
+                "data_completeness": signal.data_completeness,
                 "title": signal.title,
                 "summary": signal.summary,
                 "period_start": signal.period_start,
@@ -2684,7 +2684,7 @@ async def get_radar_v2_case_preview(
     signal_rows.sort(
         key=lambda row: (
             -_SEVERITY_TO_SCORE.get(str(row["severity"]), 0.0),
-            -(float(row["confidence"] or 0)),
+            -(float(row["data_completeness"] or 0)),
         )
     )
     case_graph = await get_case_graph(session, case_id, depth=1, limit=120)
@@ -3135,7 +3135,7 @@ async def get_dossier_summary(
             RiskSignal.id,
             RiskSignal.typology_id,
             RiskSignal.severity,
-            RiskSignal.confidence,
+            RiskSignal.data_completeness,
             RiskSignal.title,
             RiskSignal.summary,
             RiskSignal.period_start,
@@ -3148,7 +3148,7 @@ async def get_dossier_summary(
         .join(CaseItem, CaseItem.signal_id == RiskSignal.id)
         .join(Typology, RiskSignal.typology_id == Typology.id)
         .where(CaseItem.case_id == case_id)
-        .order_by(Typology.code, RiskSignal.confidence.desc())
+        .order_by(Typology.code, RiskSignal.data_completeness.desc())
     )
     sig_rows = (await session.execute(signals_stmt)).all()
 
@@ -3628,7 +3628,7 @@ async def get_case_graph(
                 typology_code=sig.typology.code,
                 typology_name=sig.typology.name,
                 severity=sig.severity,
-                confidence=sig.confidence,
+                confidence=sig.data_completeness,
                 title=sig.title,
                 summary=sig.summary,
                 entity_ids=eids,
@@ -3652,7 +3652,7 @@ async def get_case_graph(
                     typology_code=focus_signal.typology.code,
                     typology_name=focus_signal.typology.name,
                     severity=focus_signal.severity,
-                    confidence=focus_signal.confidence,
+                    confidence=focus_signal.data_completeness,
                     title=focus_signal.title,
                     summary=focus_signal.summary,
                     period_start=focus_signal.period_start,
@@ -3713,7 +3713,7 @@ async def get_case_graph(
                     typology_code=focus_signal.typology.code,
                     typology_name=focus_signal.typology.name,
                     severity=focus_signal.severity,
-                    confidence=focus_signal.confidence,
+                    confidence=focus_signal.data_completeness,
                     title=focus_signal.title,
                     summary=focus_signal.summary,
                     period_start=focus_signal.period_start,
@@ -3846,7 +3846,7 @@ async def get_case_graph(
                 typology_code=focus_signal.typology.code,
                 typology_name=focus_signal.typology.name,
                 severity=focus_signal.severity,
-                confidence=focus_signal.confidence,
+                confidence=focus_signal.data_completeness,
                 title=focus_signal.title,
                 summary=focus_signal.summary,
                 period_start=focus_signal.period_start,
@@ -4513,7 +4513,7 @@ async def get_dossier_timeline(
             RiskSignal.id,
             RiskSignal.typology_id,
             RiskSignal.severity,
-            RiskSignal.confidence,
+            RiskSignal.data_completeness,
             RiskSignal.title,
             RiskSignal.summary,
             RiskSignal.period_start,
@@ -4527,7 +4527,7 @@ async def get_dossier_timeline(
         .join(CaseItem, CaseItem.signal_id == RiskSignal.id)
         .join(Typology, RiskSignal.typology_id == Typology.id)
         .where(CaseItem.case_id == case_id)
-        .order_by(RiskSignal.confidence.desc())
+        .order_by(RiskSignal.data_completeness.desc())
     )
     sig_rows = (await session.execute(signals_stmt)).all()
 
@@ -4596,7 +4596,7 @@ async def get_dossier_timeline(
             "severity": r.severity,
             "title": r.title,
             "summary": r.summary,
-            "confidence": r.confidence,
+            "data_completeness": r.data_completeness,
             "factors": r.factors or {},
             "factor_descriptions": factor_descs,
             "period_start": r.period_start.isoformat() if r.period_start else None,
@@ -4628,7 +4628,7 @@ async def get_dossier_timeline(
                         "factors": r.factors or {},
                         "period_start": r.period_start.isoformat() if r.period_start else None,
                         "period_end": r.period_end.isoformat() if r.period_end else None,
-                        "confidence": r.confidence,
+                        "data_completeness": r.data_completeness,
                     })
                     break
 

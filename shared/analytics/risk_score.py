@@ -83,7 +83,7 @@ def compute_risk_score_from_signals(signals: list[dict]) -> float:
 
     for s in signals:
         severity = s.get("severity", "low")
-        confidence = s.get("confidence", 0.5)
+        confidence = s.get("data_completeness", 0.5)
         created_at = s.get("created_at")
         typology_code = s.get("typology_code")
 
@@ -121,7 +121,7 @@ async def compute_entity_risk_score(
     entity_signals = [
         {
             "severity": s.severity,
-            "confidence": s.confidence,
+            "data_completeness": s.data_completeness,
             "created_at": s.created_at,
             "typology_code": s.typology.code if s.typology is not None else None,
         }

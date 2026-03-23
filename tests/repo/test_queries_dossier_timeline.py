@@ -45,7 +45,7 @@ def _make_signal_row(
     typology_code="T03",
     typology_name="Fracionamento de Despesa",
     severity="critical",
-    confidence=0.91,
+    data_completeness=0.91,
     event_ids=None,
     entity_ids=None,
     factors=None,
@@ -58,7 +58,7 @@ def _make_signal_row(
         typology_code=typology_code,
         typology_name=typology_name,
         severity=severity,
-        confidence=confidence,
+        data_completeness=data_completeness,
         title=f"Sinal {typology_code}",
         summary=f"Resumo {typology_code}",
         entity_ids=entity_ids or [],
@@ -108,6 +108,7 @@ def _make_legal_hypothesis(law_name="Lei 14.133/2021", article="Art. 9", violati
         article=article,
         violation_type=violation_type,
         confidence=0.8,
+        signal_cluster=[],
     )
 
 
@@ -205,7 +206,7 @@ async def test_get_dossier_timeline_full_response():
     sig = result["signals"][0]
     assert sig["id"] == str(signal_id)
     assert sig["typology_code"] == "T03"
-    assert sig["confidence"] == 0.91
+    assert sig["data_completeness"] == 0.91
     assert sig["factors"] == {"total_value_brl": 50000.0}
     assert sig["period_start"] == "2025-01-01T00:00:00+00:00"
     assert sig["period_end"] == "2025-06-01T00:00:00+00:00"

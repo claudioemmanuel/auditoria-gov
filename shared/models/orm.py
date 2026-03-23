@@ -263,7 +263,7 @@ class RiskSignal(Base):
         UUID(as_uuid=True), ForeignKey("typology.id")
     )
     severity: Mapped[str] = mapped_column(String(20))
-    confidence: Mapped[float] = mapped_column(Float)
+    data_completeness: Mapped[float] = mapped_column(Float)
     title: Mapped[str] = mapped_column(String(500))
     summary: Mapped[Optional[str]] = mapped_column(Text)
     explanation_md: Mapped[Optional[str]] = mapped_column(Text)

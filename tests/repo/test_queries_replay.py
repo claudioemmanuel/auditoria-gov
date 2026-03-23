@@ -10,7 +10,7 @@ def test_build_signal_replay_hash_is_deterministic():
         id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
         typology_id=uuid.UUID("00000000-0000-0000-0000-000000000010"),
         severity="high",
-        confidence=0.91,
+        data_completeness=0.91,
         title="Teste",
         summary="Resumo",
         completeness_score=0.8,

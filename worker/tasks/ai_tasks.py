@@ -44,7 +44,7 @@ def explain_pending_signals():
                         typology_code=s.typology.code,
                         typology_name=s.typology.name,
                         severity=s.severity,
-                        confidence=s.confidence,
+                        confidence=s.data_completeness,
                         title=s.title,
                         factors=s.factors,
                         evidence_refs=s.evidence_refs,

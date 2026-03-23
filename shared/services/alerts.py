@@ -51,7 +51,7 @@ def process_signal_alerts(session: Session, signal: RiskSignal) -> int:
         "event": "risk_signal",
         "signal_id": str(signal.id),
         "severity": signal.severity,
-        "confidence": signal.confidence,
+        "data_completeness": signal.data_completeness,
         "title": signal.title,
         "summary": signal.summary,
         "factors": signal.factors,

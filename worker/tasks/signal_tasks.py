@@ -66,7 +66,7 @@ def _compute_evidence_signature(db_signal, evidence_package) -> str:
             "id": str(db_signal.id),
             "typology_id": str(db_signal.typology_id),
             "severity": db_signal.severity,
-            "confidence": db_signal.confidence,
+            "confidence": db_signal.data_completeness,
             "title": db_signal.title,
             "summary": db_signal.summary,
             "completeness_score": db_signal.completeness_score,
@@ -482,7 +482,7 @@ def run_single_signal(
                             db_signal = existing_signal
                             db_signal.typology_id = typ_row.id
                             db_signal.severity = stored_severity
-                            db_signal.confidence = signal.confidence
+                            db_signal.data_completeness = signal.confidence
                             db_signal.title = signal.title
                             db_signal.summary = signal.summary
                             db_signal.completeness_score = completeness_score
@@ -502,7 +502,7 @@ def run_single_signal(
                             db_signal = RiskSignal(
                                 typology_id=typ_row.id,
                                 severity=stored_severity,
-                                confidence=signal.confidence,
+                                data_completeness=signal.confidence,
                                 title=signal.title,
                                 summary=signal.summary,
                                 completeness_score=completeness_score,
