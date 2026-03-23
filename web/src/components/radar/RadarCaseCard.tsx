@@ -62,9 +62,9 @@ export function RadarCaseCard({
   const totalValue = preview?.case.total_value_brl ?? null;
 
   return (
-    <div className={`relative flex overflow-hidden rounded-xl border bg-surface-card transition-all ${s.border} ${expanded ? s.bg : ""}`}>
+    <div className={`card-interactive relative flex overflow-hidden rounded-[10px] border bg-surface-card ${s.border} ${expanded ? s.bg : ""}`}>
       {/* Left severity accent bar */}
-      <div className={`w-[3px] shrink-0 ${s.bar} rounded-l-xl opacity-80`} />
+      <div className={`w-[3px] shrink-0 ${s.bar}`} />
 
       <div className="min-w-0 flex-1">
         {/* Card body */}
@@ -74,58 +74,57 @@ export function RadarCaseCard({
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               {previewLoading ? (
-                <div className="h-4 w-48 animate-pulse rounded bg-surface-subtle" />
+                <div className="h-5 w-48 animate-pulse rounded bg-surface-subtle" />
               ) : primaryEntity ? (
-                <h3 className="truncate text-sm font-semibold leading-snug text-primary" title={primaryEntity}>
+                <h3 className="truncate font-display text-base font-bold leading-snug text-primary" title={primaryEntity}>
                   {primaryEntity}
                   {extraEntities > 0 && (
-                    <span className="ml-1.5 text-xs font-normal text-muted">
+                    <span className="ml-1.5 text-xs font-normal text-muted font-sans">
                       +{extraEntities} {extraEntities === 1 ? "entidade" : "entidades"}
                     </span>
                   )}
                 </h3>
               ) : (
-                <h3 className="text-sm font-semibold leading-snug text-secondary">
+                <h3 className="font-display text-base font-bold leading-snug text-secondary">
                   {item.entity_count} {item.entity_count !== 1 ? "entidades" : "entidade"}
                 </h3>
               )}
             </div>
 
             {/* Found date — right-aligned, subtle mono */}
-            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted">
+            <time className="shrink-0 font-mono text-[10px] tabular-nums text-muted">
               {foundDate}
-            </span>
+            </time>
           </div>
 
           {/* Row 2: severity badge + typology pills */}
           <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.border} ${s.bg} ${s.text}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+            <span className={`audit-stamp border ${s.border} ${s.bg} ${s.text}`}>
               {s.label}
             </span>
 
             {item.typology_codes.slice(0, 3).map((code) => (
               <span
                 key={code}
-                className="rounded border border-accent/20 bg-accent/8 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent"
+                className="rounded-[3px] border border-accent/20 bg-accent/8 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-[0.05em] text-accent"
                 title={TYPOLOGY_LABELS[code]}
               >
                 {code}
               </span>
             ))}
             {item.typology_codes.length > 3 && (
-              <span className="text-[10px] text-muted">
+              <span className="font-mono text-[10px] text-muted">
                 +{item.typology_codes.length - 3}
               </span>
             )}
           </div>
 
           {/* Row 3: stats strip */}
-          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
             {/* Signal count */}
             <span className="inline-flex items-center gap-1 text-[11px] text-secondary">
               <Radio className="h-3 w-3 shrink-0 text-muted" />
-              <span className={`font-semibold tabular-nums ${s.text}`}>{item.signal_count}</span>
+              <span className={`font-mono font-bold tabular-nums ${s.text}`}>{item.signal_count}</span>
               <span className="text-muted">{item.signal_count !== 1 ? "sinais" : "sinal"}</span>
             </span>
 
@@ -135,7 +134,7 @@ export function RadarCaseCard({
             ) : totalValue ? (
               <span className="inline-flex items-center gap-1 text-[11px]">
                 <DollarSign className="h-3 w-3 shrink-0 text-muted" />
-                <span className="font-semibold tabular-nums text-secondary">{formatBRL(totalValue)}</span>
+                <span className="font-mono font-bold tabular-nums text-secondary">{formatBRL(totalValue)}</span>
               </span>
             ) : null}
 
@@ -143,7 +142,7 @@ export function RadarCaseCard({
             {periodStr && (
               <span className="inline-flex items-center gap-1 text-[11px] text-muted">
                 <CalendarRange className="h-3 w-3 shrink-0" />
-                <span className="tabular-nums">{periodStr}</span>
+                <span className="font-mono tabular-nums">{periodStr}</span>
               </span>
             )}
           </div>
@@ -152,7 +151,7 @@ export function RadarCaseCard({
           <button
             type="button"
             onClick={onToggleExpand}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-accent transition-colors hover:text-accent/80"
+            className="inline-flex items-center gap-1 font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-accent transition-colors duration-100 hover:text-accent/70"
           >
             {expanded ? (
               <ChevronDown className="h-3.5 w-3.5" />
@@ -167,10 +166,10 @@ export function RadarCaseCard({
 
         {/* Expanded: signal rows */}
         {expanded && (
-          <div className="border-t border-border px-4 pb-4 pt-3 space-y-1.5">
+          <div className="border-t border-border bg-surface-subtle/40 px-4 pb-4 pt-3 space-y-1.5">
             {previewLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-9 animate-pulse rounded-lg bg-surface-subtle" />
+                <div key={i} className="h-9 animate-pulse rounded-[8px] bg-surface-hover" />
               ))
             ) : preview ? (
               <>
@@ -185,7 +184,7 @@ export function RadarCaseCard({
                 {extraSignals > 0 && (
                   <Link
                     href={`/case/${item.id}`}
-                    className="inline-flex items-center gap-1 pt-1 text-[11px] text-muted transition-colors hover:text-accent"
+                    className="inline-flex items-center gap-1 pt-1 font-mono text-[10px] text-muted transition-colors duration-100 hover:text-accent"
                   >
                     <ExternalLink className="h-3 w-3" />
                     +{extraSignals} mais — ver caso completo

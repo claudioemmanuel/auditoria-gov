@@ -7,22 +7,22 @@ type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-white shadow-sm hover:bg-accent-hover active:bg-accent-hover",
+    "bg-accent text-white hover:bg-accent-hover active:bg-accent-hover",
   secondary:
-    "border border-border bg-surface-card text-secondary shadow-sm hover:bg-surface-subtle hover:text-primary",
+    "border border-border bg-surface-card text-secondary hover:bg-surface-subtle hover:border-primary/20 hover:text-primary",
   ghost:
     "text-secondary hover:bg-surface-subtle hover:text-primary",
   destructive:
-    "bg-error text-white shadow-sm hover:bg-error/90",
+    "bg-error text-white hover:bg-error/90",
   link:
     "text-accent underline-offset-4 hover:underline",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 rounded-[8px] px-3 text-xs font-medium",
-  md: "h-9 gap-2 rounded-[10px] px-4 text-sm font-medium",
-  lg: "h-10 gap-2 rounded-[10px] px-6 text-sm font-medium",
-  icon: "h-9 w-9 rounded-[10px] items-center justify-center",
+  sm: "h-8 gap-1.5 rounded-[6px] px-3 text-xs font-medium",
+  md: "h-9 gap-2 rounded-[8px] px-4 text-sm font-medium",
+  lg: "h-10 gap-2 rounded-[8px] px-6 text-sm font-medium",
+  icon: "h-9 w-9 rounded-[8px] items-center justify-center",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -37,7 +37,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap transition-colors duration-120",
+          "inline-flex items-center justify-center whitespace-nowrap transition-colors duration-100",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1",
           "disabled:pointer-events-none disabled:opacity-50",
           VARIANT_CLASSES[variant],

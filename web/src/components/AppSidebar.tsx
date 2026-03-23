@@ -62,7 +62,7 @@ function ApiHealthDot() {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -106,16 +106,18 @@ export function AppSidebar() {
         {!collapsed || isMobile ? (
           <Link
             href="/"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
             onClick={() => isMobile && setMobileOpen(false)}
           >
-            <Shield className="h-5 w-5 shrink-0 text-accent" />
-            <span className="font-display text-sm font-bold tracking-tight text-sidebar-text-active">
-              OpenWatch
-            </span>
-            <span className="rounded-[6px] bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium text-sidebar-text">
-              Gov
-            </span>
+            <Shield className="h-4 w-4 shrink-0 text-accent" />
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-[12px] font-bold tracking-tight text-sidebar-text-active">
+                OpenWatch
+              </span>
+              <span className="font-mono text-[9px] tracking-widest text-sidebar-text/40 uppercase">
+                Gov · v2
+              </span>
+            </div>
           </Link>
         ) : (
           <Link href="/" className="flex w-full items-center justify-center">
@@ -155,9 +157,7 @@ export function AppSidebar() {
       {/* ── Navigation ─────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto px-2 pt-2 pb-2">
         {(!collapsed || isMobile) && (
-          <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-text/50">
-            Menu
-          </p>
+          <div className="mx-2.5 mb-2 border-t border-sidebar-border/50" />
         )}
         <div className="space-y-0.5">
         {NAV_ITEMS.map((item) => {
@@ -168,17 +168,17 @@ export function AppSidebar() {
               href={item.href}
               title={collapsed && !isMobile ? item.label : undefined}
               className={cn(
-                "group flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors duration-120",
+                "group flex items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-sm font-medium transition-colors duration-100",
                 active
-                  ? "bg-sidebar-active text-sidebar-text-active"
-                  : "text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active",
+                  ? "bg-accent/12 text-accent"
+                  : "text-sidebar-text hover:bg-sidebar-hover/80 hover:text-sidebar-text-active",
               )}
             >
               <item.icon
                 className={cn(
                   "h-4 w-4 shrink-0",
                   active
-                    ? "text-sidebar-text-active"
+                    ? "text-accent"
                     : "text-sidebar-text group-hover:text-sidebar-text-active",
                 )}
               />
@@ -187,9 +187,9 @@ export function AppSidebar() {
                   <span className="flex-1 truncate">{item.label}</span>
                   <kbd
                     className={cn(
-                      "rounded-[4px] px-1 py-0.5 font-mono text-[10px] transition-opacity duration-120",
+                      "rounded-[3px] bg-sidebar-hover px-1 py-0.5 font-mono text-[9px] transition-opacity duration-100",
                       active
-                        ? "text-sidebar-text"
+                        ? "text-sidebar-text opacity-60"
                         : "text-sidebar-text/50 opacity-0 group-hover:opacity-100",
                     )}
                   >
@@ -205,17 +205,19 @@ export function AppSidebar() {
 
       {/* ── Footer: theme toggle + API health ──────────── */}
       <div className="border-t border-sidebar-border p-2">
-        <ThemeToggle collapsed={collapsed && !isMobile} />
-      </div>
-      <div className="px-3 pb-3">
         {collapsed && !isMobile ? (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-2 py-1">
+            <ThemeToggle collapsed={true} />
             <ApiHealthDot />
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-xs text-sidebar-text">
-            <ApiHealthDot />
-            <span>API</span>
+          <div className="flex items-center gap-2">
+            <ThemeToggle collapsed={false} />
+            <span className="text-sidebar-border/60 text-xs select-none">·</span>
+            <div className="flex items-center gap-1.5 font-mono text-[10px] text-sidebar-text">
+              <ApiHealthDot />
+              <span>API</span>
+            </div>
           </div>
         )}
       </div>
@@ -228,9 +230,9 @@ export function AppSidebar() {
       <aside
         className={cn(
           "hidden lg:flex lg:flex-col lg:shrink-0",
-          "border-r border-sidebar-border bg-sidebar-bg",
+          "border-r border-sidebar-border bg-sidebar-bg border-t-2 border-t-accent",
           "transition-[width] duration-200",
-          collapsed ? "w-[56px]" : "w-[240px]",
+          collapsed ? "w-[56px]" : "w-[220px]",
         )}
       >
         {sidebarContent()}

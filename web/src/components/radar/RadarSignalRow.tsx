@@ -42,10 +42,10 @@ export function RadarSignalRow({ signal, onClick, active }: RadarSignalRowProps)
     <button
       type="button"
       onClick={() => onClick(signal.id)}
-      className={`group flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all ${
+      className={`group flex w-full items-center gap-3 rounded-[8px] border px-3 py-2 text-left transition-colors duration-100 ${
         active
           ? "border-accent/40 bg-accent-subtle/30"
-          : "border-border bg-surface-base hover:border-accent/20 hover:bg-surface-subtle"
+          : "border-border bg-surface-card hover:border-accent/20 hover:bg-surface-subtle"
       }`}
     >
       <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />

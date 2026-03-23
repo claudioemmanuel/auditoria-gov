@@ -4,26 +4,26 @@ import type { SignalSeverity } from "@/lib/types";
 type BadgeVariant = SignalSeverity | "default";
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
-  critical: "bg-severity-critical-bg text-severity-critical border-severity-critical/20",
-  high: "bg-severity-high-bg text-severity-high border-severity-high/20",
-  medium: "bg-severity-medium-bg text-severity-medium border-severity-medium/20",
-  low: "bg-severity-low-bg text-severity-low border-severity-low/20",
-  default: "bg-surface-subtle text-secondary border-border",
+  critical: "bg-severity-critical/10 text-severity-critical border-severity-critical/40",
+  high:     "bg-severity-high/10 text-severity-high border-severity-high/40",
+  medium:   "bg-severity-medium/10 text-severity-medium border-severity-medium/40",
+  low:      "bg-severity-low/10 text-severity-low border-severity-low/40",
+  default:  "bg-transparent text-muted border-border",
 };
 
 const DOT_CLASSES: Record<BadgeVariant, string> = {
   critical: "bg-severity-critical",
-  high: "bg-severity-high",
-  medium: "bg-severity-medium",
-  low: "bg-severity-low",
-  default: "bg-muted",
+  high:     "bg-severity-high",
+  medium:   "bg-severity-medium",
+  low:      "bg-severity-low",
+  default:  "bg-muted",
 };
 
 const SEVERITY_LABELS: Record<SignalSeverity, string> = {
-  critical: "Critico",
-  high: "Alto",
-  medium: "Medio",
-  low: "Baixo",
+  critical: "CRÍTICO",
+  high:     "ALTO",
+  medium:   "MÉDIO",
+  low:      "BAIXO",
 };
 
 interface BadgeProps {
@@ -40,12 +40,12 @@ export function Badge({ variant, severity, children, className, dot }: BadgeProp
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-[3px] border px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.08em] uppercase",
         VARIANT_CLASSES[v],
         className,
       )}
     >
-      {dot && <span className={cn("h-1.5 w-1.5 rounded-full", DOT_CLASSES[v])} />}
+      {dot && <span className={cn("h-2 w-2 rounded-full", DOT_CLASSES[v])} />}
       {children ?? (severity ? SEVERITY_LABELS[severity] : null)}
     </span>
   );

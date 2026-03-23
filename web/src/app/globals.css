@@ -2,25 +2,28 @@
 
 @theme {
   /* ── Semantic surfaces ──────────────────────────────── */
-  --color-surface-base: #F5F7FA;
-  --color-surface-card: #FFFFFF;
-  --color-surface-subtle: #EDF2F7;
-  --color-surface-hover: #E2E8F0;
+  --color-surface-base: #F5F3EF;
+  --color-surface-card: #FAFAF8;
+  --color-surface-subtle: #EDEBE6;
+  --color-surface-hover: #E5E2DC;
 
   /* ── Borders ────────────────────────────────────────── */
-  --color-border: #D7E0E8;
-  --color-border-subtle: #E2E8F0;
+  --color-border: #D4CFC8;
+  --color-border-subtle: #E5E2DC;
 
   /* ── Text hierarchy (flat names → text-primary etc.) ── */
-  --color-primary: #10212B;
-  --color-secondary: #425466;
-  --color-muted: #7B8FA2;
-  --color-placeholder: #A0AEC0;
+  --color-primary: #0C1B24;
+  --color-secondary: #3D5060;
+  --color-muted: #6E8494;
+  --color-placeholder: #9AAEBB;
 
-  /* ── Accent (petrol blue) ───────────────────────────── */
-  --color-accent: #0F4C5C;
-  --color-accent-hover: #0B3D4A;
-  --color-accent-subtle: #E6F0F2;
+  /* ── Accent (electric teal) ─────────────────────────── */
+  --color-accent: #007A8A;
+  --color-accent-hover: #006675;
+  --color-accent-subtle: #E0F4F7;
+
+  /* ── Evidence line (left-border on evidence blocks) ──── */
+  --color-evidence-line: #C8D5DF;
 
   /* ── Sidebar ────────────────────────────────────────── */
   --color-sidebar-bg: #0E171D;
@@ -51,57 +54,66 @@
   --color-error-subtle: #FEF2F2;
 
   /* ── Typography ─────────────────────────────────────── */
-  --font-sans: var(--font-manrope, system-ui, -apple-system, sans-serif);
+  --font-sans: var(--font-ibm-plex-sans, system-ui, -apple-system, sans-serif);
   --font-display: var(--font-space-grotesk, system-ui, -apple-system, sans-serif);
   --font-mono: var(--font-jetbrains-mono, "Courier New", monospace);
+  --font-serif: var(--font-ibm-plex-serif, Georgia, serif);
 
-  /* ── Radius (spec: 10/14) ───────────────────────────── */
-  --radius-sm: 10px;
-  --radius-md: 14px;
+  /* ── Radius ─────────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* ── Shadows ─────────────────────────────────────────── */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.05);
+  --shadow-card: 0 4px 16px rgba(0,0,0,0.07);
 }
 
 /* ── Dark mode overrides ─────────────────────────────── */
 .dark {
-  --color-surface-base: #0E171D;
-  --color-surface-card: #142129;
-  --color-surface-subtle: #1B2B35;
-  --color-surface-hover: #223540;
+  --color-surface-base: #090E13;
+  --color-surface-card: #0F1923;
+  --color-surface-subtle: #162230;
+  --color-surface-hover: #1C2D3E;
 
-  --color-border: #2A3A45;
-  --color-border-subtle: #1F3040;
+  --color-border: #1E3A50;
+  --color-border-subtle: #162230;
 
-  --color-primary: #E7EEF3;
-  --color-secondary: #A8BBC9;
-  --color-muted: #6B8295;
-  --color-placeholder: #4A6577;
+  --color-primary: #E8EFF5;
+  --color-secondary: #8BA3BC;
+  --color-muted: #4D6A82;
+  --color-placeholder: #3A5568;
 
-  --color-accent: #3C8EA2;
-  --color-accent-hover: #57A8BC;
-  --color-accent-subtle: #142E36;
+  --color-accent: #00B4CC;
+  --color-accent-hover: #00CDE8;
+  --color-accent-subtle: #001A1F;
 
-  --color-sidebar-bg: #0A1117;
-  --color-sidebar-hover: #142129;
-  --color-sidebar-active: #1B2B35;
-  --color-sidebar-text: #6B8295;
-  --color-sidebar-text-active: #E7EEF3;
-  --color-sidebar-border: #1F3040;
+  --color-evidence-line: #1E3A50;
 
-  --color-severity-critical: #F87171;
-  --color-severity-critical-bg: #371717;
-  --color-severity-high: #FB923C;
-  --color-severity-high-bg: #3B2010;
-  --color-severity-medium: #FACC15;
-  --color-severity-medium-bg: #352A0A;
-  --color-severity-low: #60A5FA;
-  --color-severity-low-bg: #152040;
+  --color-sidebar-bg: #050A0F;
+  --color-sidebar-hover: #0F1923;
+  --color-sidebar-active: #162230;
+  --color-sidebar-text: #4D6A82;
+  --color-sidebar-text-active: #E8EFF5;
+  --color-sidebar-border: #1E3A50;
+
+  --color-severity-critical: #FF4444;
+  --color-severity-critical-bg: #2A0A0A;
+  --color-severity-high: #FF8C00;
+  --color-severity-high-bg: #2D1800;
+  --color-severity-medium: #FFD700;
+  --color-severity-medium-bg: #2A2000;
+  --color-severity-low: #4A9EFF;
+  --color-severity-low-bg: #0A1830;
 
   --color-amber: #FBBF24;
-  --color-amber-subtle: #352A0A;
+  --color-amber-subtle: #2A2000;
 
   --color-success: #34D399;
-  --color-success-subtle: #0A2920;
-  --color-error: #F87171;
-  --color-error-subtle: #371717;
+  --color-success-subtle: #061A10;
+  --color-error: #FF4444;
+  --color-error-subtle: #2A0A0A;
 }
 
 /* ── Base body ───────────────────────────────────────── */
@@ -125,25 +137,25 @@ body {
 .surface-card {
   background-color: var(--color-surface-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
 }
 
 .metric-card {
   background-color: var(--color-surface-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 1rem;
 }
 
 .surface-muted {
   background-color: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
 }
 
 .panel-title {
   font-family: var(--font-display);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--color-primary);
 }
@@ -168,6 +180,95 @@ body {
   background-color: var(--color-surface-subtle);
   color: var(--color-muted);
   border: 1px solid var(--color-border);
+}
+
+/* ── Evidence block (left-stripe style) ───────────────── */
+.evidence-block {
+  border-left: 3px solid var(--color-evidence-line);
+  padding-left: 1rem;
+}
+
+.evidence-block-critical {
+  border-left: 3px solid var(--color-severity-critical);
+  padding-left: 1rem;
+}
+
+/* ── Editorial typography utilities ───────────────────── */
+.section-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.dateline {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.exhibit-id {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  color: var(--color-muted);
+}
+
+/* ── Data number (large tabular metrics) ──────────────── */
+.data-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ── Audit stamp (classification badge) ───────────────── */
+.audit-stamp {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  padding: 1px 4px;
+}
+
+/* ── Page rule ────────────────────────────────────────── */
+.page-rule {
+  height: 1px;
+  background-color: var(--color-border);
+}
+
+/* ── Interactive card (lift on hover) ─────────────────── */
+.card-interactive {
+  transition: box-shadow 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.card-interactive:hover {
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+}
+.dark .card-interactive:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+/* ── Severity left-border utilities ───────────────────── */
+.severity-line-critical { border-left: 3px solid var(--color-severity-critical); padding-left: 1rem; }
+.severity-line-high     { border-left: 3px solid var(--color-severity-high);     padding-left: 1rem; }
+.severity-line-medium   { border-left: 3px solid var(--color-severity-medium);   padding-left: 1rem; }
+.severity-line-low      { border-left: 3px solid var(--color-severity-low);      padding-left: 1rem; }
+
+/* ── Scan-line texture (metric cards) ─────────────────── */
+.scanline-texture {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.015) 2px,
+    rgba(0, 0, 0, 0.015) 4px
+  );
 }
 
 /* ── Focus ring (accessibility) ──────────────────────── */
@@ -224,6 +325,9 @@ body {
 }
 .investigation-bg .react-flow__node.selected {
   filter: drop-shadow(0 4px 12px rgba(15, 76, 92, 0.15));
+}
+.dark .investigation-bg .react-flow__node.selected {
+  filter: drop-shadow(0 4px 12px rgba(0, 180, 204, 0.20));
 }
 
 /* ── Motion: reduced-motion preference ───────────────── */

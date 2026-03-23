@@ -36,11 +36,11 @@ export function PageHeader({
       )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-primary">
+          <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-primary">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-1 text-sm text-secondary">{subtitle}</p>
+            <p className="mt-1 text-sm text-secondary leading-relaxed" style={{ fontFamily: "var(--font-serif)" }}>{subtitle}</p>
           )}
         </div>
         {actions && (

@@ -6,14 +6,12 @@ import {
   BookOpen,
   Activity,
   Shield,
-  ArrowRight,
   GitBranch,
   Layers,
   Target,
   Scale,
   Code,
   FileText,
-  Globe,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -23,112 +21,107 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
 
-      {/* ── Hero / System Identity ─────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
-              <Shield className="h-6 w-6 text-accent" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-                  OpenWatch
-                </h1>
-                <span className="rounded-md border border-border bg-surface-base px-2 py-0.5 font-mono text-xs font-medium text-muted">
-                  GOV · v2
-                </span>
-                <span className="rounded-md border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-xs font-semibold text-success">
-                  ATIVO
-                </span>
-              </div>
-              <p className="mt-1.5 max-w-2xl text-sm text-secondary leading-relaxed">
-                Sistema de inteligência investigativa sobre dados públicos federais.
-                Sinais determinísticos, evidências rastreáveis, hipóteses auditáveis.
-              </p>
+      {/* ── Masthead ─────────────────────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-card scanline-texture">
+        <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-8 sm:py-16">
+          <div className="border-l-4 border-accent pl-6">
+            <p className="section-kicker mb-4 text-accent/70">
+              Plataforma de Auditoria Cidadã · Dados Federais · Brasil
+            </p>
+            <h1 className="font-display text-6xl font-black tracking-[-0.03em] text-primary sm:text-7xl mb-4 leading-none">
+              OpenWatch
+            </h1>
+            <p
+              className="max-w-xl text-base text-secondary leading-relaxed mb-6"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              Sistema de inteligência investigativa sobre contratos, licitações e
+              transferências do governo federal. Sinais determinísticos, evidências
+              rastreáveis, hipóteses auditáveis.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="audit-stamp border border-border text-muted bg-surface-subtle">
+                GOV · v2
+              </span>
+              <span className="audit-stamp border border-success/40 bg-success/8 text-success">
+                ● ATIVO
+              </span>
+              <span className="audit-stamp border border-border text-muted bg-surface-subtle">
+                LGPD · LAI · CF/88
+              </span>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* ── Operational metrics strip ──────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* ── Live Statistics ──────────────────────────────────────────── */}
+      <div className="border-b border-border bg-surface-base">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-8">
+          <div className="grid grid-cols-2 divide-x divide-border sm:grid-cols-4">
             {[
-              { icon: Target, value: typologyCount, label: "Tipologias ativas" },
-              { icon: Database, value: sourceCount, label: "Fontes públicas" },
-              { icon: Layers, value: "3", label: "Eixos de score" },
-              { icon: GitBranch, value: "5", label: "Etapas do pipeline" },
+              { icon: Target,    value: typologyCount, label: "Tipologias ativas" },
+              { icon: Database,  value: sourceCount,   label: "Fontes públicas"   },
+              { icon: Layers,    value: "3",           label: "Eixos de score"    },
+              { icon: GitBranch, value: "5",           label: "Etapas do pipeline"},
             ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-lg border border-border bg-surface-card px-3 py-3"
-              >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <item.icon className="h-3 w-3 shrink-0 text-muted" />
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted">{item.label}</p>
-                </div>
-                <p className="font-mono text-lg font-bold tabular-nums text-primary leading-none">
+              <div key={item.label} className="flex flex-col gap-2 px-6 py-7 first:pl-0 last:pr-0">
+                <p className="data-num text-5xl text-primary leading-none">
                   {item.value}
                 </p>
+                <div className="flex items-center gap-1.5">
+                  <item.icon className="h-3.5 w-3.5 text-muted shrink-0" />
+                  <p className="section-kicker">{item.label}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── Institutional positioning ──────────────────────────────── */}
-      <div className="bg-surface-base/50">
-        <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
-          <div className="flex items-center justify-between mb-4">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">
-              Posicionamento Institucional
-            </p>
-            <Link
-              href="/compliance"
-              className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
-            >
-              Ver detalhes de compliance
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* ── Institutional Framework ───────────────────────────────────── */}
+      <div className="border-b border-border bg-border">
+        <div className="mx-auto max-w-[1280px]">
+          <div className="grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: Code,
                 title: "Tecnologicamente Robusto",
                 sub: "Whitelist gov, código aberto, proveniência auditável",
                 badge: "TÉCNICO",
+                color: "text-accent",
               },
               {
                 icon: FileText,
                 title: "Metodologicamente Defensável",
                 sub: "Tipologias com base legal, scoring determinístico",
                 badge: "MÉTODO",
+                color: "text-muted",
               },
               {
                 icon: Scale,
                 title: "Juridicamente Responsável",
                 sub: "LAI + CF/88 + LGPD + Lei Anticorrupção",
                 badge: "JURÍDICO",
+                color: "text-muted",
               },
               {
-                icon: Globe,
+                icon: Shield,
                 title: "Publicamente Auditável",
                 sub: "Open source, fontes públicas, GET /public/sources",
                 badge: "ABERTO",
+                color: "text-success",
               },
             ].map((item) => (
               <div
                 key={item.title}
-                className="flex items-start gap-3 rounded-lg border border-border bg-surface-card px-4 py-3"
+                className="flex items-start gap-3 bg-surface-card p-5"
               >
-                <item.icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                <div className="min-w-0">
+                <span className={`audit-stamp border border-border shrink-0 mt-0.5 ${item.color}`}>
+                  {item.badge}
+                </span>
+                <div>
                   <p className="text-xs font-semibold text-primary leading-snug">{item.title}</p>
-                  <p className="mt-0.5 text-[11px] text-muted leading-relaxed">{item.sub}</p>
+                  <p className="mt-1 text-[11px] text-muted leading-relaxed">{item.sub}</p>
                 </div>
               </div>
             ))}
@@ -136,13 +129,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Mission navigation ─────────────────────────────────────── */}
-      <div className="flex-1 mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-6 space-y-8">
+      {/* ── Navigation Cards ─────────────────────────────────────────── */}
+      <div className="flex-1 mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-8 space-y-10">
 
         <section>
-          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">
-            Central de Investigação
-          </p>
+          <p className="section-kicker mb-5">Central de Investigação</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               {
@@ -151,7 +142,7 @@ export default function HomePage() {
                 title: "Radar de Riscos",
                 desc: "Sinais e casos classificados por tipologia, severidade e período. Ponto de entrada para investigações cidadãs.",
                 tag: "PRINCIPAL",
-                tagClass: "bg-accent text-white",
+                tagColor: "text-accent border-accent/30 bg-accent/5",
               },
               {
                 href: "/coverage",
@@ -159,7 +150,7 @@ export default function HomePage() {
                 title: "Cobertura de Dados",
                 desc: "Estado operacional das fontes e conectores. Monitoramento do pipeline de ingestão e qualidade dos dados.",
                 tag: "OPERACIONAL",
-                tagClass: "border border-border text-muted",
+                tagColor: "text-amber border-amber/30 bg-amber/5",
               },
               {
                 href: "/methodology",
@@ -167,65 +158,56 @@ export default function HomePage() {
                 title: "Metodologia",
                 desc: "Fundamentos técnicos e legais das tipologias, fatores de risco e critérios de classificação de evidência.",
                 tag: "REFERÊNCIA",
-                tagClass: "border border-border text-muted",
+                tagColor: "text-muted border-border bg-surface-subtle",
               },
             ].map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="group relative flex flex-col gap-3 rounded-xl border border-border bg-surface-card p-5 transition-all hover:border-accent/40 hover:bg-accent-subtle/10"
+                className="group card-interactive relative flex flex-col gap-3 rounded-[10px] border border-border bg-surface-card p-6 hover:border-accent/50"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
-                    <item.icon className="h-4 w-4 text-accent" />
-                  </div>
-                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${item.tagClass}`}>
-                    {item.tag}
-                  </span>
-                </div>
-                <div>
-                  <h2 className="font-display text-sm font-bold text-primary">{item.title}</h2>
-                  <p className="mt-1 text-xs text-secondary leading-relaxed">{item.desc}</p>
-                </div>
-                <div className="flex items-center gap-1 text-xs font-medium text-muted transition-colors group-hover:text-accent">
-                  Acessar
-                  <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                <span className={`audit-stamp self-start border ${item.tagColor}`}>
+                  {item.tag}
+                </span>
+                <h2 className="font-display text-lg font-bold text-primary leading-snug">{item.title}</h2>
+                <p className="text-xs text-secondary leading-relaxed flex-1">{item.desc}</p>
+                <div className="flex items-center gap-1 font-mono text-[11px] font-medium text-accent mt-1">
+                  ACESSAR
+                  <span className="transition-transform duration-150 group-hover:translate-x-1">→</span>
                 </div>
               </Link>
             ))}
           </div>
         </section>
 
-        {/* ── System links ─────────────────────────────────────────── */}
+        {/* ── System links ─────────────────────────────────────────────── */}
         <section>
-          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted">
-            Sistema & Conformidade
-          </p>
+          <p className="section-kicker mb-3">Sistema & Conformidade</p>
           <div className="flex flex-wrap gap-2">
             <Link
               href="/api-health"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
+              className="inline-flex items-center gap-1.5 rounded-[6px] border border-border bg-surface-card px-3 py-2 font-mono text-[10px] font-medium text-secondary transition-colors duration-100 hover:border-accent/30 hover:text-primary"
             >
               <Activity className="h-3.5 w-3.5" />
               Saúde da API
             </Link>
             <Link
               href="/compliance"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-subtle/20 px-3 py-2 text-xs font-medium text-accent transition hover:border-accent/50 hover:bg-accent-subtle/30"
+              className="inline-flex items-center gap-1.5 rounded-[6px] border border-accent/30 bg-accent/5 px-3 py-2 font-mono text-[10px] font-medium text-accent transition-colors duration-100 hover:border-accent/50 hover:bg-accent/10"
             >
               <Scale className="h-3.5 w-3.5" />
               Conformidade Legal
             </Link>
             <Link
               href="/methodology#base-legal"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
+              className="inline-flex items-center gap-1.5 rounded-[6px] border border-border bg-surface-card px-3 py-2 font-mono text-[10px] font-medium text-secondary transition-colors duration-100 hover:border-accent/30 hover:text-primary"
             >
               <FileText className="h-3.5 w-3.5" />
               Base Legal
             </Link>
             <Link
               href="/methodology#escopo"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
+              className="inline-flex items-center gap-1.5 rounded-[6px] border border-border bg-surface-card px-3 py-2 font-mono text-[10px] font-medium text-secondary transition-colors duration-100 hover:border-accent/30 hover:text-primary"
             >
               <Shield className="h-3.5 w-3.5" />
               Escopo & LGPD
@@ -233,8 +215,8 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Legal footer ─────────────────────────────────────────── */}
-        <footer className="rounded-xl border border-border bg-surface-base p-4">
+        {/* ── Legal footer ─────────────────────────────────────────────── */}
+        <footer className="evidence-block rounded-[10px] border border-border bg-surface-card p-5">
           <div className="flex items-start gap-3">
             <Scale className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
             <p className="text-xs text-muted leading-relaxed">
