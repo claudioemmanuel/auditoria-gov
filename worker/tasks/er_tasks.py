@@ -192,6 +192,82 @@ def _build_probabilistic_matches(entities: list[dict], matched_ids: set):
     return matches
 
 
+def _collect_cluster_evidence(
+    matches: list,
+    clusters: list,
+    entity_lookup: dict,
+) -> tuple[list[dict], dict]:
+    """Compute pairwise ER confidence for every cluster; pure function — no DB access.
+
+    Args:
+        matches: list[MatchResult] from deterministic + probabilistic passes.
+        clusters: list[Cluster] from cluster_entities().
+        entity_lookup: dict mapping entity_id → entity dict (with identifiers/attrs).
+
+    Returns:
+        pair_evidence: list of dicts suitable for ERMergeEvidence(**ev) insertion.
+        entity_confidence: maps entity_id → cluster_confidence (int 0-100).
+            All entities in the same cluster share the same value (weakest-link min).
+            Entity not in any evidenced cluster → absent from the dict.
+
+    Precondition: identifiers in entity dicts must be digits-only (post-normalization).
+    """
+    from shared.er.confidence import compute_cluster_confidence, compute_pair_confidence
+
+    match_by_pair: dict = {
+        frozenset((m.entity_a_id, m.entity_b_id)): m for m in matches
+    }
+
+    pair_evidence: list[dict] = []
+    entity_confidence: dict = {}
+
+    for cluster in clusters:
+        if len(cluster.entity_ids) < 2:
+            continue
+
+        pair_scores: list[int] = []
+        for pair, match in match_by_pair.items():
+            if not pair.issubset(cluster.entity_ids):
+                continue
+            ea = entity_lookup.get(match.entity_a_id)
+            eb = entity_lookup.get(match.entity_b_id)
+            if not ea or not eb:
+                continue
+
+            attrs_a = ea.get("attrs") or {}
+            attrs_b = eb.get("attrs") or {}
+            mun_a = attrs_a.get("municipio")
+            mun_b = attrs_b.get("municipio")
+            same_municipality = bool(mun_a and mun_a == mun_b)
+
+            score, ev_type = compute_pair_confidence(
+                identifiers_a=ea.get("identifiers") or {},
+                identifiers_b=eb.get("identifiers") or {},
+                name_similarity=match.score,
+                same_municipality=same_municipality,
+                co_participation_count=0,
+            )
+            if score is not None:
+                pair_scores.append(score)
+                pair_evidence.append({
+                    "entity_a_id": match.entity_a_id,
+                    "entity_b_id": match.entity_b_id,
+                    "confidence_score": score,
+                    "evidence_type": ev_type.value,
+                    "evidence_detail": {
+                        "match_type": match.match_type,
+                        "match_score": round(match.score, 4),
+                    },
+                })
+
+        if pair_scores:
+            cluster_conf = compute_cluster_confidence(pair_scores)
+            for eid in cluster.entity_ids:
+                entity_confidence[eid] = cluster_conf
+
+    return pair_evidence, entity_confidence
+
+
 def _build_semantic_matches(session, entities: list[dict], matched_ids: set) -> list:
     """Semantic ER pass using pgvector cosine similarity on entity name embeddings.
 
@@ -322,7 +398,7 @@ def run_entity_resolution():
     from shared.er.clustering import cluster_entities
     from shared.er.edges import build_structural_edges
     from shared.er.normalize import normalize_entity_for_matching
-    from shared.models.orm import Entity, ERRunState, Event, EventParticipant, GraphEdge, GraphNode
+    from shared.models.orm import Entity, ERMergeEvidence, ERRunState, Event, EventParticipant, GraphEdge, GraphNode
 
     # Unique integer key for the ER singleton advisory lock.
     _ER_LOCK_KEY = 7349812
@@ -448,7 +524,17 @@ def run_entity_resolution():
             clusters = cluster_entities(matches)
             total_clusters += len(clusters)
 
-            # Write cluster_ids — respecting cross-batch pre-assignments
+            # Compute pairwise confidence evidence for all clusters (pure, no DB)
+            entity_lookup = {e["id"]: e for e in batch}
+            pair_evidence, entity_confidence = _collect_cluster_evidence(
+                matches, clusters, entity_lookup
+            )
+
+            # Persist ERMergeEvidence records
+            for ev in pair_evidence:
+                session.add(ERMergeEvidence(**ev))
+
+            # Write cluster_ids + cluster_confidence — respecting cross-batch pre-assignments
             clustered_ids: set = set()
             for cluster in clusters:
                 if not cluster.entity_ids:
@@ -459,17 +545,22 @@ def run_entity_resolution():
                     (pre_clustered[eid] for eid in cluster.entity_ids if eid in pre_clustered),
                     cluster.cluster_id,
                 )
+                # cluster_confidence: min pairwise score for this cluster (None if no evidence)
+                conf = entity_confidence.get(next(iter(cluster.entity_ids)))
                 session.execute(
                     update(Entity)
                     .where(Entity.id.in_(cluster.entity_ids))
-                    .values(cluster_id=assigned)
+                    .values(cluster_id=assigned, cluster_confidence=conf)
                 )
 
-            # Pre-assigned entities not in any cluster → assign directly
+            # Pre-assigned entities not in any cluster → deterministic cross-batch match
+            # (CNPJ/CPF exact via identifier index) → confidence = 100
             for eid, cid in pre_clustered.items():
                 if eid not in clustered_ids:
                     session.execute(
-                        update(Entity).where(Entity.id == eid).values(cluster_id=cid)
+                        update(Entity)
+                        .where(Entity.id == eid)
+                        .values(cluster_id=cid, cluster_confidence=100)
                     )
 
             # Stamp all processed entities in this batch
