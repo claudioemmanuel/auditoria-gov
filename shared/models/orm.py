@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
 from pgvector.sqlalchemy import Vector
@@ -7,11 +8,13 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -351,6 +354,24 @@ class IngestState(Base):
     __table_args__ = (
         UniqueConstraint("connector", "job", name="uq_ingest_state_connector_job"),
     )
+
+
+class DispensaThreshold(Base):
+    """Legal thresholds for dispensa de licitação, versioned by decree.
+
+    Allows updating limits when government decrees change (e.g. Decreto 12.807/2025)
+    without code deployments.
+    """
+
+    __tablename__ = "dispensa_threshold"
+
+    # Override Base id: use integer autoincrement PK for simplicity
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    categoria: Mapped[str] = mapped_column(String(50))   # goods | works | rd | vehicle
+    valor_brl: Mapped[Decimal] = mapped_column(Numeric(15, 2))
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    decreto_ref: Mapped[str] = mapped_column(String(100))
 
 
 class CoverageRegistry(Base):

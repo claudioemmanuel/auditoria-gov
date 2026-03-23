@@ -1,10 +1,12 @@
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.models.orm import Event, EventParticipant
+from shared.models.orm import DispensaThreshold, Event, EventParticipant
 from shared.models.signals import (
     EvidenceRef,
     RefType,
@@ -12,6 +14,31 @@ from shared.models.signals import (
     SignalSeverity,
 )
 from shared.typologies.base import BaseTypology
+
+
+async def get_dispensa_threshold(
+    session: AsyncSession, categoria: str, event_date: date
+) -> Decimal:
+    """Look up the dispensa threshold valid at the given event_date."""
+    result = await session.execute(
+        select(DispensaThreshold.valor_brl)
+        .where(DispensaThreshold.categoria == categoria)
+        .where(DispensaThreshold.valid_from <= event_date)
+        .where(
+            or_(
+                DispensaThreshold.valid_to.is_(None),
+                DispensaThreshold.valid_to >= event_date,
+            )
+        )
+        .order_by(DispensaThreshold.valid_from.desc())
+        .limit(1)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        # Fallback to Decreto 12.343/2024 values if no threshold configured
+        fallback = {"goods": Decimal("62725.59"), "works": Decimal("125451.15")}
+        return fallback.get(categoria, Decimal("62725.59"))
+    return row
 
 
 # Thresholds for dispensa de licitação (Lei 14.133/2021)
