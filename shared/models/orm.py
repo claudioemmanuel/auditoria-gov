@@ -6,6 +6,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -62,6 +63,9 @@ class Entity(Base):
     attrs: Mapped[dict] = mapped_column(JSONB, default=dict)
     cluster_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     er_processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    cluster_confidence: Mapped[Optional[int]] = mapped_column(
+        Integer, CheckConstraint("cluster_confidence BETWEEN 0 AND 100"), nullable=True
+    )
 
     aliases: Mapped[list["EntityAlias"]] = relationship(back_populates="entity")
 
@@ -83,6 +87,21 @@ class EntityAlias(Base):
     source: Mapped[str] = mapped_column(String(100))
 
     entity: Mapped["Entity"] = relationship(back_populates="aliases")
+
+
+class ERMergeEvidence(Base):
+    __tablename__ = "er_merge_evidence"
+
+    # id and created_at are inherited from Base — do not redefine
+    entity_a_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("entity.id"), nullable=False)
+    entity_b_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("entity.id"), nullable=False)
+    confidence_score: Mapped[int] = mapped_column(
+        Integer, CheckConstraint("confidence_score BETWEEN 0 AND 100"), nullable=False
+    )
+    evidence_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # cnpj_exact | cpf_exact | name_fuzzy | co_participation
+    evidence_detail: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
 class Event(Base):
