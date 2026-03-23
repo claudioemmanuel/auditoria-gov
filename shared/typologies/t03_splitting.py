@@ -19,7 +19,11 @@ from shared.typologies.base import BaseTypology
 async def get_dispensa_threshold(
     session: AsyncSession, categoria: str, event_date: date
 ) -> Decimal:
-    """Look up the dispensa threshold valid at the given event_date."""
+    """Look up the dispensa threshold valid at the given event_date.
+
+    Categories: goods | works | rd | vehicle.
+    Unknown or unseeded categories fall back to the goods threshold (conservative default).
+    """
     result = await session.execute(
         select(DispensaThreshold.valor_brl)
         .where(DispensaThreshold.categoria == categoria)

@@ -364,6 +364,9 @@ class DispensaThreshold(Base):
     """
 
     __tablename__ = "dispensa_threshold"
+    __table_args__ = (
+        UniqueConstraint("categoria", "valid_from", name="uq_dispensa_threshold_cat_from"),
+    )
 
     # Override Base id: use integer autoincrement PK for simplicity
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

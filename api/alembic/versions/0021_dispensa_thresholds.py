@@ -25,7 +25,10 @@ def upgrade() -> None:
         sa.Column("valid_from", sa.Date(), nullable=False),
         sa.Column("valid_to", sa.Date(), nullable=True),
         sa.Column("decreto_ref", sa.String(100), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("categoria", "valid_from", name="uq_dispensa_threshold_cat_from"),
     )
     # Seed: Decreto 12.343/2024 (valid 2024-01-01 to 2025-12-31)
     # Seed: Decreto 12.807/2025 (valid from 2026-01-01)
