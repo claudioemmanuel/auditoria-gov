@@ -27,23 +27,49 @@ def test_cpf_exact_match_gives_100():
 
 
 def test_cnpj_branch_match_gives_95():
-    # Same 8-digit CNPJ root (matriz/filial) + high name similarity
+    # Same 8-digit CNPJ root (matriz/filial) — structural match, not name-based
     score, evidence_type = compute_pair_confidence(
         identifiers_a={"cnpj": "12345678000100"},
         identifiers_b={"cnpj": "12345678000181"},
-        name_similarity=0.92,
-        same_municipality=True,
+        name_similarity=0.50,  # low similarity — must not affect branch detection
+        same_municipality=False,
         co_participation_count=0,
     )
     assert score == 95
     assert evidence_type == EvidenceType.CNPJ_BRANCH
 
 
+def test_cnpj_branch_ignores_name_similarity():
+    # Branch identity is a structural fact; name_similarity must not gate it
+    score, evidence_type = compute_pair_confidence(
+        identifiers_a={"cnpj": "12345678000195"},
+        identifiers_b={"cnpj": "12345678000277"},
+        name_similarity=0.20,
+        same_municipality=False,
+        co_participation_count=0,
+    )
+    assert score == 95
+    assert evidence_type == EvidenceType.CNPJ_BRANCH
+
+
+def test_name_fuzzy_same_municipality_gives_85():
+    # NAME_MUNICIPALITY fires for similarity >= 0.85, not just exact matches
+    score, evidence_type = compute_pair_confidence(
+        identifiers_a={},
+        identifiers_b={},
+        name_similarity=0.88,
+        same_municipality=True,
+        co_participation_count=0,
+    )
+    assert score == 85
+    assert evidence_type == EvidenceType.NAME_MUNICIPALITY
+
+
 def test_name_identical_same_municipality_gives_85():
     score, evidence_type = compute_pair_confidence(
         identifiers_a={},
         identifiers_b={},
-        name_similarity=1.0,
+        name_similarity=0.90,
         same_municipality=True,
         co_participation_count=0,
     )
@@ -100,19 +126,32 @@ def test_cluster_confidence_empty_returns_100():
     assert compute_cluster_confidence([]) == 100
 
 
-# Boundary: exactly at merge threshold (60) should return a score, not None
-def test_boundary_exactly_at_threshold():
-    # name_similarity=0.75 gives score=55 which is below merge threshold 60
-    # Let's test the actual boundary between no-merge and merge
-    # score=55 < 60 threshold → should this return None?
-    # Per spec: "below 60 → não merga"
-    # So name_fuzzy (score=55) IS below threshold and should return None
-    score, _ = compute_pair_confidence(
+def test_name_fuzzy_returns_score_below_merge_threshold():
+    # NAME_FUZZY score=55 is returned by compute_pair_confidence.
+    # The CALLER is responsible for checking MERGE_THRESHOLD — this function scores, not decides.
+    from shared.er.confidence import MERGE_THRESHOLD
+
+    score, evidence_type = compute_pair_confidence(
         identifiers_a={},
         identifiers_b={},
         name_similarity=0.75,
         same_municipality=False,
         co_participation_count=0,
     )
-    # name_similarity=0.75 gives NAME_FUZZY score=55, which is < 60 threshold
-    assert score is None  # below merge threshold
+    assert score == 55
+    assert evidence_type == EvidenceType.NAME_FUZZY
+    # Callers must check: score < MERGE_THRESHOLD → do not merge
+    assert score < MERGE_THRESHOLD
+
+
+def test_below_fuzzy_entry_threshold_returns_none():
+    # name_similarity below 0.75 → no evidence tier matched → (None, None)
+    score, evidence_type = compute_pair_confidence(
+        identifiers_a={},
+        identifiers_b={},
+        name_similarity=0.60,
+        same_municipality=False,
+        co_participation_count=0,
+    )
+    assert score is None
+    assert evidence_type is None

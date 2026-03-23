@@ -33,18 +33,18 @@ def compute_pair_confidence(
     if cpf_a and cpf_b and cpf_a == cpf_b:
         return 100, EvidenceType.CPF_EXACT
 
-    # CNPJ matriz/filial: same 8-digit root + high name similarity
-    if cnpj_a and cnpj_b and cnpj_a[:8] == cnpj_b[:8] and name_similarity >= 0.90:
+    # CNPJ matriz/filial: same 8-digit root, different branch — structural match only
+    if cnpj_a and cnpj_b and cnpj_a[:8] == cnpj_b[:8] and cnpj_a != cnpj_b:
         return 95, EvidenceType.CNPJ_BRANCH
 
-    # Name-based matching — compute score then check threshold
-    if name_similarity >= 1.0 and same_municipality:
+    # Name-based matching
+    if name_similarity >= 0.85 and same_municipality:
         return 85, EvidenceType.NAME_MUNICIPALITY
 
-    if name_similarity >= 0.85 and co_participation_count > 0:
+    if name_similarity >= 0.85 and co_participation_count >= 1:
         return 75, EvidenceType.NAME_CO_PARTICIPATION
 
-    if name_similarity >= 0.76:
+    if name_similarity >= 0.75:
         return 55, EvidenceType.NAME_FUZZY
 
     return None, None
