@@ -21,6 +21,14 @@ from shared.models.canonical import (
 )
 from shared.models.raw import RawItem
 
+_EMENDA_TYPE_MAP: dict[str, str] = {
+    "EMENDA_INDIVIDUAL": "individual",
+    "EMENDA_BANCADA": "bancada",
+    "EMENDA_RELATOR": "relator_rp9",
+    "TRANSFERENCIA_ESPECIAL": "especial_pix",
+    "EMENDA_COMISSAO": "comissao",
+}
+
 # Module paths and their PostgREST table endpoints
 _JOB_CONFIG: dict[str, dict] = {
     "transferegov_ted": {
@@ -155,6 +163,9 @@ class TransfereGovConnector(BaseConnector):
                             "ano_plano_acao": d.get("ano_plano_acao"),
                             "parlamentar": d.get("nome_parlamentar_emenda_plano_acao", ""),
                             "uf": d.get("uf_beneficiario_plano_acao", ""),
+                            "emenda_type": _EMENDA_TYPE_MAP.get(
+                                d.get("tipo_transferencia_plano_acao", ""), "individual"
+                            ),
                         },
                         participants=[
                             CanonicalEventParticipant(

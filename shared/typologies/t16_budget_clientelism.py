@@ -1,6 +1,6 @@
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -128,6 +128,98 @@ class T16BudgetClientelismTypology(BaseTypology):
 
         signals: list[RiskSignalOut] = []
 
+        # GROUP 1 — RP-9 Unconstitutional Emendas
+        # STF ADPF 850/851/854 declared Emenda Relator unconstitutional on 2022-12-19.
+        # Any RP-9 transfer AFTER that date is always a HIGH signal with no flag threshold.
+        rp9_cutoff = date(2022, 12, 19)
+        for event in events:
+            emenda_type = (event.attrs or {}).get("emenda_type", "")
+            if (
+                emenda_type == "relator_rp9"
+                and event.occurred_at
+                and event.occurred_at.date() > rp9_cutoff
+            ):
+                signals.append(
+                    RiskSignalOut(
+                        id=uuid.uuid4(),
+                        typology_code=self.id,
+                        typology_name=self.name,
+                        severity=SignalSeverity.HIGH,
+                        confidence=0.90,
+                        title=f"Emenda Relator (RP-9) inconstitucional — R$ {event.value_brl:,.2f}",
+                        summary=(
+                            f"Emenda de Relator de R$ {event.value_brl:,.2f} em "
+                            f"{event.occurred_at.strftime('%d/%m/%Y')} — declarada inconstitucional "
+                            f"pelo STF em 19/12/2022 (ADPF 850/851/854)."
+                        ),
+                        factors={
+                            "emenda_type": "relator_rp9",
+                            "legal_ref": "STF ADPF 850/851/854 — Emenda de Relator declarada inconstitucional em 19/12/2022",
+                            "occurred_at": event.occurred_at.isoformat(),
+                        },
+                        evidence_refs=[
+                            EvidenceRef(
+                                ref_type=RefType.EVENT,
+                                ref_id=str(event.id),
+                                description=f"RP-9 R$ {event.value_brl:,.2f}",
+                            )
+                        ],
+                        entity_ids=event_entity_ids.get(str(event.id), [])[:5],
+                        event_ids=[event.id],
+                        period_start=event.occurred_at,
+                        period_end=window_end,
+                        created_at=datetime.now(timezone.utc),
+                    )
+                )
+
+        # GROUP 2 — Emendas Pix missing transparency
+        # STF Min. Dino 2024 suspended R$ 694M in Emendas Especiais / Pix for failing
+        # transparency requirements. Any missing condition fires a HIGH signal.
+        for event in events:
+            attrs = event.attrs or {}
+            if attrs.get("emenda_type") != "especial_pix":
+                continue
+            pix_factors: list[str] = []
+            if attrs.get("plano_trabalho_registered") is False:
+                pix_factors.append("plano_trabalho_ausente")
+            if not attrs.get("beneficiario_final_identificado"):
+                pix_factors.append("beneficiario_nao_identificado")
+            if not attrs.get("conta_dedicada"):
+                pix_factors.append("conta_dedicada_ausente")
+            if pix_factors:
+                signals.append(
+                    RiskSignalOut(
+                        id=uuid.uuid4(),
+                        typology_code=self.id,
+                        typology_name=self.name,
+                        severity=SignalSeverity.HIGH,
+                        confidence=0.75,
+                        title=f"Emenda Pix sem transparência — {', '.join(pix_factors)}",
+                        summary=(
+                            f"Transferência Especial (Emenda Pix) de R$ {event.value_brl:,.2f} "
+                            f"com requisitos de transparência ausentes: {', '.join(pix_factors)}."
+                        ),
+                        factors={
+                            "emenda_type": "especial_pix",
+                            "pix_factors": pix_factors,
+                            "legal_ref": "STF Min. Dino 2024 — condicionantes Emendas Pix (R$ 694M suspensos)",
+                        },
+                        evidence_refs=[
+                            EvidenceRef(
+                                ref_type=RefType.EVENT,
+                                ref_id=str(event.id),
+                                description=f"Emenda Pix R$ {event.value_brl:,.2f}",
+                            )
+                        ],
+                        entity_ids=event_entity_ids.get(str(event.id), [])[:5],
+                        event_ids=[event.id],
+                        period_start=event.occurred_at,
+                        period_end=window_end,
+                        created_at=datetime.now(timezone.utc),
+                    )
+                )
+
+        # GROUP 3 — HHI concentration / multi-flag logic (unchanged)
         for event in events:
             attrs = event.attrs or {}
             n_flags = 0
