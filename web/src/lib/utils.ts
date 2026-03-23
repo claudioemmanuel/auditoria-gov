@@ -100,6 +100,16 @@ export function formatIdentifier(identifiers: Record<string, string>): string {
   return "";
 }
 
+export function severityNumeric(severity: string): number {
+  switch (severity?.toLowerCase()) {
+    case "critical": return 100;
+    case "high":     return 75;
+    case "medium":   return 50;
+    case "low":      return 25;
+    default:         return 50;
+  }
+}
+
 export function normalizeUnknownDisplay(
   value: unknown,
   fallback: string = "Nao informado pela fonte",

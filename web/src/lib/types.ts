@@ -932,6 +932,7 @@ export interface TimelineSignalDTO {
   period_end?: string | null;
   entity_count: number;
   event_count: number;
+  signal_confidence_score?: number | null;
 }
 
 export interface LegalHypothesisDTO {

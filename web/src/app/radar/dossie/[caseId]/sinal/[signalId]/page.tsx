@@ -17,7 +17,8 @@ import type {
   SignalEvidencePage,
   SignalProvenanceResponse,
 } from "@/lib/types";
-import { cn, formatBRL, formatDate, normalizeUnknownDisplay } from "@/lib/utils";
+import { cn, formatBRL, formatDate, normalizeUnknownDisplay, severityNumeric } from "@/lib/utils";
+import { ScoreBar } from "@/components/ScoreBar";
 
 const EVIDENCE_PAGE_SIZE = 10;
 
@@ -234,15 +235,18 @@ export default function SinalPage() {
             ))}
           </div>
 
-          {/* Confidence bar */}
-          <div className="mt-4 max-w-xs">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="font-mono text-[10px] text-muted uppercase tracking-widest">Confiança</span>
-              <span className="font-mono text-xs font-bold text-primary">{pct}%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-subtle">
-              <div className={cn("h-full transition-all", pctColor)} style={{ width: `${pct}%` }} />
-            </div>
+          {/* Score bars */}
+          <div className="mt-4 max-w-xs space-y-3">
+            <ScoreBar
+              label="Gravidade"
+              value={severityNumeric(signal.severity)}
+              color="red"
+            />
+            <ScoreBar
+              label="Confiança dos dados"
+              value={signal.signal_confidence_score ?? 100}
+              color="blue"
+            />
           </div>
         </div>
       </div>
