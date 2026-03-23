@@ -21,6 +21,7 @@ _NON_COMPETITIVE_MODALITIES: frozenset[str] = frozenset({
     "dispensa", "dispensa de licitação", "dispensa de licitacao",
     "dispensa eletrônica", "dispensa eletronica",
     "inexigibilidade", "inexigibilidade de licitação", "inexigibilidade de licitacao",
+    "dialogo_competitivo",  # Lei 14.133/2021 Art. 32, V — naturally few bidders by design
 })
 
 # Sem adjudicação → sem contrato → sem risco mensurável

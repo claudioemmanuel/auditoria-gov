@@ -268,6 +268,25 @@ async def test_t12_skips_void_competitive_events(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_t02_skips_dialogo_competitivo():
+    """Diálogo Competitivo (Lei 14.133/2021 Art. 32 V) naturally has few bidders — must not trigger T02."""
+    from unittest.mock import patch, AsyncMock
+
+    ev = _licitacao(modality="dialogo_competitivo", situacao="homologada")
+    session = _FakeAsyncSession([[ev], []])
+
+    with patch(
+        "shared.typologies.t02_low_competition.get_baseline",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        typology = T02LowCompetitionTypology()
+        signals = await typology.run(session)
+
+    assert signals == []
+
+
+@pytest.mark.asyncio
 async def test_t15_skips_void_inexigibilidade():
     """T15: inexigibilidade com situação=cancelada não deve gerar sinal."""
     e_inexig = Event(

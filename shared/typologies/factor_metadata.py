@@ -610,6 +610,7 @@ TYPOLOGY_LEGAL_METADATA: dict[str, dict[str, list[str] | str]] = {
         "law_articles": [
             {"law_name": "Lei 8.429/1992", "article": "Art. 9°, I", "violation_type": "corrupcao_passiva"},
             {"law_name": "Lei 12.813/2013", "article": "Art. 5°", "violation_type": "nepotismo_clientelismo"},
+            {"law_name": "Decreto 10.889/2022", "article": "Art. 1°", "violation_type": "nepotismo_clientelismo"},
         ],
     },
     "T14": {
@@ -649,6 +650,8 @@ TYPOLOGY_LEGAL_METADATA: dict[str, dict[str, list[str] | str]] = {
         "description_legal": "Lavagem via camadas societarias: fluxo circular de recursos por estrutura de empresas relacionadas oculta origem (Lei 9.613/1998; FATF Recomendacao 24).",
         "law_articles": [
             {"law_name": "Lei 9.613/1998", "article": "Art. 1°", "violation_type": "lavagem"},
+            {"law_name": "Código Penal", "article": "Art. 337-F", "violation_type": "fraude_licitatoria"},
+            {"law_name": "COAF Resolução", "article": "nº 36/2021", "violation_type": "lavagem"},
         ],
     },
     "T18": {

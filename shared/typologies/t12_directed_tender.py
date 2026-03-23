@@ -202,6 +202,17 @@ class T12DirectedTenderTypology(BaseTypology):
 
                 restrictiveness_score = min(1.0, (1.0 - avg_bidders / 10) * 0.6 + pct_single_bidder * 0.4)
 
+                # PMI attenuation: a prior PMI increases legitimate market exposure,
+                # so the restrictiveness score is halved when pmi_realizado=True on
+                # the majority of the events in this group.
+                pmi_count = sum(
+                    1 for e in low_bidder_win_events
+                    if (e.attrs or {}).get("pmi_realizado") is True
+                )
+                pmi_majority = pmi_count > len(low_bidder_win_events) / 2
+                if pmi_majority:
+                    restrictiveness_score *= 0.5
+
                 if pct_single_bidder >= 0.5 and win_count >= 5:
                     severity = SignalSeverity.CRITICAL
                     confidence = min(0.90, 0.75 + win_count * 0.02)
@@ -262,6 +273,7 @@ class T12DirectedTenderTypology(BaseTypology):
                         "pct_single_bidder": round(pct_single_bidder, 3),
                         "catmat_group": catmat,
                         "baseline_p10": round(p10, 1),
+                        "pmi_realizado": pmi_majority,
                     },
                     evidence_refs=[
                         EvidenceRef(

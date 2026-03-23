@@ -21,6 +21,16 @@ _INEXIGIBILIDADE_MODALITIES = {
     "inexigibilidade_licitação",
 }
 
+# Lei 14.133/2021 Art. 74 — valid inexigibilidade hypotheses
+# Contracts with these subtypes are legitimately sole-source and should not be flagged.
+_VALID_INEXIGIBILIDADE_SUBTYPES: frozenset[str] = frozenset({
+    "notoria_especializacao",       # Art. 74, III
+    "credenciamento",               # Art. 79
+    "exclusividade_comercial",      # Art. 74, I
+    "profissional_artistico",       # Art. 74, II
+    "associacao_pessoa_deficiencia",# Art. 75, VIII
+})
+
 _COMPETITIVE_MODALITIES = {
     "pregao", "pregão", "concorrencia", "concorrência",
     "tomada_de_precos", "tomada de preços", "convite",
@@ -106,6 +116,7 @@ class T15FalseSoleSourceTypology(BaseTypology):
             e for e in all_events
             if e.attrs.get("modality", "").lower() in _INEXIGIBILIDADE_MODALITIES
             and e.attrs.get("situacao", "").lower().strip() not in _VOID
+            and e.attrs.get("inexigibilidade_subtype", "").lower() not in _VALID_INEXIGIBILIDADE_SUBTYPES
         ]
         competitive_events = [
             e for e in all_events
