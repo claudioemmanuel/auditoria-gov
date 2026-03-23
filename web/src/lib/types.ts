@@ -432,6 +432,7 @@ export interface EntityDetail {
   identifiers: Record<string, string>;
   attrs: Record<string, unknown>;
   cluster_id?: string;
+  cluster_confidence?: number | null;
   aliases: { type: string; value: string; source: string }[];
 }
 
@@ -987,6 +988,7 @@ export interface EntitySearchResult {
   name: string;
   identifiers: Record<string, string>;
   cluster_id?: string;
+  cluster_confidence?: number | null;
   attrs?: Record<string, unknown>;
 }
 

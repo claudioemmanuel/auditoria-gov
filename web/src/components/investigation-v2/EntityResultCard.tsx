@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Building2, User, Landmark } from "lucide-react";
 import type { EntitySearchResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Building2; color: string }> = {
   company: { label: "Empresa", icon: Building2, color: "bg-emerald-500/10 text-emerald-600" },
@@ -45,6 +46,7 @@ export function EntityResultCard({ entity }: EntityResultCardProps) {
             Cluster: {entity.cluster_id.slice(0, 8)}...
           </p>
         )}
+        <ConfidenceBadge score={entity.cluster_confidence} />
       </div>
     </Link>
   );

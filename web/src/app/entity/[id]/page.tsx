@@ -14,6 +14,7 @@ import { DetailHeader } from "@/components/DetailHeader";
 import { DetailSkeleton } from "@/components/Skeleton";
 import { normalizeUnknownDisplay } from "@/lib/utils";
 import type { SignalSeverity, EntityDetail, NeighborhoodResponse } from "@/lib/types";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 
 const TYPE_ICONS = {
   pessoa_fisica: User,
@@ -170,6 +171,9 @@ export default function EntityDetailPage() {
             </p>
           </div>
         )}
+
+        {/* ER confidence badge */}
+        <ConfidenceBadge score={entity.cluster_confidence} />
 
         {/* Aliases */}
         {entity.aliases.length > 0 && (
