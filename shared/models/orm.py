@@ -281,6 +281,10 @@ class RiskSignal(Base):
     # Dedup key: hash(typology_code, sorted(entity_ids), period_start, period_end).
     # Prevents duplicate signals for the same scope+window across runs.
     dedup_key: Mapped[Optional[str]] = mapped_column(String(64), unique=True)
+    signal_confidence_score: Mapped[Optional[int]] = mapped_column(
+        Integer, CheckConstraint("signal_confidence_score BETWEEN 0 AND 100"), nullable=True
+    )
+    confidence_factors: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     typology: Mapped["Typology"] = relationship()
     evidence_package: Mapped[Optional["EvidencePackage"]] = relationship()
