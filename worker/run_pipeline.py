@@ -79,7 +79,7 @@ PIPELINES = {
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
-    parser = argparse.ArgumentParser(description="AuditorIA pipeline runner")
+    parser = argparse.ArgumentParser(description="OpenWatch pipeline runner")
     parser.add_argument(
         "--pipeline",
         choices=list(PIPELINES.keys()),

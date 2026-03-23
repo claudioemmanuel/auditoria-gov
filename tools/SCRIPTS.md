@@ -1,6 +1,6 @@
 # Scripts Catalog
 
-Utility commands and shortcuts for AuditorIA Gov development.
+Utility commands and shortcuts for OpenWatch development.
 
 ## Development Stack
 

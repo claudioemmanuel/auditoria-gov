@@ -485,7 +485,7 @@ export default function DossieJuridicoPage() {
                 </p>
                 <p>
                   Todos os dados provem de fontes publicas oficiais do governo
-                  federal brasileiro. AuditorIA Gov e um instrumento de triagem
+                  federal brasileiro. OpenWatch e um instrumento de triagem
                   para controle social cidadao.
                 </p>
               </div>

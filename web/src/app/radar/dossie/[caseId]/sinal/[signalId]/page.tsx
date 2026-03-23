@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types";
 import { cn, formatBRL, formatDate, normalizeUnknownDisplay, severityNumeric } from "@/lib/utils";
 import { ScoreBar } from "@/components/ScoreBar";
+import { ContestationForm, SignalDisclaimer } from "@/components/ContestationForm";
 
 const EVIDENCE_PAGE_SIZE = 10;
 
@@ -248,6 +249,11 @@ export default function SinalPage() {
               color="blue"
             />
           </div>
+
+          {/* Legal disclaimer */}
+          <div className="mt-6 max-w-3xl">
+            <SignalDisclaimer />
+          </div>
         </div>
       </div>
 
@@ -378,6 +384,11 @@ export default function SinalPage() {
             )}
           </section>
         )}
+
+        {/* Contestação */}
+        <section>
+          <ContestationForm signalId={signalId} />
+        </section>
 
         {/* Cadeia de Proveniência */}
         {provenance && provenance.events.length > 0 && (

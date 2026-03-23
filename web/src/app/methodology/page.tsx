@@ -2,7 +2,7 @@ import Link from "next/link";
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
 import { TableOfContents } from "./TableOfContents";
 import { BookOpen, CheckCircle2, ExternalLink, ArrowRight, Scale } from "lucide-react";
-import { fetchTypologyLegalBasis } from "@/lib/api";
+import { fetchTipologiaList } from "@/lib/api";
 import type { TypologyLegalBasis } from "@/lib/types";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
@@ -130,13 +130,7 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 }
 
 export default async function MethodologyPage() {
-  const typologyCodes = Object.keys(TYPOLOGY_LABELS);
-  const legalBasisResults = await Promise.allSettled(
-    typologyCodes.map((code) => fetchTypologyLegalBasis(code)),
-  );
-  const legalBasisList: TypologyLegalBasis[] = legalBasisResults
-    .filter((r): r is PromiseFulfilledResult<TypologyLegalBasis> => r.status === "fulfilled")
-    .map((r) => r.value);
+  const legalBasisList: TypologyLegalBasis[] = await fetchTipologiaList().catch(() => []);
 
   const aside = (
     <div className="rounded-xl border border-border bg-surface-card p-4">

@@ -4,7 +4,7 @@
 # Generate secrets with: openssl rand -hex 32
 
 aws_region    = "us-east-1"
-project_name  = "auditoria-gov"
+project_name  = "openwatch"
 
 # Secrets (REQUIRED)
 db_password      = "CHANGE_ME"
@@ -28,4 +28,4 @@ certificate_arn = ""
 
 # GitHub (for OIDC CI/CD)
 github_org  = "claudioemmanuel"
-github_repo = "auditoria-gov"
+github_repo = "openwatch"

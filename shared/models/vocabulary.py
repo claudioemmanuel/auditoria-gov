@@ -1,4 +1,4 @@
-"""Canonical vocabulary for AuditorIA Gov event types and participant roles.
+"""Canonical vocabulary for OpenWatch event types and participant roles.
 
 This module is the single source of truth for all string values used in
 CanonicalEvent.type and CanonicalEventParticipant.role fields. Connectors

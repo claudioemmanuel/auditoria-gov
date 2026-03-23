@@ -21,6 +21,8 @@ from shared.typologies.t19_bid_rotation import T19BidRotationTypology
 from shared.typologies.t20_phantom_bidders import T20PhantomBidderTypology
 from shared.typologies.t21_collusive_cluster import T21CollusiveClusterTypology
 from shared.typologies.t22_political_favoritism import T22PoliticalFavoritismTypology
+from shared.typologies.t23_bim_cost_overrun import T23BimCostOverrunTypology
+from shared.typologies.t24_me_epp_quota_fraud import T24MeEppQuotaFraudTypology
 
 TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T01": T01ConcentrationTypology,
@@ -45,6 +47,8 @@ TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T20": T20PhantomBidderTypology,
     "T21": T21CollusiveClusterTypology,
     "T22": T22PoliticalFavoritismTypology,
+    "T23": T23BimCostOverrunTypology,
+    "T24": T24MeEppQuotaFraudTypology,
 }
 
 

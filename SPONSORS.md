@@ -1,6 +1,6 @@
 # Sponsors & Supporters
 
-Thank you to everyone who supports AuditorIA Gov. Your contributions fund
+Thank you to everyone who supports OpenWatch. Your contributions fund
 infrastructure costs and help keep Brazilian public data accessible.
 
 ## How Funds Are Used

@@ -359,6 +359,15 @@ export function fetchTypologyLegalBasis(code: string): Promise<TypologyLegalBasi
   return fetchJSON(`/public/typology/${code}/legal-basis`);
 }
 
+export async function fetchTipologiaList(): Promise<TypologyLegalBasis[]> {
+  const data = await fetchJSON<{ typologies: TypologyLegalBasis[]; total: number }>("/public/tipologia");
+  return data.typologies;
+}
+
+export function fetchTipologia(code: string): Promise<TypologyLegalBasis> {
+  return fetchJSON(`/public/tipologia/${code}`);
+}
+
 export async function fetchCaseLegalHypotheses(caseId: string): Promise<LegalHypothesis[]> {
   const res = await fetch(`${API_BASE}/public/case/${caseId}/legal-hypothesis`);
   if (!res.ok) return [];

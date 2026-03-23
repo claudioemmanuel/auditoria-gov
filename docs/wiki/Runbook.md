@@ -3,8 +3,8 @@
 ## Local Setup
 
 ```bash
-git clone https://github.com/claudioemmanuel/auditoria-gov.git
-cd auditoria-gov
+git clone https://github.com/claudioemmanuel/openwatch.git
+cd openwatch
 cp .env.example .env
 docker compose up --build
 docker compose run --rm api alembic -c api/alembic.ini upgrade head

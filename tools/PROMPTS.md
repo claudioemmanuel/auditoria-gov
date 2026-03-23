@@ -1,6 +1,6 @@
 # Reusable Prompt Templates
 
-Copy-paste prompts for common AuditorIA Gov development tasks.
+Copy-paste prompts for common OpenWatch development tasks.
 
 ---
 

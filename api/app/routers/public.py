@@ -471,6 +471,46 @@ async def typology_legal_basis(code: str):
     }
 
 
+def _build_tipologia_item(typology_id: str, typology_name: str, meta: dict) -> dict:
+    return {
+        "code": typology_id,
+        "name": typology_name,
+        "corruption_types": meta.get("corruption_types", []),
+        "spheres": meta.get("spheres", []),
+        "evidence_level": meta.get("evidence_level", ""),
+        "description_legal": meta.get("description_legal", ""),
+        "law_articles": meta.get("law_articles", []),
+    }
+
+
+@router.get("/tipologia")
+async def list_tipologias():
+    """List all registered typologies with their legal metadata."""
+    from shared.typologies.registry import TypologyRegistry
+    from shared.typologies.factor_metadata import TYPOLOGY_LEGAL_METADATA
+
+    items = []
+    for code, cls in TypologyRegistry.items():
+        typology = cls()
+        meta = TYPOLOGY_LEGAL_METADATA.get(code, {})
+        items.append(_build_tipologia_item(typology.id, typology.name, meta))
+    return {"typologies": items, "total": len(items)}
+
+
+@router.get("/tipologia/{code}")
+async def get_tipologia(code: str):
+    """Metadata for a single typology by code (e.g. T03)."""
+    from shared.typologies.registry import TypologyRegistry
+    from shared.typologies.factor_metadata import TYPOLOGY_LEGAL_METADATA
+
+    upper = code.upper()
+    cls = TypologyRegistry.get(upper)
+    if cls is None:
+        raise HTTPException(status_code=404, detail="Typology not found")
+    meta = TYPOLOGY_LEGAL_METADATA.get(upper, {})
+    return _build_tipologia_item(cls().id, cls().name, meta)
+
+
 @router.get("/case/{case_id}/legal-hypothesis")
 async def case_legal_hypothesis(case_id: uuid.UUID, session: DbSession):
     """Legal violation hypotheses inferred for a case."""
@@ -959,32 +999,60 @@ async def case_dossier_timeline(case_id: uuid.UUID, session: DbSession):
     return result
 
 
-@router.post("/contestation", response_model=ContestationOut, status_code=status.HTTP_201_CREATED)
-async def create_contestation(payload: ContestationCreate, session: DbSession):
-    contestation = Contestation(
+def _contestation_out(c: Contestation) -> ContestationOut:
+    return ContestationOut(
+        id=c.id,
+        signal_id=c.signal_id,
+        entity_id=c.entity_id,
+        report_type=c.report_type,
+        evidence_url=c.evidence_url,
+        status=c.status,
+        requester_name=c.requester_name,
+        requester_email=c.requester_email,
+        reason=c.reason,
+        details=c.details,
+        resolution=c.resolution,
+        resolved_at=c.resolved_at,
+        created_at=c.created_at,
+    )
+
+
+def _build_contestation(payload: ContestationCreate) -> Contestation:
+    if payload.signal_id is None and payload.entity_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Either signal_id or entity_id must be provided",
+        )
+    return Contestation(
         signal_id=payload.signal_id,
+        entity_id=payload.entity_id,
+        report_type=payload.report_type,
+        evidence_url=payload.evidence_url,
         requester_name=payload.requester_name,
         requester_email=payload.requester_email,
         reason=payload.reason,
         details=payload.details,
         status="open",
     )
+
+
+@router.post("/contestation", response_model=ContestationOut, status_code=status.HTTP_201_CREATED)
+async def create_contestation(payload: ContestationCreate, session: DbSession):
+    contestation = _build_contestation(payload)
     session.add(contestation)
     await session.commit()
     await session.refresh(contestation)
+    return _contestation_out(contestation)
 
-    return ContestationOut(
-        id=contestation.id,
-        signal_id=contestation.signal_id,
-        status=contestation.status,
-        requester_name=contestation.requester_name,
-        requester_email=contestation.requester_email,
-        reason=contestation.reason,
-        details=contestation.details,
-        resolution=contestation.resolution,
-        resolved_at=contestation.resolved_at,
-        created_at=contestation.created_at,
-    )
+
+@router.post("/contestations", response_model=ContestationOut, status_code=status.HTTP_201_CREATED)
+async def create_contestation_v2(payload: ContestationCreate, session: DbSession):
+    """Submit an error report for a signal or entity."""
+    contestation = _build_contestation(payload)
+    session.add(contestation)
+    await session.commit()
+    await session.refresh(contestation)
+    return _contestation_out(contestation)
 
 
 @router.get("/contestation/{contestation_id}", response_model=ContestationOut)
@@ -992,16 +1060,4 @@ async def get_contestation(contestation_id: uuid.UUID, session: DbSession):
     contestation = await session.get(Contestation, contestation_id)
     if contestation is None:
         raise HTTPException(status_code=404, detail="Contestation not found")
-
-    return ContestationOut(
-        id=contestation.id,
-        signal_id=contestation.signal_id,
-        status=contestation.status,
-        requester_name=contestation.requester_name,
-        requester_email=contestation.requester_email,
-        reason=contestation.reason,
-        details=contestation.details,
-        resolution=contestation.resolution,
-        resolved_at=contestation.resolved_at,
-        created_at=contestation.created_at,
-    )
+    return _contestation_out(contestation)

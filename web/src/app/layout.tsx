@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AuditorIA Gov — Inteligencia Investigativa Cidada",
+  title: "OpenWatch — Inteligencia Investigativa Cidada",
   description:
     "Plataforma publica e open-source de auditoria cidada sobre dados do governo federal brasileiro. Sinais de risco, evidencias e investigacoes baseadas em dados abertos.",
 };

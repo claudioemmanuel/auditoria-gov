@@ -1,4 +1,4 @@
-# Testing Rules — AuditorIA Gov
+# Testing Rules — OpenWatch
 
 ## Coverage Requirement
 

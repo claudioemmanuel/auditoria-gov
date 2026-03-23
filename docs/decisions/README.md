@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADRs)
 
-This directory tracks significant architectural decisions made in AuditorIA Gov.
+This directory tracks significant architectural decisions made in OpenWatch.
 
 ## Format
 

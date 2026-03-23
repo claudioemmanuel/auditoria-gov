@@ -8,7 +8,7 @@ This directory contains step-by-step runbooks for common operational tasks and i
 |---------|-------------|--------|
 | `cold-start.md` | Full pipeline cold start from empty DB | Planned |
 | `signal-rollback.md` | Emergency rollback of a faulty typology's signals | Planned |
-| `submodule-update.md` | Update auditoria-gov submodule in parent repo | Planned |
+| `submodule-update.md` | Update openwatch submodule in parent repo | Planned |
 | `migration-rollback.md` | Rolling back an Alembic migration in production | Planned |
 | `connector-disable.md` | Disabling a broken data source connector | Planned |
 

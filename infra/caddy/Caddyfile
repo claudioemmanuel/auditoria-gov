@@ -1,4 +1,4 @@
-# AuditorIA Gov — Caddy reverse proxy
+# OpenWatch — Caddy reverse proxy
 # Handles TLS termination via Let's Encrypt for API.
 # Flower removed — monitoring is now via /internal/celery/* API endpoints.
 # Web frontend is served by Vercel (not proxied here).

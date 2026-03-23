@@ -3,7 +3,7 @@
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
-      "description": "File operations scoped to the auditoria-gov project root"
+      "description": "File operations scoped to the openwatch project root"
     },
     "github": {
       "command": "npx",
@@ -11,7 +11,7 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       },
-      "description": "GitHub PR, issue, and repository management for auditoria-gov"
+      "description": "GitHub PR, issue, and repository management for openwatch"
     }
   }
 }

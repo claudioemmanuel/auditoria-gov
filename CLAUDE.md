@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-Guidance for Claude Code contributors working on AuditorIA Gov.
+Guidance for Claude Code contributors working on OpenWatch.
 
 ## Project Snapshot
 
-AuditorIA Gov is a deterministic citizen-auditing platform for Brazilian federal public data.
+OpenWatch is a deterministic citizen-auditing platform for Brazilian federal public data.
 
 - `api/` — FastAPI backend
 - `worker/` — Celery + Beat async jobs

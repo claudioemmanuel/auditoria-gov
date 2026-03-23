@@ -1,7 +1,7 @@
 [project]
 name = "auditoria-worker"
 version = "0.1.0"
-description = "AuditorIA Gov Celery Worker"
+description = "OpenWatch Celery Worker"
 requires-python = ">=3.12"
 dependencies = [
     "celery>=5.4",

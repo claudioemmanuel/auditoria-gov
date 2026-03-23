@@ -98,8 +98,14 @@ class CaseEntityBrief(BaseModel):
     signal_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
+ReportType = Literal["signal_error", "entity_error", "duplicate", "other"]
+
+
 class ContestationCreate(BaseModel):
     signal_id: Optional[uuid.UUID] = None
+    entity_id: Optional[uuid.UUID] = None
+    report_type: ReportType = "signal_error"
+    evidence_url: Optional[str] = Field(default=None, max_length=2048)
     requester_name: str = Field(min_length=2, max_length=255)
     requester_email: Optional[str] = Field(default=None, max_length=255)
     reason: str = Field(min_length=8, max_length=5000)
@@ -109,6 +115,9 @@ class ContestationCreate(BaseModel):
 class ContestationOut(BaseModel):
     id: uuid.UUID
     signal_id: Optional[uuid.UUID] = None
+    entity_id: Optional[uuid.UUID] = None
+    report_type: str = "signal_error"
+    evidence_url: Optional[str] = None
     status: str
     requester_name: str
     requester_email: Optional[str] = None

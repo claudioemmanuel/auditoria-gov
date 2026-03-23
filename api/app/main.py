@@ -34,7 +34,7 @@ async def _require_internal_key(key: str = Security(_internal_api_key_header)) -
         raise HTTPException(status_code=403, detail="Forbidden")
 
 app = FastAPI(
-    title="AuditorIA Gov",
+    title="OpenWatch",
     description="API pública para auditoria cidadã de dados federais",
     version="0.1.0",
     lifespan=lifespan,

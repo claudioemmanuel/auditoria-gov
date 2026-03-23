@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-AuditorIA Gov produces public risk signals involving political agents and state suppliers. Because these signals can influence public perception and oversight actions, the platform must guarantee:
+OpenWatch produces public risk signals involving political agents and state suppliers. Because these signals can influence public perception and oversight actions, the platform must guarantee:
 
 1. **Source authority** — data comes from legally authoritative origins.
 2. **Veracity** — every source carries a transparent, reproducible quality score.

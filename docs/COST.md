@@ -1,4 +1,4 @@
-# AuditorIA Gov — Infrastructure Cost Breakdown
+# OpenWatch — Infrastructure Cost Breakdown
 
 Transparent breakdown of production infrastructure costs.
 This project is designed to run within a $20/month ceiling on AWS.

@@ -1,8 +1,8 @@
-# Skill: Code Review — AuditorIA Gov
+# Skill: Code Review — OpenWatch
 
 ## Purpose
 
-Structured code review checklist tailored to AuditorIA Gov's architecture and guardrails.
+Structured code review checklist tailored to OpenWatch's architecture and guardrails.
 
 ## Checklist
 

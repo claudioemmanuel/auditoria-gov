@@ -1,7 +1,7 @@
 [project]
-name = "auditoria-gov"
+name = "openwatch"
 version = "0.1.0"
-description = "AuditorIA Gov — citizen auditing of Brazilian federal data"
+description = "OpenWatch — citizen auditing of Brazilian federal data"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

@@ -15,7 +15,7 @@
 4. **Common mistakes** — what goes wrong and why
 5. **Next step** — what to read or try next
 
-## Domain Vocabulary (AuditorIA Gov)
+## Domain Vocabulary (OpenWatch)
 
 | Term | Meaning |
 |------|---------|

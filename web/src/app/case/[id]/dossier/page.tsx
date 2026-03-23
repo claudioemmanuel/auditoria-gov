@@ -166,7 +166,7 @@ export default async function DossierPage({ params }: PageProps) {
         <div className="mb-4 flex items-center gap-2">
           <ShieldAlert className="h-5 w-5 text-accent" />
           <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">
-            AuditorIA Gov — Dossiê Investigativo
+            OpenWatch — Dossiê Investigativo
           </span>
         </div>
 
@@ -497,7 +497,7 @@ export default async function DossierPage({ params }: PageProps) {
               são hipóteses investigativas determinísticas — não constituem acusação ou julgamento.
             </p>
             <p className="mt-2 text-[10px] text-muted">
-              Gerado por AuditorIA Gov — {new Date().toLocaleDateString("pt-BR")}
+              Gerado por OpenWatch — {new Date().toLocaleDateString("pt-BR")}
             </p>
           </div>
         </DossierSection>

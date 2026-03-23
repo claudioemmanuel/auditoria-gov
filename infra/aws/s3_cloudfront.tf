@@ -22,7 +22,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
-  comment             = "AuditorIA Gov frontend"
+  comment             = "OpenWatch frontend"
 
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name

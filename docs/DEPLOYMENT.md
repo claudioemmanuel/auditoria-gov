@@ -1,6 +1,6 @@
-# Deploying AuditorIA Gov on AWS
+# Deploying OpenWatch on AWS
 
-Step-by-step guide to deploy AuditorIA Gov on AWS using ECS Fargate,
+Step-by-step guide to deploy OpenWatch on AWS using ECS Fargate,
 RDS PostgreSQL, ElastiCache Redis, and S3/CloudFront.
 
 ## Prerequisites
@@ -33,7 +33,7 @@ cp terraform.tfvars.example terraform.tfvars
 Edit `terraform.tfvars`:
 ```hcl
 aws_region           = "us-east-1"
-project_name         = "auditoria-gov"
+project_name         = "openwatch"
 db_password          = "generate-with-openssl-rand-hex-32"
 redis_password       = "generate-with-openssl-rand-hex-32"
 cpf_hash_salt        = "generate-with-openssl-rand-hex-32"
@@ -91,8 +91,8 @@ aws cloudfront create-invalidation --distribution-id <dist_id> --paths "/*"
 
 ```bash
 aws ecs run-task \
-  --cluster auditoria-gov \
-  --task-definition auditoria-gov-api \
+  --cluster openwatch \
+  --task-definition openwatch-api \
   --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[<subnet>],securityGroups=[<sg>],assignPublicIp=DISABLED}" \
   --overrides '{"containerOverrides":[{"name":"api","command":["alembic","-c","api/alembic.ini","upgrade","head"]}]}'
@@ -123,7 +123,7 @@ After initial deploy, pushes to `main` automatically:
 | `ECR_WORKER_REPO` | Terraform output: `ecr_worker_repo` |
 | `ECS_CLUSTER` | Terraform output: `ecs_cluster_name` |
 | `ECS_API_SERVICE` | Terraform output: `ecs_api_service_name` |
-| `ECS_API_TASK_DEF` | `auditoria-gov-api` |
+| `ECS_API_TASK_DEF` | `openwatch-api` |
 | `ECS_NETWORK_CONFIG` | VPC config from Terraform |
 | `API_URL` | Terraform output: `alb_dns_name` |
 | `S3_BUCKET` | Terraform output: `frontend_bucket` |
@@ -133,7 +133,7 @@ After initial deploy, pushes to `main` automatically:
 
 - **CloudWatch Dashboard:** auto-created by Terraform
 - **Budget Alerts:** email at $15 (warning), $18 (forecast), $20 (kill-switch)
-- **Logs:** CloudWatch Logs at `/ecs/auditoria-gov/*`
+- **Logs:** CloudWatch Logs at `/ecs/openwatch/*`
 
 ## Stopping Everything (Save Costs)
 

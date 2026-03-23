@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Harden the OpenWatch (ex-AuditorIA Gov) platform against false-positive ER liability, align all 22 typologies with current Brazilian law, and add public-facing transparency and legal protection mechanisms.
+**Goal:** Harden the OpenWatch (ex-OpenWatch) platform against false-positive ER liability, align all 22 typologies with current Brazilian law, and add public-facing transparency and legal protection mechanisms.
 
 **Architecture:** ER gains a pairwise confidence score stored in `er_merge_evidence`; that score propagates to `entity.cluster_confidence` and then to a composite `signal_confidence_score` on `risk_signal`. Public pages expose methodology, disclaimers, and error reporting via the existing `Contestation` model. Typologies are corrected in-place following the existing `BaseTypology` pattern.
 
@@ -285,8 +285,8 @@ git commit -m "feat: ER pairwise confidence scoring function"
 - [ ] **Step 1: Locate ER merge write paths**
 
 ```bash
-grep -rn "cluster_id" /Users/claudioemmanuel/Documents/GitHub/AuditorIA/auditoria-gov/shared/ \
-  /Users/claudioemmanuel/Documents/GitHub/AuditorIA/auditoria-gov/worker/ | grep -v test | grep -v ".pyc"
+grep -rn "cluster_id" /Users/claudioemmanuel/Documents/GitHub/OpenWatch/auditoria-gov/shared/ \
+  /Users/claudioemmanuel/Documents/GitHub/OpenWatch/auditoria-gov/worker/ | grep -v test | grep -v ".pyc"
 ```
 
 - [ ] **Step 2: Write failing integration test**
@@ -1419,16 +1419,16 @@ git commit -m "feat: T23 stub — BIM overpricing (awaits PNCP item-level pricin
 
 ## Phase 6 — Platform Rename 🟡 (parallel track)
 
-### Task 6.1 — Global rename AuditorIA → OpenWatch
+### Task 6.1 — Global rename OpenWatch → OpenWatch
 
 > This task is independent and can run in a separate branch in parallel with Phases 1–5.
 
-**Files:** All files containing "AuditorIA", "auditoria_gov", "auditoria-gov", "AUDITORIA"
+**Files:** All files containing "OpenWatch", "auditoria_gov", "auditoria-gov", "AUDITORIA"
 
 - [ ] **Step 1: Audit all occurrences**
 
 ```bash
-cd /Users/claudioemmanuel/Documents/GitHub/AuditorIA/auditoria-gov
+cd /Users/claudioemmanuel/Documents/GitHub/OpenWatch/auditoria-gov
 grep -rn --include="*.py" --include="*.md" --include="*.ts" --include="*.tsx" \
   --include="*.json" --include="*.yml" --include="*.yaml" --include="*.toml" \
   -i "auditoria" . | grep -v ".git" | grep -v "__pycache__"
@@ -1441,7 +1441,7 @@ Save the output to review before making changes.
 ```bash
 # Python identifiers
 find . -name "*.py" -not -path "./.git/*" -exec sed -i '' \
-  's/auditoria_gov/openwatch/g; s/AuditorIA Gov/OpenWatch/g; s/AuditorIA/OpenWatch/g' {} +
+  's/auditoria_gov/openwatch/g; s/OpenWatch/OpenWatch/g; s/OpenWatch/OpenWatch/g' {} +
 
 # Docker / compose / env
 find . \( -name "*.yml" -o -name "*.yaml" -o -name "*.env*" -o -name "*.toml" \) \
@@ -1453,7 +1453,7 @@ find . \( -name "*.yml" -o -name "*.yaml" -o -name "*.env*" -o -name "*.toml" \)
 
 ```bash
 find web/ -name "*.ts" -o -name "*.tsx" -o -name "*.json" | \
-  xargs sed -i '' 's/AuditorIA Gov/OpenWatch/g; s/AuditorIA/OpenWatch/g'
+  xargs sed -i '' 's/OpenWatch/OpenWatch/g; s/OpenWatch/OpenWatch/g'
 ```
 
 - [ ] **Step 4: Update CLAUDE.md, README.md, COMPLIANCE.md, GOVERNANCE.md**
@@ -1480,7 +1480,7 @@ cd web && npm run lint && npm run build
 
 ```bash
 git add -A
-git commit -m "chore: rename platform AuditorIA → OpenWatch across entire codebase"
+git commit -m "chore: rename platform OpenWatch → OpenWatch across entire codebase"
 ```
 
 ---

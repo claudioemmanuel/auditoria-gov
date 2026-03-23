@@ -53,7 +53,7 @@ def _send_infra_alert(event: str, **context: object) -> bool:
     payload = {
         "event": event,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "service": "auditoria-gov",
+        "service": "openwatch",
         "auto_resolved": auto_resolved,
         **context,
     }

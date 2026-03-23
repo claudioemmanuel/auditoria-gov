@@ -20,7 +20,7 @@ Out-of-scope by default:
 
 Please report vulnerabilities privately through GitHub Security Advisories:
 
-- https://github.com/claudioemmanuel/auditoria-gov/security/advisories/new
+- https://github.com/claudioemmanuel/openwatch/security/advisories/new
 
 If private advisories are unavailable, open a minimal public issue asking for a private contact channel and **do not** include exploit details.
 

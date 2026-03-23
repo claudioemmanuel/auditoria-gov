@@ -1,6 +1,6 @@
 # Core Tooling
 
-Scaffolding scripts and automation for AuditorIA Gov development tasks.
+Scaffolding scripts and automation for OpenWatch development tasks.
 
 ## Planned Scripts
 

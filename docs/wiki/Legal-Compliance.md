@@ -1,6 +1,6 @@
 # Conformidade Legal & Compliance
 
-Esta página responde às dúvidas mais comuns sobre a legalidade do AuditorIA Gov e detalha o respaldo jurídico que sustenta a plataforma.
+Esta página responde às dúvidas mais comuns sobre a legalidade do OpenWatch e detalha o respaldo jurídico que sustenta a plataforma.
 
 Para o documento técnico-jurídico completo, consulte [docs/COMPLIANCE.md](../COMPLIANCE.md).
 
@@ -8,7 +8,7 @@ Para o documento técnico-jurídico completo, consulte [docs/COMPLIANCE.md](../C
 
 ## Em uma linha
 
-> O AuditorIA Gov analisa **exclusivamente dados já tornados públicos por força de lei** (LAI, CF/88, legislação eleitoral e registros empresariais), os organiza de forma investigável e exibe sinais de risco com aviso de que são hipóteses estatísticas, não provas.
+> O OpenWatch analisa **exclusivamente dados já tornados públicos por força de lei** (LAI, CF/88, legislação eleitoral e registros empresariais), os organiza de forma investigável e exibe sinais de risco com aviso de que são hipóteses estatísticas, não provas.
 
 ---
 
@@ -96,7 +96,7 @@ Consulte `GET /signal/{id}/provenance` para verificar os dados brutos e `POST /c
 
 | Plataforma | Abordagem | Base legal |
 |------------|-----------|-----------|
-| **AuditorIA Gov** | Detecção determinística + scoring + proveniência | LAI + CF/88 + LGPD |
+| **OpenWatch** | Detecção determinística + scoring + proveniência | LAI + CF/88 + LGPD |
 | Transparência Internacional | Rankings e relatórios | Dados públicos + pesquisa |
 | Operação Serenata de Amor | Fiscalização de cotas parlamentares | LAI + dados da Câmara |
 | Brasil.io | Agregador de dados públicos estruturados | LAI |

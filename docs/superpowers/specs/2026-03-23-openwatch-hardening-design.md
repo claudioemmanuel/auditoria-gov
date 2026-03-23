@@ -9,9 +9,9 @@
 
 ## 1. Contexto e Motivação
 
-### 1.1 Renomeação: AuditorIA → OpenWatch
+### 1.1 Renomeação: OpenWatch → OpenWatch
 
-O nome **AuditorIA** foi concebido para sinalizar integração com Inteligência Artificial. Como essa integração não é o foco central da plataforma, o nome cria expectativa não correspondida. O novo nome **OpenWatch** reflete com precisão a missão real:
+O nome **OpenWatch** foi concebido para sinalizar integração com Inteligência Artificial. Como essa integração não é o foco central da plataforma, o nome cria expectativa não correspondida. O novo nome **OpenWatch** reflete com precisão a missão real:
 
 - **Open** → código aberto, dados abertos, acesso público irrestrito, sem login
 - **Watch** → watchdog cidadão, monitoramento contínuo, vigilância sobre o gasto público
@@ -21,7 +21,7 @@ Funciona naturalmente em português e inglês. Tagline: *"Vigilância cidadã so
 | Artefato | Antes | Depois |
 |----------|-------|--------|
 | Repositório | `auditoria-gov` | `openwatch` |
-| Nome público | AuditorIA Gov | OpenWatch |
+| Nome público | OpenWatch | OpenWatch |
 | Domínio sugerido | — | `openwatch.com.br` |
 | GitHub org | — | `openwatch-br` |
 | Package Python | `auditoria_gov` | `openwatch` |

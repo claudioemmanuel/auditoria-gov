@@ -1,6 +1,6 @@
 # Code & Doc Templates
 
-Starter templates for common AuditorIA Gov components.
+Starter templates for common OpenWatch components.
 
 ---
 

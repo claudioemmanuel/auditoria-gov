@@ -1,14 +1,14 @@
-# Compliance & Responsabilidade Legal — AuditorIA Gov
+# Compliance & Responsabilidade Legal — OpenWatch
 
-**Versão:** 1.1
-**Data de vigência:** 2026-03-11
+**Versão:** 1.2
+**Data de vigência:** 2026-03-23
 **Revisão:** Trimestral
 
 ---
 
 ## 1. Status Legal — O que a plataforma faz e por que é legal
 
-O AuditorIA Gov é uma plataforma de auditoria cidadã que **coleta, processa e apresenta exclusivamente dados já tornados públicos por força de lei**. Nenhum dado é obtido por meio de acesso não autorizado, violação de sigilo ou qualquer método ilícito.
+O OpenWatch é uma plataforma de auditoria cidadã que **coleta, processa e apresenta exclusivamente dados já tornados públicos por força de lei**. Nenhum dado é obtido por meio de acesso não autorizado, violação de sigilo ou qualquer método ilícito.
 
 A operação da plataforma está fundamentada em quatro eixos:
 
@@ -75,6 +75,9 @@ Além das bases de transparência ativa, as tipologias de detecção da platafor
 | Lei 12.529/2011 (Defesa da Concorrência) | Defesa da concorrência, cartel e conluio — base de T07 e T19–T21 |
 | FATF Recomendação 24 | Transparência de beneficiários finais — base de T17 |
 | CF/88 Art. 166-A + EC 105/2019 | Emendas parlamentares Pix e plano de trabalho — base de T16 |
+| ADI 7502 (STF, 2022-12-19) | Declaração de inconstitucionalidade das emendas de relator (RP-9); T16 detecta emendas RP-9 posteriores a 19/12/2022 |
+| Lei 14.133/2021, Art. 32 V | Diálogo competitivo incluído como modalidade não competitiva para fins de T02 |
+| Lei 14.133/2021, Art. 74 | Hipóteses válidas de inexigibilidade (T15): profissional singular, credenciamento, notória especialização, exclusividade, natureza singular |
 
 Estas bases legais fundamentam as tipologias avançadas de detecção registradas no sistema.
 
@@ -189,8 +192,14 @@ Qualquer entidade (pessoa física ou jurídica) que apareça em um sinal da plat
 
 1. **Consultar a proveniência** — `GET /signal/{id}/provenance` expõe todos os dados brutos que geraram o sinal
 2. **Verificar a metodologia** — A lógica de cada tipologia está documentada em `/methodology` e no código-fonte aberto
-3. **Contestar o sinal** — `POST /contestation` (endpoint de mecanismo de contestação) permite registrar impugnação formal
+3. **Contestar o sinal ou a entidade** — `POST /public/contestations` permite registrar impugnação formal com os campos:
+   - `signal_id` ou `entity_id` (ao menos um obrigatório)
+   - `report_type`: `signal_error` | `entity_error` | `duplicate` | `other`
+   - `evidence_url`: URL de documento de suporte (opcional)
+   - `requester_name`, `requester_email`, `reason`
 4. **Acessar o código** — O código-fonte é aberto (AGPL-3.0) e qualquer técnico pode verificar os cálculos
+
+O formulário de contestação está disponível diretamente em cada página de sinal na interface web, com as mesmas garantias de tratamento.
 
 **A plataforma não constitui processo judicial ou administrativo.** A contestação aqui se refere a sinalizações incorretas por erro de dados, não a processos legais, que devem seguir as vias próprias.
 
@@ -200,9 +209,9 @@ Qualquer entidade (pessoa física ou jurídica) que apareça em um sinal da plat
 
 ### 8.1 Aviso Obrigatório
 
-Todos os sinais emitidos pela plataforma carregam o seguinte aviso:
+Todos os sinais emitidos pela plataforma carregam o seguinte aviso, exibido automaticamente em cada página de sinal (componente `SignalDisclaimer`):
 
-> *"Este resultado representa um indicador estatístico para triagem e controle social. Não configura acusação, prova definitiva ou juízo de culpa. A verificação adicional por autoridade competente é necessária antes de qualquer conclusão."*
+> *"Os dados exibidos são coletados exclusivamente de fontes oficiais do Governo Federal (PNCP, TransfereGov, Portal da Transparência). Este sinal constitui um indício estatístico para orientar investigações — não implica prova de irregularidade nem juízo de valor sobre pessoas ou entidades. A decisão de apurar cabe exclusivamente às autoridades competentes. O uso indevido destas informações é de responsabilidade do usuário."*
 
 ### 8.2 Sinal ≠ Prova
 

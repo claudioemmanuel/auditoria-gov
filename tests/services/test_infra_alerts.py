@@ -181,7 +181,7 @@ class TestSendInfraAlert:
 
         assert captured["event"] == "pipeline_stalled"
         assert "timestamp" in captured
-        assert captured["service"] == "auditoria-gov"
+        assert captured["service"] == "openwatch"
         assert "auto_resolved" in captured
 
     def test_cooldown_key_set_with_correct_name_and_ttl(self):

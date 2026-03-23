@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in AuditorIA Gov
+about: Report a bug in OpenWatch
 title: "[Bug] "
 labels: bug
 ---

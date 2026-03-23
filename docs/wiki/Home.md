@@ -1,8 +1,8 @@
-# AuditorIA Gov Wiki
+# OpenWatch Wiki
 
-Welcome to the AuditorIA Gov project wiki.
+Welcome to the OpenWatch project wiki.
 
-AuditorIA Gov is an open-source citizen auditing platform for Brazilian federal public data.
+OpenWatch is an open-source citizen auditing platform for Brazilian federal public data.
 
 ## Start Here
 

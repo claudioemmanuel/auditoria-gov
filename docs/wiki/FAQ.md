@@ -1,6 +1,6 @@
 # FAQ
 
-## Is AuditorIA Gov a commercial product?
+## Is OpenWatch a commercial product?
 
 No. It is an open-source public-interest project.
 

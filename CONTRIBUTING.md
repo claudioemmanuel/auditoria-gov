@@ -1,6 +1,6 @@
-# Contributing to AuditorIA Gov
+# Contributing to OpenWatch
 
-Thanks for contributing to AuditorIA Gov.
+Thanks for contributing to OpenWatch.
 This project is a civic-tech platform for reproducible anti-corruption risk analysis of Brazilian federal public data.
 
 ## Development Setup
@@ -15,8 +15,8 @@ This project is a civic-tech platform for reproducible anti-corruption risk anal
 ### Local setup
 
 ```bash
-git clone https://github.com/claudioemmanuel/auditoria-gov.git
-cd auditoria-gov
+git clone https://github.com/claudioemmanuel/openwatch.git
+cd openwatch
 cp .env.example .env
 ```
 

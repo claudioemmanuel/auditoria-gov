@@ -1,4 +1,4 @@
-# Coding Rules — AuditorIA Gov
+# Coding Rules — OpenWatch
 
 ## Async-First
 

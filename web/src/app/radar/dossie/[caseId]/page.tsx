@@ -849,7 +849,7 @@ export default function DossierPage() {
           </div>
           <p className="mt-3 text-xs text-muted leading-relaxed">
             Todos os dados provêm de fontes públicas oficiais do governo federal brasileiro.
-            Análise gerada automaticamente por AuditorIA Gov. Requer investigação adicional e contraditório.
+            Análise gerada automaticamente por OpenWatch. Requer investigação adicional e contraditório.
           </p>
         </section>
 

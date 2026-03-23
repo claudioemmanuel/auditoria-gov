@@ -1,4 +1,4 @@
-# Skill: Safe Refactor — AuditorIA Gov
+# Skill: Safe Refactor — OpenWatch
 
 ## Purpose
 

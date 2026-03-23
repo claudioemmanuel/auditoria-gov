@@ -157,7 +157,7 @@ export default function CompliancePage() {
                 Plataforma Juridicamente Responsável
               </h1>
               <p className="mt-1.5 text-sm text-secondary leading-relaxed max-w-2xl">
-                O AuditorIA Gov opera exclusivamente sobre dados de transparência ativa obrigatória,
+                O OpenWatch opera exclusivamente sobre dados de transparência ativa obrigatória,
                 com base legal explícita, metodologia auditável e compliance automatizado.
               </p>
             </div>
@@ -332,7 +332,7 @@ export default function CompliancePage() {
               <ExternalLink className="h-3 w-3" />
             </a>
             <a
-              href="https://github.com/claudioemmanuel/auditoria-gov"
+              href="https://github.com/claudioemmanuel/openwatch"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-4 py-2.5 text-xs font-medium text-secondary transition hover:border-accent/30 hover:text-primary"
@@ -353,7 +353,7 @@ export default function CompliancePage() {
               Esta página documenta o posicionamento institucional e a base legal da plataforma para fins de
               transparência e controle social. Não constitui aconselhamento jurídico. Para situações específicas,
               consulte um advogado. Documento técnico-jurídico completo:{" "}
-              <a href="https://github.com/claudioemmanuel/auditoria-gov/blob/main/docs/COMPLIANCE.md"
+              <a href="https://github.com/claudioemmanuel/openwatch/blob/main/docs/COMPLIANCE.md"
                 className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">
                 docs/COMPLIANCE.md
               </a>.

@@ -1,6 +1,6 @@
-# Methodology — AuditorIA Gov
+# Methodology — OpenWatch
 
-This document describes the technical methodology of the AuditorIA Gov detection pipeline. It is intended for journalists, auditors, researchers, and anyone who wants to understand or verify how risk signals are generated.
+This document describes the technical methodology of the OpenWatch detection pipeline. It is intended for journalists, auditors, researchers, and anyone who wants to understand or verify how risk signals are generated.
 
 For the legal compliance framework, see [Legal Compliance](./Legal-Compliance). For implementation details, see [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
 

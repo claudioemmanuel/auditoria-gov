@@ -1,4 +1,4 @@
-# API Keys — AuditorIA Gov
+# API Keys — OpenWatch
 
 ## Required
 

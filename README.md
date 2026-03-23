@@ -1,6 +1,6 @@
-# AuditorIA Gov
+# OpenWatch
 
-[![CI](https://github.com/claudioemmanuel/auditoria-gov/actions/workflows/ci.yml/badge.svg)](https://github.com/claudioemmanuel/auditoria-gov/actions/workflows/ci.yml)
+[![CI](https://github.com/claudioemmanuel/openwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/claudioemmanuel/openwatch/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./pyproject.toml)
 [![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](./docker-compose.yml)
@@ -8,13 +8,13 @@
 
 Citizen auditing platform for Brazilian federal government data.
 
-AuditorIA Gov ingests public datasets from procurement, spending, legislative, electoral, and corporate registries, resolves entities across sources, and applies deterministic corruption-risk typologies to generate reproducible investigation signals. The interface is public-read only and each signal links to concrete evidence.
+OpenWatch ingests public datasets from procurement, spending, legislative, electoral, and corporate registries, resolves entities across sources, and applies deterministic corruption-risk typologies to generate reproducible investigation signals. The interface is public-read only and each signal links to concrete evidence.
 
 The scoring and detection layer is deterministic (statistics + graph analysis). Optional LLM support is used only for narrative explanations, not for risk scoring.
 
 ## Em Português (resumo)
 
-O AuditorIA Gov é uma plataforma de auditoria cidadã para dados públicos federais do Brasil. O sistema ingere múltiplas bases abertas, cruza entidades, detecta sinais de risco de corrupção por regras determinísticas e mostra evidências reproduzíveis no portal web.
+O OpenWatch é uma plataforma de auditoria cidadã para dados públicos federais do Brasil. O sistema ingere múltiplas bases abertas, cruza entidades, detecta sinais de risco de corrupção por regras determinísticas e mostra evidências reproduzíveis no portal web.
 
 A camada analítica não depende de modelo generativo para pontuação. IA generativa é opcional e usada apenas para explicações em linguagem natural.
 
@@ -95,8 +95,8 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 ### 1. Clone
 
 ```bash
-git clone https://github.com/claudioemmanuel/auditoria-gov.git
-cd auditoria-gov
+git clone https://github.com/claudioemmanuel/openwatch.git
+cd openwatch
 ```
 
 ### 2. Configure environment
@@ -233,7 +233,7 @@ Project wiki pages are versioned in [docs/wiki](./docs/wiki/README.md) and inten
 
 ## Support This Project
 
-AuditorIA Gov runs on ~$15-20/month of AWS infrastructure. If this project is useful to you, consider sponsoring:
+OpenWatch runs on ~$15-20/month of AWS infrastructure. If this project is useful to you, consider sponsoring:
 
 - [GitHub Sponsors](https://github.com/sponsors/claudioemmanuel)
 

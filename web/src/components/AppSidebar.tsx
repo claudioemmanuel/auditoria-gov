@@ -111,7 +111,7 @@ export function AppSidebar() {
           >
             <Shield className="h-5 w-5 shrink-0 text-accent" />
             <span className="font-display text-sm font-bold tracking-tight text-sidebar-text-active">
-              AuditorIA
+              OpenWatch
             </span>
             <span className="rounded-[6px] bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium text-sidebar-text">
               Gov

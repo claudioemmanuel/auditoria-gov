@@ -33,7 +33,7 @@ export default function HomePage() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-                  AuditorIA
+                  OpenWatch
                 </h1>
                 <span className="rounded-md border border-border bg-surface-base px-2 py-0.5 font-mono text-xs font-medium text-muted">
                   GOV · v2

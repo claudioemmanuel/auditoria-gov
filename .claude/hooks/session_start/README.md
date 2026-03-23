@@ -39,7 +39,7 @@ To automate session start checks, add a shell script at `.claude/hooks/session_s
 ```bash
 #!/bin/bash
 set -e
-echo "=== AuditorIA Session Start ==="
+echo "=== OpenWatch Session Start ==="
 docker compose ps 2>/dev/null || echo "Docker stack not running"
 [ -f .env ] && echo ".env present ✓" || echo "WARNING: .env missing"
 echo "==============================="

@@ -704,6 +704,29 @@ TYPOLOGY_LEGAL_METADATA: dict[str, dict[str, list[str] | str]] = {
             {"law_name": "Lei 8.429/1992", "article": "Art. 9°, III", "violation_type": "nepotismo_clientelismo"},
         ],
     },
+    "T23": {
+        "corruption_types": ["fraude_licitatoria", "peculato"],
+        "spheres": ["administrativa"],
+        "evidence_level": "direct",
+        "description_legal": "Sobrepreco em obras publicas detectado por comparacao de precos unitarios contratados com referencias SINAPI via modelo BIM. Stub: requer conector orcamento_bim.",
+        "law_articles": [
+            {"law_name": "Lei 14.133/2021", "article": "Art. 122, §3°", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Decreto 9.983/2019", "article": "Art. 1°", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 8.429/1992", "article": "Art. 9°, XI", "violation_type": "peculato"},
+        ],
+    },
+    "T24": {
+        "corruption_types": ["fraude_licitatoria"],
+        "spheres": ["administrativa", "privada"],
+        "evidence_level": "direct",
+        "description_legal": "Empresa de porte nao enquadrado como ME/EPP vence cota reservada exclusivamente a microempresas e empresas de pequeno porte, violando LC 123/2006 e Decreto 8.538/2015.",
+        "law_articles": [
+            {"law_name": "LC 123/2006", "article": "Art. 47-49", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 14.133/2021", "article": "Art. 48", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Lei 8.429/1992", "article": "Art. 11", "violation_type": "fraude_licitatoria"},
+            {"law_name": "Decreto 8.538/2015", "article": "Art. 2°", "violation_type": "fraude_licitatoria"},
+        ],
+    },
 }
 
 

@@ -12,11 +12,11 @@ terraform {
   # Step 1: cd infra/aws/bootstrap && terraform init && terraform apply
   # Step 2: uncomment the block below, then run: terraform init -migrate-state
   # backend "s3" {
-  #   bucket         = "auditoria-gov-tfstate"
+  #   bucket         = "openwatch-tfstate"
   #   key            = "terraform.tfstate"
   #   region         = "us-east-1"
   #   encrypt        = true
-  #   dynamodb_table = "auditoria-gov-tflock"
+  #   dynamodb_table = "openwatch-tflock"
   # }
 }
 

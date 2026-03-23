@@ -1,11 +1,11 @@
-# AuditorIA Gov Architecture
+# OpenWatch Architecture
 
-This document is the public architecture/specification baseline for AuditorIA Gov.
+This document is the public architecture/specification baseline for OpenWatch.
 It replaces internal planning artifacts under `docs/plans/` for open-source publication.
 
 ## Mission
 
-AuditorIA Gov is a public-read citizen auditing platform that ingests Brazilian federal open data, resolves entities across sources, detects reproducible corruption-risk patterns, and surfaces investigation-ready evidence.
+OpenWatch is a public-read citizen auditing platform that ingests Brazilian federal open data, resolves entities across sources, detects reproducible corruption-risk patterns, and surfaces investigation-ready evidence.
 
 ## Core Principles
 

@@ -329,6 +329,11 @@ class Contestation(Base):
     signal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("risk_signal.id")
     )
+    entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity.id")
+    )
+    report_type: Mapped[str] = mapped_column(String(50), default="signal_error")
+    evidence_url: Mapped[Optional[str]] = mapped_column(String(2048))
     status: Mapped[str] = mapped_column(String(20), default="open")
     requester_name: Mapped[str] = mapped_column(String(255))
     requester_email: Mapped[Optional[str]] = mapped_column(String(255))
@@ -340,7 +345,16 @@ class Contestation(Base):
     signal: Mapped[Optional["RiskSignal"]] = relationship()
 
     __table_args__ = (
+        CheckConstraint(
+            "signal_id IS NOT NULL OR entity_id IS NOT NULL",
+            name="ck_contestation_has_target",
+        ),
+        CheckConstraint(
+            "report_type IN ('signal_error','entity_error','duplicate','other')",
+            name="ck_contestation_report_type",
+        ),
         Index("ix_contestation_signal_status", "signal_id", "status"),
+        Index("ix_contestation_entity_status", "entity_id", "status"),
         Index("ix_contestation_created_at", "created_at"),
     )
 

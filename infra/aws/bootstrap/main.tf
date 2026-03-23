@@ -26,7 +26,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name (used for bucket/table naming)"
   type        = string
-  default     = "auditoria-gov"
+  default     = "openwatch"
 }
 
 provider "aws" {

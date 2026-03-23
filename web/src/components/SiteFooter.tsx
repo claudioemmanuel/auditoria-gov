@@ -11,8 +11,8 @@ const LEGAL_LINKS = [
 
 const AUDIT_LINKS = [
   { label: "Fontes & Veracidade (GET /public/sources)", href: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/sources`, external: true },
-  { label: "Código-fonte (AGPL-3.0)", href: "https://github.com/claudioemmanuel/auditoria-gov", external: true },
-  { label: "Política de Governança (GOVERNANCE.md)", href: "https://github.com/claudioemmanuel/auditoria-gov/blob/main/docs/GOVERNANCE.md", external: true },
+  { label: "Código-fonte (AGPL-3.0)", href: "https://github.com/claudioemmanuel/openwatch", external: true },
+  { label: "Política de Governança (GOVERNANCE.md)", href: "https://github.com/claudioemmanuel/openwatch/blob/main/docs/GOVERNANCE.md", external: true },
 ];
 
 const TRANSPARENCY_LINKS = [
@@ -36,7 +36,7 @@ export function SiteFooter() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
                 <Shield className="h-3.5 w-3.5 text-accent" />
               </div>
-              <span className="font-display text-sm font-bold text-primary">AuditorIA Gov</span>
+              <span className="font-display text-sm font-bold text-primary">OpenWatch</span>
             </div>
             <p className="text-xs text-muted leading-relaxed mb-3">
               Plataforma de auditoria cidadã sobre dados públicos federais brasileiros.

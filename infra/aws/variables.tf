@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name (used for resource naming)"
   type        = string
-  default     = "auditoria-gov"
+  default     = "openwatch"
 }
 
 variable "db_password" {
@@ -110,5 +110,5 @@ variable "github_org" {
 variable "github_repo" {
   description = "GitHub repository name for OIDC federation"
   type        = string
-  default     = "auditoria-gov"
+  default     = "openwatch"
 }
