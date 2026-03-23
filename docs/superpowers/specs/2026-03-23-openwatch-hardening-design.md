@@ -58,6 +58,12 @@ O `cluster_confidence` é o **mínimo** dos scores de todos os pares do cluster 
 
 ### 2.3 Trilha de evidência do merge
 
+Nova coluna na tabela `entity`:
+```sql
+cluster_confidence  INTEGER CHECK (cluster_confidence BETWEEN 0 AND 100)
+-- atualizada após cada execução de ER; NULL = entidade sem cluster
+```
+
 Nova tabela `er_merge_evidence`:
 
 ```sql
@@ -93,10 +99,12 @@ Quando novas evidências chegam (ex.: CNPJ agora disponível), o merge é reaval
 
 ### 3.1 Novo campo: `signal_confidence_score`
 
-Cada `RiskSignal` recebe dois scores distintos:
+O modelo `RiskSignal` atual possui:
+- `severity` — campo `String(20)` categórico (`"CRITICAL"`, `"HIGH"`, `"MEDIUM"`, `"LOW"`); **não é entrada da fórmula abaixo**
+- `confidence` — campo `Float` existente que representa completude dos dados; será renomeado para `data_completeness` via migration para evitar ambiguidade com o novo score
 
-- `severity_score` (existente): gravidade do padrão detectado
-- `signal_confidence_score` (novo): qualidade/certeza dos dados que sustentam o sinal
+Novo campo adicionado:
+- `signal_confidence_score` — `INTEGER` (0–100): score composto calculado pela fórmula da Seção 3.2; mede qualidade/certeza dos dados que sustentam o sinal
 
 ### 3.2 Fórmula
 
@@ -112,7 +120,7 @@ signal_confidence = (
 | Componente | Cálculo |
 |---|---|
 | `er_confidence` | `cluster_confidence` do cluster das entidades envolvidas |
-| `data_freshness` | dias desde o evento mais recente → decaimento logarítmico, máx 100 |
+| `data_freshness` | `max(0, 100 − 20 × ln(1 + dias_desde_evento_mais_recente))` — âncoras: 100 em 0 dias, ~75 em 30 dias, ~50 em 180 dias, ~25 em 1 ano, 0 em 3+ anos |
 | `source_coverage` | conectores com evidência ÷ conectores relevantes para a tipologia |
 | `typology_evidence` | score interno dos `factors` da tipologia, normalizado 0–100 |
 
@@ -169,6 +177,20 @@ A página `/metodologia` exibe o commit hash atual do repositório com link para
 
 ## 5. Mecanismo de Reporte de Erro + Disclaimers + Termos de Uso
 
+### 5.1a Relação com o modelo `Contestation` existente
+
+O modelo `Contestation` já existe em `shared/models/orm.py` com campos: `signal_id`, `status`, `requester_name`, `requester_email`, `reason`, `resolution`, `resolved_at`. Em vez de criar uma segunda tabela paralela, **estender `Contestation`** com os campos adicionais necessários:
+
+```sql
+-- Migration: adicionar a Contestation
+entity_id      UUID REFERENCES entity(id),   -- permite contestar entidade (não apenas sinal)
+report_type    VARCHAR(50),                   -- er_error | stale_data | other
+evidence_url   TEXT,                          -- fonte contraditória
+-- status e campos existentes permanecem inalterados
+```
+
+Fluxo: o formulário público submete via `POST /public/contestations` → cria registro `Contestation` com `status = pending`. A lógica de triage interna permanece no mesmo modelo.
+
 ### 5.1 Mecanismo de reporte ("Flag")
 
 Formulário sem login acessível em cada card de sinal e perfil de entidade:
@@ -179,19 +201,6 @@ Formulário sem login acessível em cada card de sinal e perfil de entidade:
 - Descrição (máx. 1000 chars)
 - Fonte ou evidência contraditória (URL ou texto)
 - E-mail para retorno (opcional)
-```
-
-Nova tabela `error_report`:
-
-```sql
-entity_id      UUID REFERENCES entity(id),
-signal_id      UUID REFERENCES risk_signal(id),
-report_type    VARCHAR(50),
-description    TEXT,
-evidence_url   TEXT,
-contact_email  TEXT,
-status         VARCHAR(20) DEFAULT 'pending',  -- pending / reviewing / resolved / dismissed
-created_at     TIMESTAMPTZ DEFAULT NOW()
 ```
 
 Se `status = resolved` e ER estava incorreto: trigger de reavaliação do cluster.
@@ -399,7 +408,7 @@ Criar `docs/typology-audit-14133.md` com mapeamento completo de cada tipologia c
 
 | Prioridade | Item | Esforço estimado |
 |-----------|------|-----------------|
-| 🔴 Crítica | Renomear plataforma para OpenWatch | 1–2 dias (sed global + configs) |
+| 🟡 Alta | Renomear plataforma para OpenWatch | 1–2 dias (sed global + configs) — pode rodar em paralelo, não bloqueia hardening jurídico |
 | 🔴 Crítica | Reescrever T16 (RP-9 + Emendas Pix) | 3–5 dias |
 | 🔴 Crítica | Externalizar thresholds T03 + Decreto 12.807/2025 | 2 dias |
 | 🔴 Crítica | ER Confidence Shield (tabela + scores + badges) | 5–7 dias |
@@ -407,7 +416,7 @@ Criar `docs/typology-audit-14133.md` com mapeamento completo de cada tipologia c
 | 🟡 Alta | Mecanismo de reporte de erro (tabela + formulário + API) | 3–4 dias |
 | 🟡 Alta | Página /metodologia + /tipologia/:code | 3–4 dias |
 | 🟡 Alta | Correções T02, T12, T15 | 1–2 dias |
-| 🟡 Alta | Atualizar COMPLIANCE.md (bases LGPD + linguagem sinais) | 1 dia |
+| 🟡 Alta | Atualizar COMPLIANCE.md (bases LGPD + linguagem sinais + substituir Decreto 12.343/2024 por Decreto 12.807/2025 na Seção 3b) | 1 dia |
 | 🟢 Média | Termos de uso + disclaimers contextuais | 1–2 dias |
 | 🟢 Média | Citações T13, T17 | 0.5 dia |
 | 🟢 Média | Tipologia T24 (fraude ME/EPP) | 3–4 dias |
