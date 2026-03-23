@@ -44,6 +44,8 @@ services:
           memory: 64M
 
   api:
+    environment:
+      APP_ENV: development
     deploy:
       resources:
         limits:
@@ -56,6 +58,8 @@ services:
   # Memory budget: 2 workers × 300MB + main/beat overhead ≈ 900MB → 1536M limit.
   worker-primary:
     command: celery -A worker.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum,er,signals,bulk --concurrency=2 --max-memory-per-child=300000 -n worker-unified@%h
+    environment:
+      APP_ENV: development
     deploy:
       resources:
         limits:

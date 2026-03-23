@@ -45,6 +45,9 @@ app = FastAPI(
 
 _allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 
+app.add_middleware(SecurityEventsMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(CacheMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
@@ -52,9 +55,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-app.add_middleware(SecurityEventsMiddleware)
-app.add_middleware(RateLimitMiddleware)
-app.add_middleware(CacheMiddleware)
 
 app.include_router(public_router, prefix="/public", tags=["public"])
 app.include_router(
