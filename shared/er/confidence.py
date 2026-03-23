@@ -21,7 +21,11 @@ def compute_pair_confidence(
     same_municipality: bool,
     co_participation_count: int,
 ) -> tuple[Optional[int], Optional[EvidenceType]]:
-    """Return (score, evidence_type) or (None, None) if below merge threshold."""
+    """Return (score, evidence_type) for the highest matching tier, or (None, None) if no evidence tier matched.
+
+    Precondition: CNPJ values in identifiers must be digits-only, 14 characters (post-normalization).
+    Callers must check score against MERGE_THRESHOLD to decide whether to merge.
+    """
     cnpj_a = identifiers_a.get("cnpj")
     cnpj_b = identifiers_b.get("cnpj")
     cpf_a = identifiers_a.get("cpf_hash")

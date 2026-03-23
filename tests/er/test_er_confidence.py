@@ -144,6 +144,20 @@ def test_name_fuzzy_returns_score_below_merge_threshold():
     assert score < MERGE_THRESHOLD
 
 
+def test_short_cnpj_does_not_false_match_branch():
+    # Short CNPJs with identical values hit CNPJ_EXACT (100), not CNPJ_BRANCH
+    # Documents the precondition: normalised CNPJs are always 14 digits
+    score, evidence_type = compute_pair_confidence(
+        identifiers_a={"cnpj": "12345"},
+        identifiers_b={"cnpj": "12345"},
+        name_similarity=0.0,
+        same_municipality=False,
+        co_participation_count=0,
+    )
+    assert score == 100
+    assert evidence_type == EvidenceType.CNPJ_EXACT
+
+
 def test_below_fuzzy_entry_threshold_returns_none():
     # name_similarity below 0.75 → no evidence tier matched → (None, None)
     score, evidence_type = compute_pair_confidence(
