@@ -4314,7 +4314,8 @@ async def search_entities(
                    e.identifiers->>'cnpj' AS cnpj,
                    e.identifiers->>'cpf' AS cpf,
                    e.cluster_id,
-                   similarity(e.name_normalized, :q) AS score
+                   similarity(e.name_normalized, :q) AS score,
+                   e.cluster_confidence
             FROM entity e
             JOIN entity_raw_source ers ON ers.entity_id = e.id
             JOIN raw_source rs ON rs.id = ers.raw_source_id
@@ -4333,7 +4334,8 @@ async def search_entities(
                    e.identifiers->>'cnpj' AS cnpj,
                    e.identifiers->>'cpf' AS cpf,
                    e.cluster_id,
-                   similarity(e.name_normalized, :q) AS score
+                   similarity(e.name_normalized, :q) AS score,
+                   e.cluster_confidence
             FROM entity e
             WHERE e.name_normalized % :q
               {type_filter}
@@ -4356,6 +4358,7 @@ async def search_entities(
             "cpf": r[5],
             "cluster_id": str(r[6]) if r[6] else None,
             "score": float(r[7]),
+            "cluster_confidence": r[8],
         }
         for r in rows
     ]
