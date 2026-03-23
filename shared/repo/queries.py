@@ -4728,3 +4728,24 @@ async def get_dossier_timeline(
         "legal_hypotheses": legal_hypotheses,
         "related_cases": related_cases,
     }
+
+
+async def get_min_cluster_confidence(
+    session: AsyncSession,
+    entity_ids: list,
+) -> int | None:
+    """Return the minimum cluster_confidence across the given entity IDs.
+
+    Returns None if no entities are found or none have a cluster_confidence set.
+    This represents the weakest-link identity certainty for a signal's entity set.
+    """
+    if not entity_ids:
+        return None
+    str_ids = [str(eid) for eid in entity_ids]
+    result = await session.execute(
+        select(func.min(Entity.cluster_confidence)).where(
+            Entity.id.in_(str_ids),
+            Entity.cluster_confidence.isnot(None),
+        )
+    )
+    return result.scalar_one_or_none()

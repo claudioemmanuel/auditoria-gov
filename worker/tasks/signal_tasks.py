@@ -547,6 +547,29 @@ def run_single_signal(
                                         signal_id=str(db_signal.id),
                                     )
 
+                        # Compute composite signal_confidence_score (0–100).
+                        try:
+                            from datetime import date as _date
+                            from shared.typologies.confidence_scorer import compute_signal_confidence
+                            from shared.repo.queries import get_min_cluster_confidence
+                            _days = (
+                                (_date.today() - signal.period_end.date()).days
+                                if signal.period_end else 0
+                            )
+                            _er_conf = None
+                            if signal.entity_ids:
+                                _er_conf = await get_min_cluster_confidence(session, signal.entity_ids)
+                            _scs, _scf = compute_signal_confidence(
+                                er_confidence=_er_conf,
+                                days_since_latest_event=max(0, _days),
+                                source_coverage=1.0,
+                                typology_evidence=80.0,
+                            )
+                            db_signal.signal_confidence_score = _scs
+                            db_signal.confidence_factors = _scf
+                        except Exception:
+                            log.warning("run_single_signal.confidence_score_failed", signal_id=str(db_signal.id))
+
                         evidence_package.signature = _compute_evidence_signature(
                             db_signal=db_signal,
                             evidence_package=evidence_package,
