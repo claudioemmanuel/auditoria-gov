@@ -12,9 +12,9 @@ interface EntityNetworkGraphProps {
 }
 
 const NODE_COLORS: Record<string, string> = {
-  person: "#3b82f6",
-  company: "#10b981",
-  org: "#8b5cf6",
+  person:  "#7C6AE0",
+  company: "#4A82D4",
+  org:     "#3A90A0",
 };
 
 const NODE_TYPE_LABELS: Record<string, string> = {
@@ -260,7 +260,7 @@ export function EntityNetworkGraph({ entityId, className }: EntityNetworkGraphPr
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke="#6b7280"
+              stroke="#7070A8"
               strokeOpacity={0.3}
               strokeWidth={1}
               strokeDasharray="4 3"

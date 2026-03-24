@@ -1,27 +1,16 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider, ThemeScript } from "@/components/ThemeProvider";
 import { CommandPalette } from "@/components/CommandPalette";
 import { SiteFooter } from "@/components/SiteFooter";
 
-const manrope = Manrope({
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-manrope",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -41,17 +30,15 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body
-        className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} min-h-screen bg-surface-base`}
+        className={`${inter.variable} ${ibmPlexMono.variable} antialiased`}
+        style={{ paddingTop: "40px" }}
       >
         <ThemeProvider>
-          <div className="flex h-screen overflow-hidden">
-            <AppSidebar />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-              <SiteFooter />
-            </main>
+          <div className="relative z-50">
+            <CommandPalette />
           </div>
-          <CommandPalette />
+          <AppSidebar />
+          {children}
         </ThemeProvider>
       </body>
     </html>

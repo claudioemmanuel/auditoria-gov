@@ -29,9 +29,9 @@ import type { NeighborhoodResponse, GraphEdge } from "@/lib/types";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const NODE_COLORS: Record<string, string> = {
-  person:  "#2563eb",
-  company: "#059669",
-  org:     "#7c3aed",
+  person:  "#7C6AE0",
+  company: "#4A82D4",
+  org:     "#3A90A0",
 };
 
 const NODE_TYPE_LABELS: Record<string, string> = {
@@ -41,19 +41,19 @@ const NODE_TYPE_LABELS: Record<string, string> = {
 };
 
 const EDGE_COLORS: Record<string, string> = {
-  compra_fornecimento:         "#3b82f6",
-  agente_publico_favorecido:   "#ef4444",
-  coparticipacao_evento:       "#6b7280",
-  coparticipacao_fornecedores: "#9ca3af",
-  coparticipacao_orgaos:       "#a78bfa",
-  sociedade:                   "#10b981",
-  SAME_SOCIO:                  "#f59e0b",
-  SAME_ADDRESS:                "#94a3b8",
-  SHARES_PHONE:                "#64748b",
-  SAME_ACCOUNTANT:             "#94a3b8",
-  SUBSIDIARY:                  "#8b5cf6",
-  HOLDING:                     "#8b5cf6",
-  same_cluster_entity:         "#f43f5e",
+  compra_fornecimento:         "#4A82D4",
+  agente_publico_favorecido:   "#E05050",
+  coparticipacao_evento:       "#7070A8",
+  coparticipacao_fornecedores: "#9090C0",
+  coparticipacao_orgaos:       "#A080E0",
+  sociedade:                   "#30A060",
+  SAME_SOCIO:                  "#C89820",
+  SAME_ADDRESS:                "#8090B0",
+  SHARES_PHONE:                "#7080A0",
+  SAME_ACCOUNTANT:             "#8090B0",
+  SUBSIDIARY:                  "#8A63E8",
+  HOLDING:                     "#8A63E8",
+  same_cluster_entity:         "#D46020",
 };
 
 const EDGE_TYPE_LABELS: Record<string, string> = {
@@ -143,7 +143,7 @@ function EntityNode({ data }: NodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: "#4b5563", width: 8, height: 8, border: "none" }}
+        style={{ background: "#2E2E50", width: 8, height: 8, border: "none" }}
       />
 
       <div className="px-3 py-2">
@@ -168,7 +168,7 @@ function EntityNode({ data }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: "#4b5563", width: 8, height: 8, border: "none" }}
+        style={{ background: "#2E2E50", width: 8, height: 8, border: "none" }}
       />
     </div>
   );
@@ -210,10 +210,10 @@ function FlowInner({ rfNodes, rfEdges }: FlowInnerProps) {
       nodesDraggable
       className="bg-surface-base"
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#334155" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#2E2E50" />
       <Controls className="[&>button]:!bg-surface-card [&>button]:!border-border [&>button]:!text-secondary [&>button:hover]:!text-primary [&>button]:!shadow-none" />
       <MiniMap
-        nodeColor={(n) => NODE_COLORS[(n.data as EntityNodeData).node_type] ?? "#6b7280"}
+        nodeColor={(n) => NODE_COLORS[(n.data as EntityNodeData).node_type] ?? "#7070A8"}
         maskColor="rgba(0,0,0,0.35)"
         className="!bg-surface-card !border !border-border !rounded-lg !shadow-sm"
       />

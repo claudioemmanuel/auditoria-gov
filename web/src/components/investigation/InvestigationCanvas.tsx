@@ -23,15 +23,15 @@ import { RelationEdge } from "./RelationEdge";
 import { useElkLayout } from "./useElkLayout";
 import type { GNode, GLink } from "@/hooks/useCaseGraph";
 import type { SignalSeverity } from "@/lib/types";
-import { tokens } from "@/lib/design-tokens";
+import { getTokens, tokens } from "@/lib/design-tokens";
 
 const NODE_TYPES = { entity: EntityNode };
 const EDGE_TYPES = { relation: RelationEdge };
 
 const MINIMAP_NODE_COLOR: Record<string, string> = {
-  person: "#3b82f6",
-  company: "#059669",
-  org: "#7c3aed",
+  person:  "#7C6AE0",
+  company: "#4A82D4",
+  org:     "#3A90A0",
 };
 
 interface InvestigationCanvasProps {
@@ -136,7 +136,7 @@ function InvestigationCanvasInner({
           type: MarkerType.ArrowClosed,
           width: 12,
           height: 12,
-          color: "#94a3b8",
+          color: "#9090C0",
         },
       })),
     [graphData.links],
@@ -239,7 +239,7 @@ function InvestigationCanvasInner({
   }
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0" style={{ background: "var(--color-surface)" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -272,9 +272,9 @@ function InvestigationCanvasInner({
 
         <MiniMap
           nodeColor={(node) =>
-            MINIMAP_NODE_COLOR[(node.data as EntityNodeData).nodeType] ?? tokens.text.muted
+            MINIMAP_NODE_COLOR[(node.data as EntityNodeData).nodeType] ?? tokens.muted
           }
-          maskColor="rgba(247,248,252,0.75)"
+          maskColor="rgba(13,13,23,0.75)"
           className="!bg-surface-card !border-border !shadow-md"
           pannable
           zoomable
@@ -293,7 +293,7 @@ function InvestigationCanvasInner({
                 markerHeight="12"
                 orient="auto-start-reverse"
               >
-                <path d="M 2 2 L 10 6 L 2 10 z" fill="#94a3b8" />
+                <path d="M 2 2 L 10 6 L 2 10 z" fill="#9090C0" />
               </marker>
               <marker
                 id="arrow-selected"
