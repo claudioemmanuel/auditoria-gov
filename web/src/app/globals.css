@@ -1,128 +1,115 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Semantic surfaces ──────────────────────────────── */
-  --color-surface-base: #F5F3EF;
-  --color-surface-card: #FAFAF8;
-  --color-surface-subtle: #EDEBE6;
-  --color-surface-hover: #E5E2DC;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 
-  /* ── Borders ────────────────────────────────────────── */
-  --color-border: #D4CFC8;
-  --color-border-subtle: #E5E2DC;
+  /* Intelligence Vault — light palette */
+  --color-bg:             #F5F5FC;
+  --color-fg:             #0A0A1A;
+  --color-surface:        #EAEAF5;
+  --color-border:         #CACAE0;
+  --color-muted:          #5252A0;
+  --color-accent:         #6E3ED6;
+  --color-accent-dim:     #E8E0FA;
 
-  /* ── Text hierarchy (flat names → text-primary etc.) ── */
-  --color-primary: #0C1B24;
-  --color-secondary: #3D5060;
-  --color-muted: #6E8494;
-  --color-placeholder: #9AAEBB;
+  /* Severity */
+  --color-critical:       #9B1616;
+  --color-high:           #C94A0A;
+  --color-medium:         #8A6400;
+  --color-low:            #1A6840;
 
-  /* ── Accent (electric teal) ─────────────────────────── */
-  --color-accent: #007A8A;
-  --color-accent-hover: #006675;
-  --color-accent-subtle: #E0F4F7;
+  /* Status */
+  --color-success:        #1A6840;
+  --color-warning:        #8A6400;
+  --color-error:          #9B1616;
+  --color-info:           #3848C8;
 
-  /* ── Evidence line (left-border on evidence blocks) ──── */
-  --color-evidence-line: #C8D5DF;
+  /* Surface hierarchy */
+  --color-surface-base:   #F5F5FC;
+  --color-surface-card:   #E2E2F0;
+  --color-surface-subtle: #EBEBF8;
 
-  /* ── Sidebar ────────────────────────────────────────── */
-  --color-sidebar-bg: #0E171D;
-  --color-sidebar-hover: #1B2B35;
-  --color-sidebar-active: #223540;
-  --color-sidebar-text: #A8BBC9;
-  --color-sidebar-text-active: #E7EEF3;
-  --color-sidebar-border: #2A3A45;
+  /* Typography variants */
+  --color-text-primary:   #0A0A1A;
+  --color-text-secondary: #3A3A70;
+  --color-text-muted:     #6060A0;
 
-  /* ── Severity (domain-specific) ─────────────────────── */
-  --color-severity-critical: #dc2626;
-  --color-severity-critical-bg: #fef2f2;
-  --color-severity-high: #ea580c;
-  --color-severity-high-bg: #fff7ed;
-  --color-severity-medium: #ca8a04;
-  --color-severity-medium-bg: #fefce8;
-  --color-severity-low: #2563eb;
-  --color-severity-low-bg: #eff6ff;
+  /* Semantic aliases */
+  --color-primary:        #0A0A1A;
+  --color-secondary:      #3A3A70;
+  --color-destructive:    #9B1616;
+  --color-accent-subtle:  #E8E0FA;
 
-  /* ── Investigative amber (alerts/context) ───────────── */
-  --color-amber: #D97706;
-  --color-amber-subtle: #FEF3C7;
-
-  /* ── Status ─────────────────────────────────────────── */
-  --color-success: #059669;
-  --color-success-subtle: #ECFDF5;
-  --color-error: #DC2626;
-  --color-error-subtle: #FEF2F2;
-
-  /* ── Typography ─────────────────────────────────────── */
-  --font-sans: var(--font-ibm-plex-sans, system-ui, -apple-system, sans-serif);
-  --font-display: var(--font-space-grotesk, system-ui, -apple-system, sans-serif);
-  --font-mono: var(--font-jetbrains-mono, "Courier New", monospace);
-  --font-serif: var(--font-ibm-plex-serif, Georgia, serif);
-
-  /* ── Radius ─────────────────────────────────────────── */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-
-  /* ── Shadows ─────────────────────────────────────────── */
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.05);
-  --shadow-card: 0 4px 16px rgba(0,0,0,0.07);
+  /* ── Radius (zero — sharp edges enforced) ── */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
 }
 
-/* ── Dark mode overrides ─────────────────────────────── */
-.dark {
-  --color-surface-base: #090E13;
-  --color-surface-card: #0F1923;
-  --color-surface-subtle: #162230;
-  --color-surface-hover: #1C2D3E;
+/* ── Dark mode overrides ──────────────────────────────────────────── */
+html.dark {
+  --color-bg:             #0D0D17;
+  --color-fg:             #DCDDEE;
+  --color-surface:        #16162A;
+  --color-border:         #2E2E50;
+  --color-muted:          #9090C0;
+  --color-accent:         #8A63E8;
+  --color-accent-dim:     #1A0A38;
 
-  --color-border: #1E3A50;
-  --color-border-subtle: #162230;
+  /* Surface hierarchy */
+  --color-surface-base:   #0D0D17;
+  --color-surface-card:   #1E1E35;
+  --color-surface-subtle: #131325;
 
-  --color-primary: #E8EFF5;
-  --color-secondary: #8BA3BC;
-  --color-muted: #4D6A82;
-  --color-placeholder: #3A5568;
+  /* Severity — brighter for dark backgrounds */
+  --color-critical:       #E05050;
+  --color-high:           #D46020;
+  --color-medium:         #C89820;
+  --color-low:            #30A060;
 
-  --color-accent: #00B4CC;
-  --color-accent-hover: #00CDE8;
-  --color-accent-subtle: #001A1F;
+  /* Status */
+  --color-success:        #30A060;
+  --color-warning:        #C89820;
+  --color-error:          #E05050;
+  --color-info:           #5870E0;
 
-  --color-evidence-line: #1E3A50;
+  /* Typography */
+  --color-text-primary:   #DCDDEE;
+  --color-text-secondary: #A0A0C8;
+  --color-text-muted:     #7070A8;
 
-  --color-sidebar-bg: #050A0F;
-  --color-sidebar-hover: #0F1923;
-  --color-sidebar-active: #162230;
-  --color-sidebar-text: #4D6A82;
-  --color-sidebar-text-active: #E8EFF5;
-  --color-sidebar-border: #1E3A50;
-
-  --color-severity-critical: #FF4444;
-  --color-severity-critical-bg: #2A0A0A;
-  --color-severity-high: #FF8C00;
-  --color-severity-high-bg: #2D1800;
-  --color-severity-medium: #FFD700;
-  --color-severity-medium-bg: #2A2000;
-  --color-severity-low: #4A9EFF;
-  --color-severity-low-bg: #0A1830;
-
-  --color-amber: #FBBF24;
-  --color-amber-subtle: #2A2000;
-
-  --color-success: #34D399;
-  --color-success-subtle: #061A10;
-  --color-error: #FF4444;
-  --color-error-subtle: #2A0A0A;
+  /* Semantic aliases */
+  --color-primary:        #DCDDEE;
+  --color-secondary:      #A0A0C8;
+  --color-destructive:    #E05050;
+  --color-accent-subtle:  #1A0A38;
 }
+
+/* ── Zero radius globally ────────────────────────────────────────── */
+*, *::before, *::after { border-radius: 0 !important; }
 
 /* ── Base body ───────────────────────────────────────── */
 body {
   font-family: var(--font-sans);
-  color: var(--color-primary);
-  background-color: var(--color-surface-base);
+  font-size: 1rem;         /* 16px explícito — evita scaling indesejado */
+  line-height: 1.5;        /* Vision Council: mínimo para sessões > 30 min */
+  color: var(--color-fg);
+  background-color: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Global typography ───────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+/* Data displays must NOT use heading font */
+[data-mono-heading], .dateline, .exhibit-id, .byline-data {
+  font-family: var(--font-mono);
 }
 
 /* ── Page container ──────────────────────────────────── */
@@ -135,74 +122,120 @@ body {
 
 /* ── Card utilities ──────────────────────────────────── */
 .surface-card {
-  background-color: var(--color-surface-card);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
 }
 
 .metric-card {
-  background-color: var(--color-surface-card);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   padding: 1rem;
 }
 
 .surface-muted {
-  background-color: var(--color-surface-subtle);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
 }
 
 .panel-title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--color-fg);
 }
 
-/* ── Status badge utilities (dark-mode safe) ─────────── */
+/* ── Status badge utilities ──────────────────────────── */
 .status-ok {
-  background-color: var(--color-success-subtle);
+  background-color: color-mix(in srgb, var(--color-success) 10%, transparent);
   color: var(--color-success);
   border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
 }
 .status-warning {
-  background-color: var(--color-amber-subtle);
-  color: var(--color-amber);
-  border: 1px solid color-mix(in srgb, var(--color-amber) 20%, transparent);
+  background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 20%, transparent);
 }
 .status-error {
-  background-color: var(--color-error-subtle);
+  background-color: color-mix(in srgb, var(--color-error) 10%, transparent);
   color: var(--color-error);
   border: 1px solid color-mix(in srgb, var(--color-error) 20%, transparent);
 }
 .status-pending {
-  background-color: var(--color-surface-subtle);
+  background-color: var(--color-surface);
   color: var(--color-muted);
   border: 1px solid var(--color-border);
 }
 
-/* ── Evidence block (left-stripe style) ───────────────── */
+/* ── Evidence block (editorial left-stripe) ─────────── */
 .evidence-block {
-  border-left: 3px solid var(--color-evidence-line);
+  border-left: 3px solid var(--color-accent);
   padding-left: 1rem;
 }
 
 .evidence-block-critical {
-  border-left: 3px solid var(--color-severity-critical);
+  border-left: 3px solid var(--color-critical);
   padding-left: 1rem;
 }
 
-/* ── Editorial typography utilities ───────────────────── */
+/* ── Masthead double rule ────────────────────────────── */
+.masthead-rule {
+  border-top: 4px solid var(--color-fg);
+  border-bottom: 1px solid var(--color-fg);
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+
+/* ── Column rule (divisória vertical) ───────────────── */
+.col-rule {
+  border-right: 1px solid var(--color-border);
+}
+
+/* ── Section flag ────────────────────────────────────── */
+.section-flag {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-fg);
+  color: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+}
+
+/* ── Section kicker (mono label) ────────────────────── */
 .section-kicker {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.5625rem;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
 
+/* ── Byline ──────────────────────────────────────────── */
+.byline {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* ── Edition strip ───────────────────────────────────── */
+.edition-strip {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 3px 0;
+}
+
+/* ── Dateline & exhibit ID ───────────────────────────── */
 .dateline {
   font-family: var(--font-mono);
   font-size: 0.625rem;
@@ -213,65 +246,11 @@ body {
 .exhibit-id {
   font-family: var(--font-mono);
   font-size: 0.625rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;  /* era 0.1em — padroniza com byline (0.12em) */
   color: var(--color-muted);
 }
 
-/* ── Data number (large tabular metrics) ──────────────── */
-.data-num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-/* ── Audit stamp (classification badge) ───────────────── */
-.audit-stamp {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  border-radius: 2px;
-  padding: 1px 4px;
-}
-
-/* ── Page rule ────────────────────────────────────────── */
-.page-rule {
-  height: 1px;
-  background-color: var(--color-border);
-}
-
-/* ── Interactive card (lift on hover) ─────────────────── */
-.card-interactive {
-  transition: box-shadow 150ms ease, border-color 150ms ease, transform 150ms ease;
-}
-.card-interactive:hover {
-  box-shadow: var(--shadow-card);
-  transform: translateY(-1px);
-}
-.dark .card-interactive:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-
-/* ── Severity left-border utilities ───────────────────── */
-.severity-line-critical { border-left: 3px solid var(--color-severity-critical); padding-left: 1rem; }
-.severity-line-high     { border-left: 3px solid var(--color-severity-high);     padding-left: 1rem; }
-.severity-line-medium   { border-left: 3px solid var(--color-severity-medium);   padding-left: 1rem; }
-.severity-line-low      { border-left: 3px solid var(--color-severity-low);      padding-left: 1rem; }
-
-/* ── Scan-line texture (metric cards) ─────────────────── */
-.scanline-texture {
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.015) 2px,
-    rgba(0, 0, 0, 0.015) 4px
-  );
-}
-
-/* ── Focus ring (accessibility) ──────────────────────── */
+/* ── Focus ring ──────────────────────────────────────── */
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
@@ -279,15 +258,15 @@ body {
 
 /* ── Row hover ───────────────────────────────────────── */
 .row-hover {
-  transition: background-color 120ms ease;
+  transition: background-color 100ms ease;
 }
 .row-hover:hover {
-  background-color: var(--color-surface-subtle);
+  background-color: var(--color-surface);
 }
 
 /* ── Investigation canvas ────────────────────────────── */
 .investigation-bg {
-  background-color: var(--color-surface-base);
+  background-color: var(--color-bg);
 }
 
 .investigation-sidebar {
@@ -302,20 +281,17 @@ body {
   cursor: grabbing;
 }
 .investigation-bg .react-flow__minimap {
-  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .investigation-bg .react-flow__controls {
-  border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(13, 13, 23, 0.08);
 }
 .investigation-bg .react-flow__controls button {
-  border-radius: 0;
   border-color: var(--color-border);
 }
 .investigation-bg .react-flow__controls button:hover {
-  background-color: var(--color-surface-subtle);
+  background-color: var(--color-surface);
 }
 .investigation-bg .react-flow__edge-textbg {
   fill: transparent;
@@ -324,10 +300,7 @@ body {
   transition: filter 150ms ease;
 }
 .investigation-bg .react-flow__node.selected {
-  filter: drop-shadow(0 4px 12px rgba(15, 76, 92, 0.15));
-}
-.dark .investigation-bg .react-flow__node.selected {
-  filter: drop-shadow(0 4px 12px rgba(0, 180, 204, 0.20));
+  filter: drop-shadow(0 4px 12px rgba(110, 62, 214, 0.25));
 }
 
 /* ── Motion: reduced-motion preference ───────────────── */
@@ -340,3 +313,88 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════
+   FORENSIC LEDGER UTILITIES
+   ════════════════════════════════════════════════════════ */
+
+.ledger-page {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  min-height: 100vh;
+}
+
+.ledger-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+  letter-spacing: 0.08em;  /* era 0.05em — evita colisão de glifos mono a 11px */
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.ledger-row {
+  border-bottom: 1px solid var(--color-border);
+  padding: 1rem 0;  /* era 0.75rem — NNG: 16px mínimo para leitura tabular 30min+ */
+}
+
+.ledger-row:last-child {
+  border-bottom: none;
+}
+
+.data-value {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.accent-rule {
+  height: 1px;
+  background-color: var(--color-accent);
+  border: none;
+}
+
+.severity-border-critical {
+  border-left: 2px solid var(--color-critical);
+}
+
+.severity-border-high {
+  border-left: 2px solid var(--color-high);
+}
+
+.severity-border-medium {
+  border-left: 2px solid var(--color-medium);
+}
+
+.severity-border-low {
+  border-left: 2px solid var(--color-low);
+}
+
+/* ── Nav ledger card ─────────────────────────────────── */
+.nav-ledger-card {
+  border-radius: 0;
+  border: 1px solid var(--color-border);
+}
+
+.nav-ledger-card:hover {
+  border-left: 3px solid var(--color-accent);
+}
+
+/* ── Mobile layout ───────────────────────────────────── */
+@media (max-width: 767px) {
+  nav[aria-label="Navegação principal"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  nav[aria-label="Navegação principal"] > div:first-child + div {
+    flex-shrink: 0;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: 110%;
+  }
+}
+
