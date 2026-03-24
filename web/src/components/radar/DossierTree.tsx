@@ -38,7 +38,6 @@ interface DossierTreeProps {
   onCorruptionTypeChange: (v: string) => void;
   onSphereChange: (v: string) => void;
   onClearAll: () => void;
-  onCoverageClick: () => void;
 }
 
 export function DossierTree({
@@ -68,7 +67,6 @@ export function DossierTree({
   onCorruptionTypeChange,
   onSphereChange,
   onClearAll,
-  onCoverageClick,
 }: DossierTreeProps) {
   const filteredCases = useMemo(() => {
     if (!search.trim()) return cases;
@@ -109,7 +107,6 @@ export function DossierTree({
           onCorruptionTypeChange={onCorruptionTypeChange}
           onSphereChange={onSphereChange}
           onClearAll={onClearAll}
-          onCoverageClick={onCoverageClick}
         />
       </div>
 

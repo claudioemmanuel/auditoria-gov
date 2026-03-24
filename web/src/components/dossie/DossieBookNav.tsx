@@ -2,7 +2,6 @@
 
 import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDossieBook } from "./DossieBookContext";
 
@@ -64,7 +63,7 @@ export function DossieBookNav() {
             : "cursor-not-allowed text-muted opacity-40",
         )}
       >
-        <ChevronLeft className="h-5 w-5" />
+        <span className="font-sans text-sm leading-none">← Anterior</span>
       </button>
 
       <button
@@ -78,7 +77,7 @@ export function DossieBookNav() {
             : "cursor-not-allowed text-muted opacity-40",
         )}
       >
-        <ChevronRight className="h-5 w-5" />
+        <span className="font-sans text-sm leading-none">Próximo →</span>
       </button>
 
       {/* Bottom bar (always visible) */}
@@ -92,8 +91,7 @@ export function DossieBookNav() {
             hasPrev ? "text-primary hover:bg-surface-subtle" : "text-muted opacity-40",
           )}
         >
-          <ChevronLeft className="h-4 w-4" />
-          Ant.
+          ← Anterior
         </button>
 
         {/* Center: label + page indicator + dots */}
@@ -109,18 +107,23 @@ export function DossieBookNav() {
                     key={page.href}
                     onClick={() => router.push(page.href)}
                     aria-label={`Ir para ${page.label}`}
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full transition-all",
-                      i === currentIndex
-                        ? "bg-accent scale-125"
-                        : "bg-muted/40 hover:bg-muted",
-                    )}
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: i === currentIndex ? "var(--color-accent)" : "var(--color-border)",
+                      flexShrink: 0,
+                      transition: "background 0.2s",
+                    }}
                   />
                 ))}
               </div>
             )}
-            <span className="font-mono text-[10px] text-muted">
-              Pagina {currentIndex + 1} de {totalPages}
+            <span
+              className="text-[10px] text-muted bg-surface-subtle px-3 py-1 border border-border tabular-nums"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              {currentIndex + 1} / {totalPages}
             </span>
           </div>
         </div>
@@ -134,8 +137,7 @@ export function DossieBookNav() {
             hasNext ? "text-primary hover:bg-surface-subtle" : "text-muted opacity-40",
           )}
         >
-          Prox.
-          <ChevronRight className="h-4 w-4" />
+          Próximo →
         </button>
       </div>
     </>

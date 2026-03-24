@@ -26,6 +26,10 @@ const TYPOLOGY_DESCRIPTIONS: Record<string, string> = {
   T16: "Emendas parlamentares ou transferencias especiais sem plano de trabalho registrado ou com valor desproporcional a capacidade administrativa do ente.",
   T17: "Fluxo financeiro circular entre empresas interligadas societariamente apos contrato publico, indicador de lavagem por camadas.",
   T18: "Servidor com vinculo ativo em dois orgaos simultaneamente ou expulso da administracao atuando como socio em empresa contratada.",
+  T19: "Mesmo conjunto restrito de fornecedores vence contratos alternadamente em licitacoes do mesmo orgao — padrao indicativo de rodizio combinado para aparentar competitividade.",
+  T20: "Empresa vencedora nao localizavel em registros comerciais ativos, com CNPJ cancelado/suspenso ou endereco fantasma confirmado na Receita Federal.",
+  T21: "Grupo de empresas formalmente distintas apresenta comportamento licitatório homogeneo (precos, datas, documentos) sugerindo controle comum oculto.",
+  T22: "Contratacoes concentradas em periodos eleitorais ou cujo beneficiario apresenta vinculo com agente politico responsavel pela autorizacao.",
 };
 
 const TYPOLOGY_SOURCES: Record<string, string[]> = {
@@ -47,6 +51,10 @@ const TYPOLOGY_SOURCES: Record<string, string[]> = {
   T16: ["Portal da Transparencia", "Transfere.gov"],
   T17: ["Receita Federal (CNPJ)"],
   T18: ["Portal da Transparencia"],
+  T19: ["PNCP", "ComprasNet Contratos"],
+  T20: ["Receita Federal (CNPJ)", "PNCP"],
+  T21: ["PNCP", "Receita Federal (CNPJ)", "Compras.gov.br"],
+  T22: ["Portal da Transparencia", "PNCP"],
 };
 
 const PRINCIPLES = [
@@ -193,10 +201,10 @@ export default async function MethodologyPage() {
           return (
             <div key={code} className="rounded-lg border border-border bg-surface-card p-3">
               <div className="flex items-baseline gap-2 mb-1.5">
-                <span className="font-mono text-xs font-bold text-accent">{code}</span>
+                <span className="data-value font-mono text-xs font-bold text-accent">{code}</span>
                 <span className="text-xs font-semibold text-primary leading-snug">{name}</span>
               </div>
-              {desc && <p className="text-xs text-secondary leading-relaxed mb-2">{desc}</p>}
+              {desc && <p className="font-serif text-xs text-secondary leading-relaxed mb-2">{desc}</p>}
               {sources.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {sources.map((src) => (
@@ -401,7 +409,7 @@ export default async function MethodologyPage() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="ledger-page min-h-screen">
 
       {/* ── Page header ────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">

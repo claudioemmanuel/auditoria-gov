@@ -151,7 +151,7 @@ export default function ApiHealthPage() {
   const ToneIcon = toneConfig.Icon;
 
   return (
-    <div className="min-h-screen">
+    <div className="ledger-page min-h-screen">
 
       {/* ── Page Header ────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">
@@ -193,7 +193,7 @@ export default function ApiHealthPage() {
                 <Clock className="h-3 w-3" />
                 Última verificação
               </p>
-              <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
+              <p className="data-value mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
                 {checkedAt ? new Date(checkedAt).toLocaleString("pt-BR") : "Aguardando…"}
               </p>
             </div>

@@ -1,3 +1,5 @@
+import { AlertTriangle, AlertCircle } from "lucide-react";
+
 interface ConfidenceBadgeProps {
   score: number | null | undefined;
 }
@@ -13,15 +15,17 @@ export function ConfidenceBadge({ score }: ConfidenceBadgeProps) {
 
   if (score >= 60) {
     return (
-      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
-        ⚠️ Identidade com confiança parcial — verifique os dados de origem
+      <span className="inline-flex items-center gap-1 rounded-[4px] border border-amber/30 bg-amber-subtle px-2 py-0.5 font-mono text-[10px] font-medium text-amber">
+        <AlertTriangle className="h-3 w-3 shrink-0" />
+        Identidade com confiança parcial — verifique os dados de origem
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">
-      🔴 Confiança insuficiente — dado disponível para análise, não para afirmação
+    <span className="inline-flex items-center gap-1 rounded-[4px] border border-error/30 bg-error-subtle px-2 py-0.5 font-mono text-[10px] font-medium text-error">
+      <AlertCircle className="h-3 w-3 shrink-0" />
+      Confiança insuficiente — dado disponível para análise, não para afirmação
     </span>
   );
 }

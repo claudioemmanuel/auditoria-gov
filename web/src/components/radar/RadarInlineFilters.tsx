@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, SlidersHorizontal, X, ShieldCheck } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import {
   CORRUPTION_TYPE_LABELS,
   SPHERE_LABELS,
@@ -22,7 +22,6 @@ interface RadarInlineFiltersProps {
   onCorruptionTypeChange: (v: string) => void;
   onSphereChange: (v: string) => void;
   onClearAll: () => void;
-  onCoverageClick: () => void;
 }
 
 export function RadarInlineFilters({
@@ -39,7 +38,6 @@ export function RadarInlineFilters({
   onCorruptionTypeChange,
   onSphereChange,
   onClearAll,
-  onCoverageClick,
 }: RadarInlineFiltersProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -72,7 +70,7 @@ export function RadarInlineFilters({
   return (
     <div ref={ref} className="relative flex flex-wrap items-center gap-2">
       {/* Search */}
-      <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
+      <label className="flex items-center gap-2 border border-border bg-surface-card px-3 py-1.5" style={{ borderRadius: 0 }}>
         <Search className="h-3.5 w-3.5 text-muted shrink-0" />
         <input
           type="text"
@@ -92,7 +90,13 @@ export function RadarInlineFilters({
       {chips.map((chip) => (
         <span
           key={chip.label}
-          className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent-subtle px-2 py-0.5 text-[10px] font-semibold text-accent"
+          className="inline-flex items-center gap-1 px-2 py-0.5 font-semibold text-accent"
+          style={{
+            border: "1px solid var(--color-border)",
+            borderRadius: 0,
+            fontSize: "0.75rem",
+            fontFamily: "var(--font-sans)",
+          }}
         >
           {chip.label}
           <button type="button" onClick={chip.onRemove} className="ml-0.5 rounded-full hover:text-error transition-colors">
@@ -112,11 +116,12 @@ export function RadarInlineFilters({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+        className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors ${
           open
             ? "border-accent bg-accent-subtle text-accent"
             : "border-border bg-surface-card text-secondary hover:border-accent/40"
         }`}
+        style={{ borderRadius: 0 }}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
         Filtros
@@ -127,15 +132,6 @@ export function RadarInlineFilters({
         )}
       </button>
 
-      {/* Coverage button */}
-      <button
-        type="button"
-        onClick={onCoverageClick}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition-colors hover:border-accent/40"
-      >
-        <ShieldCheck className="h-3.5 w-3.5" />
-        Cobertura
-      </button>
 
       {/* Dropdown popover — anchored right */}
       {open && (

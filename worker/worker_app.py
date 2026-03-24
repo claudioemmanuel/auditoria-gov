@@ -118,23 +118,30 @@ def _cold_start_bootstrap(sender, **kwargs):
             _recover_stale_er_state()
 
             with SyncSession() as session:
+                # Seed reference data if any required category is missing.
+                # Check per-category so newly added categories (e.g. siape_orgao)
+                # are seeded even when other categories already exist.
+                _REQUIRED_REF_CATEGORIES = {"ibge_municipio", "ibge_uf", "siape_orgao"}
+                existing_categories = {
+                    row[0]
+                    for row in session.execute(
+                        select(ReferenceData.category).distinct()
+                    ).all()
+                }
+                missing = _REQUIRED_REF_CATEGORIES - existing_categories
+                if missing:
+                    app.send_task(
+                        "worker.tasks.reference_tasks.seed_reference_data",
+                        queue="default",
+                    )
+                    log.info("cold_start: seeding reference data", missing=list(missing))
+
                 # Check if any ingest run has ever completed.
                 completed = session.execute(
                     select(func.count(RawRun.id)).where(RawRun.status == "completed")
                 ).scalar_one()
                 if completed > 0:
-                    return  # Not a cold start — skip.
-
-                # Seed reference data first (ibge_municipio, siape_orgao, etc.)
-                ref_count = session.execute(
-                    select(func.count(ReferenceData.id))
-                ).scalar_one()
-                if ref_count == 0:
-                    app.send_task(
-                        "worker.tasks.reference_tasks.seed_reference_data",
-                        queue="default",
-                    )
-                    log.info("cold_start: seeding reference data")
+                    return  # Not a cold start — skip ingest bootstrap.
 
             # Trigger first incremental ingest.
             app.send_task(

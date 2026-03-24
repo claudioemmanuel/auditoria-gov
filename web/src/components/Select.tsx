@@ -12,7 +12,7 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, icon: Icon, error, options, placeholder, id, ...props }, ref) => {
+  ({ className, label, icon: Icon, error, options, placeholder, id, style, ...props }, ref) => {
     const selectId = id || label?.toLowerCase().replace(/\s+/g, "-");
 
     return (
@@ -24,18 +24,23 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         )}
         <div
           className={cn(
-            "relative flex items-center gap-2 rounded-[10px] border bg-surface-card px-3 py-2 transition-colors duration-120",
-            "focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20",
-            error ? "border-error" : "border-border",
+            "relative flex items-center gap-2 bg-surface-card px-3 py-2 transition-colors duration-120",
+            "focus-within:outline-none",
             props.disabled && "opacity-50",
             className,
           )}
+          style={{
+            border: error ? "1px solid var(--color-error)" : "1px solid var(--color-border)",
+            borderRadius: 0,
+            ...style,
+          }}
         >
           {Icon && <Icon className="h-4 w-4 shrink-0 text-muted" />}
           <select
             ref={ref}
             id={selectId}
-            className="w-full appearance-none border-none bg-transparent pr-6 text-sm text-primary outline-none disabled:cursor-not-allowed"
+            className="w-full appearance-none border-none bg-transparent pr-6 text-sm text-primary outline-none disabled:cursor-not-allowed focus:outline-none"
+            style={{ borderRadius: 0 }}
             {...props}
           >
             {placeholder && (

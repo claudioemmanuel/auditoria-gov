@@ -24,7 +24,7 @@ export function DetailPageLayout({
   return (
     <div className={cn("mx-auto px-4 sm:px-6 pb-10", MAX_WIDTH_CLASSES[maxWidth])}>
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-surface-card/95 backdrop-blur-md border-b border-border py-4 mb-6">
+      <div className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-newsprint/95 backdrop-blur-sm border-b border-border py-4 mb-6">
         {header}
       </div>
 
@@ -32,7 +32,7 @@ export function DetailPageLayout({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {/* Aside — stacks above on mobile, sticky on desktop */}
         <aside className="w-full lg:w-72 lg:shrink-0 lg:sticky lg:top-[73px] space-y-3">
-          <div className="rounded-[10px] border border-border bg-surface-subtle p-4">
+          <div className="border border-border bg-newsprint-subtle p-4">
             {aside}
           </div>
         </aside>

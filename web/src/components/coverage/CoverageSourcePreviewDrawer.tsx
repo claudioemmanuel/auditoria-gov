@@ -32,11 +32,13 @@ const STATUS_CFG: Record<CoverageStatus, { label: string; dot: string; text: str
 };
 
 const RUN_STATUS_CFG: Record<string, { dot: string; text: string; label: string }> = {
-  completed: { dot: "bg-success",    text: "text-success",    label: "Concluído"    },
-  running:   { dot: "bg-accent",     text: "text-accent",     label: "Executando"   },
-  failed:    { dot: "bg-error",      text: "text-error",      label: "Falhou"       },
-  stuck:     { dot: "bg-amber",      text: "text-amber",      label: "Travado"      },
-  pending:   { dot: "bg-muted/60",   text: "text-muted",      label: "Pendente"     },
+  completed:        { dot: "bg-success",    text: "text-success",    label: "Concluído"        },
+  running:          { dot: "bg-accent",     text: "text-accent",     label: "Executando"       },
+  error:            { dot: "bg-error",      text: "text-error",      label: "Erro"             },
+  error_retryable:  { dot: "bg-amber",      text: "text-amber",      label: "API indisponível" },
+  failed:           { dot: "bg-error",      text: "text-error",      label: "Falhou"           },
+  stuck:            { dot: "bg-amber",      text: "text-amber",      label: "Travado"          },
+  pending:          { dot: "bg-muted/60",   text: "text-muted",      label: "Pendente"         },
 };
 
 function StatusBadge({ status }: { status: CoverageStatus }) {
@@ -81,7 +83,7 @@ function fmtDate(d: string | null | undefined): string {
 // ── Run card (inline in jobs section) ────────────────────────────────────────
 
 function RunCard({ run, linkToDetail }: { run: CoverageV2LatestRun; linkToDetail?: boolean }) {
-  const key = run.is_stuck ? "stuck" : run.status;
+  const key = run.is_stuck ? "stuck" : (run.status === "error" && run.is_retryable_error ? "error_retryable" : run.status);
   const cfg = RUN_STATUS_CFG[key] ?? RUN_STATUS_CFG.pending;
 
   return (

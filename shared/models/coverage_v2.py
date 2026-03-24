@@ -99,6 +99,7 @@ class CoverageV2LatestRun(BaseModel):
     items_fetched: int = 0
     items_normalized: int = 0
     error_message: Optional[str] = None
+    is_retryable_error: bool = False
     elapsed_seconds: Optional[float] = None
     progress_pct: Optional[float] = None
     # Enhanced progress tracking

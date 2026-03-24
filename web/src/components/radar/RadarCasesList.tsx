@@ -54,7 +54,7 @@ export function RadarCasesList({ items, onOpenPreview }: RadarCasesListProps) {
 
                 {/* Signal count */}
                 <td className="px-3 py-2">
-                  <span className="font-mono text-xs font-bold tabular-nums text-primary">
+                  <span className="data-value text-xs font-bold tabular-nums" style={{ color: "var(--color-fg)" }}>
                     {item.signal_count}
                   </span>
                 </td>

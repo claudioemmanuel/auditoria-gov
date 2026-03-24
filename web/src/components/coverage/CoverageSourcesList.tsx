@@ -122,13 +122,17 @@ function ExpandedRow({ connector }: ExpandedRowProps) {
               "font-medium",
               run.status === "completed"
                 ? "text-success"
-                : run.status === "error" || run.is_stuck
+                : run.is_stuck
                   ? "text-error"
-                  : "text-muted",
+                  : run.status === "error" && run.is_retryable_error
+                    ? "text-amber"
+                    : run.status === "error"
+                      ? "text-error"
+                      : "text-muted",
             )}
           >
-            {run.status}
-            {run.is_stuck ? " (travada)" : ""}
+            {run.is_stuck ? "travada" : run.status === "error" && run.is_retryable_error ? "api externa" : run.status}
+            {run.is_stuck ? "" : ""}
           </span>
           {run.started_at && (
             <span className="text-muted">{formatDateTime(run.started_at)}</span>

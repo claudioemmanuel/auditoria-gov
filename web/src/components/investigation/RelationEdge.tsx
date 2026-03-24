@@ -7,7 +7,7 @@ import {
   getBezierPath,
   type EdgeProps,
 } from "@xyflow/react";
-import { tokens } from "@/lib/design-tokens";
+import { getTokens } from "@/lib/design-tokens";
 import type { EdgeContext } from "@/hooks/useCaseGraph";
 
 const EDGE_LABELS: Record<string, string> = {
@@ -28,19 +28,6 @@ const EDGE_LABELS: Record<string, string> = {
   consorcio: "Consorcio",
 };
 
-const EDGE_COLORS: Record<string, string> = {
-  contrato: "#6366f1",
-  socio: "#059669",
-  socio_controlador: "#059669",
-  socio_oculto: "#dc2626",
-  representante_legal: "#059669",
-  servidor: "#7c3aed",
-  ex_servidor: "#9ca3af",
-  subcontratacao: "#d97706",
-  vinculo_familiar: "#ec4899",
-  fiscalizacao: "#0284c7",
-  doacao: "#ca8a04",
-};
 
 function RelationEdgeComponent({
   id,
@@ -55,14 +42,13 @@ function RelationEdgeComponent({
   style,
 }: EdgeProps) {
   const [hovered, setHovered] = useState(false);
+  const t = getTokens();
 
   const edgeType = (data?.type as string) ?? "";
   const weight = (data?.weight as number) ?? 1;
   const isFocused = Boolean(data?.isFocused);
   const edgeStrength = (data?.edge_strength as string) ?? "weak";
   const context = data?.context as EdgeContext | undefined;
-  const baseColor = EDGE_COLORS[edgeType] ?? "#94a3b8";
-  const color = selected ? tokens.accent : isFocused ? "#1d4ed8" : baseColor;
   const label = EDGE_LABELS[edgeType] ?? edgeType.replace(/_/g, " ");
   const isDashed = edgeType === "socio_oculto" || edgeType === "vinculo_familiar";
 
@@ -99,12 +85,12 @@ function RelationEdgeComponent({
         path={edgePath}
         style={{
           ...style,
-          stroke: color,
+          stroke: selected ? t.accent : t.border,
           strokeWidth: selected
-            ? 2.5
+            ? 1.5
             : isFocused
-              ? Math.max(2.2, weight + 0.5)
-              : Math.max(edgeStrength === "strong" ? 2 : 1, weight),
+              ? Math.max(1.5, weight + 0.5)
+              : Math.max(edgeStrength === "strong" ? 1.5 : 1, weight),
           opacity: selected ? 1 : isFocused ? 0.9 : edgeStrength === "strong" ? 0.7 : 0.45,
           strokeDasharray: isDashed ? "6 3" : undefined,
           transition: "stroke 150ms, opacity 150ms, stroke-width 150ms",
@@ -169,7 +155,7 @@ function RelationEdgeComponent({
                 </div>
               </div>
             ) : (
-              <span className="rounded-full border border-accent-subtle bg-accent-subtle px-2 py-0.5 text-[9px] font-semibold leading-none text-accent shadow-sm">
+              <span className="bg-surface-card text-[10px] px-1 border border-border inline-block text-muted">
                 {label}
               </span>
             )}

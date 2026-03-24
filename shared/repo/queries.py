@@ -436,6 +436,12 @@ def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2Lates
     # For completed/yielded, fetch is done — normalize progress is what matters
     fetch_progress_pct = 100.0 if run.status in ("completed", "yielded") else None
 
+    is_retryable_error = bool(
+        run.status == "error"
+        and isinstance(run.errors, dict)
+        and run.errors.get("retryable") is True
+    )
+
     return CoverageV2LatestRun(
         id=run.id,
         status=run.status,
@@ -445,6 +451,7 @@ def _coverage_latest_run_to_model(run: RawRun, now: datetime) -> CoverageV2Lates
         items_fetched=run.items_fetched or 0,
         items_normalized=run.items_normalized or 0,
         error_message=_coverage_run_error_message(run),
+        is_retryable_error=is_retryable_error,
         elapsed_seconds=elapsed_seconds,
         progress_pct=progress_pct,
         fetch_progress_pct=fetch_progress_pct,

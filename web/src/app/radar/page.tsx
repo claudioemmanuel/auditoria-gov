@@ -19,8 +19,8 @@ import { RadarBreadcrumb } from "@/components/radar/RadarBreadcrumb";
 import { RadarCoveragePanel } from "@/components/radar/RadarCoveragePanel";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/Button";
-import { TYPOLOGY_LABELS, TYPOLOGY_META, CORRUPTION_TYPE_LABELS, SPHERE_LABELS } from "@/lib/constants";
-import { ChevronDown, ChevronRight, ChevronLeft, Radio, CalendarRange } from "lucide-react";
+import { TYPOLOGY_LABELS, TYPOLOGY_META, CORRUPTION_TYPE_LABELS } from "@/lib/constants";
+import { ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 
 const PAGE_SIZE = 10;
 
@@ -54,75 +54,66 @@ function CaseListCard({ item }: { item: RadarV2CaseItem }) {
   const foundDate = new Date(item.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
   const corruptionTypes = [...new Set(item.typology_codes.flatMap((c) => TYPOLOGY_META[c]?.corruption_types ?? []))];
-  const spheres = [...new Set(item.typology_codes.flatMap((c) => TYPOLOGY_META[c]?.spheres ?? []))];
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface-card transition-all hover:border-accent/40 hover:shadow-md">
+    <div className={`relative flex overflow-hidden rounded-sm border bg-surface-card transition-all hover:border-accent/40 hover:shadow-lg hover:shadow-black/20 ${s.border}`}>
+      {/* Left severity stripe */}
+      <div className={`w-1 shrink-0 ${s.bar}`} />
 
-      {/* Header: title + severity badge */}
-      <div className="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
-        <p className="min-w-0 flex-1 text-sm font-bold text-primary leading-snug line-clamp-2" title={item.title}>
-          {item.title}
-        </p>
-        <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.border} ${s.bg} ${s.text}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-          {s.label}
-        </span>
-      </div>
-
-      {/* Subheader: found date */}
-      <p className="px-4 pb-3 font-mono text-[10px] tabular-nums text-muted">{foundDate}</p>
-
-      {/* Accent line */}
-      <div className={`h-0.5 w-full ${s.bar} opacity-60`} />
-
-      {/* Body */}
-      <div className="flex-1 px-4 py-3 space-y-2.5">
-
-        {/* Typology pills */}
-        <div className="flex flex-wrap gap-1">
-          {item.typology_codes.map((code) => (
-            <span key={code} className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent" title={TYPOLOGY_LABELS[code]}>
-              {code}
-            </span>
-          ))}
-        </div>
-
-        {/* Signals + period */}
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[11px]">
-            <Radio className={`h-3 w-3 shrink-0 ${s.text}`} />
-            <span className={`font-bold tabular-nums ${s.text}`}>{item.signal_count}</span>
-            <span className="text-muted">{item.signal_count !== 1 ? "sinais" : "sinal"}</span>
-          </span>
-          {periodStr && (
-            <span className="flex items-center gap-1 text-[11px] text-muted">
-              <CalendarRange className="h-3 w-3 shrink-0" />
-              <span className="tabular-nums">{periodStr}</span>
-            </span>
-          )}
-        </div>
-
-        {/* Corruption types */}
-        {corruptionTypes.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {corruptionTypes.map((ct) => (
-              <span key={ct} className="rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-secondary">
-                {CORRUPTION_TYPE_LABELS[ct] ?? ct}
+      <div className="flex-1 p-4">
+        {/* KICKER: typology codes + exhibit ID */}
+        <div className="mb-1.5 flex items-center gap-2">
+          <div className="flex gap-1.5">
+            {item.typology_codes.slice(0, 2).map((code) => (
+              <span
+                key={code}
+                className="font-mono text-[9px] font-bold tracking-[0.12em] text-accent uppercase"
+                title={TYPOLOGY_LABELS[code]}
+              >
+                {code}
               </span>
             ))}
-            {spheres.map((sp) => (
-              <span key={sp} className="rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted">
-                {SPHERE_LABELS[sp] ?? sp}
+            {item.typology_codes.length > 2 && (
+              <span className="font-mono text-[9px] text-muted">+{item.typology_codes.length - 2}</span>
+            )}
+          </div>
+          <span className="font-mono text-[9px] text-muted/60">·</span>
+          <span className="exhibit-id">#{item.id.slice(-6).toUpperCase()}</span>
+        </div>
+
+        {/* HEADLINE: case title */}
+        <p className="font-display text-sm font-bold leading-snug text-primary line-clamp-2 mb-1.5" title={item.title}>
+          {item.title}
+        </p>
+
+        {/* DATELINE: date + period + signal count */}
+        <p className="dateline mb-3">
+          {foundDate}
+          {periodStr && ` · ${periodStr}`}
+          {` · `}
+          <span className={s.text}>{item.signal_count}</span>
+          {` ${item.signal_count !== 1 ? "sinais" : "sinal"}`}
+        </p>
+
+        {/* TAGS: corruption types */}
+        {corruptionTypes.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {corruptionTypes.slice(0, 3).map((ct) => (
+              <span
+                key={ct}
+                className="rounded-[3px] border border-border px-1.5 py-0.5 font-mono text-[9px] text-muted"
+              >
+                {CORRUPTION_TYPE_LABELS[ct] ?? ct}
               </span>
             ))}
           </div>
         )}
-      </div>
 
-      {/* Footer */}
-      <div className="border-t border-border px-4 py-2.5">
-        <span className="text-[11px] text-accent">Ver dossiê →</span>
+        {/* CTA */}
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-[10px] font-medium text-accent">VER DOSSIÊ</span>
+          <span className="font-mono text-[10px] text-accent/60">→</span>
+        </div>
       </div>
     </div>
   );
@@ -201,17 +192,19 @@ function SeverityAccordionSection({
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
-    <div className={`rounded-xl border ${s.border} overflow-hidden`}>
+    <div className={`rounded-sm border ${s.border} overflow-hidden`}>
       {/* Header */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${s.bg} hover:opacity-90`}
+        className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors ${s.bg} hover:opacity-95`}
       >
-        <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
-        <span className={`text-sm font-semibold ${s.text}`}>{s.label}</span>
-        <span className={`ml-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums ${s.border} ${s.text}`}>
-          {count.toLocaleString("pt-BR")} caso{count !== 1 ? "s" : ""}
+        <span className={`font-mono text-xs font-bold tracking-[0.15em] uppercase ${s.text}`}>{s.label}</span>
+        <span className={`rounded-[4px] border px-2 py-0.5 font-mono text-xs font-bold tabular-nums ${s.border} ${s.text}`}>
+          {count.toLocaleString("pt-BR")}
+        </span>
+        <span className="font-mono text-[10px] text-muted">
+          {count !== 1 ? "casos" : "caso"}
         </span>
         <div className="flex-1" />
         {open
@@ -382,22 +375,36 @@ function RadarPageInner() {
             onCorruptionTypeChange={setCorruptionType}
             onSphereChange={setSphere}
             onClearAll={clearAllFilters}
-            onCoverageClick={openCoverage}
           />
         </div>
 
         {/* Severity accordions */}
         <div className="space-y-3">
-          {SEVERITY_ORDER.map((sev, i) => (
-            <SeverityAccordionSection
-              key={sev}
-              severity={sev}
-              count={summary?.severity_counts[sev] ?? 0}
-              filters={filters}
-              search={search}
-              defaultOpen={i === 0}
-            />
-          ))}
+          {summaryLoading
+            ? null
+            : (() => {
+                const activeSevs = SEVERITY_ORDER.filter(
+                  (sev) => (summary?.severity_counts[sev] ?? 0) > 0,
+                );
+                if (activeSevs.length === 0) {
+                  return (
+                    <p className="py-12 text-center text-sm text-muted">
+                      Nenhum caso encontrado com os filtros aplicados.
+                    </p>
+                  );
+                }
+                return activeSevs.map((sev, i) => (
+                  <SeverityAccordionSection
+                    key={sev}
+                    severity={sev}
+                    count={summary!.severity_counts[sev]!}
+                    filters={filters}
+                    search={search}
+                    defaultOpen={i === 0}
+                  />
+                ));
+              })()
+          }
         </div>
       </div>
 
@@ -414,8 +421,10 @@ function RadarPageInner() {
 
 export default function RadarPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><TableSkeleton rows={6} /></div>}>
-      <RadarPageInner />
-    </Suspense>
+    <div className="ledger-page">
+      <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><TableSkeleton rows={6} /></div>}>
+        <RadarPageInner />
+      </Suspense>
+    </div>
   );
 }

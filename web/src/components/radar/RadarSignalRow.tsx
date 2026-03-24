@@ -4,18 +4,11 @@ import { ArrowRight } from "lucide-react";
 import type { SignalSeverity } from "@/lib/types";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
 
-const SEV_DOT: Record<string, string> = {
-  critical: "bg-error",
-  high: "bg-amber",
-  medium: "bg-yellow-500",
-  low: "bg-info",
-};
-
-const SEV_TEXT: Record<string, string> = {
-  critical: "text-error",
-  high: "text-amber",
-  medium: "text-yellow-600",
-  low: "text-info",
+const SEV_CODE_COLOR: Record<string, string> = {
+  critical: "text-severity-critical",
+  high:     "text-severity-high",
+  medium:   "text-severity-medium",
+  low:      "text-severity-low",
 };
 
 interface RadarSignalRowProps {
@@ -36,29 +29,33 @@ interface RadarSignalRowProps {
 }
 
 export function RadarSignalRow({ signal, onClick, active }: RadarSignalRowProps) {
-  const dot = SEV_DOT[signal.severity] ?? "bg-info";
+  const codeColor = SEV_CODE_COLOR[signal.severity] ?? "text-masthead";
 
   return (
     <button
       type="button"
       onClick={() => onClick(signal.id)}
-      className={`group flex w-full items-center gap-3 rounded-[8px] border px-3 py-2 text-left transition-colors duration-100 ${
+      className={`group flex w-full items-center gap-3 border-b border-border-subtle px-3 py-2.5 text-left transition-colors duration-100 ${
         active
-          ? "border-accent/40 bg-accent-subtle/30"
-          : "border-border bg-surface-card hover:border-accent/20 hover:bg-surface-subtle"
+          ? "bg-masthead/8 border-masthead/30"
+          : "bg-newsprint-card hover:bg-newsprint-hover"
       }`}
     >
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-
-      <span className="w-7 shrink-0 font-mono text-[10px] font-bold text-accent">
+      {/* Typology code — masthead red, mono bold */}
+      <span className={`w-8 shrink-0 font-mono text-[10px] font-bold tracking-[0.05em] ${codeColor}`}>
         {signal.typology_code}
       </span>
 
-      <span className="flex-1 truncate text-xs text-secondary group-hover:text-primary" title={signal.title}>
+      {/* Signal title — serif */}
+      <span
+        className="flex-1 truncate text-[13px] text-ink-secondary group-hover:text-ink"
+        style={{ fontFamily: "var(--font-ibm-plex-serif, Georgia, serif)" }}
+        title={TYPOLOGY_LABELS[signal.typology_code] ?? signal.title}
+      >
         {TYPOLOGY_LABELS[signal.typology_code] ?? signal.title}
       </span>
 
-<ArrowRight className="h-3 w-3 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+      <ArrowRight className="h-3 w-3 shrink-0 text-ink-muted opacity-0 transition-opacity group-hover:opacity-100" />
     </button>
   );
 }

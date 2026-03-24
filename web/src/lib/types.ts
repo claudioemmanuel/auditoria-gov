@@ -302,6 +302,7 @@ export interface CoverageV2LatestRun {
   items_fetched: number;
   items_normalized: number;
   error_message?: string | null;
+  is_retryable_error?: boolean;
   elapsed_seconds: number | null;
   progress_pct: number | null;
   fetch_progress_pct?: number | null;

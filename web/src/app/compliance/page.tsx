@@ -143,7 +143,7 @@ const WHAT_WE_DONT = [
 
 export default function CompliancePage() {
   return (
-    <div className="min-h-screen">
+    <div className="ledger-page min-h-screen">
 
       {/* ── Page header ──────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">
@@ -176,13 +176,13 @@ export default function CompliancePage() {
             {PILLARS.map((pillar) => (
               <div
                 key={pillar.title}
-                className="rounded-xl border border-border bg-surface-card p-5"
+                className="relative border border-border bg-surface-card p-5"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
+                  <div className="flex h-9 w-9 items-center justify-center bg-accent-subtle border border-accent/20">
                     <pillar.icon className="h-4 w-4 text-accent" />
                   </div>
-                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide ${pillar.badgeClass}`}>
+                  <span className={`px-2 py-0.5 text-[10px] font-semibold tracking-wide ${pillar.badgeClass}`}>
                     {pillar.badge}
                   </span>
                 </div>
@@ -296,7 +296,7 @@ export default function CompliancePage() {
               <p className="text-xs text-secondary leading-relaxed mb-3">
                 Todos os sinais carregam o seguinte aviso obrigatório:
               </p>
-              <blockquote className="rounded-lg border border-warning/20 bg-warning/5 p-3 text-xs text-secondary italic leading-relaxed mb-3">
+              <blockquote className="evidence-block rounded-lg border border-warning/20 bg-warning/5 p-3 text-xs text-secondary italic leading-relaxed mb-3">
                 &ldquo;Este resultado representa um indicador estatístico para triagem e controle social.
                 Não configura acusação, prova definitiva ou juízo de culpa.&rdquo;
               </blockquote>

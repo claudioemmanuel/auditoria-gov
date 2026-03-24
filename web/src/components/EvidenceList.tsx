@@ -311,8 +311,8 @@ export function EvidenceList({
             </thead>
             <tbody className="divide-y divide-border bg-surface-card">
               {sorted.map((item) => (
-                <tr key={item.event_id} className="hover:bg-surface-subtle/50 transition-colors">
-                  <td className="whitespace-nowrap px-3 py-2.5 font-mono tabular-nums text-xs text-secondary">
+                <tr key={item.event_id} className="ledger-row relative hover:bg-surface-subtle/50 transition-colors" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <td className="relative whitespace-nowrap px-3 py-2.5 font-mono tabular-nums text-xs text-secondary">
                     {item.occurred_at ? formatDate(item.occurred_at) : "—"}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-primary">

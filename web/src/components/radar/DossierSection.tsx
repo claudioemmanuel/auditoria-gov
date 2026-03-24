@@ -38,7 +38,6 @@ interface DossierSectionProps {
   onSphereChange: (v: string) => void;
   onOffsetChange: (v: number) => void;
   onClearAll: () => void;
-  onCoverageClick: () => void;
 }
 
 export function DossierSection({
@@ -62,7 +61,6 @@ export function DossierSection({
   onSphereChange,
   onOffsetChange,
   onClearAll,
-  onCoverageClick,
 }: DossierSectionProps) {
   const [search, setSearch] = useState("");
   const [cases, setCases] = useState<RadarV2CaseItem[]>([]);
@@ -178,7 +176,6 @@ export function DossierSection({
         onCorruptionTypeChange={onCorruptionTypeChange}
         onSphereChange={onSphereChange}
         onClearAll={onClearAll}
-        onCoverageClick={onCoverageClick}
       />
 
       <DossierDetailPanel

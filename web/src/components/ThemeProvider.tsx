@@ -26,15 +26,18 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
-  // Read persisted preference on mount
+  // Read persisted preference on mount; default is dark when no preference stored
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
       if (stored === "dark" || stored === "light") {
         setTheme(stored);
         document.documentElement.classList.toggle("dark", stored === "dark");
+      } else {
+        // No preference stored — apply dark default
+        document.documentElement.classList.add("dark");
       }
     } catch {}
   }, []);
@@ -66,7 +69,7 @@ export function ThemeScript() {
     (function(){
       try {
         var t = localStorage.getItem("${STORAGE_KEY}");
-        if (t === "dark") document.documentElement.classList.add("dark");
+        if (t !== "light") document.documentElement.classList.add("dark");
       } catch(e){}
     })();
   `;

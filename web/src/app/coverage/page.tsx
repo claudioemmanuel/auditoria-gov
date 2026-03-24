@@ -1721,7 +1721,7 @@ export default function CoveragePage() {
   }, [sources, search, statusFilter]);
 
   return (
-    <div className="min-h-screen">
+    <div className="ledger-page min-h-screen">
 
       {/* ── Page header ─────────────────────────────────────────── */}
       <div className="border-b border-border bg-surface-card">

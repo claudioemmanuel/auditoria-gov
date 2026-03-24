@@ -1,17 +1,10 @@
-"use client";
+import { Suspense } from "react";
+import ClientPage from "@/components/pages/SignalRedirectPage";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+export function generateStaticParams() {
+  return [{ caseId: "placeholder", signalId: "placeholder" }];
+}
 
-export default function SignalRedirectPage() {
-  const params = useParams<{ caseId: string; signalId: string }>();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (params.caseId && params.signalId) {
-      router.replace(`/radar/dossie/${params.caseId}/sinal/${params.signalId}`);
-    }
-  }, [params.caseId, params.signalId, router]);
-
-  return null;
+export default function Page(_: { params: Promise<Record<string, string>> }) {
+  return <Suspense><ClientPage /></Suspense>;
 }

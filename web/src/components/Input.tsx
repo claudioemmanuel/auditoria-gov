@@ -9,7 +9,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, icon: Icon, error, id, ...props }, ref) => {
+  ({ className, label, icon: Icon, error, id, style, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
 
     return (
@@ -21,18 +21,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <div
           className={cn(
-            "flex items-center gap-2 rounded-[10px] border bg-surface-card px-3 py-2 transition-colors duration-120",
-            "focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20",
-            error ? "border-error" : "border-border",
+            "flex items-center gap-2 bg-transparent px-2 py-1.5 transition-colors duration-100",
+            "focus-within:outline-none",
             props.disabled && "opacity-50",
             className,
           )}
+          style={{
+            border: error ? "1px solid var(--color-error)" : "1px solid var(--color-border)",
+            borderRadius: 0,
+            ...style,
+          }}
         >
           {Icon && <Icon className="h-4 w-4 shrink-0 text-muted" />}
           <input
             ref={ref}
             id={inputId}
-            className="w-full border-none bg-transparent text-sm text-primary outline-none placeholder:text-placeholder disabled:cursor-not-allowed"
+            className="w-full border-none bg-transparent text-sm text-primary outline-none placeholder:text-placeholder disabled:cursor-not-allowed focus:outline-none"
+            style={{ borderRadius: 0 }}
             {...props}
           />
         </div>
