@@ -33,15 +33,15 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 const ROLE_BADGE_STYLE: Record<string, React.CSSProperties> = {
-  buyer:      { background: "rgba(59,130,246,0.1)",  borderColor: "rgba(59,130,246,0.3)",  color: "#60a5fa" },
-  supplier:   { background: "rgba(168,85,247,0.1)",  borderColor: "rgba(168,85,247,0.3)",  color: "#c084fc" },
-  winner:     { background: "rgba(34,197,94,0.1)",   borderColor: "rgba(34,197,94,0.3)",   color: "#4ade80" },
-  bidder:     { background: "rgba(234,179,8,0.1)",   borderColor: "rgba(234,179,8,0.3)",   color: "#facc15" },
-  sanctioned: { background: "rgba(239,68,68,0.1)",   borderColor: "rgba(239,68,68,0.3)",   color: "#f87171" },
-  owner:      { background: "rgba(251,146,60,0.1)",  borderColor: "rgba(251,146,60,0.3)",  color: "#fb923c" },
-  employee:   { background: "rgba(20,184,166,0.1)",  borderColor: "rgba(20,184,166,0.3)",  color: "#2dd4bf" },
-  manager:    { background: "rgba(99,102,241,0.1)",  borderColor: "rgba(99,102,241,0.3)",  color: "#818cf8" },
-  _default:   { background: "rgba(100,116,139,0.1)", borderColor: "rgba(100,116,139,0.3)", color: "#94a3b8" },
+  buyer:      { background: "rgba(74,130,212,0.12)",  borderColor: "rgba(74,130,212,0.35)",  color: "#7AAAF0" },
+  supplier:   { background: "rgba(138,99,232,0.12)",  borderColor: "rgba(138,99,232,0.35)",  color: "#B090F8" },
+  winner:     { background: "rgba(48,160,96,0.12)",   borderColor: "rgba(48,160,96,0.35)",   color: "#50D090" },
+  bidder:     { background: "rgba(200,152,32,0.12)",  borderColor: "rgba(200,152,32,0.35)",  color: "#E8B840" },
+  sanctioned: { background: "rgba(224,80,80,0.12)",   borderColor: "rgba(224,80,80,0.35)",   color: "#F08080" },
+  owner:      { background: "rgba(212,96,32,0.12)",   borderColor: "rgba(212,96,32,0.35)",   color: "#F09050" },
+  employee:   { background: "rgba(58,144,160,0.12)",  borderColor: "rgba(58,144,160,0.35)",  color: "#50C0D8" },
+  manager:    { background: "rgba(110,62,214,0.12)",  borderColor: "rgba(110,62,214,0.35)",  color: "#A878F0" },
+  _default:   { background: "rgba(112,112,168,0.12)", borderColor: "rgba(112,112,168,0.35)", color: "#9090C0" },
 };
 
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Building2; color: string }> = {
