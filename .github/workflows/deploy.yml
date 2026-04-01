@@ -1,8 +1,9 @@
 name: Deploy
 
-on:
-  push:
-    branches: [main]
+# DISABLED: Only running CI for local development. Deploy workflow disabled until production ready.
+# on:
+#   push:
+#     branches: [main]
 
 # Prevent concurrent deploys
 concurrency:

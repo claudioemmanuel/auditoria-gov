@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from shared.models import Base
 
 # Set test env vars before any shared imports
+# Note: CI workflow passes DATABASE_URL with port 5432; local dev uses 5433
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5433/test")
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql+psycopg://test:test@localhost:5433/test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
@@ -17,7 +18,7 @@ os.environ.setdefault("LLM_PROVIDER", "none")
 os.environ.setdefault("CPF_HASH_SALT", "test-salt")
 os.environ.setdefault("APP_ENV", "development")
 
-_TEST_DB_URL = os.environ["DATABASE_URL"]
+_TEST_DB_URL = os.environ["DATABASE_URL"]  # Use env var (CI injects correct port)
 
 
 @pytest.fixture
