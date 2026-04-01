@@ -27,6 +27,8 @@ async def async_session() -> AsyncGenerator[AsyncSession, None]:
     
     # Create all tables before the test
     async with engine.begin() as conn:
+        # Enable pgvector extension for vector type support
+        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
         await conn.run_sync(Base.metadata.create_all)
     
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
