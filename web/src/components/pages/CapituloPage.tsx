@@ -146,7 +146,7 @@ function SignalCard({
         {entities.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {entities.slice(0, 4).map((ent) => {
-              const col = ENTITY_COL[ent.type] ?? "#a78bfa";
+              const col = getEntityColor(ent.type);
               return (
                 <span
                   key={ent.id}
