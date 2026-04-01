@@ -19,6 +19,12 @@ import { useDossieBook } from "@/components/dossie/DossieBookContext";
 import type { LegalHypothesisDTO, TimelineSignalDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
 const SEV = {
   critical: {
     label: "Critico",
@@ -280,11 +286,11 @@ export default function DossieJuridicoPage() {
         <div className="mx-auto max-w-6xl px-6 py-6">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[
-              { label: "Total Hipoteses", val: hypotheses.length, color: "#8A63E8" },
-              { label: "Leis Referenciadas", val: uniqueLaws, color: "#30A060" },
-              { label: "Tipologias Ativas", val: activeTypologies, color: "#D46020" },
-              { label: "Sinais no Caso", val: data.signals.length, color: "#4A82D4" },
-            ].map(({ label, val, color }) => (
+              { label: "Total Hipoteses", val: hypotheses.length, token: "--color-metric-hypotheses" },
+              { label: "Leis Referenciadas", val: uniqueLaws, token: "--color-metric-laws" },
+              { label: "Tipologias Ativas", val: activeTypologies, token: "--color-metric-typologies" },
+              { label: "Sinais no Caso", val: data.signals.length, token: "--color-metric-signals" },
+            ].map(({ label, val, token }) => (
               <div
                 key={label}
                 className="rounded-xl border border-border bg-surface-subtle p-4"
@@ -292,7 +298,7 @@ export default function DossieJuridicoPage() {
                 <p className="font-mono text-xs text-muted mb-1">{label}</p>
                 <p
                   className="font-mono text-2xl font-black tabular-nums"
-                  style={{ color }}
+                  style={{ color: getCSSToken(token) }}
                 >
                   {val}
                 </p>

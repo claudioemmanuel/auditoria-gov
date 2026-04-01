@@ -20,12 +20,42 @@ import { cn, formatBRL, formatDate } from "@/lib/utils";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const EVENT_META: Record<string, { Icon: ElementType; color: string; label: string }> = {
-  licitacao:     { Icon: ShoppingCart,   color: "#4A82D4", label: "Licitação"     },
-  contrato:      { Icon: FileText,       color: "#8A63E8", label: "Contrato"      },
-  sancao:        { Icon: ShieldOff,      color: "#E05050", label: "Sanção"        },
-  transferencia: { Icon: ArrowRightLeft, color: "#D46020", label: "Transferência" },
-  emenda:        { Icon: Landmark,       color: "#30A060", label: "Emenda"        },
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Entity type color tokens */
+function getEntityColor(entityType: string): string {
+  const tokenMap: Record<string, string> = {
+    org:     "--color-entity-org",
+    company: "--color-entity-company",
+    person:  "--color-entity-person",
+  };
+  const token = tokenMap[entityType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
+
+/** Event type color tokens */
+function getEventColor(eventType: string): string {
+  const tokenMap: Record<string, string> = {
+    licitacao:     "--color-event-licitacao",
+    contrato:      "--color-event-contrato",
+    sancao:        "--color-event-sancao",
+    transferencia: "--color-event-transferencia",
+    emenda:        "--color-event-emenda",
+  };
+  const token = tokenMap[eventType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
+
+const EVENT_META: Record<string, { Icon: ElementType; color?: string; label: string }> = {
+  licitacao:     { Icon: ShoppingCart,   label: "Licitação"     },
+  contrato:      { Icon: FileText,       label: "Contrato"      },
+  sancao:        { Icon: ShieldOff,      label: "Sanção"        },
+  transferencia: { Icon: ArrowRightLeft, label: "Transferência" },
+  emenda:        { Icon: Landmark,       label: "Emenda"        },
 };
 
 const SEV = {
@@ -41,11 +71,6 @@ function getSev(severity: string) {
   return SEV[(severity as SevKey) in SEV ? (severity as SevKey) : "low"];
 }
 
-const ENTITY_COL: Record<string, string> = {
-  org:     "#3A90A0",
-  company: "#4A82D4",
-  person:  "#7C6AE0",
-};
 const ENTITY_ICON: Record<string, ElementType> = { org: Building2, company: Building2, person: User };
 const ENTITY_LABEL: Record<string, string> = { org: "Órgão Público", company: "Empresa", person: "Pessoa Física" };
 
@@ -181,7 +206,8 @@ function MatrixTable({
             Ator
           </th>
           {events.map((e, i) => {
-            const m = EVENT_META[e.type] ?? { color: "#a78bfa", label: e.type };
+            const m = EVENT_META[e.type] ?? { label: e.type };
+            const eventColor = getEventColor(e.type);
             return (
               <th
                 key={e.id}
@@ -189,7 +215,7 @@ function MatrixTable({
                 title={e.description}
               >
                 <div className="flex flex-col items-center gap-0.5">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: m.color }} />
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: eventColor }} />
                   <span>E{i + 1}</span>
                 </div>
               </th>
@@ -199,7 +225,7 @@ function MatrixTable({
       </thead>
       <tbody>
         {entities.map((ent, ri) => {
-          const col = ENTITY_COL[ent.type] ?? "#a78bfa";
+          const col = getEntityColor(ent.type);
           const rowBg = ri % 2 === 0 ? "bg-surface-card" : "bg-surface-subtle";
           return (
             <tr key={ent.id} className={rowBg}>
@@ -400,7 +426,7 @@ export default function DossierPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {entityMatrix.map(({ entity, eventCount, roles, signalCount }) => {
-              const col = ENTITY_COL[entity.type] ?? "#a78bfa";
+              const col = getEntityColor(entity.type);
               const photoUrl = typeof entity.attrs.photo_url === "string" ? entity.attrs.photo_url : null;
               const party = typeof entity.attrs.party === "string" ? entity.attrs.party : null;
               const sphere = typeof entity.attrs.sphere === "string" ? entity.attrs.sphere : null;
@@ -509,7 +535,8 @@ export default function DossierPage() {
           </div>
           <div className="space-y-4">
             {sortedEvents.map((evt, idx) => {
-              const meta = EVENT_META[evt.type] ?? { Icon: FileText, color: "#a78bfa", label: evt.type };
+              const meta = EVENT_META[evt.type] ?? { Icon: FileText, label: evt.type };
+              const eventColor = getEventColor(evt.type);
               const uniqueEvtSignals = Array.from(
                 new Map(evt.signals.map((s) => [s.id, s])).values()
               );
@@ -524,7 +551,7 @@ export default function DossierPage() {
                 <div
                   key={evt.id}
                   className="relative rounded-2xl border border-border bg-surface-card overflow-hidden"
-                  style={{ borderLeftWidth: 3, borderLeftColor: meta.color }}
+                  style={{ borderLeftWidth: 3, borderLeftColor: eventColor }}
                 >
                   <div className="absolute right-4 top-4 font-mono text-[10px] text-muted">
                     #{String(idx + 1).padStart(2, "0")}
@@ -534,13 +561,13 @@ export default function DossierPage() {
                     <div className="flex items-start gap-3 mb-3">
                       <div
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                        style={{ backgroundColor: `${meta.color}1A`, color: meta.color }}
+                        style={{ backgroundColor: `${eventColor}1A`, color: eventColor }}
                       >
                         <meta.Icon className="h-4 w-4" />
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                          <span className="font-mono text-xs font-bold" style={{ color: meta.color }}>
+                          <span className="font-mono text-xs font-bold" style={{ color: eventColor }}>
                             {meta.label}
                           </span>
                           <span className="font-mono text-xs text-muted">{formatDate(evt.occurred_at)}</span>
@@ -575,7 +602,7 @@ export default function DossierPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {evt.participants.map((p, i) => {
                             const ent = entityMap.get(p.entity_id);
-                            const col = ENTITY_COL[ent?.type ?? "org"] ?? "#a78bfa";
+                            const col = getEntityColor(ent?.type ?? "org");
                             return (
                               <span
                                 key={i}
@@ -755,10 +782,11 @@ export default function DossierPage() {
                             </p>
                             <div className="space-y-1">
                               {relatedEvts.map((e) => {
-                                const m = EVENT_META[e.type] ?? { color: "#a78bfa", label: e.type };
+                                const m = EVENT_META[e.type] ?? { label: e.type };
+                                const relatedEventColor = getEventColor(e.type);
                                 return (
                                   <div key={e.id} className="flex items-center gap-2 text-xs">
-                                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: relatedEventColor }} />
                                     <span className={cn("font-mono opacity-70", s.text)}>
                                       {formatDate(e.occurred_at)}
                                     </span>

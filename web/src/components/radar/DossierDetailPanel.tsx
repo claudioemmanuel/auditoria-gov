@@ -21,6 +21,46 @@ import {
   X,
 } from "lucide-react";
 
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Build role badge style from CSS token */
+function getRoleBadgeStyle(role: string): React.CSSProperties {
+  const tokenMap: Record<string, string> = {
+    buyer:      "--color-role-buyer",
+    supplier:   "--color-role-supplier",
+    winner:     "--color-role-winner",
+    bidder:     "--color-role-bidder",
+    sanctioned: "--color-role-sanctioned",
+    owner:      "--color-role-owner",
+    employee:   "--color-role-employee",
+    manager:    "--color-role-manager",
+    _default:   "--color-muted",
+  };
+  const token = tokenMap[role] || tokenMap._default;
+  const color = getCSSToken(token);
+  
+  try {
+    const hex = color.trim();
+    if (!hex.startsWith("#")) {
+      return { background: "rgba(112,112,168,0.12)", borderColor: "rgba(112,112,168,0.35)", color: "#9090C0" };
+    }
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return {
+      background: `rgba(${r},${g},${b},0.12)`,
+      borderColor: `rgba(${r},${g},${b},0.35)`,
+      color: hex,
+    };
+  } catch {
+    return { background: "rgba(112,112,168,0.12)", borderColor: "rgba(112,112,168,0.35)", color: "#9090C0" };
+  }
+}
+
 const ROLE_LABEL: Record<string, string> = {
   buyer: "Orgao comprador",
   supplier: "Fornecedor",
@@ -30,18 +70,6 @@ const ROLE_LABEL: Record<string, string> = {
   owner: "Socio",
   employee: "Servidor",
   manager: "Gestor",
-};
-
-const ROLE_BADGE_STYLE: Record<string, React.CSSProperties> = {
-  buyer:      { background: "rgba(74,130,212,0.12)",  borderColor: "rgba(74,130,212,0.35)",  color: "#7AAAF0" },
-  supplier:   { background: "rgba(138,99,232,0.12)",  borderColor: "rgba(138,99,232,0.35)",  color: "#B090F8" },
-  winner:     { background: "rgba(48,160,96,0.12)",   borderColor: "rgba(48,160,96,0.35)",   color: "#50D090" },
-  bidder:     { background: "rgba(200,152,32,0.12)",  borderColor: "rgba(200,152,32,0.35)",  color: "#E8B840" },
-  sanctioned: { background: "rgba(224,80,80,0.12)",   borderColor: "rgba(224,80,80,0.35)",   color: "#F08080" },
-  owner:      { background: "rgba(212,96,32,0.12)",   borderColor: "rgba(212,96,32,0.35)",   color: "#F09050" },
-  employee:   { background: "rgba(58,144,160,0.12)",  borderColor: "rgba(58,144,160,0.35)",  color: "#50C0D8" },
-  manager:    { background: "rgba(110,62,214,0.12)",  borderColor: "rgba(110,62,214,0.35)",  color: "#A878F0" },
-  _default:   { background: "rgba(112,112,168,0.12)", borderColor: "rgba(112,112,168,0.35)", color: "#9090C0" },
 };
 
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Building2; color: string }> = {
@@ -367,7 +395,7 @@ function SignalContent({
                   <span
                     key={role}
                     className="rounded-full px-2 py-0.5 text-[10px] font-semibold border"
-                    style={ROLE_BADGE_STYLE[role] ?? ROLE_BADGE_STYLE._default}
+                    style={getRoleBadgeStyle(role)}
                   >
                     {ROLE_LABEL[role] ?? role}
                   </span>
@@ -402,7 +430,7 @@ function SignalContent({
                   <span
                     key={role}
                     className="rounded-full px-2 py-0.5 text-[10px] font-semibold border"
-                    style={ROLE_BADGE_STYLE[role] ?? ROLE_BADGE_STYLE._default}
+                    style={getRoleBadgeStyle(role)}
                   >
                     {ROLE_LABEL[role] ?? role}
                   </span>

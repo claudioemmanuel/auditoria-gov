@@ -14,6 +14,23 @@ import { TYPOLOGY_LABELS } from "@/lib/constants";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Entity type color tokens */
+function getEntityColor(entityType: string): string {
+  const tokenMap: Record<string, string> = {
+    org:     "--color-entity-org",
+    company: "--color-entity-company",
+    person:  "--color-entity-person",
+  };
+  const token = tokenMap[entityType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
+
 const SEV = {
   critical: { label: "Crítico", bg: "bg-severity-critical-bg", text: "text-severity-critical", border: "border-severity-critical/30", dot: "bg-severity-critical" },
   high:     { label: "Alto",    bg: "bg-severity-high-bg",     text: "text-severity-high",     border: "border-severity-high/30",     dot: "bg-severity-high"     },
@@ -24,11 +41,6 @@ const SEV = {
 type SevKey = keyof typeof SEV;
 function getSev(sv: string) { return SEV[(sv as SevKey) in SEV ? (sv as SevKey) : "low"]; }
 
-const ENTITY_COL: Record<string, string> = {
-  org:     "#3A90A0",
-  company: "#4A82D4",
-  person:  "#7C6AE0",
-};
 const ENTITY_ICON: Record<string, ElementType> = { org: Building2, company: Building2, person: User };
 const ENTITY_LABEL_MAP: Record<string, string> = { org: "Órgão Público", company: "Empresa", person: "Pessoa Física" };
 
@@ -46,7 +58,7 @@ function confidenceColor(pct: number) {
 // ── Entity mini-card ─────────────────────────────────────────────────────────
 
 function EntityMiniCard({ entity }: { entity: TimelineEntityDTO }) {
-  const col = ENTITY_COL[entity.type] ?? "#a78bfa";
+  const col = getEntityColor(entity.type);
   const photoUrl = typeof entity.attrs.photo_url === "string" ? entity.attrs.photo_url : null;
   const cnpj = entity.identifiers.cnpj;
   const cpf  = entity.identifiers.cpf;

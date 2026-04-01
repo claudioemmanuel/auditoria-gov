@@ -80,6 +80,10 @@ secrets/
 # ── Claude Code (local overrides, never commit) ───────────────────────
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/
+
+# ── GitHub Copilot ─────────────────────────────────────────────────────
+.github/copilot-instructions.md
 
 # ── Alembic ──────────────────────────────────────────────────────────
 api/alembic/versions/__pycache__/

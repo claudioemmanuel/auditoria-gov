@@ -26,34 +26,52 @@ import { getGraphNeighborhood } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { NeighborhoodResponse, GraphEdge } from "@/lib/types";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Utilities ───────────────────────────────────────────────────────────────
 
-const NODE_COLORS: Record<string, string> = {
-  person:  "#7C6AE0",
-  company: "#4A82D4",
-  org:     "#3A90A0",
-};
+/** Read CSS variable at runtime; fallback to light palette for SSR */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Entity type color tokens */
+function getNodeColor(nodeType: string): string {
+  const tokenMap: Record<string, string> = {
+    person:  "--color-entity-person",
+    company: "--color-entity-company",
+    org:     "--color-entity-org",
+  };
+  const token = tokenMap[nodeType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
+
+/** Edge type color tokens */
+function getEdgeColor(edgeType: string): string {
+  const tokenMap: Record<string, string> = {
+    compra_fornecimento:         "--color-edge-compra",
+    agente_publico_favorecido:   "--color-edge-favorecido",
+    coparticipacao_evento:       "--color-edge-copart",
+    coparticipacao_fornecedores: "--color-edge-copartsup",
+    coparticipacao_orgaos:       "--color-edge-coparorg",
+    sociedade:                   "--color-edge-socio",
+    SAME_SOCIO:                  "--color-edge-same-socio",
+    SAME_ADDRESS:                "--color-edge-address",
+    SHARES_PHONE:                "--color-edge-phone",
+    SAME_ACCOUNTANT:             "--color-edge-acct",
+    SUBSIDIARY:                  "--color-edge-subsidiary",
+    HOLDING:                     "--color-edge-holding",
+    same_cluster_entity:         "--color-edge-cluster",
+  };
+  const token = tokenMap[edgeType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const NODE_TYPE_LABELS: Record<string, string> = {
   person:  "Pessoa",
   company: "Empresa",
   org:     "Órgão",
-};
-
-const EDGE_COLORS: Record<string, string> = {
-  compra_fornecimento:         "#4A82D4",
-  agente_publico_favorecido:   "#E05050",
-  coparticipacao_evento:       "#7070A8",
-  coparticipacao_fornecedores: "#9090C0",
-  coparticipacao_orgaos:       "#A080E0",
-  sociedade:                   "#30A060",
-  SAME_SOCIO:                  "#C89820",
-  SAME_ADDRESS:                "#8090B0",
-  SHARES_PHONE:                "#7080A0",
-  SAME_ACCOUNTANT:             "#8090B0",
-  SUBSIDIARY:                  "#8A63E8",
-  HOLDING:                     "#8A63E8",
-  same_cluster_entity:         "#D46020",
 };
 
 const EDGE_TYPE_LABELS: Record<string, string> = {
@@ -119,7 +137,7 @@ type EntityNodeData = {
 function EntityNode({ data }: NodeProps) {
   const router = useRouter();
   const d = data as EntityNodeData;
-  const color = NODE_COLORS[d.node_type] ?? "#6b7280";
+  const color = getNodeColor(d.node_type);
 
   return (
     <div
@@ -213,7 +231,7 @@ function FlowInner({ rfNodes, rfEdges }: FlowInnerProps) {
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#2E2E50" />
       <Controls className="[&>button]:!bg-surface-card [&>button]:!border-border [&>button]:!text-secondary [&>button:hover]:!text-primary [&>button]:!shadow-none" />
       <MiniMap
-        nodeColor={(n) => NODE_COLORS[(n.data as EntityNodeData).node_type] ?? "#7070A8"}
+        nodeColor={(n) => getNodeColor((n.data as EntityNodeData).node_type)}
         maskColor="rgba(0,0,0,0.35)"
         className="!bg-surface-card !border !border-border !rounded-lg !shadow-sm"
       />
@@ -270,7 +288,7 @@ export function GraphView({ entityId, height = 480, className }: GraphViewProps)
         target: e.to_node_id,
         type: "smoothstep",
         style: {
-          stroke: EDGE_COLORS[e.type] ?? "#6b7280",
+          stroke: getEdgeColor(e.type),
           strokeWidth: e.edge_strength === "strong" ? 2 : 1,
           strokeDasharray: e.edge_strength === "strong" ? undefined : "5 3",
         },
@@ -281,7 +299,7 @@ export function GraphView({ entityId, height = 480, className }: GraphViewProps)
         labelBgBorderRadius: 3,
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: EDGE_COLORS[e.type] ?? "#6b7280",
+          color: getEdgeColor(e.type),
           width: 14,
           height: 14,
         },

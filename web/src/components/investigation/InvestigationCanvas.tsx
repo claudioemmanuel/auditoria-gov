@@ -28,11 +28,22 @@ import { getTokens, tokens } from "@/lib/design-tokens";
 const NODE_TYPES = { entity: EntityNode };
 const EDGE_TYPES = { relation: RelationEdge };
 
-const MINIMAP_NODE_COLOR: Record<string, string> = {
-  person:  "#7C6AE0",
-  company: "#4A82D4",
-  org:     "#3A90A0",
-};
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Entity type color tokens */
+function getNodeColor(nodeType: string): string {
+  const tokenMap: Record<string, string> = {
+    person:  "--color-entity-person",
+    company: "--color-entity-company",
+    org:     "--color-entity-org",
+  };
+  const token = tokenMap[nodeType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
 
 interface InvestigationCanvasProps {
   graphData: { nodes: GNode[]; links: GLink[] };
@@ -136,7 +147,7 @@ function InvestigationCanvasInner({
           type: MarkerType.ArrowClosed,
           width: 12,
           height: 12,
-          color: "#9090C0",
+          color: getCSSToken("--color-edge-copartsup"),
         },
       })),
     [graphData.links],
@@ -272,7 +283,7 @@ function InvestigationCanvasInner({
 
         <MiniMap
           nodeColor={(node) =>
-            MINIMAP_NODE_COLOR[(node.data as EntityNodeData).nodeType] ?? tokens.muted
+            getNodeColor((node.data as EntityNodeData).nodeType)
           }
           maskColor="rgba(13,13,23,0.75)"
           className="!bg-surface-card !border-border !shadow-md"
@@ -293,7 +304,7 @@ function InvestigationCanvasInner({
                 markerHeight="12"
                 orient="auto-start-reverse"
               >
-                <path d="M 2 2 L 10 6 L 2 10 z" fill="#9090C0" />
+                <path d="M 2 2 L 10 6 L 2 10 z" fill={getCSSToken("--color-edge-copartsup")} />
               </marker>
               <marker
                 id="arrow-selected"

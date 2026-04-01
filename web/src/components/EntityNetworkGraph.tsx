@@ -11,11 +11,24 @@ interface EntityNetworkGraphProps {
   className?: string;
 }
 
-const NODE_COLORS: Record<string, string> = {
-  person:  "#7C6AE0",
-  company: "#4A82D4",
-  org:     "#3A90A0",
-};
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Entity type color tokens */
+function getNodeColor(nodeType: string): string {
+  const tokenMap: Record<string, string> = {
+    person:  "--color-entity-person",
+    company: "--color-entity-company",
+    org:     "--color-entity-org",
+  };
+  const token = tokenMap[nodeType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
 
 const NODE_TYPE_LABELS: Record<string, string> = {
   person: "Pessoa",
@@ -216,12 +229,15 @@ export function EntityNetworkGraph({ entityId, className }: EntityNetworkGraphPr
     <div className={cn("relative bg-surface-card", className)}>
       {/* Legend */}
       <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 rounded-md bg-surface-card/90 px-3 py-2 text-xs shadow-sm backdrop-blur-sm">
-        {Object.entries(NODE_COLORS).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-2">
-            <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
-            <span className="text-secondary">{NODE_TYPE_LABELS[type] ?? type}</span>
-          </div>
-        ))}
+        {Object.keys(NODE_TYPE_LABELS).map((type) => {
+          const color = getNodeColor(type);
+          return (
+            <div key={type} className="flex items-center gap-2">
+              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-secondary">{NODE_TYPE_LABELS[type] ?? type}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Stats */}
@@ -289,7 +305,7 @@ export function EntityNetworkGraph({ entityId, className }: EntityNetworkGraphPr
 
         {/* Nodes */}
         {positions.map((p) => {
-          const color = NODE_COLORS[p.node.node_type] ?? "#6b7280";
+          const color = getNodeColor(p.node.node_type);
           const r = p.isCenter ? CENTER_R : PERIPHERAL_R;
           const isHovered = hoveredId === p.node.id;
           const fillOpacity = isHovered ? 1 : 0.85;

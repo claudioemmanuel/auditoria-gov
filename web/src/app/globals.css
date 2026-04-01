@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --font-display: 'DM Sans', sans-serif;
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
@@ -41,11 +42,61 @@
   --color-destructive:    #9B1616;
   --color-accent-subtle:  #E8E0FA;
 
+  /* Entity type colors (graph visualization) */
+  --color-entity-person:  #7C6AE0;
+  --color-entity-company: #4A82D4;
+  --color-entity-org:     #3A90A0;
+
+  /* Edge/relationship colors (graph visualization) */
+  --color-edge-compra:    #4A82D4;
+  --color-edge-favorecido: #E05050;
+  --color-edge-copart:    #7070A8;
+  --color-edge-copartsup: #9090C0;
+  --color-edge-coparorg:  #A080E0;
+  --color-edge-socio:     #30A060;
+  --color-edge-same-socio: #C89820;
+  --color-edge-address:   #8090B0;
+  --color-edge-phone:     #7080A0;
+  --color-edge-acct:      #8090B0;
+  --color-edge-subsidiary: #8A63E8;
+  --color-edge-holding:   #8A63E8;
+  --color-edge-cluster:   #D46020;
+
+  /* Event type colors (timeline) */
+  --color-event-licitacao:     #4A82D4;
+  --color-event-contrato:      #8A63E8;
+  --color-event-sancao:        #E05050;
+  --color-event-transferencia: #D46020;
+  --color-event-emenda:        #30A060;
+
+  /* Metric card colors */
+  --color-metric-hypotheses:   #8A63E8;
+  --color-metric-laws:         #30A060;
+  --color-metric-typologies:   #D46020;
+  --color-metric-signals:      #4A82D4;
+
+  /* Role badge colors (radar) */
+  --color-role-buyer:      #7AAAF0;
+  --color-role-supplier:   #B090F8;
+  --color-role-winner:     #50D090;
+  --color-role-bidder:     #E8B840;
+  --color-role-sanctioned: #F08080;
+  --color-role-owner:      #F09050;
+  --color-role-employee:   #50C0D8;
+  --color-role-manager:    #A878F0;
+
   /* ── Radius (zero — sharp edges enforced) ── */
   --radius-xs: 0px;
   --radius-sm: 0px;
   --radius-md: 0px;
   --radius-lg: 0px;
+
+  /* ── Shadow system (light mode defaults) ── */
+  --shadow-xs:  0 1px 2px rgba(10, 10, 26, 0.04);
+  --shadow-sm:  0 1px 3px rgba(10, 10, 26, 0.08);
+  --shadow-md:  0 4px 6px rgba(10, 10, 26, 0.10);
+  --shadow-lg:  0 10px 15px rgba(10, 10, 26, 0.12);
+  --shadow-xl:  0 20px 25px rgba(10, 10, 26, 0.15);
 }
 
 /* ── Dark mode overrides ──────────────────────────────────────────── */
@@ -85,6 +136,33 @@ html.dark {
   --color-secondary:      #A0A0C8;
   --color-destructive:    #E05050;
   --color-accent-subtle:  #1A0A38;
+
+  /* Entity type colors (graph visualization — brighten for dark backgrounds) */
+  --color-entity-person:  #9D8FFF;
+  --color-entity-company: #5FA3FF;
+  --color-entity-org:     #4EB8D4;
+
+  /* Edge/relationship colors (graph visualization) */
+  --color-edge-compra:    #5FA3FF;
+  --color-edge-favorecido: #E05050;
+  --color-edge-copart:    #9090FF;
+  --color-edge-copartsup: #B8A8FF;
+  --color-edge-coparorg:  #D0B8FF;
+  --color-edge-socio:     #30A060;
+  --color-edge-same-socio: #C89820;
+  --color-edge-address:   #A0B0D0;
+  --color-edge-phone:     #90A8C0;
+  --color-edge-acct:      #A0B0D0;
+  --color-edge-subsidiary: #9873FF;
+  --color-edge-holding:   #9873FF;
+  --color-edge-cluster:   #D46020;
+
+  /* ── Shadow system (dark mode — darker, more pronounced) ── */
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.16);
+  --shadow-md:  0 4px 6px rgba(0, 0, 0, 0.20);
+  --shadow-lg:  0 10px 15px rgba(0, 0, 0, 0.25);
+  --shadow-xl:  0 20px 25px rgba(0, 0, 0, 0.30);
 }
 
 /* ── Zero radius globally ────────────────────────────────────────── */
@@ -103,8 +181,9 @@ body {
 
 /* ── Global typography ───────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 /* Data displays must NOT use heading font */
@@ -312,6 +391,61 @@ h1, h2, h3, h4, h5, h6 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Staggered entrance animations ───────────────────── */
+@keyframes staggeredSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes staggeredFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes staggeredScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Stagger timing: 50ms per element */
+.stagger-item-1 { animation-delay: 0ms; }
+.stagger-item-2 { animation-delay: 50ms; }
+.stagger-item-3 { animation-delay: 100ms; }
+.stagger-item-4 { animation-delay: 150ms; }
+.stagger-item-5 { animation-delay: 200ms; }
+.stagger-item-6 { animation-delay: 250ms; }
+.stagger-item-7 { animation-delay: 300ms; }
+.stagger-item-8 { animation-delay: 350ms; }
+
+/* Apply animation: add @keyframes name + duration */
+.animate-staggered-slideup {
+  animation: staggeredSlideUp 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-staggered-fadein {
+  animation: staggeredFadeIn 300ms ease-out forwards;
+}
+
+.animate-staggered-scalein {
+  animation: staggeredScaleIn 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* ════════════════════════════════════════════════════════

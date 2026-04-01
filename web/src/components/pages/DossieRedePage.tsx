@@ -54,11 +54,22 @@ const SEV = {
   },
 } as const;
 
-const ENTITY_COL: Record<string, string> = {
-  org:     "#3A90A0",
-  company: "#4A82D4",
-  person:  "#7C6AE0",
-};
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Entity type color tokens */
+function getEntityColor(entityType: string): string {
+  const tokenMap: Record<string, string> = {
+    org:     "--color-entity-org",
+    company: "--color-entity-company",
+    person:  "--color-entity-person",
+  };
+  const token = tokenMap[entityType];
+  return token ? getCSSToken(token) : getCSSToken("--color-muted");
+}
 
 const ENTITY_ICON: Record<string, React.ElementType> = {
   org: Landmark,

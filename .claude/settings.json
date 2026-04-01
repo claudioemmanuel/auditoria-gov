@@ -1,4 +1,10 @@
 {
-  "rules": ["rules/coding.md", "rules/testing.md"],
-  "outputStyle": "output-styles/architect.md"
+  "outputStyle": "output-styles/architect.md",
+  "rules": [
+    "rules/coding.md",
+    "rules/testing.md"
+  ],
+  "enabledPlugins": {
+    "oh-my-claudecode@omc": true
+  }
 }

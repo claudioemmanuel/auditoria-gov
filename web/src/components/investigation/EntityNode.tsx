@@ -5,29 +5,63 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { User, Building2, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const TYPE_CONFIG: Record<
+/** Read CSS variable at runtime */
+function getCSSToken(varName: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/** Build TYPE_CONFIG dynamically using CSS variables */
+function buildTypeConfig(): Record<
   string,
   { Icon: typeof User; label: string; accent: string; iconBg: string }
-> = {
-  person: {
-    Icon: User,
-    label: "Pessoa",
-    accent: "#7C6AE0",
-    iconBg: "rgba(124,106,224,0.12)",
-  },
-  company: {
-    Icon: Building2,
-    label: "Empresa",
-    accent: "#4A82D4",
-    iconBg: "rgba(74,130,212,0.12)",
-  },
-  org: {
-    Icon: Landmark,
-    label: "Órgão",
-    accent: "#3A90A0",
-    iconBg: "rgba(58,144,160,0.12)",
-  },
-};
+> {
+  const getAccent = (type: string): string => {
+    const tokenMap: Record<string, string> = {
+      person: "--color-entity-person",
+      company: "--color-entity-company",
+      org: "--color-entity-org",
+    };
+    const token = tokenMap[type];
+    return token ? getCSSToken(token) : getCSSToken("--color-muted");
+  };
+
+  const computeIconBg = (accentColor: string): string => {
+    // Parse hex color to create rgba version with transparency
+    if (!accentColor) return "rgba(82, 82, 160, 0.12)";
+    try {
+      const hex = accentColor.trim();
+      if (!hex.startsWith("#")) return "rgba(82, 82, 160, 0.12)";
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},0.12)`;
+    } catch {
+      return "rgba(82, 82, 160, 0.12)";
+    }
+  };
+
+  return {
+    person: {
+      Icon: User,
+      label: "Pessoa",
+      accent: getAccent("person"),
+      iconBg: computeIconBg(getAccent("person")),
+    },
+    company: {
+      Icon: Building2,
+      label: "Empresa",
+      accent: getAccent("company"),
+      iconBg: computeIconBg(getAccent("company")),
+    },
+    org: {
+      Icon: Landmark,
+      label: "Órgão",
+      accent: getAccent("org"),
+      iconBg: computeIconBg(getAccent("org")),
+    },
+  };
+}
 
 const SEVERITY_BORDER: Record<string, string> = {
   critical: "var(--color-critical)",
@@ -50,7 +84,8 @@ export interface EntityNodeData {
 
 function EntityNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as EntityNodeData;
-  const config = TYPE_CONFIG[nodeData.nodeType] ?? TYPE_CONFIG.person;
+  const typeConfig = buildTypeConfig();
+  const config = typeConfig[nodeData.nodeType] ?? typeConfig.person;
   const { Icon } = config;
 
   const severityColor = nodeData.severity ? (SEVERITY_BORDER[nodeData.severity] ?? "var(--color-border)") : "var(--color-border)";
