@@ -92,33 +92,40 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 
 ## Quick Start
 
-### 1. Clone
+### Quick Start (All Platforms)
 
+**Step 1:** Clone and configure
 ```bash
-git clone https://github.com/claudioemmanuel/openwatch.git
-cd openwatch
-```
-
-### 2. Configure environment
-
-```bash
+git clone https://github.com/claudioemmanuel/openwatch.git && cd openwatch
 cp .env.example .env
-# fill PORTAL_TRANSPARENCIA_TOKEN and CPF_HASH_SALT
 ```
 
-### 3. Start services
-
+**Step 2:** Start backend
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml up -d
+# ✓ API ready at http://localhost:8000
 ```
 
-### 4. Run migrations
-
+**Step 3:** Start frontend
 ```bash
-docker compose run --rm api alembic -c api/alembic.ini upgrade head
+cd web
+npm ci
+NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+# ✓ Frontend ready at http://localhost:3000
 ```
 
-### 5. Trigger ingestion and pipeline
+**Access:**
+- 🌐 Frontend: http://localhost:3000
+- 🔌 API: http://localhost:8000
+- 📚 API Docs: http://localhost:8000/docs
+
+### Setup Guides
+
+**All Platforms (Windows, macOS, Linux):**
+- [LOCAL_SETUP.md](./LOCAL_SETUP.md) — Complete dev guide: testing, migrations, debugging
+- [CROSS_PLATFORM_SETUP.md](./CROSS_PLATFORM_SETUP.md) — OS-specific setup, line endings, troubleshooting
+
+### Load Data (Optional)
 
 ```bash
 curl -X POST http://localhost:8000/internal/ingest/all
@@ -127,11 +134,6 @@ curl -X POST http://localhost:8000/internal/baselines/run
 curl -X POST http://localhost:8000/internal/signals/run
 curl -X POST http://localhost:8000/internal/coverage/update
 ```
-
-### 6. Open interfaces
-
-- Web: http://localhost:3000
-- API docs (Swagger): http://localhost:8000/docs
 
 ## Environment Variables
 
