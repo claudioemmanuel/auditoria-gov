@@ -1,0 +1,7 @@
+# Force LF line endings for shell scripts and other files that must be Unix-compatible
+*.sh text eol=lf
+*.py text eol=lf
+
+# Git will automatically normalize commits to LF, but working directory will be LF
+docker-entrypoint.sh text eol=lf
+run_pipeline.py text eol=lf
