@@ -1,46 +1,48 @@
+# Root workspace — all Python packages are managed as uv workspace members.
+# Do NOT add dependencies here. Each package has its own pyproject.toml.
 [project]
 name = "openwatch"
 version = "0.1.0"
 description = "OpenWatch — citizen auditing of Brazilian federal data"
-requires-python = ">=3.11"
-dependencies = [
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.34",
-    "sqlalchemy[asyncio]>=2.0",
-    "asyncpg>=0.30",
-    "psycopg[binary]>=3.2",
-    "alembic>=1.14",
-    "pydantic>=2.10",
-    "pydantic-settings>=2.7",
-    "redis>=5.2",
-    "celery>=5.4",
-    "flower>=2.0",
-    "httpx>=0.28",
-    "structlog>=24.4",
-    "pgvector>=0.3",
-    "openai>=1.60",
-    "anthropic>=0.40",
-    "jinja2>=3.1",
-    "networkx>=3.2",
-    "scipy>=1.12",
-    "rapidfuzz>=3.0.0",
-    "psutil>=5.9",
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "packages/config",
+    "packages/utils",
+    "packages/models",
+    "packages/db",
+    "packages/connectors",
+    "core/typologies",
+    "core/er",
+    "core/analytics",
+    "core/baselines",
+    "core/services",
+    "core/ai",
+    "core/queries",
+    "core/pipelines",
+    "core/scheduler",
+    "apps/api",
 ]
 
-[project.optional-dependencies]
-nlp = [
-    "transformers>=4.40",
-    "torch>=2.2",
-]
-test = [
+[tool.uv]
+dev-dependencies = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "pytest-asyncio>=0.25",
     "respx>=0.22",
+    "httpx>=0.28",
+    "faker>=24.0",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "flower>=2.0",
+    "psutil>=5.9",
+    "import-linter>=2.1",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/public", "tests/core"]
 asyncio_mode = "auto"
 addopts = [
     "--tb=short",
@@ -54,16 +56,15 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["shared"]
+source = ["packages", "core", "apps"]
 omit = [
-    "shared/db.py",
-    "shared/db_sync.py",
-    "shared/logging.py",
-    "shared/repo/*",
-    "shared/connectors/http_client.py",
-    "shared/connectors/querido_diario.py",
-    "shared/services/alerts.py",
-    "shared/services/infra_alerts.py",
+    "*/db.py",
+    "*/db_sync.py",
+    "*/logging.py",
+    "*/connectors/http_client.py",
+    "*/connectors/querido_diario.py",
+    "*/services/alerts.py",
+    "*/services/infra_alerts.py",
 ]
 
 [tool.coverage.report]
@@ -76,9 +77,22 @@ exclude_lines = [
     "\\.\\.\\.",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["shared"]
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = []

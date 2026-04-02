@@ -40,14 +40,14 @@ A camada analítica não depende de modelo generativo para pontuação. IA gener
           |
           v
 +-------------------+
-| 11 public sources |
+| 23 connectors     |
 | connectors/jobs   |
 +-------------------+
 ```
 
 See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/design document.
 
-## Data Sources (11)
+## Data Sources (23 connectors / 60 jobs)
 
 | # | Source | Connector / Jobs | Access |
 |---|--------|-------------------|--------|
@@ -62,6 +62,18 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 | 9 | TSE electoral data | `tse` / candidates, assets, campaign revenues, campaign expenses | Public (bulk downloads) |
 | 10 | Receita Federal CNPJ | `receita_cnpj` / companies, partners, establishments | Public (bulk downloads) |
 | 11 | Querido Diario gazettes | `querido_diario` / municipal gazette entries | Public |
+| 12 | TCU sanctions and rulings | `tcu` / inidôneos, inabilitados, acórdãos | Public |
+| 13 | DataJud/CNJ judicial cases | `datajud` / processos improbidade e licitação | Public (optional key) |
+| 14 | IBGE reference datasets | `ibge` / municípios, CNAE | Public |
+| 15 | TCE-RJ state audit | `tce_rj` / licitações, contratos, penalidades | Public |
+| 16 | TCE-RS state audit | `tce_rs` / gestão fiscal, educação, saúde | Public |
+| 17 | TCE-SP state audit | `tce_sp` / despesas, receitas | Public |
+| 18 | TCE-PE state audit | `tce_pe` / licitações, contratos, despesas | Public |
+| 19 | STF jurisprudência | `jurisprudencia` / licitação e improbidade rulings | Public |
+| 20 | Banco Central series | `bacen` / selic, ipca, câmbio | Public |
+| 21 | BNDES open data | `bndes` / operações auto e não-auto | Public |
+| 22 | BrasilAPI CNPJ fallback | `brasilapi_cnpj` / cnpj lookup | Public (exception domain, enrichment-only) |
+| 23 | ANVISA/BPS health pricing | `anvisa_bps` / bps prices, bulário registry | Public (enrichment-only) |
 
 ## Corruption Typologies (Deterministic Detectors)
 
@@ -89,6 +101,12 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/d
 | T20 | Phantom bidders | Empresas participantes sem histórico operacional real — proxy para concorrência simulada |
 | T21 | Collusive cluster | Cluster de fornecedores com comportamento de lances estatisticamente coordenados |
 | T22 | Political favoritism | Correlação temporal entre contribuições eleitorais e contratos públicos |
+| T23 | BIM cost overrun | Sobrepreço de contratos de engenharia comparado a referência BIM |
+| T24 | ME/EPP quota fraud | Uso indevido de cota ME/EPP por empresas inelegíveis |
+| T25 | TCU condemned mismatch | Entidade condenada pelo TCU com contrato público ativo |
+| T26 | State penalty mismatch | Penalidade em TCE estadual com contratação ativa |
+| T27 | BNDES loan nexus | Financiamento BNDES correlacionado com vitória contratual |
+| T28 | Judicial precedent warning | Jurisprudência STF/STJ sobre entidade com contrato ativo |
 
 ## Quick Start
 

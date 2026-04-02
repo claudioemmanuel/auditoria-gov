@@ -106,3 +106,25 @@ infra/aws/terraform.tfvars
 # ── Documentation ───────────────────────────────────────────────────
 docs/plans/
 .worktrees/
+
+# ── Monorepo ──────────────────────────────────────────────────────────────────
+# JS package managers
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+
+# Turborepo
+.turbo/
+
+# Next.js build
+apps/web/.next/
+apps/web/out/
+
+# Python workspace build artifacts
+packages/*/dist/
+packages/*/*.egg-info/
+core/*/dist/
+core/*/*.egg-info/
+
+# Worker containers
+core/pipelines/__pycache__/

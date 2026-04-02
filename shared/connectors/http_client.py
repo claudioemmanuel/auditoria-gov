@@ -75,7 +75,11 @@ def transferegov_client(module: str = "") -> httpx.AsyncClient:
       - /fundoafundo/
     Docs: https://docs.api.transferegov.gestao.gov.br/{module}/
     """
-    base = f"https://api.transferegov.gestao.gov.br/{module}" if module else "https://api.transferegov.gestao.gov.br"
+    base = (
+        f"https://api.transferegov.gestao.gov.br/{module}"
+        if module
+        else "https://api.transferegov.gestao.gov.br"
+    )
     return _guarded_client(
         base,
         headers={"Accept": "application/json"},
@@ -128,23 +132,118 @@ def ibge_client() -> httpx.AsyncClient:
     )
 
 
+def jurisprudencia_stf_client() -> httpx.AsyncClient:
+    """HTTP client for STF Jurisprudência search API."""
+    return _guarded_client(
+        "https://jurisprudencia.stf.jus.br",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "OpenWatch/1.0 (https://github.com/claudioemmanuel/openwatch)",
+        },
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_rs_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-RS (Tribunal de Contas do Estado do Rio Grande do Sul)."""
+    return _guarded_client(
+        "https://dados.tce.rs.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_rj_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-RJ open-data API (dados.tcerj.tc.br)."""
+    return _guarded_client(
+        "https://dados.tcerj.tc.br/api/v1",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def bacen_client() -> httpx.AsyncClient:
+    """HTTP client for Banco Central do Brasil SGS time-series API."""
+    return _guarded_client(
+        "https://api.bcb.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def brasilapi_client() -> httpx.AsyncClient:
+    """HTTP client for BrasilAPI CNPJ endpoint."""
+    return _guarded_client(
+        "https://brasilapi.com.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def bndes_client() -> httpx.AsyncClient:
+    """HTTP client for BNDES open-data CKAN API."""
+    return _guarded_client(
+        "https://dadosabertos.bndes.gov.br/api/3/action",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
 def datajud_client() -> httpx.AsyncClient:
     """HTTP client for DataJud (CNJ) public Elasticsearch API.
 
     Auth is optional: if DATAJUD_API_KEY is set it is sent as
     'APIKey {key}'; otherwise the header is omitted (public, rate-limited).
     """
-    import os
-
     headers: dict[str, str] = {
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
-    key = os.environ.get("DATAJUD_API_KEY", "")
+    key = settings.DATAJUD_API_KEY
     if key:
         headers["Authorization"] = f"APIKey {key}"
     return _guarded_client(
         "https://api-publica.datajud.cnj.jus.br",
         headers=headers,
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_sp_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-SP (Tribunal de Contas do Estado de São Paulo)."""
+    return _guarded_client(
+        "https://transparencia.tce.sp.gov.br/api/json",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_pe_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-PE (Tribunal de Contas do Estado de Pernambuco)."""
+    return _guarded_client(
+        "https://sistemas.tce.pe.gov.br/DadosAbertos",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def anvisa_bps_client() -> httpx.AsyncClient:
+    """HTTP client for ANVISA/BPS prices API."""
+    return _guarded_client(
+        "https://apidadosabertos.saude.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def anvisa_bulario_client() -> httpx.AsyncClient:
+    """HTTP client for ANVISA bulario registry API."""
+    return _guarded_client(
+        "https://consultas.anvisa.gov.br",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        },
         timeout=DEFAULT_TIMEOUT,
     )

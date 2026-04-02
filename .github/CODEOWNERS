@@ -1,5 +1,26 @@
 * @claudioemmanuel
-shared/connectors/ @claudioemmanuel
-shared/typologies/ @claudioemmanuel
+
+# ── Core (private IP) — owner review required on ALL changes ─────────────────
+core/ @claudioemmanuel
+core/typologies/ @claudioemmanuel
+core/er/ @claudioemmanuel
+core/analytics/ @claudioemmanuel
+core/baselines/ @claudioemmanuel
+core/services/ @claudioemmanuel
+core/queries/ @claudioemmanuel
+core/pipelines/ @claudioemmanuel
+core/scheduler/ @claudioemmanuel
+core/ai/ @claudioemmanuel
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
 infra/ @claudioemmanuel
-docker-compose*.yml @claudioemmanuel
+infra/docker/ @claudioemmanuel
+
+# ── Public packages ───────────────────────────────────────────────────────────
+packages/connectors/ @claudioemmanuel
+
+# ── CI / Security ─────────────────────────────────────────────────────────────
+.github/ @claudioemmanuel
+.import-linter @claudioemmanuel
+pyproject.toml @claudioemmanuel
+

@@ -36,7 +36,7 @@ OpenWatch is a public-read citizen auditing platform that ingests Brazilian fede
 4. Baselines (`worker.tasks.baseline_tasks`)
    - Computes statistical reference baselines.
 5. Typologies (`worker.tasks.signal_tasks`)
-   - Runs T01-T22 deterministic detectors.
+   - Runs T01-T28 deterministic detectors.
 6. Coverage (`worker.tasks.coverage_tasks`)
    - Updates freshness and registry visibility.
 
@@ -78,8 +78,20 @@ Current ingestion runs through connector modules in `shared/connectors/`:
 - `tse`
 - `receita_cnpj`
 - `querido_diario`
+- `tcu`
+- `datajud`
+- `ibge`
+- `tce_rj`
+- `tce_rs`
+- `tce_sp`
+- `tce_pe`
+- `jurisprudencia`
+- `bacen`
+- `bndes`
+- `brasilapi_cnpj` (enrichment-only)
+- `anvisa_bps` (enrichment-only)
 
-These connectors expose multiple jobs; together they provide the 11 public-source coverage described in the README.
+These connectors expose multiple jobs and currently total 23 connectors with 60 jobs.
 
 ## Typology Engine
 
@@ -107,6 +119,12 @@ Registered in `shared/typologies/registry.py`:
 - T20 phantom bidders
 - T21 collusive cluster
 - T22 political favoritism
+- T23 BIM cost overrun
+- T24 ME/EPP quota fraud
+- T25 TCU condemned x active contract
+- T26 state penalty mismatch
+- T27 BNDES loan nexus
+- T28 judicial precedent warning
 
 ## Worker Architecture
 
