@@ -63,7 +63,7 @@ class TestTCERJNormalize:
 
         assert len(result.entities) == 2
         buyer = result.entities[0]
-        assert buyer.type == "company"
+        assert buyer.type == "org"
         assert buyer.identifiers["cnpj"] == "12345678000199"
         assert buyer.name == "Prefeitura de Niterói"
 
@@ -102,7 +102,7 @@ class TestTCERJNormalize:
 
         assert len(result.entities) == 2
         buyer = result.entities[0]
-        assert buyer.type == "company"
+        assert buyer.type == "org"
         assert buyer.identifiers["cnpj"] == "33000167000101"
         assert buyer.name == "Secretaria de Saúde"
 

@@ -55,7 +55,7 @@ class TestTCEPENormalize:
 
         assert len(result.events) == 1
         event = result.events[0]
-        assert event.type == "procurement"
+        assert event.type == "licitacao"
         assert event.subtype == "licitacao"
         assert event.value_brl == 1500000.50
         assert event.attrs["municipio"] == "Recife"
@@ -85,7 +85,7 @@ class TestTCEPENormalize:
 
         assert len(result.events) == 1
         event = result.events[0]
-        assert event.type == "contract"
+        assert event.type == "contrato"
         assert event.subtype == "public_contract"
         assert event.value_brl == 250000.0
         assert event.attrs["numero_contrato"] == "CT-042/2024"
@@ -112,7 +112,7 @@ class TestTCEPENormalize:
 
         assert len(result.events) == 1
         event = result.events[0]
-        assert event.type == "spending"
+        assert event.type == "despesa_municipal"
         assert event.subtype == "municipal_expense"
         assert event.value_brl == 50000.10
         assert event.attrs["numero_empenho"] == "EMP-001"

@@ -41,8 +41,8 @@ Non-government sources require formal approval with a time-limited exception:
 | Domain | Justification | Max Veracity | Approved | Review By |
 |--------|--------------|-------------|----------|-----------|
 | `api.queridodiario.ok.org.br` | Open Knowledge Brasil — municipal gazette aggregation; no official federal API exists | 0.85 | 2026-03-04 | 2026-09-04 |
-| `dados.tcerj.tc.br` | TCE-RJ open data domain outside standard government TLD list | 0.90 | 2026-07-10 | 2027-01-10 |
-| `brasilapi.com.br` | Public wrapper of official government registration datasets (CNPJ fallback enrichment) | 0.78 | 2026-07-10 | 2027-01-09 |
+| `dados.tcerj.tc.br` | TCE-RJ open data domain outside standard government TLD list | 0.90 | 2026-01-10 | 2027-01-10 |
+| `brasilapi.com.br` | Public wrapper of official government registration datasets (CNPJ fallback enrichment) | 0.78 | 2026-01-10 | 2027-01-10 |
 
 **Nota sobre o score do Querido Diário (0.435 — "low"):** O score reflete que a fonte não é hospedada em domínio governamental e não possui API oficial documentada pelo governo. A exceção é mantida porque: (1) o Querido Diário é o único agregador nacional de diários municipais disponível; (2) Open Knowledge Brasil é uma organização estabelecida e auditável; (3) sinais baseados exclusivamente nessa fonte recebem penalidade de veracidade na composição do score final. Nenhum sinal crítico depende exclusivamente desta fonte.
 

@@ -50,7 +50,7 @@ DOMAIN_EXCEPTIONS: dict[str, DomainException] = {
             "Domain ends in .tc.br, not a standard government TLD."
         ),
         max_veracity=0.90,
-        approved_date=date(2026, 7, 10),
+        approved_date=date(2026, 1, 10),
         review_by=date(2027, 1, 10),  # 6-month review
     ),
     "brasilapi.com.br": DomainException(
@@ -60,7 +60,7 @@ DOMAIN_EXCEPTIONS: dict[str, DomainException] = {
             "Brazilian government registration data, including CNPJ records."
         ),
         max_veracity=0.78,
-        approved_date=date(2026, 7, 10),
+        approved_date=date(2026, 1, 10),
         review_by=date(2027, 1, 10),  # 6-month review
     ),
 }
