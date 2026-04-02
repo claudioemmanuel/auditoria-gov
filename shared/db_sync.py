@@ -5,8 +5,8 @@ from shared.config import settings
 
 sync_engine = create_engine(
     settings.DATABASE_URL_SYNC,
-    # Only echo SQL in development — production logging has severe overhead.
-    echo=(settings.APP_ENV == "development"),
+    # SQL echo is explicit and disabled by default to avoid noisy, high-volume logs.
+    echo=settings.SQL_ECHO,
     pool_size=15,
     max_overflow=25,
     # Validate connections before checkout to handle Postgres restarts gracefully.

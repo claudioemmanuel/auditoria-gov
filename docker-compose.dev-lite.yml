@@ -57,9 +57,12 @@ services:
   # Merge both workers into a single container.
   # Memory budget: 2 workers × 300MB + main/beat overhead ≈ 900MB → 1536M limit.
   worker-primary:
+    user: "openwatch"
     command: celery -A worker.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum,er,signals,bulk --concurrency=2 --max-memory-per-child=300000 -n worker-unified@%h
     environment:
       APP_ENV: development
+      LOG_FORMAT: json
+      SQL_ECHO: "false"
     deploy:
       resources:
         limits:

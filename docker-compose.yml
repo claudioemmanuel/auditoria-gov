@@ -106,6 +106,7 @@ services:
   # Concurrency=6: ingest tasks are network-bound; high concurrency is safe.
   worker-primary:
     restart: on-failure
+    user: "openwatch"
     build:
       context: .
       dockerfile: worker/Dockerfile
@@ -114,6 +115,8 @@ services:
     environment:
       PYTHONPATH: /app
       APP_ENV: production
+      LOG_FORMAT: json
+      SQL_ECHO: "false"
       MEM_WARN_PCT: "75"
       MEM_BLOCK_PCT: "85"
       CPU_WARN_PCT: "85"
@@ -140,6 +143,7 @@ services:
   # Concurrency=1: these tasks are memory-heavy; serial execution prevents OOM.
   worker-heavy:
     restart: on-failure
+    user: "openwatch"
     build:
       context: .
       dockerfile: worker/Dockerfile
@@ -148,6 +152,8 @@ services:
     environment:
       PYTHONPATH: /app
       APP_ENV: production
+      LOG_FORMAT: json
+      SQL_ECHO: "false"
       MEM_WARN_PCT: "75"
       MEM_BLOCK_PCT: "85"
       CPU_WARN_PCT: "85"
