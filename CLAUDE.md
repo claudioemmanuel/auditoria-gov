@@ -47,5 +47,4 @@ docker compose run --rm api alembic -c api/alembic.ini upgrade head
 - Testing conventions: `.claude/rules/testing.md`
 - Code review checklist: `.claude/skills/review/SKILL.md`
 - Safe refactor workflow: `.claude/skills/refactor/SKILL.md`
-- Utility scripts: `tools/SCRIPTS.md`
-- Prompt templates: `tools/PROMPTS.md`
+
