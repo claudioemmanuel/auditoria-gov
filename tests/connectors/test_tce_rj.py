@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from openwatch_connectors.base import JobSpec, RateLimitPolicy
-from openwatch_connectors.tce_rj import TCERJConnector
-from openwatch_models.raw import RawItem
+from shared.connectors.base import JobSpec, RateLimitPolicy
+from shared.connectors.tce_rj import TCERJConnector
+from shared.models.raw import RawItem
 
 
 # ── Connector structure ───────────────────────────────────────────────────────

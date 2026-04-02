@@ -15,15 +15,15 @@ from typing import Optional
 
 import httpx
 
-from openwatch_connectors.base import BaseConnector, JobSpec, RateLimitPolicy
-from openwatch_connectors.http_client import tce_rj_client
-from openwatch_models.canonical import (
+from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
+from shared.connectors.http_client import tce_rj_client
+from shared.models.canonical import (
     CanonicalEntity,
     CanonicalEvent,
     CanonicalEventParticipant,
     NormalizeResult,
 )
-from openwatch_models.raw import RawItem
+from shared.models.raw import RawItem
 
 _PAGE_SIZE = 100
 

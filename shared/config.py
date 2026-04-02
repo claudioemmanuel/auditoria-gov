@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     # Portal Transparência
     PORTAL_TRANSPARENCIA_TOKEN: str = ""
 
-    # DataJud/CNJ — public key published by CNJ on their Wiki (Portaria Nº 160/2020)
-    # See: https://datajud-wiki.cnj.jus.br/api-publica/acesso
-    DATAJUD_API_KEY: str = "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw=="
+    # DataJud/CNJ — optional API key (public endpoint works without key)
+    # Configure via environment variable when available.
+    DATAJUD_API_KEY: str = ""
 
     # Data directories for bulk CSV connectors
     TSE_DATA_DIR: str = "/data/tse"

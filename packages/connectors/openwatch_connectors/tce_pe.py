@@ -311,7 +311,7 @@ class TCEPEConnector(BaseConnector):
             event = CanonicalEvent(
                 source_connector="tce_pe",
                 source_id=item.raw_id,
-                type="procurement",
+                type="licitacao",
                 subtype="licitacao",
                 description=_clean(data.get("OBJETOLICITACAO")) or _clean(data.get("OBJETO")),
                 occurred_at=_parse_any_datetime(
@@ -369,7 +369,7 @@ class TCEPEConnector(BaseConnector):
             event = CanonicalEvent(
                 source_connector="tce_pe",
                 source_id=item.raw_id,
-                type="contract",
+                type="contrato",
                 subtype="public_contract",
                 description=_clean(data.get("OBJETOCONTRATO")) or _clean(data.get("OBJETO")),
                 occurred_at=_parse_any_datetime(
@@ -429,7 +429,7 @@ class TCEPEConnector(BaseConnector):
             event = CanonicalEvent(
                 source_connector="tce_pe",
                 source_id=item.raw_id,
-                type="spending",
+                type="despesa_municipal",
                 subtype="municipal_expense",
                 description=_clean(data.get("OBJETODESPESA")) or _clean(data.get("HISTORICO")),
                 occurred_at=_parse_any_datetime(

@@ -9,11 +9,11 @@ from shared.typologies.base import BaseTypology
 
 
 class TestTypologyRegistry:
-    def test_has_25_typologies(self):
-        assert len(TypologyRegistry) == 25
+    def test_has_28_typologies(self):
+        assert len(TypologyRegistry) == 28
 
     def test_all_codes_present(self):
-        for i in range(1, 26):
+        for i in range(1, 29):
             code = f"T{i:02d}"
             assert code in TypologyRegistry
 
@@ -23,9 +23,9 @@ class TestTypologyRegistry:
 
 
 class TestGetAllTypologies:
-    def test_returns_25_instances(self):
+    def test_returns_28_instances(self):
         typologies = get_all_typologies()
-        assert len(typologies) == 25
+        assert len(typologies) == 28
 
     def test_all_have_id(self):
         for t in get_all_typologies():

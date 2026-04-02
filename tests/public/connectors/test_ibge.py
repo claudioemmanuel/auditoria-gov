@@ -198,7 +198,7 @@ class TestIBGEFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.ibge.ibge_client", return_value=mock_client):
+        with patch("openwatch_connectors.ibge.ibge_client", return_value=mock_client):
             job = JobSpec(name="ibge_municipios", description="", domain="referencia")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 2
@@ -225,7 +225,7 @@ class TestIBGEFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.ibge.ibge_client", return_value=mock_client):
+        with patch("openwatch_connectors.ibge.ibge_client", return_value=mock_client):
             job = JobSpec(name="ibge_cnae", description="", domain="referencia")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 2
@@ -258,7 +258,7 @@ class TestIBGEFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.ibge.ibge_client", return_value=mock_client):
+        with patch("openwatch_connectors.ibge.ibge_client", return_value=mock_client):
             job = JobSpec(name="ibge_municipios", description="", domain="referencia")
             items, _ = await self.c.fetch(job)
         assert len(items) == 1

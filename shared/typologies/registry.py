@@ -24,6 +24,9 @@ from shared.typologies.t22_political_favoritism import T22PoliticalFavoritismTyp
 from shared.typologies.t23_bim_cost_overrun import T23BimCostOverrunTypology
 from shared.typologies.t24_me_epp_quota_fraud import T24MeEppQuotaFraudTypology
 from shared.typologies.t25_tcu_condemned import T25TCUCondemnedTypology
+from shared.typologies.t26_state_penalty_mismatch import T26StatePenaltyMismatchTypology
+from shared.typologies.t27_bndes_loan_nexus import T27BndesLoanNexusTypology
+from shared.typologies.t28_judicial_precedent_warning import T28JudicialPrecedentWarningTypology
 
 TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T01": T01ConcentrationTypology,
@@ -51,6 +54,9 @@ TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T23": T23BimCostOverrunTypology,
     "T24": T24MeEppQuotaFraudTypology,
     "T25": T25TCUCondemnedTypology,
+    "T26": T26StatePenaltyMismatchTypology,
+    "T27": T27BndesLoanNexusTypology,
+    "T28": T28JudicialPrecedentWarningTypology,
 }
 
 

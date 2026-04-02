@@ -38,6 +38,14 @@ class TestValidateDomain:
         score = validate_domain("https://api.queridodiario.ok.org.br/gazettes")
         assert score == 0.85
 
+    def test_tce_rj_exception(self):
+        score = validate_domain("https://dados.tcerj.tc.br/api/v1")
+        assert score == 0.90
+
+    def test_brasilapi_exception(self):
+        score = validate_domain("https://brasilapi.com.br/api/cnpj/v1")
+        assert score == 0.78
+
     def test_codante_blocked(self):
         with pytest.raises(DomainNotAllowedError) as exc_info:
             validate_domain("https://apis.codante.io/senator-expenses")

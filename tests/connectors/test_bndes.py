@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from openwatch_connectors.base import JobSpec, RateLimitPolicy
-from openwatch_connectors.bndes import BNDESConnector
-from openwatch_models.raw import RawItem
+from shared.connectors.base import JobSpec, RateLimitPolicy
+from shared.connectors.bndes import BNDESConnector
+from shared.models.raw import RawItem
 
 
 # ── Connector structure ───────────────────────────────────────────────────────

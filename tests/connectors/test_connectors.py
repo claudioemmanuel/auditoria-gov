@@ -15,15 +15,16 @@ from shared.models.raw import RawItem
 # ── Registry ──────────────────────────────────────────────────────────
 
 class TestConnectorRegistry:
-    def test_has_14_connectors(self):
-        assert len(ConnectorRegistry) == 14
+    def test_has_23_connectors(self):
+        assert len(ConnectorRegistry) == 23
 
     def test_all_keys(self):
         expected = {
             "portal_transparencia", "compras_gov", "comprasnet_contratos",
             "pncp", "transferegov", "camara", "senado", "tse",
-            "receita_cnpj", "querido_diario", "orcamento_bim",
+            "receita_cnpj", "brasilapi_cnpj", "querido_diario", "orcamento_bim",
             "tcu", "datajud", "ibge",
+            "tce_rj", "tce_rs", "tce_sp", "tce_pe", "jurisprudencia", "bacen", "bndes", "anvisa_bps",
         }
         assert set(ConnectorRegistry.keys()) == expected
 

@@ -48,6 +48,6 @@ class TestRateLimiter:
         redis.pipeline.side_effect = [pipe1, pipe2]
 
         limiter = RateLimiter(redis, "test", 5)
-        with patch("shared.utils.rate_limit.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch("openwatch_utils.rate_limit.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
             await limiter.acquire()
             mock_sleep.assert_called_once_with(0.2)

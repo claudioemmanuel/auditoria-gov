@@ -15,3 +15,7 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["openwatch_scheduler"]
+
+[tool.uv.sources]
+    openwatch-config = { workspace = true }
+    openwatch-pipelines = { workspace = true }

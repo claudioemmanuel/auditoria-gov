@@ -81,6 +81,14 @@ class TestDeterministicMatch:
         result = deterministic_match(a, b)
         assert result is None
 
+    def test_cpf_raw_match_when_hash_absent(self):
+        a = _entity("Person A", {"cpf": "215.768.058-67"})
+        b = _entity("Person B", {"cpf": "21576805867"})
+        result = deterministic_match(a, b)
+        assert result is not None
+        assert result.score == 1.0
+        assert "CPF" in result.reason
+
     def test_no_identifiers(self):
         a = _entity("Company A")
         b = _entity("Company B")
