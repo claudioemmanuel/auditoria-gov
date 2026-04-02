@@ -65,12 +65,13 @@ def _cnpj_entity(
     name: str,
     *,
     source_connector: str = "tce_rj",
+    entity_type: str = "company",
 ) -> CanonicalEntity:
-    """Build a company CanonicalEntity from a CNPJ."""
+    """Build a CanonicalEntity from a CNPJ, allowing company or org typing."""
     return CanonicalEntity(
         source_connector=source_connector,
         source_id=cnpj,
-        type="company",
+        type=entity_type,
         name=name,
         identifiers={"cnpj": cnpj},
     )
@@ -190,7 +191,7 @@ class TCERJConnector(BaseConnector):
             cnpj_orgao = _clean(d.get("cnpj_orgao"))
             nome_orgao = _clean(d.get("orgao")) or "Órgão não identificado"
             if cnpj_orgao:
-                buyer = _cnpj_entity(cnpj_orgao, nome_orgao)
+                buyer = _cnpj_entity(cnpj_orgao, nome_orgao, entity_type="org")
                 entities.append(buyer)
                 participants.append(
                     CanonicalEventParticipant(entity_ref=buyer, role="procuring_entity")
@@ -248,7 +249,7 @@ class TCERJConnector(BaseConnector):
             cnpj_orgao = _clean(d.get("cnpj_orgao"))
             nome_orgao = _clean(d.get("orgao")) or "Órgão não identificado"
             if cnpj_orgao:
-                buyer = _cnpj_entity(cnpj_orgao, nome_orgao)
+                buyer = _cnpj_entity(cnpj_orgao, nome_orgao, entity_type="org")
                 entities.append(buyer)
                 participants.append(
                     CanonicalEventParticipant(entity_ref=buyer, role="buyer")
@@ -306,26 +307,31 @@ class TCERJConnector(BaseConnector):
             d = item.data
             participants: list[CanonicalEventParticipant] = []
 
-            cpf_cnpj = _clean(d.get("cpf_cnpj") or d.get("cnpj") or d.get("cpf"))
+            cpf_cnpj_raw = _clean(d.get("cpf_cnpj") or d.get("cnpj") or d.get("cpf"))
+            cpf_cnpj_digits = (
+                "".join(ch for ch in cpf_cnpj_raw if ch.isdigit()) if cpf_cnpj_raw else None
+            )
             nome = _clean(d.get("nome")) or "Não identificado"
 
-            if cpf_cnpj:
-                if len(cpf_cnpj) == 14:
+            entity: CanonicalEntity | None = None
+            if cpf_cnpj_digits:
+                if len(cpf_cnpj_digits) == 14:
                     entity = CanonicalEntity(
                         source_connector="tce_rj",
-                        source_id=cpf_cnpj,
+                        source_id=cpf_cnpj_digits,
                         type="company",
                         name=nome,
-                        identifiers={"cnpj": cpf_cnpj},
+                        identifiers={"cnpj": cpf_cnpj_digits},
                     )
-                else:
+                elif len(cpf_cnpj_digits) == 11:
                     entity = CanonicalEntity(
                         source_connector="tce_rj",
-                        source_id=cpf_cnpj,
+                        source_id=cpf_cnpj_digits,
                         type="person",
                         name=nome,
-                        identifiers={"cpf": cpf_cnpj},
+                        identifiers={"cpf": cpf_cnpj_digits},
                     )
+            if entity:
                 entities.append(entity)
                 participants.append(
                     CanonicalEventParticipant(entity_ref=entity, role="sanctioned")

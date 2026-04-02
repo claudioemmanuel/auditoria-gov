@@ -217,7 +217,7 @@ class TestEnsureSingleFile:
     @pytest.mark.asyncio
     async def test_raises_insufficient_disk(self, tmp_path):
         """Raises InsufficientDiskError when free space < 2 GB."""
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du:
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du:
             mock_du.return_value = MagicMock(free=500 * 1024 ** 2)  # 500 MB
             with pytest.raises(InsufficientDiskError, match="2 GB"):
                 await _ensure_single_file(
@@ -234,7 +234,7 @@ class TestEnsureSingleFile:
         zip_content = zip_path_tmp.read_bytes()
 
         url = "https://dados.rfb.gov.br/CNPJ/Empresas0.zip"
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du:
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du:
             mock_du.return_value = MagicMock(free=3 * 1024 ** 3)
             with respx.mock() as mock_http:
                 mock_http.get(url).mock(
@@ -249,7 +249,7 @@ class TestEnsureSingleFile:
     async def test_404_does_not_crash(self, tmp_path):
         """A 404 response logs a warning and returns without raising."""
         url = "https://dados.rfb.gov.br/CNPJ/Empresas9.zip"
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du:
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du:
             mock_du.return_value = MagicMock(free=3 * 1024 ** 3)
             with respx.mock() as mock_http:
                 mock_http.get(url).mock(return_value=httpx.Response(404))
@@ -262,7 +262,7 @@ class TestEnsureSingleFile:
     async def test_bad_zip_cleans_up(self, tmp_path):
         """A corrupted ZIP is deleted; no CSV left behind."""
         url = "https://dados.rfb.gov.br/CNPJ/Empresas0.zip"
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du:
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du:
             mock_du.return_value = MagicMock(free=3 * 1024 ** 3)
             with respx.mock() as mock_http:
                 mock_http.get(url).mock(
@@ -283,8 +283,8 @@ class TestEnsureSingleFile:
         zip_content = zip_path_tmp.read_bytes()
 
         url = "https://dados.rfb.gov.br/CNPJ/Empresas0.zip"
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du, \
-             patch("shared.connectors.receita_cnpj.os.remove", side_effect=OSError("busy")):
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du, \
+             patch("openwatch_connectors.receita_cnpj.os.remove", side_effect=OSError("busy")):
             mock_du.return_value = MagicMock(free=3 * 1024 ** 3)
             with respx.mock() as mock_http:
                 mock_http.get(url).mock(
@@ -297,13 +297,13 @@ class TestEnsureSingleFile:
     async def test_bad_zip_oserror_on_cleanup_is_tolerated(self, tmp_path):
         """If os.remove fails during bad-zip cleanup, no exception propagates."""
         url = "https://dados.rfb.gov.br/CNPJ/Empresas0.zip"
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du:
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du:
             mock_du.return_value = MagicMock(free=3 * 1024 ** 3)
             with respx.mock() as mock_http:
                 mock_http.get(url).mock(
                     return_value=httpx.Response(200, content=b"not-a-zip")
                 )
-                with patch("shared.connectors.receita_cnpj.os.remove", side_effect=OSError("busy")):
+                with patch("openwatch_connectors.receita_cnpj.os.remove", side_effect=OSError("busy")):
                     await _ensure_single_file(str(tmp_path), "Empresas0.zip", url)
 
     @pytest.mark.asyncio
@@ -313,7 +313,7 @@ class TestEnsureSingleFile:
         zip_path = tmp_path / "Empresas0.zip"
         _make_zip(zip_path, "Empresas0.csv", csv_bytes)
 
-        with patch("shared.connectors.receita_cnpj.shutil.disk_usage") as mock_du:
+        with patch("openwatch_connectors.receita_cnpj.shutil.disk_usage") as mock_du:
             mock_du.return_value = MagicMock(free=3 * 1024 ** 3)
             with respx.mock(assert_all_called=False) as mock_http:
                 await _ensure_single_file(
@@ -387,7 +387,7 @@ class TestFetch:
         conn = ReceitaCNPJConnector()
         job = JobSpec(name="rf_unknown", description="", domain="empresa", enabled=True)
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)):
             items, cursor = await conn.fetch(job)
 
         assert items == []
@@ -400,8 +400,8 @@ class TestFetch:
         job = self._job()
         n = len(_RFB_ZIP_FILES["Empresas"])
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", new_callable=AsyncMock):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", new_callable=AsyncMock):
             items, cursor = await conn.fetch(job, cursor=f"{n}:0")
 
         assert items == []
@@ -417,8 +417,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass  # don't create the file
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, cursor = await conn.fetch(job)
 
         assert items == []
@@ -439,8 +439,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, cursor = await conn.fetch(job, cursor="0:0")
 
         assert len(items) == 10_000
@@ -465,8 +465,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, cursor = await conn.fetch(job, cursor="0:0")
 
         assert len(items) == 5
@@ -488,8 +488,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, cursor = await conn.fetch(job, cursor=f"{last_idx}:0")
 
         assert len(items) == 1
@@ -517,8 +517,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, cursor = await conn.fetch(job, cursor=f"0:{mid_offset}")
 
         # Only the last 5 rows should be returned
@@ -539,8 +539,8 @@ class TestFetch:
         async def capture(data_dir, zip_name, url):
             captured.append((zip_name, url))
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=capture):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=capture):
             await conn.fetch(job, cursor="3:0")
 
         assert len(captured) == 1
@@ -560,8 +560,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, _ = await conn.fetch(job, cursor="0:0")
 
         ids = [item.raw_id for item in items]
@@ -579,8 +579,8 @@ class TestFetch:
         async def noop(*a, **kw):
             pass
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
-             patch("shared.connectors.receita_cnpj._ensure_single_file", side_effect=noop):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+             patch("openwatch_connectors.receita_cnpj._ensure_single_file", side_effect=noop):
             items, _ = await conn.fetch(job, cursor="0:0")
 
         assert len(items) == 1
@@ -764,7 +764,7 @@ class TestCleanupBulkFiles:
         for fname in files:
             (tmp_path / fname).write_text("data")
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)):
             deleted = conn.cleanup_bulk_files(job, object())
 
         assert deleted == 3
@@ -775,7 +775,7 @@ class TestCleanupBulkFiles:
         conn = ReceitaCNPJConnector()
         job = JobSpec(name="rf_empresas", description="", domain="empresa", enabled=True)
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)):
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)):
             deleted = conn.cleanup_bulk_files(job, object())
 
         assert deleted == 0
@@ -793,7 +793,7 @@ class TestCleanupBulkFiles:
                 raise OSError("permission denied")
             original_remove(path)
 
-        with patch("shared.connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
+        with patch("openwatch_connectors.receita_cnpj._DATA_DIR", str(tmp_path)), \
              patch("os.remove", side_effect=flaky_remove):
             deleted = conn.cleanup_bulk_files(job, object())
 

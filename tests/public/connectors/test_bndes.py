@@ -141,6 +141,6 @@ class TestBNDESNormalize:
         result = self.c.normalize(job, items)
 
         company = result.entities[0]
-        assert company.source_id == "Empresa Sem CNPJ"
-        # cnpj = d.get("cnpj") or d.get("cliente") → "Empresa Sem CNPJ"
-        assert company.identifiers == {"cnpj": "Empresa Sem CNPJ"}
+        assert company.source_id == "bndes_operacoes_auto:0:999"
+        # No valid 14-digit CNPJ present; identifiers should be empty
+        assert company.identifiers == {}

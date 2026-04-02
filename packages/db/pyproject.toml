@@ -16,3 +16,7 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["openwatch_db"]
+
+[tool.uv.sources]
+    openwatch-config = { workspace = true }
+    openwatch-models = { workspace = true }

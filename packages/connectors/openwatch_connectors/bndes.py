@@ -158,8 +158,12 @@ class BNDESConnector(BaseConnector):
             d = item.data
             try:
                 # Entity: borrower company
-                cnpj = str(d.get("cnpj") or d.get("cliente") or "").strip()
-                company_name = str(d.get("cliente") or d.get("cnpj") or "").strip()
+                # cnpj field may come formatted (12.345.678/0001-99); normalise to
+                # digits-only and only store as a CNPJ identifier when exactly 14 digits.
+                cnpj_raw = str(d.get("cnpj") or "").strip()
+                cnpj_digits = "".join(ch for ch in cnpj_raw if ch.isdigit())
+                cnpj = cnpj_digits if len(cnpj_digits) == 14 else None
+                company_name = str(d.get("cliente") or cnpj_raw or "").strip()
 
                 company = CanonicalEntity(
                     source_connector="bndes",

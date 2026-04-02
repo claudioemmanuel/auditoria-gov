@@ -272,7 +272,7 @@ class TestDataJudFetch:
             {"_source": {"numeroProcesso": "proc-1", "tribunal": "TRF1"}, "sort": [1000]}
         ]
         mock_client = self._make_mock_client(hits)
-        with patch("shared.connectors.datajud.datajud_client", return_value=mock_client):
+        with patch("openwatch_connectors.datajud.datajud_client", return_value=mock_client):
             job = JobSpec(
                 name="datajud_processos_improbidade",
                 description="",
@@ -295,7 +295,7 @@ class TestDataJudFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.datajud.datajud_client", return_value=mock_client):
+        with patch("openwatch_connectors.datajud.datajud_client", return_value=mock_client):
             job = JobSpec(
                 name="datajud_processos_improbidade",
                 description="",
@@ -316,7 +316,7 @@ class TestDataJudFetch:
         mock_client = self._make_mock_client(hits)
         sort_values = [1234567890]
         cursor = _encode_cursor(0, sort_values)
-        with patch("shared.connectors.datajud.datajud_client", return_value=mock_client):
+        with patch("openwatch_connectors.datajud.datajud_client", return_value=mock_client):
             job = JobSpec(
                 name="datajud_processos_improbidade",
                 description="",
@@ -343,7 +343,7 @@ class TestDataJudFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.datajud.datajud_client", return_value=mock_client):
+        with patch("openwatch_connectors.datajud.datajud_client", return_value=mock_client):
             job = JobSpec(
                 name="datajud_processos_improbidade",
                 description="",
@@ -360,7 +360,7 @@ class TestDataJudFetch:
         """Hit without numeroProcesso uses '{api_suffix}:{i}' as raw_id."""
         hits = [{"_source": {"tribunal": "TRF1"}, "sort": [100]}]
         mock_client = self._make_mock_client(hits)
-        with patch("shared.connectors.datajud.datajud_client", return_value=mock_client):
+        with patch("openwatch_connectors.datajud.datajud_client", return_value=mock_client):
             job = JobSpec(
                 name="datajud_processos_improbidade",
                 description="",

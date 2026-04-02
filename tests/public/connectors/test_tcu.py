@@ -216,7 +216,7 @@ class TestTCUFetch:
     async def test_fetch_inidoneos_partial_page_no_next_cursor(self):
         data = {"items": [{"nome": "Empresa X", "cpf_cnpj": "12345678000199"}]}
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_contas_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_contas_client", return_value=mock_client):
             job = JobSpec(name="tcu_inidoneos", description="", domain="sancao_tcu")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 1
@@ -226,7 +226,7 @@ class TestTCUFetch:
     async def test_fetch_inidoneos_full_page_returns_cursor(self):
         data = {"items": [{"nome": f"Empresa {i}"} for i in range(100)]}
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_contas_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_contas_client", return_value=mock_client):
             job = JobSpec(name="tcu_inidoneos", description="", domain="sancao_tcu")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 100
@@ -236,7 +236,7 @@ class TestTCUFetch:
     async def test_fetch_inabilitados_partial_page(self):
         data = {"items": [{"nome": "Pessoa Y", "cpf": "12345678901"}]}
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_contas_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_contas_client", return_value=mock_client):
             job = JobSpec(name="tcu_inabilitados", description="", domain="sancao_tcu")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 1
@@ -246,7 +246,7 @@ class TestTCUFetch:
     async def test_fetch_acordaos_partial_page(self):
         data = [{"key": "TC-001/2023", "titulo": "Fiscalizacao"}]
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_dados_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_dados_client", return_value=mock_client):
             job = JobSpec(name="tcu_acordaos", description="", domain="acordao_tcu")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 1
@@ -256,7 +256,7 @@ class TestTCUFetch:
     async def test_fetch_acordaos_full_page_returns_cursor(self):
         data = [{"key": f"TC-{i}/2023"} for i in range(50)]
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_dados_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_dados_client", return_value=mock_client):
             job = JobSpec(name="tcu_acordaos", description="", domain="acordao_tcu")
             items, next_cursor = await self.c.fetch(job)
         assert len(items) == 50
@@ -266,7 +266,7 @@ class TestTCUFetch:
     async def test_fetch_with_cursor_passes_offset(self):
         data = {"items": [{"nome": "Empresa Z"}]}
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_contas_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_contas_client", return_value=mock_client):
             job = JobSpec(name="tcu_inidoneos", description="", domain="sancao_tcu")
             items, next_cursor = await self.c.fetch(job, cursor="200")
         assert len(items) == 1
@@ -283,7 +283,7 @@ class TestTCUFetch:
     async def test_fetch_inidoneos_empty_response(self):
         data = {"items": []}
         mock_client = self._make_mock_client(data)
-        with patch("shared.connectors.tcu.tcu_contas_client", return_value=mock_client):
+        with patch("openwatch_connectors.tcu.tcu_contas_client", return_value=mock_client):
             job = JobSpec(name="tcu_inidoneos", description="", domain="sancao_tcu")
             items, next_cursor = await self.c.fetch(job)
         assert items == []

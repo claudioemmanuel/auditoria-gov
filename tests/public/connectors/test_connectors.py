@@ -278,7 +278,7 @@ class TestPortalTransparencia:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            "openwatch_connectors.portal_transparencia.portal_transparencia_client",
             return_value=mock_client,
         ):
             job = JobSpec(name="pt_despesas_execucao", description="", domain="despesa")
@@ -308,7 +308,7 @@ class TestPortalTransparencia:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.portal_transparencia.portal_transparencia_client", return_value=mock_client):
+        with patch("openwatch_connectors.portal_transparencia.portal_transparencia_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, next_cursor = await self.c.fetch(job)
             assert len(items) == 2
@@ -326,7 +326,7 @@ class TestPortalTransparencia:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.portal_transparencia.portal_transparencia_client", return_value=mock_client):
+        with patch("openwatch_connectors.portal_transparencia.portal_transparencia_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, next_cursor = await self.c.fetch(job, cursor="2")
             assert len(items) == 100
@@ -343,7 +343,7 @@ class TestPortalTransparencia:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.portal_transparencia.portal_transparencia_client", return_value=mock_client):
+        with patch("openwatch_connectors.portal_transparencia.portal_transparencia_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, next_cursor = await self.c.fetch(job, params={"ano": 2025})
             assert len(items) == 1
@@ -379,7 +379,7 @@ class TestPortalTransparencia:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            "openwatch_connectors.portal_transparencia.portal_transparencia_client",
             return_value=mock_client,
         ), patch.object(
             self.c, "_get_dimension_keys", return_value=["26000", "26100"]
@@ -409,7 +409,7 @@ class TestPortalTransparencia:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            "openwatch_connectors.portal_transparencia.portal_transparencia_client",
             return_value=mock_client,
         ), patch.object(
             self.c, "_get_dimension_keys", return_value=["3550308"]
@@ -435,7 +435,7 @@ class TestPortalTransparencia:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            "openwatch_connectors.portal_transparencia.portal_transparencia_client",
             return_value=mock_client,
         ), patch.object(
             self.c, "_get_dimension_keys", return_value=["26000"]
@@ -467,7 +467,7 @@ class TestPortalTransparencia:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "shared.connectors.portal_transparencia.portal_transparencia_client",
+            "openwatch_connectors.portal_transparencia.portal_transparencia_client",
             return_value=mock_client,
         ), patch.object(
             self.c, "_get_dimension_keys", return_value=["99999", "26000"]
@@ -541,7 +541,7 @@ class TestCamara:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.camara.camara_client", return_value=mock_client):
+        with patch("openwatch_connectors.camara.camara_client", return_value=mock_client):
             job = JobSpec(name="camara_deputados", description="", domain="legislativo")
             items, cursor = await self.c.fetch(job)
             assert len(items) == 1
@@ -562,7 +562,7 @@ class TestCamara:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.camara.camara_client", return_value=mock_client):
+        with patch("openwatch_connectors.camara.camara_client", return_value=mock_client):
             job = JobSpec(name="camara_despesas_cota", description="", domain="despesa")
             items, cursor = await self.c.fetch(job)
             assert len(items) == 1
@@ -580,7 +580,7 @@ class TestCamara:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.camara.camara_client", return_value=mock_client):
+        with patch("openwatch_connectors.camara.camara_client", return_value=mock_client):
             job = JobSpec(name="camara_despesas_cota", description="", domain="despesa")
             items, _ = await self.c.fetch(job, params={"deputado_id": "204521", "ano": 2025})
             assert len(items) == 1
@@ -596,7 +596,7 @@ class TestCamara:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.camara.camara_client", return_value=mock_client):
+        with patch("openwatch_connectors.camara.camara_client", return_value=mock_client):
             job = JobSpec(name="camara_orgaos", description="", domain="legislativo")
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -687,7 +687,7 @@ class TestSenado:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.senado.senado_client", return_value=mock_client):
+        with patch("openwatch_connectors.senado.senado_client", return_value=mock_client):
             job = JobSpec(name="senado_senadores", description="", domain="legislativo")
             items, cursor = await self.c.fetch(job)
             assert len(items) == 2
@@ -710,7 +710,7 @@ class TestSenado:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.senado.senado_client", return_value=mock_client):
+        with patch("openwatch_connectors.senado.senado_client", return_value=mock_client):
             job = JobSpec(name="senado_senadores", description="", domain="legislativo")
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -739,7 +739,7 @@ class TestSenado:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+            patch("openwatch_connectors.senado.senado_client", return_value=mock_client),
             patch.object(self.c, "_get_senator_codes", return_value=["5012"]),
         ):
             job = JobSpec(name="senado_ceaps", description="", domain="despesa")
@@ -763,7 +763,7 @@ class TestSenado:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+            patch("openwatch_connectors.senado.senado_client", return_value=mock_client),
             patch.object(self.c, "_get_senator_codes", return_value=["5012", "5013"]),
         ):
             job = JobSpec(name="senado_ceaps", description="", domain="despesa")
@@ -855,7 +855,7 @@ class TestComprasGov:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.compras_gov.compras_gov_client", return_value=mock_client):
+        with patch("openwatch_connectors.compras_gov.compras_gov_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -871,7 +871,7 @@ class TestComprasGov:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.compras_gov.compras_gov_client", return_value=mock_client):
+        with patch("openwatch_connectors.compras_gov.compras_gov_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, _ = await self.c.fetch(job, params={"ano": 2025})
             assert len(items) == 1
@@ -887,7 +887,7 @@ class TestComprasGov:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.compras_gov.compras_gov_client", return_value=mock_client):
+        with patch("openwatch_connectors.compras_gov.compras_gov_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, _ = await self.c.fetch(job)
             assert len(items) == 2
@@ -922,8 +922,8 @@ class TestComprasGov:
         fallback_client.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("shared.connectors.compras_gov.compras_gov_client", return_value=primary_client),
-            patch("shared.connectors.compras_gov.pncp_client", return_value=fallback_client),
+            patch("openwatch_connectors.compras_gov.compras_gov_client", return_value=primary_client),
+            patch("openwatch_connectors.compras_gov.pncp_client", return_value=fallback_client),
         ):
             job = JobSpec(name="compras_licitacoes_by_period", description="", domain="licitacao")
             items, _ = await self.c.fetch(job)
@@ -949,8 +949,8 @@ class TestComprasGov:
         fallback_client.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("shared.connectors.compras_gov.compras_gov_client", return_value=primary_client),
-            patch("shared.connectors.compras_gov.pncp_client", return_value=fallback_client),
+            patch("openwatch_connectors.compras_gov.compras_gov_client", return_value=primary_client),
+            patch("openwatch_connectors.compras_gov.pncp_client", return_value=fallback_client),
         ):
             job = JobSpec(name="compras_licitacoes_by_period", description="", domain="licitacao")
             await self.c.fetch(job)
@@ -1016,7 +1016,7 @@ class TestComprasNetContratos:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.comprasnet_contratos.comprasnet_contratos_client", return_value=mock_client):
+        with patch("openwatch_connectors.comprasnet_contratos.comprasnet_contratos_client", return_value=mock_client):
             job = self.c.list_jobs()[0]  # cnet_contracts
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -1055,10 +1055,10 @@ class TestComprasNetContratos:
         fallback_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "shared.connectors.comprasnet_contratos.comprasnet_contratos_client",
+            "openwatch_connectors.comprasnet_contratos.comprasnet_contratos_client",
             return_value=primary_client,
         ), patch(
-            "shared.connectors.comprasnet_contratos.pncp_client",
+            "openwatch_connectors.comprasnet_contratos.pncp_client",
             return_value=fallback_client,
         ):
             job = self.c.list_jobs()[0]
@@ -1130,7 +1130,7 @@ class TestPNCP:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.pncp.pncp_client", return_value=mock_client):
+        with patch("openwatch_connectors.pncp.pncp_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -1146,7 +1146,7 @@ class TestPNCP:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.pncp.pncp_client", return_value=mock_client):
+        with patch("openwatch_connectors.pncp.pncp_client", return_value=mock_client):
             job = self.c.list_jobs()[0]
             items, _ = await self.c.fetch(job, params={"dataInicio": "2025-01-01"})
             assert len(items) == 1
@@ -1220,7 +1220,7 @@ class TestTransfereGov:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.transferegov.transferegov_client", return_value=mock_client):
+        with patch("openwatch_connectors.transferegov.transferegov_client", return_value=mock_client):
             job = next(j for j in self.c.list_jobs() if j.name == "transferegov_ted")
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -1239,7 +1239,7 @@ class TestTransfereGov:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.transferegov.transferegov_client", return_value=mock_client):
+        with patch("openwatch_connectors.transferegov.transferegov_client", return_value=mock_client):
             job = next(j for j in self.c.list_jobs() if j.name == "transferegov_transferencias_especiais")
             items, _ = await self.c.fetch(job)
             assert len(items) == 1
@@ -1317,9 +1317,9 @@ class TestSenadoCeaps404Regression:
 
     def test_senado_module_has_log_import(self):
         """log must be importable at module level — prevents NameError regression."""
-        import shared.connectors.senado as senado_mod
+        import openwatch_connectors.senado as senado_mod
         assert hasattr(senado_mod, "log"), (
-            "shared.connectors.senado missing 'log' — _fetch_ceaps will crash on 404"
+            "openwatch_connectors.senado missing 'log' — _fetch_ceaps will crash on 404"
         )
 
     @pytest.mark.asyncio
@@ -1338,7 +1338,7 @@ class TestSenadoCeaps404Regression:
 
         with (
             patch.object(c, "_get_senator_codes", return_value=["5012", "5013"]),
-            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+            patch("openwatch_connectors.senado.senado_client", return_value=mock_client),
         ):
             items, next_cursor = await c._fetch_ceaps(cursor=None, params=None)
 
@@ -1362,7 +1362,7 @@ class TestSenadoCeaps404Regression:
 
         with (
             patch.object(c, "_get_senator_codes", return_value=["5012", "5013"]),
-            patch("shared.connectors.senado.senado_client", return_value=mock_client),
+            patch("openwatch_connectors.senado.senado_client", return_value=mock_client),
         ):
             items, next_cursor = await c._fetch_ceaps(cursor=None, params=None)
 

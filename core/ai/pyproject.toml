@@ -23,3 +23,7 @@ nlp = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["openwatch_ai"]
+
+[tool.uv.sources]
+openwatch-models = { workspace = true }
+openwatch-config = { workspace = true }

@@ -152,7 +152,7 @@ class TestAnvisaBPSFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.anvisa_bps.anvisa_bps_client", return_value=mock_client):
+        with patch("openwatch_connectors.anvisa_bps.anvisa_bps_client", return_value=mock_client):
             job = JobSpec(name="anvisa_bps_prices", description="", domain="health_procurement")
             items, next_cursor = await self.c.fetch(job, cursor="200", params={"limit": 1})
         assert len(items) == 1
@@ -168,7 +168,7 @@ class TestAnvisaBPSFetch:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("shared.connectors.anvisa_bps.anvisa_bulario_client", return_value=mock_client):
+        with patch("openwatch_connectors.anvisa_bps.anvisa_bulario_client", return_value=mock_client):
             job = JobSpec(name="anvisa_bulario_registry", description="", domain="regulatory_record")
             items, next_cursor = await self.c.fetch(job, params={"nome": "Dipirona"})
         assert len(items) == 1
