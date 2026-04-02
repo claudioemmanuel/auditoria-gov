@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     # Internal API authentication — set a strong secret in production
     INTERNAL_API_KEY: str = "dev-internal-key-change-in-production"
 
+    # Open-core: Core service gateway (post-split architecture)
+    # In the split architecture, the public API delegates computation to the
+    # openwatch-core private service. Leave empty in the monorepo dev setup.
+    CORE_SERVICE_URL: str = ""
+    CORE_API_KEY: str = ""
+
     # Entity Resolution thresholds
     ORG_MATCH_THRESHOLD: float = float(os.getenv("ORG_MATCH_THRESHOLD", "0.85"))
     PERSON_MATCH_THRESHOLD: float = float(os.getenv("PERSON_MATCH_THRESHOLD", "0.90"))
