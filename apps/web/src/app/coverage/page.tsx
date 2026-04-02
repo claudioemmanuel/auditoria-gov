@@ -7,13 +7,15 @@ import {
   getCoverageV2SourcePreview,
   getCoverageV2Sources,
   getCoverageV2Summary,
+} from "@/lib/api";
+import {
   getPipelineCapacity,
   getPipelineStatus,
   triggerFullPipeline,
   type PipelineCapacity,
   type PipelineDispatchResponse,
   type PipelineStatusResponse,
-} from "@/lib/api";
+} from "@/lib/operatorApiClient";
 import type {
   AnalyticalCoverageItem,
   CoverageStatus,
