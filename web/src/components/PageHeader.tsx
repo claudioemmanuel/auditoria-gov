@@ -1,5 +1,7 @@
-import { cn } from "@/lib/utils";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { clsx } from "clsx";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 
 interface BreadcrumbItem {
   label: string;
@@ -7,48 +9,44 @@ interface BreadcrumbItem {
 }
 
 interface PageHeaderProps {
+  eyebrow?: string;
   title: string;
+  /** @deprecated Use description instead */
   subtitle?: string;
+  description?: string;
   breadcrumbs?: BreadcrumbItem[];
-  actions?: React.ReactNode;
-  border?: boolean;
+  actions?: ReactNode;
   className?: string;
 }
 
-export function PageHeader({
-  title,
-  subtitle,
-  breadcrumbs,
-  actions,
-  border = false,
-  className,
-}: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, subtitle, description, breadcrumbs, actions, className }: PageHeaderProps) {
+  const desc = description ?? subtitle;
   return (
-    <header
-      className={cn(
-        "page-wrap pb-0",
-        border && "pb-4",
-        className,
-      )}
-    >
-      {border && <div className="masthead-rule mb-4" />}
+    <div className={clsx("flex flex-col gap-1.5", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <Breadcrumb items={breadcrumbs} className="byline mb-3" />
+        <nav className="flex items-center gap-1 text-xs text-[var(--color-text-3)]">
+          {breadcrumbs.map((crumb, i) => (
+            <span key={i} className="flex items-center gap-1">
+              {i > 0 && <ChevronRight size={12} />}
+              {crumb.href ? (
+                <Link href={crumb.href} className="hover:text-[var(--color-text-1)] transition-colors">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span className="text-[var(--color-text-2)]">{crumb.label}</span>
+              )}
+            </span>
+          ))}
+        </nav>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary leading-snug">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-1 text-sm text-secondary leading-relaxed">{subtitle}</p>
-          )}
+      <div className="ow-page-header flex-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          {eyebrow && <p className="ow-page-header-eyebrow">{eyebrow}</p>}
+          <h1 className="ow-page-header-title">{title}</h1>
+          {desc && <p className="ow-page-header-desc">{desc}</p>}
         </div>
-        {actions && (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
-        )}
+        {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
       </div>
-      {border && <div className="mt-4 h-px bg-border" />}
-    </header>
+    </div>
   );
 }

@@ -1,70 +1,78 @@
-import { forwardRef } from "react";
-import type { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { clsx } from "clsx";
+import type { InputHTMLAttributes, SelectHTMLAttributes, LabelHTMLAttributes, TextareaHTMLAttributes } from "react";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+/* ── Input ──────────────────────────────────────────────────────── */
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
-  icon?: LucideIcon;
+  iconLeft?: React.ReactNode;
   error?: string;
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, icon: Icon, error, id, style, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
-
-    return (
-      <div className="flex flex-col gap-1">
-        {label && (
-          <label htmlFor={inputId} className="text-xs font-medium" style={{ color: "var(--color-text-primary)" }}>
-            {label}
-          </label>
+export function Input({ label, iconLeft, error, className, ...props }: InputProps) {
+  return (
+    <div className="relative w-full flex flex-col gap-1">
+      {label && <label className="ow-label">{label}</label>}
+      <div className="relative">
+        {iconLeft && (
+          <span
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-3)]"
+            style={{ width: 14, height: 14 }}
+          >
+            {iconLeft}
+          </span>
         )}
-        <div
-          className={cn(
-            "flex items-center gap-2 px-3 py-2 bg-white transition-all duration-150",
-            "focus-within:outline-none",
-            props.disabled && "opacity-50",
-            className,
+        <input
+          className={clsx(
+            "ow-input",
+            iconLeft && "ow-input-icon-left",
+            error && "!border-[var(--color-critical)]",
+            className
           )}
-          style={{
-            border: error
-              ? "1px solid var(--color-error)"
-              : "1px solid var(--border-light)",
-            borderRadius: "var(--radius-sm)",
-            // @ts-expect-error – CSS variable assignment for focus ring via parent focus-within
-            "--focus-shadow": "var(--shadow-focus)",
-            ...style,
-          }}
-          onFocusCapture={e => {
-            (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-focus)";
-            (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border-focus)";
-          }}
-          onBlurCapture={e => {
-            (e.currentTarget as HTMLDivElement).style.boxShadow = "";
-            (e.currentTarget as HTMLDivElement).style.borderColor = error
-              ? "var(--color-error)"
-              : "var(--border-light)";
-          }}
-        >
-          {Icon && <Icon className="h-4 w-4 shrink-0" style={{ color: "var(--color-text-muted)" }} />}
-          <input
-            ref={ref}
-            id={inputId}
-            className="w-full border-none bg-transparent text-sm outline-none placeholder:opacity-50 disabled:cursor-not-allowed focus:outline-none"
-            style={{
-              color: "var(--color-text-primary)",
-              borderRadius: "var(--radius-sm)",
-            }}
-            {...props}
-          />
-        </div>
-        {error && (
-          <p className="text-xs" style={{ color: "var(--color-error)" }}>
-            {error}
-          </p>
-        )}
+          {...props}
+        />
       </div>
-    );
-  },
-);
-Input.displayName = "Input";
+      {error && (
+        <p className="mt-1 text-xs text-[var(--color-critical-text)]">{error}</p>
+      )}
+    </div>
+  );
+}
+
+/* ── Select ─────────────────────────────────────────────────────── */
+export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={clsx("ow-select", className)} {...props} />;
+}
+
+/* ── Label ──────────────────────────────────────────────────────── */
+export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
+  return <label className={clsx("ow-label", className)} {...props} />;
+}
+
+/* ── Textarea ───────────────────────────────────────────────────── */
+export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={clsx("ow-input resize-none", className)}
+      {...props}
+    />
+  );
+}
+
+/* ── Field (label + input wrapper) ─────────────────────────────── */
+interface FieldProps {
+  label?: string;
+  htmlFor?: string;
+  error?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Field({ label, htmlFor, error, children, className }: FieldProps) {
+  return (
+    <div className={clsx("ow-field", className)}>
+      {label && <label htmlFor={htmlFor} className="ow-label">{label}</label>}
+      {children}
+      {error && <p className="text-xs text-[var(--color-critical-text)]">{error}</p>}
+    </div>
+  );
+}

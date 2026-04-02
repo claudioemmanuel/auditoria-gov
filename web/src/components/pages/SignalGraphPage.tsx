@@ -267,7 +267,7 @@ export default function SignalGraphPage() {
     <div className="ledger-page mx-auto max-w-6xl px-4 py-8">
       <PageHeader
         title={data.signal.title}
-        subtitle={`${data.signal.typology_code} - ${data.signal.typology_name}`}
+        description={`${data.signal.typology_code} - ${data.signal.typology_name}`}
         breadcrumbs={[
           { label: "Radar", href: "/radar" },
           { label: "Sinal", href: `/signal/${data.signal.id}` },

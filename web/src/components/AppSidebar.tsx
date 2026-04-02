@@ -1,146 +1,109 @@
 "use client";
-import { useEffect } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Radar,
+  Activity,
+  BookOpen,
+  Scale,
+  GitBranch,
+  Eye,
+  Search,
+} from "lucide-react";
+import { clsx } from "clsx";
 
-const NAV_ITEMS = [
-  { href: "/radar",       label: "Investigação", shortcut: "R" },
-  { href: "/coverage",    label: "Cobertura",    shortcut: "C" },
-  { href: "/methodology", label: "Metodologia",  shortcut: "M" },
-  { href: "/api-health",  label: "Saúde API",    shortcut: "S" },
+const NAV = [
+  {
+    section: "Investigação",
+    items: [
+      { href: "/radar",       icon: Radar,      label: "Radar de Risco" },
+      { href: "/radar?view=cases", icon: GitBranch, label: "Casos" },
+    ],
+  },
+  {
+    section: "Dados",
+    items: [
+      { href: "/coverage",    icon: Activity,   label: "Cobertura" },
+      { href: "/methodology", icon: BookOpen,   label: "Metodologia" },
+    ],
+  },
+  {
+    section: "Mais",
+    items: [
+      { href: "/compliance",  icon: Scale,      label: "Conformidade" },
+      { href: "/api-health",  icon: Eye,        label: "Status da API" },
+    ],
+  },
 ];
-
-const SIDEBAR_BG   = "var(--color-sidebar-bg)";
-const SIDEBAR_BORDER = "var(--color-sidebar-border)";
-const SIDEBAR_TEXT = "var(--color-sidebar-text)";
-const SIDEBAR_TEXT_ACTIVE = "var(--color-sidebar-text-active)";
-const SIDEBAR_HOVER = "var(--color-sidebar-hover)";
-const CYAN = "var(--color-accent-trust)";
 
 export function AppSidebar() {
   const pathname = usePathname();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const item = NAV_ITEMS.find(i => i.shortcut === e.key.toUpperCase());
-      if (item) window.location.href = item.href;
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   return (
-    <nav
-      aria-label="Navegação principal"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: "48px",
-        zIndex: 40,
-        display: "flex",
-        alignItems: "stretch",
-        backgroundColor: SIDEBAR_BG,
-        borderBottom: `1px solid ${SIDEBAR_BORDER}`,
-        boxShadow: "0 1px 12px rgba(0,0,0,0.35)",
-      }}
-    >
+    <aside className="ow-sidebar">
       {/* Logo */}
-      <Link
-        href="/"
-        style={{
-          padding: "0 1.25rem",
-          fontFamily: "var(--font-mono)",
-          fontSize: "0.8125rem",
-          fontWeight: 600,
-          color: SIDEBAR_TEXT_ACTIVE,
-          textDecoration: "none",
-          borderRight: `1px solid ${SIDEBAR_BORDER}`,
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          letterSpacing: "0.06em",
-          whiteSpace: "nowrap",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "20px",
-            height: "20px",
-            borderRadius: "4px",
-            background: "var(--color-accent-trust)",
-            color: "#fff",
-            fontSize: "0.625rem",
-            fontWeight: 700,
-            letterSpacing: "0.05em",
-            flexShrink: 0,
+      <div className="ow-sidebar-logo">
+        <div className="ow-sidebar-logo-mark" aria-hidden="true">
+          <Eye size={14} color="#09090b" strokeWidth={2.5} />
+        </div>
+        <span className="ow-sidebar-wordmark">OpenWatch</span>
+      </div>
+
+      {/* Search shortcut */}
+      <div className="px-8 py-3 border-b border-[var(--color-border)]">
+        <button
+          className="w-full ow-btn ow-btn-ghost ow-btn-sm !justify-start gap-2 !text-[var(--color-text-3)] hover:!text-[var(--color-text-2)]"
+          onClick={() => {
+            const event = new KeyboardEvent("keydown", {
+              key: "k",
+              metaKey: true,
+              bubbles: true,
+            });
+            document.dispatchEvent(event);
           }}
         >
-          OW
-        </span>
-        <span>OpenWatch</span>
-      </Link>
-
-      {/* Nav links */}
-      <div style={{ display: "flex", alignItems: "stretch", flex: 1 }}>
-        {NAV_ITEMS.map(item => {
-          const isActive = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                padding: "0 1rem",
-                display: "flex",
-                alignItems: "center",
-                fontSize: "0.8125rem",
-                fontWeight: isActive ? 500 : 400,
-                color: isActive ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT,
-                textDecoration: "none",
-                borderBottom: isActive
-                  ? `2px solid ${CYAN}`
-                  : "2px solid transparent",
-                background: "transparent",
-                transition: "color 150ms ease-out, background 150ms ease-out, border-color 150ms ease-out",
-                letterSpacing: "0.01em",
-              }}
-              onMouseEnter={e => {
-                if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = SIDEBAR_HOVER;
-              }}
-              onMouseLeave={e => {
-                if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-              }}
-              aria-current={isActive ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+          <Search size={13} />
+          <span className="flex-1 text-left text-xs">Buscar...</span>
+          <kbd className="text-mono-xs opacity-50 border border-[var(--color-border)] rounded px-1 py-0.5">⌘K</kbd>
+        </button>
       </div>
 
-      {/* Right: keyboard hint + ThemeToggle */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.25rem",
-          padding: "0 0.75rem",
-          borderLeft: `1px solid ${SIDEBAR_BORDER}`,
-          flexShrink: 0,
-        }}
-      >
-        <ThemeToggle
-          collapsed
-          className="!text-[var(--color-sidebar-text)] hover:!bg-[var(--color-sidebar-hover)] hover:!text-[var(--color-sidebar-text-active)]"
-        />
+      {/* Nav sections */}
+      <nav className="ow-sidebar-nav" aria-label="Navegação principal">
+        {NAV.map((section) => (
+          <div key={section.section} className="ow-sidebar-section">
+            <div className="ow-sidebar-section-label">{section.section}</div>
+            {section.items.map((item) => {
+              const isActive =
+                item.href === "/radar"
+                  ? pathname === "/radar" || pathname?.startsWith("/signal") || pathname?.startsWith("/case")
+                  : item.href === "/radar?view=cases"
+                  ? false
+                  : pathname?.startsWith(item.href);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx("ow-nav-item", isActive && "active")}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <item.icon className="ow-nav-icon" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-[var(--color-border)]">
+        <p className="text-xs text-[var(--color-text-3)] leading-relaxed">
+          Auditoria cidadã de dados federais. Open source, LGPD-compliant.
+        </p>
       </div>
-    </nav>
+    </aside>
   );
 }

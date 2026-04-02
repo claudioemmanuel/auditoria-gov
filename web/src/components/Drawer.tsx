@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,117 +8,52 @@ interface DrawerProps {
   open: boolean;
   onClose: () => void;
   title?: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  className?: string;
-  /** Max width class, default "max-w-2xl" */
+  children?: React.ReactNode;
   width?: string;
-  /** Header action buttons */
-  actions?: React.ReactNode;
+  className?: string;
+  side?: "right" | "left";
 }
 
-export function Drawer({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
-  className,
-  width = "max-w-2xl",
-  actions,
-}: DrawerProps) {
-  const drawerRef = useRef<HTMLDivElement>(null);
-
+export function Drawer({ open, onClose, title, children, width = "w-96", className, side = "right" }: DrawerProps) {
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
   }, [open, onClose]);
-
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
 
   if (!open) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 animate-[fadeIn_180ms_ease]"
-        style={{ background: "rgba(8,14,26,0.6)", backdropFilter: "blur(1px)" }}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Drawer panel */}
-      <div
-        ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-full flex-col shadow-xl",
-          "animate-[slideInRight_220ms_cubic-bezier(0.16,1,0.3,1)]",
-          width,
+          "relative h-full bg-[var(--color-surface-card)] border-l border-[var(--color-border-light)] p-4 shadow-[var(--shadow-xl)] overflow-auto",
           className,
+          side === "right" ? "ml-auto" : "mr-auto",
+          width,
         )}
-        style={{
-          background: "var(--color-surface-card)",
-          borderLeft: "1px solid var(--border-light)",
-        }}
       >
-        {/* Header */}
-        {(title || actions) && (
-          <div
-            className="flex items-start gap-3 px-5 py-4"
-            style={{ borderBottom: "1px solid var(--border-light)" }}
-          >
-            <div className="flex-1">
-              {title && (
-                <h2
-                  className="text-base font-semibold"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--color-text-primary)" }}
-                >
-                  {title}
-                </h2>
-              )}
-              {subtitle && (
-                <p className="mt-0.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                  {subtitle}
-                </p>
-              )}
-            </div>
-            {actions && <div className="flex items-center gap-2">{actions}</div>}
-            <button
-              onClick={onClose}
-              className="flex h-7 w-7 shrink-0 items-center justify-center transition-colors"
-              style={{
-                borderRadius: "var(--radius-sm)",
-                color: "var(--color-text-muted)",
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-hover)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
-              }}
-              aria-label="Fechar"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+        <div className="flex items-center justify-between mb-4">
+          {title && <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h3>}
+          <button aria-label="Close" onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
-      </div>
-    </>
+        <div>{children}</div>
+      </aside>
+    </div>
   );
 }
+
+export default Drawer;
+ 

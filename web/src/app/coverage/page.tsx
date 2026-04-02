@@ -24,6 +24,9 @@ import type {
   CoverageV2SummaryResponse,
 } from "@/lib/types";
 import { formatNumber } from "@/lib/utils";
+import { Button } from "@/components/Button";
+import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import {
   Activity,
   AlertTriangle,
@@ -37,42 +40,42 @@ import {
   Loader2,
   Package,
   Play,
+  RefreshCw,
   Search,
   X,
   XCircle,
   Zap,
 } from "lucide-react";
 
-// ── Status config ────────────────────────────────────────────────────────────
+// ── Status config ─────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<CoverageStatus, { label: string; dot: string; text: string; border: string; bg: string }> = {
-  ok:      { label: "OK",       dot: "bg-success",    text: "text-success",    border: "border-success/30",    bg: "bg-success/5"    },
-  warning: { label: "Atenção",  dot: "bg-amber",       text: "text-amber",       border: "border-amber/30",       bg: "bg-amber/5"       },
-  stale:   { label: "Defasado", dot: "bg-yellow-500",  text: "text-yellow-600",  border: "border-yellow-500/30",  bg: "bg-yellow-500/5"  },
-  error:   { label: "Erro",     dot: "bg-error",       text: "text-error",       border: "border-error/30",       bg: "bg-error/5"       },
-  pending: { label: "Pendente", dot: "bg-muted/60",    text: "text-muted",       border: "border-border",         bg: "bg-surface-base"  },
+const STATUS_CFG: Record<CoverageStatus, {
+  label: string;
+  dotColor: string;
+  textColor: string;
+  borderColor: string;
+  bgColor: string;
+  badge: string;
+}> = {
+  ok:      { label: "OK",       dotColor: "var(--color-low)",      textColor: "var(--color-low-text)",      borderColor: "var(--color-low-border)",      bgColor: "var(--color-low-bg)",      badge: "ow-badge ow-badge-low"      },
+  warning: { label: "Atenção",  dotColor: "var(--color-medium)",   textColor: "var(--color-medium-text)",   borderColor: "var(--color-medium-border)",   bgColor: "var(--color-medium-bg)",   badge: "ow-badge ow-badge-medium"   },
+  stale:   { label: "Defasado", dotColor: "var(--color-high)",     textColor: "var(--color-high-text)",     borderColor: "var(--color-high-border)",     bgColor: "var(--color-high-bg)",     badge: "ow-badge ow-badge-high"     },
+  error:   { label: "Erro",     dotColor: "var(--color-critical)", textColor: "var(--color-critical-text)", borderColor: "var(--color-critical-border)", bgColor: "var(--color-critical-bg)", badge: "ow-badge ow-badge-critical"  },
+  pending: { label: "Pendente", dotColor: "var(--color-text-3)",   textColor: "var(--color-text-3)",        borderColor: "var(--color-border)",          bgColor: "transparent",              badge: "ow-badge ow-badge-neutral"  },
 };
 
-const RUN_STATUS_CFG: Record<string, { dot: string; text: string; label: string }> = {
-  completed: { dot: "bg-success",    text: "text-success",    label: "Concluído"  },
-  running:   { dot: "bg-accent",     text: "text-accent",     label: "Executando" },
-  error:     { dot: "bg-red-500",    text: "text-red-400",    label: "Erro"       },
-  failed:    { dot: "bg-error",      text: "text-error",      label: "Falhou"     },
-  yielded:   { dot: "bg-amber",      text: "text-amber",      label: "Cedeu vez"  },
-  stuck:     { dot: "bg-amber",      text: "text-amber",      label: "Travado"    },
-  skipped:   { dot: "bg-muted/60",   text: "text-muted",      label: "Ignorado"   },
-  pending:   { dot: "bg-muted/60",   text: "text-muted",      label: "Pendente"   },
+const RUN_STATUS_CFG: Record<string, { dotColor: string; textColor: string; label: string }> = {
+  completed: { dotColor: "var(--color-low)",      textColor: "var(--color-low-text)",      label: "Concluído"  },
+  running:   { dotColor: "var(--color-amber)",     textColor: "var(--color-amber-text)",    label: "Executando" },
+  error:     { dotColor: "var(--color-critical)",  textColor: "var(--color-critical-text)", label: "Erro"       },
+  failed:    { dotColor: "var(--color-critical)",  textColor: "var(--color-critical-text)", label: "Falhou"     },
+  yielded:   { dotColor: "var(--color-medium)",    textColor: "var(--color-medium-text)",   label: "Cedeu vez"  },
+  stuck:     { dotColor: "var(--color-high)",      textColor: "var(--color-high-text)",     label: "Travado"    },
+  skipped:   { dotColor: "var(--color-text-3)",    textColor: "var(--color-text-3)",        label: "Ignorado"   },
+  pending:   { dotColor: "var(--color-text-3)",    textColor: "var(--color-text-3)",        label: "Pendente"   },
 };
 
-function StatusBadge({ status }: { status: CoverageStatus }) {
-  const cfg = STATUS_CFG[status] ?? STATUS_CFG.pending;
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cfg.border} ${cfg.bg} ${cfg.text}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatLag(hours: number | null | undefined): string {
   if (hours == null) return "—";
@@ -106,69 +109,93 @@ function fmtDate(d: string | null | undefined): string {
   });
 }
 
-// ── Run card ─────────────────────────────────────────────────────────────────
+function lagColor(hours: number | null | undefined): string {
+  if (hours == null) return "var(--color-text-3)";
+  if (hours > 48) return "var(--color-critical-text)";
+  if (hours > 24) return "var(--color-high-text)";
+  return "var(--color-low-text)";
+}
+
+// ── Coverage status badge ─────────────────────────────────────────────────────
+
+function CoverageStatusBadge({ status }: { status: CoverageStatus }) {
+  const cfg = STATUS_CFG[status] ?? STATUS_CFG.pending;
+  return (
+    <span className={cfg.badge}>
+      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1" style={{ background: cfg.dotColor }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Run card ──────────────────────────────────────────────────────────────────
 
 function RunCard({ run }: { run: CoverageV2LatestRun }) {
   const key = run.is_stuck ? "stuck" : run.status;
   const cfg = RUN_STATUS_CFG[key] ?? RUN_STATUS_CFG.pending;
 
   return (
-    <div className="rounded-lg border border-border bg-surface-base p-3 space-y-2">
+    <div className="ow-card p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
-          <span className={`font-mono text-xs font-bold ${cfg.text}`}>
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: cfg.dotColor }} />
+          <span className="text-mono-xs font-bold" style={{ color: cfg.textColor }}>
             {run.is_stuck ? "Travado" : (RUN_STATUS_CFG[run.status]?.label ?? run.status)}
           </span>
-          <span className="font-mono text-[10px] text-muted">
+          <span className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>
             {formatDuration(run.started_at, run.finished_at)}
           </span>
         </div>
         <Link
           href={`/coverage/run/${run.id}`}
-          className="flex items-center gap-1 font-mono text-[10px] text-accent hover:underline"
+          className="flex items-center gap-1 text-mono-xs hover:underline"
+          style={{ color: "var(--color-amber-text)" }}
         >
           Detalhar
           <ArrowUpRight className="h-2.5 w-2.5" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-[10px] text-muted">
+
+      <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-wide mb-0.5">Início</p>
-          <p className="text-primary font-mono">{fmtDate(run.started_at)}</p>
+          <p className="text-mono-xs uppercase tracking-wide mb-0.5" style={{ color: "var(--color-text-3)" }}>Início</p>
+          <p className="text-mono-xs" style={{ color: "var(--color-text)" }}>{fmtDate(run.started_at)}</p>
         </div>
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-wide mb-0.5">Fim</p>
-          <p className="text-primary font-mono">{fmtDate(run.finished_at)}</p>
+          <p className="text-mono-xs uppercase tracking-wide mb-0.5" style={{ color: "var(--color-text-3)" }}>Fim</p>
+          <p className="text-mono-xs" style={{ color: "var(--color-text)" }}>{fmtDate(run.finished_at)}</p>
         </div>
       </div>
+
       {(run.items_fetched > 0 || run.items_normalized > 0) && (
-        <div className="flex items-center gap-4 text-[10px]">
-          <span className="flex items-center gap-1 text-muted">
+        <div className="flex items-center gap-4 text-caption">
+          <span className="flex items-center gap-1" style={{ color: "var(--color-text-3)" }}>
             <Package className="h-3 w-3 shrink-0" />
-            <span className="font-mono font-bold text-primary">{run.items_fetched.toLocaleString("pt-BR")}</span>
+            <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>
+              {run.items_fetched.toLocaleString("pt-BR")}
+            </span>
             <span>coletados</span>
           </span>
-          <span className="flex items-center gap-1 text-muted">
-            <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
-            <span className="font-mono font-bold text-primary">{run.items_normalized.toLocaleString("pt-BR")}</span>
+          <span className="flex items-center gap-1" style={{ color: "var(--color-text-3)" }}>
+            <CheckCircle2 className="h-3 w-3 shrink-0" style={{ color: "var(--color-low-text)" }} />
+            <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>
+              {run.items_normalized.toLocaleString("pt-BR")}
+            </span>
             <span>normalizados</span>
           </span>
         </div>
       )}
-      {/* Enhanced progress for running jobs */}
+
       {run.status === "running" && (
         <div className="space-y-1.5 mt-2">
-          {/* Animated fetch progress bar */}
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
-              <div className="h-full rounded-full bg-accent animate-pulse" style={{ width: "100%" }} />
+            <div className="ow-score-bar-track flex-1">
+              <div className="ow-score-bar-fill animate-pulse" style={{ width: "100%", background: "var(--color-amber)" }} />
             </div>
-            <span className="font-mono text-[10px] text-accent font-bold">Coletando</span>
+            <span className="text-mono-xs font-bold" style={{ color: "var(--color-amber-text)" }}>Coletando</span>
           </div>
-          {/* Cursor position + rate */}
-          <div className="flex items-center gap-3 text-[10px] text-muted font-mono">
-            {run.cursor_info && <span className="text-primary">{run.cursor_info}</span>}
+          <div className="flex items-center gap-3 text-mono-xs" style={{ color: "var(--color-text-3)" }}>
+            {run.cursor_info && <span style={{ color: "var(--color-text)" }}>{run.cursor_info}</span>}
             {run.rate_per_min != null && run.rate_per_min > 0 && (
               <span>~{Math.round(run.rate_per_min).toLocaleString("pt-BR")}/min</span>
             )}
@@ -177,44 +204,53 @@ function RunCard({ run }: { run: CoverageV2LatestRun }) {
             )}
           </div>
           {run.elapsed_seconds != null && (
-            <p className="font-mono text-[10px] text-muted">Tempo decorrido: {formatElapsed(run.elapsed_seconds)}</p>
+            <p className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>
+              Tempo decorrido: {formatElapsed(run.elapsed_seconds)}
+            </p>
           )}
         </div>
       )}
-      {/* Normalize progress for yielded/completed */}
+
       {run.status === "yielded" && run.items_fetched > 0 && run.items_normalized < run.items_fetched && (
         <div className="space-y-1 mt-2">
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
+            <div className="ow-score-bar-track flex-1">
               <div
-                className="h-full rounded-full bg-success transition-all duration-500"
-                style={{ width: `${Math.min((run.items_normalized / run.items_fetched) * 100, 100)}%` }}
+                className="ow-score-bar-fill transition-all duration-500"
+                style={{
+                  width: `${Math.min((run.items_normalized / run.items_fetched) * 100, 100)}%`,
+                  background: "var(--color-low)",
+                }}
               />
             </div>
-            <span className="font-mono text-[10px] text-success font-bold">
+            <span className="text-mono-xs font-bold" style={{ color: "var(--color-low-text)" }}>
               {Math.round((run.items_normalized / run.items_fetched) * 100)}% normalizado
             </span>
           </div>
         </div>
       )}
+
       {run.error_message && (
-        <div className="flex items-start gap-1.5 rounded border border-error/20 bg-error/5 px-2 py-1.5">
-          <AlertTriangle className="h-3 w-3 shrink-0 text-error mt-0.5" />
-          <p className="font-mono text-[10px] text-error leading-snug">{run.error_message}</p>
+        <div className="ow-alert ow-alert-error">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <p className="text-mono-xs">{run.error_message}</p>
         </div>
       )}
     </div>
   );
 }
 
-// ── KPI Strip ────────────────────────────────────────────────────────────────
+// ── KPI Strip ─────────────────────────────────────────────────────────────────
 
 function KpiStrip({ summary, loading }: { summary: CoverageV2SummaryResponse | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+      <div className="ow-strip">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-lg border border-border bg-surface-card animate-pulse" />
+          <div key={i} className="ow-strip-item">
+            <div className="ow-skeleton h-6 w-12 rounded mb-1" />
+            <div className="ow-skeleton h-3 w-16 rounded" />
+          </div>
         ))}
       </div>
     );
@@ -224,72 +260,87 @@ function KpiStrip({ summary, loading }: { summary: CoverageV2SummaryResponse | n
   const sc = t?.status_counts;
   const rt = t?.runtime;
 
-  const kpis = [
-    { label: "Fontes",   value: t?.connectors ?? 0,                  sub: null,                            dot: null              },
-    { label: "Jobs",     value: t?.jobs ?? 0,                         sub: `${t?.jobs_enabled ?? 0} ativos`, dot: null              },
-    { label: "Sinais",   value: formatNumber(t?.signals_total ?? 0),  sub: null,                            dot: null              },
-    { label: "OK",       value: sc?.ok ?? 0,                          sub: null,                            dot: "bg-success"      },
-    { label: "Atenção",  value: sc?.warning ?? 0,                     sub: null,                            dot: "bg-amber"        },
-    { label: "Defasado", value: sc?.stale ?? 0,                       sub: null,                            dot: "bg-yellow-500"   },
-    { label: "Erro",     value: sc?.error ?? 0,                       sub: null,                            dot: "bg-error"        },
-    { label: "Travados", value: rt?.failed_or_stuck ?? 0,             sub: null,                            dot: rt?.failed_or_stuck ? "bg-error" : "bg-muted/40" },
-  ] as { label: string; value: number | string; sub: string | null; dot: string | null }[];
+  const kpis: { label: string; value: number | string; sub?: string; dotColor?: string }[] = [
+    { label: "Fontes",   value: t?.connectors ?? 0 },
+    { label: "Jobs",     value: t?.jobs ?? 0,         sub: `${t?.jobs_enabled ?? 0} ativos` },
+    { label: "Sinais",   value: formatNumber(t?.signals_total ?? 0) },
+    { label: "OK",       value: sc?.ok ?? 0,           dotColor: "var(--color-low)"      },
+    { label: "Atenção",  value: sc?.warning ?? 0,      dotColor: "var(--color-medium)"   },
+    { label: "Defasado", value: sc?.stale ?? 0,        dotColor: "var(--color-high)"     },
+    { label: "Erro",     value: sc?.error ?? 0,        dotColor: "var(--color-critical)" },
+    { label: "Travados", value: rt?.failed_or_stuck ?? 0, dotColor: rt?.failed_or_stuck ? "var(--color-critical)" : "var(--color-text-3)" },
+  ];
 
   return (
-    <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+    <div className="ow-strip">
       {kpis.map((k) => (
-        <div key={k.label} className="rounded-lg border border-border bg-surface-card px-3 py-3">
-          {k.dot ? (
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className={`h-1.5 w-1.5 rounded-full ${k.dot}`} />
-              <p className="font-mono text-[9px] uppercase tracking-widest text-muted">{k.label}</p>
-            </div>
-          ) : (
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">{k.label}</p>
+        <div key={k.label} className="ow-strip-item">
+          <div className="flex items-center gap-1.5">
+            {k.dotColor && (
+              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: k.dotColor }} />
+            )}
+            <span className="ow-strip-value text-mono">{k.value}</span>
+          </div>
+          <span className="ow-strip-label">{k.label}</span>
+          {k.sub && (
+            <span className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>{k.sub}</span>
           )}
-          <p className="font-mono text-lg font-bold tabular-nums text-primary leading-none">{k.value}</p>
-          {k.sub && <p className="font-mono text-[10px] text-muted mt-1">{k.sub}</p>}
         </div>
       ))}
     </div>
   );
 }
 
-// ── Pipeline stages ──────────────────────────────────────────────────────────
+// ── Pipeline stage strip ──────────────────────────────────────────────────────
 
-const STAGE_STATUS: Record<string, { label: string; icon: React.ReactNode; ring: string; bg: string; text: string }> = {
-  up_to_date: { label: "Atualizado",    icon: <CheckCircle2 className="h-5 w-5" />, ring: "border-success",    bg: "bg-success/10",     text: "text-success"  },
-  stale:      { label: "Desatualizado", icon: <Clock className="h-5 w-5" />,        ring: "border-amber",      bg: "bg-amber/10",       text: "text-amber"    },
-  processing: { label: "Processando",   icon: <Activity className="h-5 w-5" />,     ring: "border-accent",     bg: "bg-accent/10",      text: "text-accent"   },
-  warning:    { label: "Atenção",       icon: <AlertTriangle className="h-5 w-5" />, ring: "border-amber",      bg: "bg-amber/10",       text: "text-amber"    },
-  error:      { label: "Erro",          icon: <XCircle className="h-5 w-5" />,       ring: "border-error",      bg: "bg-error/10",       text: "text-error"    },
-  pending:    { label: "Pendente",      icon: <Clock className="h-5 w-5" />,         ring: "border-border",     bg: "bg-surface-subtle", text: "text-muted"    },
-};
-
-const OVERALL_CFG: Record<string, { label: string; cls: string }> = {
-  healthy:   { label: "Saudável",  cls: "text-success border-success/30 bg-success/5"  },
-  attention: { label: "Atenção",   cls: "text-amber   border-amber/30   bg-amber/5"    },
-  blocked:   { label: "Bloqueado", cls: "text-error   border-error/30   bg-error/5"    },
+const STAGE_STATUS: Record<string, {
+  label: string;
+  icon: React.ReactNode;
+  ringColor: string;
+  bgColor: string;
+  textColor: string;
+}> = {
+  up_to_date: { label: "Atualizado",    icon: <CheckCircle2 className="h-5 w-5" />, ringColor: "var(--color-low-border)",      bgColor: "var(--color-low-bg)",      textColor: "var(--color-low-text)"      },
+  stale:      { label: "Desatualizado", icon: <Clock className="h-5 w-5" />,        ringColor: "var(--color-high-border)",     bgColor: "var(--color-high-bg)",     textColor: "var(--color-high-text)"     },
+  processing: { label: "Processando",   icon: <Activity className="h-5 w-5" />,     ringColor: "var(--color-amber-border)",    bgColor: "var(--color-amber-dim)",   textColor: "var(--color-amber-text)"    },
+  warning:    { label: "Atenção",       icon: <AlertTriangle className="h-5 w-5" />, ringColor: "var(--color-medium-border)",  bgColor: "var(--color-medium-bg)",   textColor: "var(--color-medium-text)"   },
+  error:      { label: "Erro",          icon: <XCircle className="h-5 w-5" />,       ringColor: "var(--color-critical-border)",bgColor: "var(--color-critical-bg)", textColor: "var(--color-critical-text)" },
+  pending:    { label: "Pendente",      icon: <Clock className="h-5 w-5" />,         ringColor: "var(--color-border)",         bgColor: "var(--color-surface-3)",   textColor: "var(--color-text-3)"        },
 };
 
 function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null }) {
   if (!summary) return null;
   const stages = summary.pipeline.stages;
-  const ocfg = OVERALL_CFG[summary.pipeline.overall_status] ?? OVERALL_CFG.healthy;
+  const overallStatus = summary.pipeline.overall_status;
+
+  const overallColor =
+    overallStatus === "healthy" ? "var(--color-low-text)" :
+    overallStatus === "attention" ? "var(--color-amber-text)" :
+    "var(--color-critical-text)";
+  const overallBadge =
+    overallStatus === "healthy" ? "ow-badge ow-badge-low" :
+    overallStatus === "attention" ? "ow-badge ow-badge-amber" :
+    "ow-badge ow-badge-critical";
+  const overallLabel =
+    overallStatus === "healthy" ? "Saudável" :
+    overallStatus === "attention" ? "Atenção" :
+    "Bloqueado";
+
   return (
-    <div className="rounded-xl border border-border bg-surface-card p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="ow-card p-5">
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle">
-            <Zap className="h-4 w-4 text-muted" />
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg"
+            style={{ background: "var(--color-surface-3)" }}
+          >
+            <Zap className="h-4 w-4" style={{ color: "var(--color-text-3)" }} />
           </div>
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Pipeline de Ingestão</p>
-          </div>
+          <p className="text-mono-xs uppercase tracking-widest" style={{ color: "var(--color-text-3)" }}>
+            Pipeline de Ingestão
+          </p>
         </div>
-        <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${ocfg.cls}`}>
-          {ocfg.label}
-        </span>
+        <span className={overallBadge}>{overallLabel}</span>
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
@@ -298,29 +349,47 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
           const isProcessing = stage.status === "processing";
           return (
             <div key={stage.code} className="relative">
-              {/* Connector line */}
               {i < stages.length - 1 && (
-                <div className="absolute top-6 left-[calc(50%+1.5rem)] right-[-calc(50%-1.5rem)] h-px bg-border z-0" />
+                <div
+                  className="absolute top-6 left-[calc(50%+1.5rem)] right-[-calc(50%-1.5rem)] h-px z-0"
+                  style={{ background: "var(--color-border)" }}
+                />
               )}
-              <div className={`relative z-10 rounded-xl border-2 ${scfg.ring} ${scfg.bg} p-4 flex flex-col items-center gap-3 text-center overflow-hidden`}>
-                {/* Animated scan line for processing stages */}
+              <div
+                className="relative z-10 rounded-xl border-2 p-4 flex flex-col items-center gap-3 text-center overflow-hidden"
+                style={{ borderColor: scfg.ringColor, background: scfg.bgColor }}
+              >
                 {isProcessing && (
-                  <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-[slide_2s_linear_infinite]" />
+                  <div
+                    className="absolute inset-x-0 top-0 h-0.5 animate-[slide_2s_linear_infinite]"
+                    style={{ background: `linear-gradient(to right, transparent, var(--color-amber), transparent)` }}
+                  />
                 )}
-                <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-surface-card shadow-sm ${scfg.text}`}>
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-full shadow-sm"
+                  style={{ background: "var(--color-surface)", color: scfg.textColor }}
+                >
                   {scfg.icon}
                 </div>
                 <div>
-                  <p className="font-display text-xs font-bold text-primary leading-snug">{stage.label}</p>
-                  <p className={`font-mono text-[10px] font-bold uppercase mt-0.5 ${scfg.text}`}>{scfg.label}</p>
+                  <p className="text-label font-bold leading-snug" style={{ color: "var(--color-text)" }}>
+                    {stage.label}
+                  </p>
+                  <p className="text-mono-xs font-bold uppercase mt-0.5" style={{ color: scfg.textColor }}>
+                    {scfg.label}
+                  </p>
                   {stage.reason && stage.status !== "up_to_date" && (
-                    <p className="text-[10px] text-secondary mt-1.5 leading-snug">{stage.reason}</p>
+                    <p className="text-caption mt-1.5 leading-snug" style={{ color: "var(--color-text-2)" }}>
+                      {stage.reason}
+                    </p>
                   )}
                 </div>
-                {/* Indeterminate progress bar for processing stages */}
                 {isProcessing && (
-                  <div className="w-full h-1 rounded-full bg-surface-subtle overflow-hidden">
-                    <div className="h-full w-1/3 rounded-full bg-accent animate-[progress_1.5s_ease-in-out_infinite]" />
+                  <div className="ow-score-bar-track w-full">
+                    <div
+                      className="ow-score-bar-fill animate-[progress_1.5s_ease-in-out_infinite]"
+                      style={{ width: "33%", background: "var(--color-amber)" }}
+                    />
                   </div>
                 )}
               </div>
@@ -328,23 +397,22 @@ function PipelineStrip({ summary }: { summary: CoverageV2SummaryResponse | null 
           );
         })}
       </div>
-
     </div>
   );
 }
 
-// Overrides worst_status badge with an animated "Executando" pill when any job
-// belonging to this source is actively running, so the user can see live activity.
+// ── Effective badge (running overrides status) ────────────────────────────────
+
 function EffectiveBadge({ item }: { item: CoverageV2SourceItem }) {
   if (item.runtime.running_jobs > 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+      <span className="ow-badge ow-badge-amber">
+        <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 animate-pulse" style={{ background: "var(--color-amber)" }} />
         Executando
       </span>
     );
   }
-  return <StatusBadge status={item.worst_status} />;
+  return <CoverageStatusBadge status={item.worst_status} />;
 }
 
 // ── Source diagnostic modal ───────────────────────────────────────────────────
@@ -364,7 +432,6 @@ function SourceDiagnosticModal({
 }) {
   const cfg = STATUS_CFG[item.worst_status] ?? STATUS_CFG.pending;
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
@@ -373,85 +440,80 @@ function SourceDiagnosticModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: "rgba(0,0,0,0.7)" }}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Panel */}
-      <div className="relative z-10 flex w-full max-w-3xl max-h-[88vh] flex-col rounded-2xl border border-border bg-surface-card shadow-2xl overflow-hidden">
-
-        {/* ── Modal header ────────────────────────────────── */}
-        <div className={`flex items-start justify-between gap-4 border-b border-border px-6 py-4 ${cfg.bg}`}>
+      <div
+        className="relative z-10 flex w-full max-w-3xl max-h-[88vh] flex-col rounded-2xl border shadow-2xl overflow-hidden"
+        style={{ background: "var(--color-surface)", borderColor: "var(--color-border-strong)" }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-start justify-between gap-4 border-b px-6 py-4"
+          style={{ borderColor: "var(--color-border)", background: cfg.bgColor }}
+        >
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-display text-base font-bold text-primary capitalize">
+              <h2 className="text-display-sm font-bold capitalize" style={{ color: "var(--color-text)" }}>
                 {item.connector_label}
               </h2>
               <EffectiveBadge item={item} />
             </div>
-            <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
+            <p className="text-mono-xs mt-0.5" style={{ color: "var(--color-text-3)" }}>{item.connector}</p>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-base text-muted transition hover:bg-surface-subtle hover:text-primary"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
+            style={{ background: "var(--color-surface-2)", borderColor: "var(--color-border)", color: "var(--color-text-3)" }}
             aria-label="Fechar diagnóstico"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* ── Summary strip ───────────────────────────────── */}
-        <div className="grid grid-cols-4 gap-3 border-b border-border px-6 py-4">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Jobs</p>
-            <p className="font-mono text-lg font-bold text-primary leading-none">{item.job_count}</p>
-            <p className="font-mono text-[10px] text-muted mt-0.5">{item.enabled_job_count} habilitados</p>
-          </div>
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Em execução</p>
-            <p className={`font-mono text-lg font-bold leading-none ${item.runtime.running_jobs > 0 ? "text-accent" : "text-primary"}`}>
-              {item.runtime.running_jobs}
-            </p>
-          </div>
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Com erro</p>
-            <p className={`font-mono text-lg font-bold leading-none ${item.runtime.error_jobs > 0 ? "text-error" : "text-primary"}`}>
-              {item.runtime.error_jobs}
-            </p>
-          </div>
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Defasagem</p>
-            <p className={`font-mono text-lg font-bold leading-none ${
-              item.max_freshness_lag_hours == null ? "text-muted" :
-              item.max_freshness_lag_hours > 48 ? "text-error" :
-              item.max_freshness_lag_hours > 24 ? "text-amber" : "text-success"
-            }`}>
-              {formatLag(item.max_freshness_lag_hours)}
-            </p>
-            {item.last_success_at && (
-              <p className="font-mono text-[9px] text-muted mt-0.5">
-                {new Date(item.last_success_at).toLocaleString("pt-BR")}
-              </p>
-            )}
-          </div>
+        {/* Summary strip */}
+        <div
+          className="grid grid-cols-4 gap-3 border-b px-6 py-4"
+          style={{ borderColor: "var(--color-border)" }}
+        >
+          {[
+            { label: "Jobs",        value: item.job_count,             sub: `${item.enabled_job_count} habilitados`, color: undefined },
+            { label: "Em execução", value: item.runtime.running_jobs,  sub: null,                                    color: item.runtime.running_jobs > 0 ? "var(--color-amber-text)" : undefined },
+            { label: "Com erro",    value: item.runtime.error_jobs,    sub: null,                                    color: item.runtime.error_jobs > 0 ? "var(--color-critical-text)" : undefined },
+            {
+              label: "Defasagem",
+              value: formatLag(item.max_freshness_lag_hours),
+              sub: item.last_success_at ? new Date(item.last_success_at).toLocaleString("pt-BR") : null,
+              color: lagColor(item.max_freshness_lag_hours),
+            },
+          ].map((m) => (
+            <div key={m.label}>
+              <p className="text-mono-xs uppercase tracking-widest mb-1" style={{ color: "var(--color-text-3)" }}>{m.label}</p>
+              <p className="text-mono font-bold leading-none" style={{ color: m.color ?? "var(--color-text)" }}>{m.value}</p>
+              {m.sub && <p className="text-mono-xs mt-0.5" style={{ color: "var(--color-text-3)" }}>{m.sub}</p>}
+            </div>
+          ))}
         </div>
 
-        {/* ── Scrollable body ─────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 bg-surface-base">
-
+        {/* Body */}
+        <div
+          className="flex-1 overflow-y-auto px-6 py-5 space-y-6"
+          style={{ background: "var(--color-surface-2)" }}
+        >
           {loading && (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-20 rounded-xl border border-border animate-pulse" />
+                <div key={i} className="ow-skeleton h-20 rounded-xl" />
               ))}
             </div>
           )}
 
           {error && (
-            <div className="flex items-start gap-2 rounded-xl border border-error/20 bg-error/5 p-4 text-sm text-error">
+            <div className="ow-alert ow-alert-error">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               {error}
             </div>
@@ -459,34 +521,31 @@ function SourceDiagnosticModal({
 
           {preview && (
             <>
-              {/* Stuck warning */}
               {item.runtime.stuck_jobs > 0 && (
-                <div className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+                <div className="ow-alert ow-alert-error">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   {item.runtime.stuck_jobs} job(s) travado(s) — restart recomendado
                 </div>
               )}
 
-              {/* Insights */}
               {preview.insights.length > 0 && (
                 <section>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">
+                  <p className="text-mono-xs uppercase tracking-widest mb-3" style={{ color: "var(--color-text-3)" }}>
                     Insights ({preview.insights.length})
                   </p>
                   <div className="space-y-2">
                     {preview.insights.map((insight, i) => (
-                      <div key={i} className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent-subtle/30 px-4 py-3">
-                        <Lightbulb className="h-4 w-4 shrink-0 text-accent mt-0.5" />
-                        <p className="text-sm text-secondary leading-relaxed">{insight}</p>
+                      <div key={i} className="ow-alert ow-alert-info">
+                        <Lightbulb className="h-4 w-4 shrink-0 mt-0.5" />
+                        <p className="text-body leading-relaxed">{insight}</p>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
 
-              {/* Jobs */}
               <section>
-                <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">
+                <p className="text-mono-xs uppercase tracking-widest mb-3" style={{ color: "var(--color-text-3)" }}>
                   Jobs ({preview.jobs.length})
                 </p>
                 <div className="space-y-4">
@@ -500,71 +559,84 @@ function SourceDiagnosticModal({
                     const isJobRunning = job.latest_run?.status === "running";
                     const scfg = STATUS_CFG[job.status] ?? STATUS_CFG.pending;
                     return (
-                      <div key={job.job} className={`rounded-xl border ${isJobRunning ? "border-accent/30 bg-accent/5" : scfg.border + " bg-surface-card"} p-4 space-y-4`}>
-                        {/* Job header */}
+                      <div
+                        key={job.job}
+                        className="rounded-xl border p-4 space-y-4"
+                        style={{
+                          borderColor: isJobRunning ? "var(--color-amber-border)" : scfg.borderColor,
+                          background: isJobRunning ? "var(--color-amber-dim)" : "var(--color-surface)",
+                        }}
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="font-mono text-sm font-bold text-primary">{job.job}</span>
+                              <span className="text-mono font-bold" style={{ color: "var(--color-text)" }}>{job.job}</span>
                               {!job.enabled_in_mvp && (
-                                <span className="rounded-full border border-border bg-surface-subtle px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted">
-                                  Desabilitado
-                                </span>
+                                <span className="ow-badge ow-badge-neutral text-mono-xs">Desabilitado</span>
                               )}
                             </div>
-                            <p className="font-mono text-xs text-accent">{job.domain}</p>
+                            <p className="text-mono-xs" style={{ color: "var(--color-amber-text)" }}>{job.domain}</p>
                             {job.description && (
-                              <p className="text-xs text-secondary mt-1 leading-relaxed">{job.description}</p>
+                              <p className="text-caption mt-1 leading-relaxed" style={{ color: "var(--color-text-2)" }}>
+                                {job.description}
+                              </p>
                             )}
                           </div>
                           {isJobRunning ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
-                              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                            <span className="ow-badge ow-badge-amber">
+                              <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 animate-pulse" style={{ background: "var(--color-amber)" }} />
                               Executando
                             </span>
                           ) : (
-                            <StatusBadge status={job.status} />
+                            <CoverageStatusBadge status={job.status} />
                           )}
                         </div>
 
-                        {/* Job metrics */}
                         <div className="grid grid-cols-3 gap-3">
-                          <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">
-                              {isJobRunning ? "Coletados até agora" : "Itens coletados"}
-                            </p>
-                            <p className="font-mono text-sm font-bold text-primary">{job.total_items.toLocaleString("pt-BR")}</p>
-                            {isJobRunning && job.latest_run?.cursor_info && (
-                              <p className="font-mono text-[9px] text-accent mt-0.5">{job.latest_run.cursor_info}</p>
-                            )}
-                          </div>
-                          <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Defasagem</p>
-                            <p className={`font-mono text-sm font-bold ${
-                              job.freshness_lag_hours == null ? "text-muted" :
-                              job.freshness_lag_hours > 48 ? "text-error" :
-                              job.freshness_lag_hours > 24 ? "text-amber" : "text-success"
-                            }`}>
-                              {formatLag(job.freshness_lag_hours)}
-                            </p>
-                          </div>
-                          <div className="rounded-lg border border-border bg-surface-base px-3 py-2">
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-0.5">Último sucesso</p>
-                            <p className="font-mono text-xs text-primary">
-                              {job.last_success_at ? fmtDate(job.last_success_at) : "Não registrado"}
-                            </p>
-                          </div>
+                          {[
+                            {
+                              label: isJobRunning ? "Coletados até agora" : "Itens coletados",
+                              value: job.total_items.toLocaleString("pt-BR"),
+                              sub: isJobRunning && job.latest_run?.cursor_info ? job.latest_run.cursor_info : null,
+                              color: "var(--color-text)",
+                            },
+                            {
+                              label: "Defasagem",
+                              value: formatLag(job.freshness_lag_hours),
+                              sub: null,
+                              color: lagColor(job.freshness_lag_hours),
+                            },
+                            {
+                              label: "Último sucesso",
+                              value: job.last_success_at ? fmtDate(job.last_success_at) : "Não registrado",
+                              sub: null,
+                              color: "var(--color-text)",
+                            },
+                          ].map((m) => (
+                            <div
+                              key={m.label}
+                              className="rounded-lg border px-3 py-2"
+                              style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
+                            >
+                              <p className="text-mono-xs uppercase tracking-wide mb-0.5" style={{ color: "var(--color-text-3)" }}>
+                                {m.label}
+                              </p>
+                              <p className="text-mono-xs font-bold" style={{ color: m.color }}>
+                                {m.value}
+                              </p>
+                              {m.sub && (
+                                <p className="text-mono-xs mt-0.5" style={{ color: "var(--color-amber-text)" }}>{m.sub}</p>
+                              )}
+                            </div>
+                          ))}
                         </div>
 
-                        {/* Pipeline progress strip — visible without clicking Detalhar */}
-                        {job.latest_run && (
-                          <JobPipelineStrip run={job.latest_run} />
-                        )}
-
-                        {/* Latest run */}
+                        {job.latest_run && <JobPipelineStrip run={job.latest_run} />}
                         {job.latest_run && (
                           <div>
-                            <p className="font-mono text-[9px] uppercase tracking-wide text-muted mb-2">Execução mais recente</p>
+                            <p className="text-mono-xs uppercase tracking-wide mb-2" style={{ color: "var(--color-text-3)" }}>
+                              Execução mais recente
+                            </p>
                             <RunCard run={job.latest_run} />
                           </div>
                         )}
@@ -577,20 +649,18 @@ function SourceDiagnosticModal({
           )}
         </div>
 
-        {/* ── Modal footer ────────────────────────────────── */}
-        <div className="flex items-center justify-between border-t border-border px-6 py-3 bg-surface-card">
-          <p className="font-mono text-[10px] text-muted">
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between border-t px-6 py-3"
+          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+        >
+          <p className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>
             Último sucesso:{" "}
-            <span className="text-primary">
+            <span style={{ color: "var(--color-text)" }}>
               {item.last_success_at ? new Date(item.last_success_at).toLocaleString("pt-BR") : "—"}
             </span>
           </p>
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-border bg-surface-base px-4 py-1.5 text-xs font-semibold text-secondary transition hover:bg-surface-subtle hover:text-primary"
-          >
-            Fechar
-          </button>
+          <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
         </div>
       </div>
     </div>
@@ -598,7 +668,6 @@ function SourceDiagnosticModal({
 }
 
 // ── Job pipeline strip ────────────────────────────────────────────────────────
-// Shows ingest→normalize progress per job (ER and signals are global, shown at page level).
 
 function JobPipelineStrip({ run }: { run: CoverageV2LatestRun }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -673,73 +742,69 @@ function JobPipelineStrip({ run }: { run: CoverageV2LatestRun }) {
     },
   ];
 
+  function stageBorderColor(s: StageStatus) {
+    if (s === "error") return "var(--color-critical-border)";
+    if (s === "active") return "var(--color-amber-border)";
+    if (s === "done") return "var(--color-low-border)";
+    return "var(--color-border)";
+  }
+  function stageBgColor(s: StageStatus) {
+    if (s === "error") return "var(--color-critical-bg)";
+    if (s === "blocked") return "var(--color-surface-3)";
+    if (s === "active") return "var(--color-amber-dim)";
+    if (s === "done") return "var(--color-low-bg)";
+    return "var(--color-surface-3)";
+  }
+  function stageTextColor(s: StageStatus) {
+    if (s === "error") return "var(--color-critical-text)";
+    if (s === "active") return "var(--color-amber-text)";
+    if (s === "done") return "var(--color-low-text)";
+    return "var(--color-text-3)";
+  }
+  function stageDotColor(s: StageStatus) {
+    if (s === "error") return "var(--color-critical)";
+    if (s === "active") return "var(--color-amber)";
+    if (s === "done") return "var(--color-low)";
+    return "var(--color-text-3)";
+  }
+
   return (
-    <div className="rounded-lg border border-border bg-surface-base px-3 py-2.5 space-y-2">
+    <div
+      className="rounded-lg border px-3 py-2.5 space-y-2"
+      style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
+    >
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[9px] uppercase tracking-widest text-muted">
+        <p className="text-mono-xs uppercase tracking-widest" style={{ color: "var(--color-text-3)" }}>
           Pipeline de Processamento
         </p>
         {isRunning && startMs > 0 && (
-          <span className="font-mono text-[10px] text-accent">{elapsedStr} em execução</span>
+          <span className="text-mono-xs" style={{ color: "var(--color-amber-text)" }}>{elapsedStr} em execução</span>
         )}
       </div>
       <div className="flex items-stretch gap-0.5">
         {stages.map((stage) => (
           <div
             key={stage.key}
-            className={`flex-1 rounded border px-2 py-1.5 min-w-0 ${
-              stage.status === "error"
-                ? "border-red-500/30 bg-red-500/5"
-                : stage.status === "blocked"
-                ? "border-border bg-surface-subtle opacity-50"
-                : stage.status === "active"
-                ? "border-accent/40 bg-accent/10"
-                : stage.status === "done"
-                ? "border-success/30 bg-success/5"
-                : "border-border bg-surface-subtle"
-            }`}
+            className="flex-1 rounded border px-2 py-1.5 min-w-0"
+            style={{
+              borderColor: stageBorderColor(stage.status),
+              background: stageBgColor(stage.status),
+              opacity: stage.status === "blocked" ? 0.5 : 1,
+            }}
           >
             <div className="flex items-center gap-1 mb-0.5">
-              {stage.status === "error" && (
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
-              )}
-              {stage.status === "active" && (
-                <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse shrink-0" />
-              )}
-              {stage.status === "done" && (
-                <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
-              )}
-              <p
-                className={`font-mono text-[9px] font-bold uppercase truncate ${
-                  stage.status === "error"
-                    ? "text-red-400"
-                    : stage.status === "active"
-                    ? "text-accent"
-                    : stage.status === "done"
-                    ? "text-success"
-                    : "text-muted"
-                }`}
-              >
+              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: stageDotColor(stage.status) }} />
+              <p className="text-mono-xs font-bold uppercase truncate" style={{ color: stageTextColor(stage.status) }}>
                 {stage.label}
               </p>
             </div>
             {stage.line1 && (
-              <p
-                className={`font-mono text-[9px] leading-tight truncate ${
-                  stage.status === "error"
-                    ? "text-red-400/80"
-                    : stage.status === "active"
-                    ? "text-accent/80"
-                    : stage.status === "done"
-                    ? "text-success/80"
-                    : "text-muted/60"
-                }`}
-              >
+              <p className="text-mono-xs leading-tight truncate" style={{ color: stageTextColor(stage.status), opacity: 0.8 }}>
                 {stage.line1}
               </p>
             )}
             {stage.line2 && (
-              <p className="font-mono text-[9px] text-muted leading-tight">{stage.line2}</p>
+              <p className="text-mono-xs leading-tight" style={{ color: "var(--color-text-3)" }}>{stage.line2}</p>
             )}
           </div>
         ))}
@@ -777,107 +842,112 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
     }
   }
 
-  // Poll every 5s while the modal is open and jobs are running
   useEffect(() => {
     if (!modalOpen || item.runtime.running_jobs === 0) return;
     const interval = setInterval(() => fetchPreview(true), 5_000);
     return () => clearInterval(interval);
   }, [modalOpen, item.runtime.running_jobs, item.connector]);
 
-  // Bar always spans 100% width: colored segments for meaningful states,
-  // faded trailing segment for pending (unfilled but visible as a track).
   const statusBar = [
-    { key: "ok"      as CoverageStatus, count: item.status_counts.ok,      color: "bg-success"    },
-    { key: "warning" as CoverageStatus, count: item.status_counts.warning,  color: "bg-amber"      },
-    { key: "stale"   as CoverageStatus, count: item.status_counts.stale,    color: "bg-yellow-500" },
-    { key: "error"   as CoverageStatus, count: item.status_counts.error,    color: "bg-error"      },
-    { key: "pending" as CoverageStatus, count: item.status_counts.pending,  color: "bg-muted/25"   },
+    { key: "ok"      as CoverageStatus, count: item.status_counts.ok,      color: "var(--color-low)"      },
+    { key: "warning" as CoverageStatus, count: item.status_counts.warning,  color: "var(--color-medium)"   },
+    { key: "stale"   as CoverageStatus, count: item.status_counts.stale,    color: "var(--color-high)"     },
+    { key: "error"   as CoverageStatus, count: item.status_counts.error,    color: "var(--color-critical)" },
+    { key: "pending" as CoverageStatus, count: item.status_counts.pending,  color: "var(--color-text-3)"   },
   ].filter((s) => s.count > 0);
 
-  // Legend reuses statusBar (already includes pending); override pending dot to a slightly brighter shade.
-  const statusLegend = statusBar.map((s) =>
-    s.key === "pending" ? { ...s, color: "bg-muted/60" } : s
-  );
+  const statusLegend = statusBar.map((s) => s.key === "pending" ? { ...s, color: "var(--color-text-3)" } : s);
+
+  const isRunning = item.runtime.running_jobs > 0;
 
   return (
-    <div className={`relative rounded-xl border ${item.runtime.running_jobs > 0 ? "border-accent/50" : cfg.border} bg-surface-card flex flex-col`}>
-      {/* Pulse ring for running connectors */}
-      {item.runtime.running_jobs > 0 && (
-        <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-accent/40 animate-pulse" />
+    <div
+      className="ow-card flex flex-col relative"
+      style={{ borderColor: isRunning ? "var(--color-amber-border)" : cfg.borderColor }}
+    >
+      {isRunning && (
+        <span
+          className="pointer-events-none absolute inset-0 rounded-xl ring-2 animate-pulse"
+          style={{ "--tw-ring-color": "var(--color-amber-border)" } as React.CSSProperties}
+        />
       )}
-      {/* ── Card summary ─────────────────────────────────────── */}
+
       <div className="flex flex-col gap-4 p-4 flex-1">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="font-display text-sm font-bold text-primary capitalize leading-snug">
+            <h3 className="text-label font-bold capitalize leading-snug" style={{ color: "var(--color-text)" }}>
               {item.connector_label}
             </h3>
-            <p className="font-mono text-[10px] text-muted mt-0.5">{item.connector}</p>
+            <p className="text-mono-xs mt-0.5" style={{ color: "var(--color-text-3)" }}>{item.connector}</p>
           </div>
           <EffectiveBadge item={item} />
         </div>
 
-        {/* Counts row */}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+        {/* Counts */}
+        <div className="flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--color-text-3)" }}>
           <span className="flex items-center gap-1">
             <FileText className="h-3 w-3 shrink-0" />
-            <span className="font-mono font-bold text-primary">{item.job_count}</span>
+            <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>{item.job_count}</span>
             <span>jobs</span>
           </span>
-          <span className="flex items-center gap-1 text-accent">
+          <span className="flex items-center gap-1" style={{ color: "var(--color-amber-text)" }}>
             <Zap className="h-3 w-3 shrink-0" />
-            <span className="font-mono font-bold">{item.enabled_job_count}</span>
+            <span className="text-mono-xs font-bold">{item.enabled_job_count}</span>
             <span>habilitados</span>
           </span>
-          {item.runtime.running_jobs > 0 && (
-            <span className="flex items-center gap-1 text-accent">
+          {isRunning && (
+            <span className="flex items-center gap-1" style={{ color: "var(--color-amber-text)" }}>
               <Activity className="h-3 w-3 shrink-0" />
               {item.runtime.running_jobs} em exec.
             </span>
           )}
           {item.runtime.error_jobs > 0 && (
-            <span className="flex items-center gap-1 text-error">
+            <span className="flex items-center gap-1" style={{ color: "var(--color-critical-text)" }}>
               <AlertTriangle className="h-3 w-3 shrink-0" />
               {item.runtime.error_jobs} com erro
             </span>
           )}
         </div>
 
-        {/* Status distribution */}
+        {/* Status bar */}
         {totalJobs > 0 && (
           <div className="space-y-1.5">
             <div className="flex h-2 rounded-full overflow-hidden gap-px">
               {statusBar.map((s) => (
                 <div
                   key={s.key}
-                  className={s.color}
-                  style={{ width: `${(s.count / totalJobs) * 100}%` }}
+                  style={{ width: `${(s.count / totalJobs) * 100}%`, background: s.color }}
                   title={`${STATUS_CFG[s.key]?.label}: ${s.count}`}
                 />
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
               {statusLegend.map((s) => (
-                <span key={s.key} className="flex items-center gap-1 text-[10px] text-muted">
-                  <span className={`h-1.5 w-1.5 rounded-full ${s.color}`} />
-                  {STATUS_CFG[s.key]?.label}: <span className="font-mono font-bold text-primary">{s.count}</span>
+                <span key={s.key} className="flex items-center gap-1 text-caption" style={{ color: "var(--color-text-3)" }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
+                  {STATUS_CFG[s.key]?.label}:{" "}
+                  <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>{s.count}</span>
                 </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* Live progress when running */}
-        {item.runtime.running_jobs > 0 && (
-          <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 space-y-2">
+        {/* Live progress */}
+        {isRunning && (
+          <div
+            className="rounded-lg border px-3 py-2.5 space-y-2"
+            style={{ borderColor: "var(--color-amber-border)", background: "var(--color-amber-dim)" }}
+          >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+              <span className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-wider"
+                style={{ color: "var(--color-amber-text)" }}>
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Executando {item.runtime.running_jobs} job(s)
               </span>
               {item.runtime.elapsed_seconds != null && (
-                <span className="font-mono text-[10px] text-muted">
+                <span className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>
                   {formatElapsed(item.runtime.elapsed_seconds)}
                 </span>
               )}
@@ -885,25 +955,19 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
             {item.runtime.active_job_names?.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {item.runtime.active_job_names.map((name) => (
-                  <span key={name} className="rounded-full bg-accent/10 border border-accent/20 px-2 py-0.5 font-mono text-[9px] text-accent">
-                    {name}
-                  </span>
+                  <span key={name} className="ow-badge ow-badge-amber text-mono-xs">{name}</span>
                 ))}
               </div>
             )}
-            <div className="flex items-center gap-4 text-[10px] text-secondary">
+            <div className="flex items-center gap-4 text-caption" style={{ color: "var(--color-text-2)" }}>
               {item.runtime.items_fetched_live > 0 && (
-                <span className="font-mono">
-                  {item.runtime.items_fetched_live.toLocaleString("pt-BR")} itens coletados
-                </span>
+                <span className="text-mono-xs">{item.runtime.items_fetched_live.toLocaleString("pt-BR")} itens coletados</span>
               )}
               {item.runtime.items_normalized_live > 0 && (
-                <span className="font-mono">
-                  {item.runtime.items_normalized_live.toLocaleString("pt-BR")} normalizados
-                </span>
+                <span className="text-mono-xs">{item.runtime.items_normalized_live.toLocaleString("pt-BR")} normalizados</span>
               )}
               {item.runtime.estimated_rate_per_min != null && item.runtime.estimated_rate_per_min > 0 && (
-                <span className="font-mono text-accent">
+                <span className="text-mono-xs" style={{ color: "var(--color-amber-text)" }}>
                   ~{item.runtime.estimated_rate_per_min.toLocaleString("pt-BR")}/min
                 </span>
               )}
@@ -912,19 +976,22 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
         )}
 
         {/* Freshness */}
-        <div className="rounded-lg border border-border bg-surface-base px-3 py-2 space-y-1">
-          <div className="flex items-center justify-between text-[10px] text-muted">
-            <span className="flex items-center gap-1">
+        <div
+          className="rounded-lg border px-3 py-2 space-y-1"
+          style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
+        >
+          <div className="flex items-center justify-between text-caption">
+            <span className="flex items-center gap-1" style={{ color: "var(--color-text-3)" }}>
               <Clock className="h-3 w-3" />
               Último sucesso
             </span>
             {item.max_freshness_lag_hours != null && (
-              <span className={`font-mono font-bold ${item.max_freshness_lag_hours > 48 ? "text-error" : item.max_freshness_lag_hours > 24 ? "text-amber" : "text-success"}`}>
+              <span className="text-mono-xs font-bold" style={{ color: lagColor(item.max_freshness_lag_hours) }}>
                 {formatLag(item.max_freshness_lag_hours)} defasagem
               </span>
             )}
           </div>
-          <p className="font-mono text-xs text-primary">
+          <p className="text-mono-xs" style={{ color: "var(--color-text)" }}>
             {item.last_success_at
               ? new Date(item.last_success_at).toLocaleString("pt-BR")
               : "Sem execução registrada"}
@@ -933,23 +1000,34 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
 
         {/* Stuck warning */}
         {item.runtime.stuck_jobs > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
+          <div className="ow-alert ow-alert-error">
             <AlertTriangle className="h-3 w-3 shrink-0" />
             {item.runtime.stuck_jobs} job(s) travado(s) — restart recomendado
           </div>
         )}
       </div>
 
-      {/* ── Modal trigger ─────────────────────────────────────── */}
+      {/* Diagnose button */}
       <button
         onClick={handleOpenModal}
-        className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-[11px] font-semibold text-muted transition hover:bg-surface-subtle hover:text-primary"
+        className="flex w-full items-center justify-center gap-1.5 border-t px-4 py-2.5 text-caption font-semibold transition-colors"
+        style={{
+          borderColor: "var(--color-border)",
+          color: "var(--color-text-3)",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-3)";
+          (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "";
+          (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-3)";
+        }}
       >
         <FileText className="h-3.5 w-3.5" />
         Ver diagnóstico detalhado
       </button>
 
-      {/* ── Diagnostic modal ──────────────────────────────────── */}
       {modalOpen && (
         <SourceDiagnosticModal
           item={item}
@@ -963,7 +1041,7 @@ function SourceCard({ item }: { item: CoverageV2SourceItem }) {
   );
 }
 
-// ── Run state helper ───────────────────────────────────────────────────────────
+// ── Run state helper ──────────────────────────────────────────────────────────
 
 function getRunState(item: AnalyticalCoverageItem): {
   label: string;
@@ -973,7 +1051,7 @@ function getRunState(item: AnalyticalCoverageItem): {
   if (item.last_run_status === "error") {
     return {
       label: "Erro na execução",
-      color: "text-error",
+      color: "var(--color-critical-text)",
       detail: item.last_run_error_message ?? null,
     };
   }
@@ -983,7 +1061,7 @@ function getRunState(item: AnalyticalCoverageItem): {
     if (candidates === 0) {
       return {
         label: "Sem dados de entrada",
-        color: "text-warning",
+        color: "var(--color-medium-text)",
         detail: item.domains_missing?.length
           ? `Domínios em falta: ${item.domains_missing.join(", ")}`
           : null,
@@ -992,35 +1070,29 @@ function getRunState(item: AnalyticalCoverageItem): {
     if (created === 0) {
       return {
         label: "Sem sinais qualificados",
-        color: "text-secondary",
+        color: "var(--color-text-2)",
         detail: `${candidates} candidatos avaliados`,
       };
     }
     return {
       label: `${created} sinal${created !== 1 ? "s" : ""} gerado${created !== 1 ? "s" : ""}`,
-      color: "text-success",
+      color: "var(--color-low-text)",
       detail: null,
     };
   }
   if (item.last_run_status === "running") {
-    return { label: "Em execução...", color: "text-accent", detail: null };
+    return { label: "Em execução...", color: "var(--color-amber-text)", detail: null };
   }
-  return { label: "Nunca executado", color: "text-muted", detail: null };
+  return { label: "Nunca executado", color: "var(--color-text-3)", detail: null };
 }
 
-// ── Typology info modal ────────────────────────────────────────────────────────
+// ── Typology info modal ───────────────────────────────────────────────────────
 
-function TypologyInfoModal({
-  item,
-  onClose,
-}: {
-  item: AnalyticalCoverageItem;
-  onClose: () => void;
-}) {
+function TypologyInfoModal({ item, onClose }: { item: AnalyticalCoverageItem; onClose: () => void }) {
   const domainTotal = item.required_domains.length;
   const domainAvail = item.domains_available.length;
   const pct = domainTotal > 0 ? Math.round((domainAvail / domainTotal) * 100) : 0;
-  const barColor = item.apt ? "bg-success" : pct > 0 ? "bg-amber" : "bg-error";
+  const barColor = item.apt ? "var(--color-low)" : pct > 0 ? "var(--color-high)" : "var(--color-critical)";
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -1030,117 +1102,118 @@ function TypologyInfoModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: "rgba(0,0,0,0.7)" }}
         onClick={onClose}
         aria-hidden="true"
       />
-
-      {/* Panel */}
-      <div className="relative z-10 flex w-full max-w-2xl max-h-[88vh] flex-col rounded-2xl border border-border bg-surface-card shadow-2xl overflow-hidden">
-
-        {/* ── Header ──────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
+      <div
+        className="relative z-10 flex w-full max-w-2xl max-h-[88vh] flex-col rounded-2xl border shadow-2xl overflow-hidden"
+        style={{ background: "var(--color-surface)", borderColor: "var(--color-border-strong)" }}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b px-6 py-4"
+          style={{ borderColor: "var(--color-border)" }}>
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-mono text-xs font-bold text-accent">{item.typology_code}</span>
+              <span className="ow-badge ow-badge-neutral text-mono-xs">{item.typology_code}</span>
               {item.apt ? (
-                <span className="rounded-full border border-success/30 bg-success/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-success">
-                  Apta
-                </span>
+                <span className="ow-badge ow-badge-low">Apta</span>
               ) : (
-                <span className="rounded-full border border-error/30 bg-error/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-error">
-                  Bloqueada
-                </span>
+                <span className="ow-badge ow-badge-critical">Bloqueada</span>
               )}
             </div>
-            <h2 className="font-display text-base font-bold text-primary">{item.typology_name}</h2>
+            <h2 className="text-display-sm font-bold" style={{ color: "var(--color-text)" }}>
+              {item.typology_name}
+            </h2>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-base text-muted transition hover:bg-surface-subtle hover:text-primary"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
+            style={{ background: "var(--color-surface-2)", borderColor: "var(--color-border)", color: "var(--color-text-3)" }}
             aria-label="Fechar"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* ── Summary strip ───────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3 border-b border-border px-6 py-4">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Evidência</p>
-            <p className="font-mono text-sm font-bold text-primary capitalize">{item.evidence_level ?? "—"}</p>
-          </div>
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Domínios</p>
-            <p className="font-mono text-sm font-bold text-primary">{domainAvail}/{domainTotal}</p>
-            <p className="font-mono text-[10px] text-muted">{pct}% coberto</p>
-          </div>
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-1">Sinais 30d</p>
-            <p className={`font-mono text-sm font-bold ${item.signals_30d > 0 ? "text-success" : "text-muted"}`}>
-              {item.signals_30d}
-            </p>
-          </div>
+        {/* Summary strip */}
+        <div className="grid grid-cols-3 gap-3 border-b px-6 py-4"
+          style={{ borderColor: "var(--color-border)" }}>
+          {[
+            { label: "Evidência",   value: item.evidence_level ?? "—",     color: "var(--color-text)" },
+            { label: "Domínios",    value: `${domainAvail}/${domainTotal}`, color: "var(--color-text)", sub: `${pct}% coberto` },
+            { label: "Sinais 30d",  value: item.signals_30d,               color: item.signals_30d > 0 ? "var(--color-low-text)" : "var(--color-text-3)" },
+          ].map((m) => (
+            <div key={m.label}>
+              <p className="text-mono-xs uppercase tracking-widest mb-1" style={{ color: "var(--color-text-3)" }}>{m.label}</p>
+              <p className="text-mono font-bold leading-none capitalize" style={{ color: m.color }}>{m.value}</p>
+              {m.sub && <p className="text-mono-xs mt-0.5" style={{ color: "var(--color-text-3)" }}>{m.sub}</p>}
+            </div>
+          ))}
         </div>
 
-        {/* ── Scrollable body ─────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 bg-surface-base">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6"
+          style={{ background: "var(--color-surface-2)" }}>
 
-          {/* Description legal */}
           {item.description_legal && (
             <section>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Descrição Legal</p>
-              <div className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent-subtle/30 px-4 py-3">
-                <Lightbulb className="h-4 w-4 shrink-0 text-accent mt-0.5" />
-                <p className="text-sm text-secondary leading-relaxed">{item.description_legal}</p>
+              <p className="text-mono-xs uppercase tracking-widest mb-3" style={{ color: "var(--color-text-3)" }}>
+                Descrição Legal
+              </p>
+              <div className="ow-alert ow-alert-info">
+                <Lightbulb className="h-4 w-4 shrink-0 mt-0.5" />
+                <p className="text-body leading-relaxed">{item.description_legal}</p>
               </div>
             </section>
           )}
 
-          {/* Domains */}
           <section>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Domínios de Dados Necessários</p>
-            <div className="rounded-xl border border-border bg-surface-card p-4 space-y-3">
-              <div className="h-1.5 rounded-full bg-surface-subtle overflow-hidden">
-                <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+            <p className="text-mono-xs uppercase tracking-widest mb-3" style={{ color: "var(--color-text-3)" }}>
+              Domínios de Dados Necessários
+            </p>
+            <div className="ow-card p-4 space-y-3">
+              <div className="ow-score-bar-track">
+                <div className="ow-score-bar-fill transition-all" style={{ width: `${pct}%`, background: barColor }} />
               </div>
               <div className="flex flex-wrap gap-2">
                 {item.domains_available.map((d) => (
-                  <span key={d} className="flex items-center gap-1 rounded-full border border-success/20 bg-success/5 px-2 py-0.5 text-[10px] font-medium text-success">
-                    <CheckCircle2 className="h-3 w-3" />
-                    {d}
+                  <span key={d} className="ow-badge ow-badge-low">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />{d}
                   </span>
                 ))}
                 {item.domains_missing.map((d) => (
-                  <span key={d} className="flex items-center gap-1 rounded-full border border-error/20 bg-error/5 px-2 py-0.5 text-[10px] font-medium text-error">
-                    <XCircle className="h-3 w-3" />
-                    {d}
+                  <span key={d} className="ow-badge ow-badge-critical">
+                    <XCircle className="h-3 w-3 mr-1" />{d}
                   </span>
                 ))}
               </div>
               {item.domains_missing.length > 0 && (
-                <p className="text-xs text-muted leading-relaxed">
+                <p className="text-caption leading-relaxed" style={{ color: "var(--color-text-3)" }}>
                   {item.domains_missing.length === 1
-                    ? "1 domínio ausente — a tipologia permanece bloqueada até que todos os domínios necessários estejam disponíveis."
-                    : `${item.domains_missing.length} domínios ausentes — a tipologia permanece bloqueada até que todos os domínios necessários estejam disponíveis.`}
+                    ? "1 domínio ausente — tipologia bloqueada até todos os domínios estarem disponíveis."
+                    : `${item.domains_missing.length} domínios ausentes — tipologia bloqueada até todos os domínios estarem disponíveis.`}
                 </p>
               )}
             </div>
           </section>
 
-          {/* Classification */}
           {((item.corruption_types && item.corruption_types.length > 0) || (item.spheres && item.spheres.length > 0)) && (
             <section>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Classificação Jurídica</p>
-              <div className="rounded-xl border border-border bg-surface-card p-4 space-y-4">
+              <p className="text-mono-xs uppercase tracking-widest mb-3" style={{ color: "var(--color-text-3)" }}>
+                Classificação Jurídica
+              </p>
+              <div className="ow-card p-4 space-y-4">
                 {item.corruption_types && item.corruption_types.length > 0 && (
                   <div>
-                    <p className="font-mono text-[10px] text-muted mb-2">Tipos de corrupção cobertos</p>
+                    <p className="text-caption mb-2" style={{ color: "var(--color-text-3)" }}>
+                      Tipos de corrupção cobertos
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {item.corruption_types.map((ct) => (
-                        <span key={ct} className="rounded-full border border-border bg-surface-base px-2 py-0.5 text-[10px] font-medium text-secondary capitalize">
+                        <span key={ct} className="ow-badge ow-badge-neutral capitalize">
                           {ct.replace(/_/g, " ")}
                         </span>
                       ))}
@@ -1149,12 +1222,10 @@ function TypologyInfoModal({
                 )}
                 {item.spheres && item.spheres.length > 0 && (
                   <div>
-                    <p className="font-mono text-[10px] text-muted mb-2">Esferas</p>
+                    <p className="text-caption mb-2" style={{ color: "var(--color-text-3)" }}>Esferas</p>
                     <div className="flex flex-wrap gap-1.5">
                       {item.spheres.map((s) => (
-                        <span key={s} className="rounded-full border border-accent/20 bg-accent/5 px-2 py-0.5 text-[10px] font-medium text-accent capitalize">
-                          {s}
-                        </span>
+                        <span key={s} className="ow-badge ow-badge-amber capitalize">{s}</span>
                       ))}
                     </div>
                   </div>
@@ -1163,24 +1234,27 @@ function TypologyInfoModal({
             </section>
           )}
 
-          {/* Last run */}
           {item.last_run_at && (
             <section>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-3">Última Execução</p>
-              <div className="rounded-xl border border-border bg-surface-card p-4 grid grid-cols-2 gap-3">
+              <p className="text-mono-xs uppercase tracking-widest mb-3" style={{ color: "var(--color-text-3)" }}>
+                Última Execução
+              </p>
+              <div className="ow-card p-4 grid grid-cols-2 gap-3">
                 <div>
-                  <p className="font-mono text-[9px] text-muted mb-0.5">Data</p>
-                  <p className="font-mono text-xs text-primary">{new Date(item.last_run_at).toLocaleString("pt-BR")}</p>
+                  <p className="text-mono-xs mb-0.5" style={{ color: "var(--color-text-3)" }}>Data</p>
+                  <p className="text-mono-xs" style={{ color: "var(--color-text)" }}>
+                    {new Date(item.last_run_at).toLocaleString("pt-BR")}
+                  </p>
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] text-muted mb-0.5">Status</p>
+                  <p className="text-mono-xs mb-0.5" style={{ color: "var(--color-text-3)" }}>Status</p>
                   {(() => {
                     const state = getRunState(item);
                     return (
                       <div>
-                        <p className={`font-mono text-xs font-semibold ${state.color}`}>{state.label}</p>
+                        <p className="text-mono-xs font-semibold" style={{ color: state.color }}>{state.label}</p>
                         {state.detail && (
-                          <p className="mt-0.5 text-[10px] text-muted">{state.detail}</p>
+                          <p className="mt-0.5 text-caption" style={{ color: "var(--color-text-3)" }}>{state.detail}</p>
                         )}
                       </div>
                     );
@@ -1188,14 +1262,18 @@ function TypologyInfoModal({
                 </div>
                 {item.last_run_candidates != null && item.last_run_candidates > 0 && (
                   <div>
-                    <p className="font-mono text-[9px] text-muted mb-0.5">Candidatos</p>
-                    <p className="font-mono text-xs font-bold text-primary">{item.last_run_candidates}</p>
+                    <p className="text-mono-xs mb-0.5" style={{ color: "var(--color-text-3)" }}>Candidatos</p>
+                    <p className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>
+                      {item.last_run_candidates}
+                    </p>
                   </div>
                 )}
                 {item.last_run_signals_created != null && (
                   <div>
-                    <p className="font-mono text-[9px] text-muted mb-0.5">Sinais criados</p>
-                    <p className="font-mono text-xs font-bold text-primary">{item.last_run_signals_created}</p>
+                    <p className="text-mono-xs mb-0.5" style={{ color: "var(--color-text-3)" }}>Sinais criados</p>
+                    <p className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>
+                      {item.last_run_signals_created}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1203,14 +1281,9 @@ function TypologyInfoModal({
           )}
         </div>
 
-        {/* ── Footer ──────────────────────────────────────────── */}
-        <div className="flex items-center justify-end border-t border-border px-6 py-3 bg-surface-card">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-border bg-surface-base px-4 py-1.5 text-xs font-semibold text-secondary transition hover:bg-surface-subtle hover:text-primary"
-          >
-            Fechar
-          </button>
+        <div className="flex items-center justify-end border-t px-6 py-3"
+          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+          <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
         </div>
       </div>
     </div>
@@ -1224,142 +1297,133 @@ function TypologyCard({ item }: { item: AnalyticalCoverageItem }) {
   const domainTotal = item.required_domains.length;
   const domainAvail = item.domains_available.length;
   const pct = domainTotal > 0 ? Math.round((domainAvail / domainTotal) * 100) : 0;
-  const barColor = item.apt ? "bg-success" : pct > 0 ? "bg-amber" : "bg-error";
-  const borderColor = item.apt ? "border-success/20" : pct > 0 ? "border-amber/20" : "border-error/20";
+  const barColor = item.apt ? "var(--color-low)" : pct > 0 ? "var(--color-high)" : "var(--color-critical)";
+  const borderColor = item.apt ? "var(--color-low-border)" : pct > 0 ? "var(--color-high-border)" : "var(--color-critical-border)";
 
   return (
-    <div className={`rounded-xl border ${borderColor} bg-surface-card flex flex-col`}>
+    <div className="ow-card flex flex-col" style={{ borderColor }}>
       <div className="p-4 space-y-3 flex-1">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-mono text-xs font-bold text-accent shrink-0">{item.typology_code}</span>
-            {item.apt ? (
-              item.signals_30d > 0 ? (
-                <span className="rounded-full border border-success/30 bg-success/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-success">
-                  Ativa · {item.signals_30d} sinais/30d
-                </span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="ow-badge ow-badge-neutral text-mono-xs">{item.typology_code}</span>
+              {item.apt ? (
+                item.signals_30d > 0 ? (
+                  <span className="ow-badge ow-badge-low">Ativa · {item.signals_30d} sinais/30d</span>
+                ) : (
+                  <span className="ow-badge ow-badge-low">Apta</span>
+                )
               ) : (
-                <span className="rounded-full border border-success/30 bg-success/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-success">
-                  Apta
+                <span className="ow-badge ow-badge-critical">Bloqueada</span>
+              )}
+            </div>
+            <p className="text-caption font-semibold leading-snug" style={{ color: "var(--color-text)" }}>
+              {item.typology_name}
+            </p>
+          </div>
+          <span className="text-mono font-bold shrink-0" style={{ color: "var(--color-text)" }}>{pct}%</span>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-caption" style={{ color: "var(--color-text-3)" }}>Domínios cobertos</p>
+            <p className="text-caption" style={{ color: "var(--color-text-3)" }}>{domainAvail}/{domainTotal}</p>
+          </div>
+          <div className="ow-score-bar-track">
+            <div className="ow-score-bar-fill transition-all" style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+        </div>
+
+        {(item.domains_available.length > 0 || item.domains_missing.length > 0) && (
+          <div className="flex flex-wrap gap-1">
+            {item.domains_available.map((d) => (
+              <span key={d} className="ow-badge ow-badge-low">{d}</span>
+            ))}
+            {item.domains_missing.map((d) => (
+              <span key={d} className="ow-badge ow-badge-critical line-through opacity-70">{d}</span>
+            ))}
+          </div>
+        )}
+
+        {(item.last_run_at || item.last_run_candidates != null || item.signals_30d > 0) && (
+          <div
+            className="grid grid-cols-2 gap-x-3 gap-y-1 border-t pt-2"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            {item.signals_30d > 0 && (
+              <div className="text-caption">
+                <span style={{ color: "var(--color-text-3)" }}>Sinais 30d: </span>
+                <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>{item.signals_30d}</span>
+              </div>
+            )}
+            {item.last_run_candidates != null && item.last_run_candidates > 0 && (
+              <div className="text-caption">
+                <span style={{ color: "var(--color-text-3)" }}>Candidatos: </span>
+                <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>{item.last_run_candidates}</span>
+              </div>
+            )}
+            {item.last_run_signals_created != null && (
+              <div className="text-caption">
+                <span style={{ color: "var(--color-text-3)" }}>Criados: </span>
+                <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>{item.last_run_signals_created}</span>
+              </div>
+            )}
+            {item.last_run_signals_deduped != null && item.last_run_signals_deduped > 0 && (
+              <div className="text-caption">
+                <span style={{ color: "var(--color-text-3)" }}>Deduped: </span>
+                <span className="text-mono-xs font-bold" style={{ color: "var(--color-text)" }}>{item.last_run_signals_deduped}</span>
+              </div>
+            )}
+            {item.last_run_at && (
+              <div className="col-span-2 text-caption">
+                <span style={{ color: "var(--color-text-3)" }}>Última exec.: </span>
+                <span className="text-mono-xs" style={{ color: "var(--color-text)" }}>
+                  {new Date(item.last_run_at).toLocaleString("pt-BR")}
                 </span>
-              )
-            ) : (
-              <span className="rounded-full border border-error/30 bg-error/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-error">
-                Bloqueada
-              </span>
+                {(() => {
+                  const state = getRunState(item);
+                  return (
+                    <span className="ml-1.5 inline-flex items-center gap-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: state.color }} />
+                      <span className="text-mono-xs font-bold" style={{ color: state.color }}>{state.label}</span>
+                    </span>
+                  );
+                })()}
+              </div>
             )}
           </div>
-          <p className="text-xs font-semibold text-primary leading-snug">{item.typology_name}</p>
-        </div>
-        <span className="font-mono text-sm font-bold text-primary shrink-0">{pct}%</span>
-      </div>
+        )}
 
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <p className="font-mono text-[10px] text-muted">Domínios cobertos</p>
-          <p className="font-mono text-[10px] text-muted">{domainAvail}/{domainTotal}</p>
-        </div>
-        <div className="h-1.5 rounded-full bg-surface-subtle overflow-hidden">
-          <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-
-      {(item.domains_available.length > 0 || item.domains_missing.length > 0) && (
-        <div className="flex flex-wrap gap-1">
-          {item.domains_available.map((d) => (
-            <span key={d} className="rounded-full border border-success/20 bg-success/5 px-1.5 py-0.5 text-[10px] font-medium text-success">
-              {d}
-            </span>
-          ))}
-          {item.domains_missing.map((d) => (
-            <span key={d} className="rounded-full border border-error/20 bg-error/5 px-1.5 py-0.5 text-[10px] font-medium text-error line-through opacity-70">
-              {d}
-            </span>
-          ))}
-        </div>
-      )}
-
-
-      {(item.last_run_at || item.last_run_candidates != null || item.signals_30d > 0) && (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-border pt-2">
-          {item.signals_30d > 0 && (
-            <div className="text-[10px]">
-              <span className="text-muted">Sinais 30d: </span>
-              <span className="font-mono font-bold text-primary">{item.signals_30d}</span>
-            </div>
-          )}
-          {item.last_run_candidates != null && item.last_run_candidates > 0 && (
-            <div className="text-[10px]">
-              <span className="text-muted">Candidatos: </span>
-              <span className="font-mono font-bold text-primary">{item.last_run_candidates}</span>
-            </div>
-          )}
-          {item.last_run_signals_created != null && (
-            <div className="text-[10px]">
-              <span className="text-muted">Criados: </span>
-              <span className="font-mono font-bold text-primary">{item.last_run_signals_created}</span>
-            </div>
-          )}
-          {item.last_run_signals_deduped != null && item.last_run_signals_deduped > 0 && (
-            <div className="text-[10px]">
-              <span className="text-muted">Deduped: </span>
-              <span className="font-mono font-bold text-primary">{item.last_run_signals_deduped}</span>
-            </div>
-          )}
-          {item.last_run_at && (
-            <div className="col-span-2 text-[10px]">
-              <span className="text-muted">Última exec.: </span>
-              <span className="font-mono text-primary">
-                {new Date(item.last_run_at).toLocaleString("pt-BR")}
-              </span>
-              {(() => {
-                const state = getRunState(item);
-                const dotColor =
-                  state.color === "text-error" ? "bg-red-500" :
-                  state.color === "text-warning" ? "bg-amber-400" :
-                  state.color === "text-success" ? "bg-green-500" :
-                  state.color === "text-accent" ? "bg-accent" :
-                  "bg-muted";
-                return (
-                  <span className="ml-1.5 inline-flex items-center gap-1">
-                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} />
-                    <span className={`font-mono font-bold ${state.color}`}>{state.label}</span>
-                  </span>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      )}
-
-      {(item.evidence_level || (item.corruption_types && item.corruption_types.length > 0)) && (
-        <div className="flex flex-wrap gap-1 border-t border-border pt-2">
-          {item.evidence_level && (
-            <span className="rounded-full border border-border bg-surface-base px-1.5 py-0.5 text-[10px] font-medium text-muted capitalize">
-              {item.evidence_level}
-            </span>
-          )}
-          {item.corruption_types?.slice(0, 2).map((ct) => (
-            <span key={ct} className="rounded-full border border-border bg-surface-base px-1.5 py-0.5 text-[10px] font-medium text-muted">
-              {ct}
-            </span>
-          ))}
-        </div>
-      )}
+        {(item.evidence_level || (item.corruption_types && item.corruption_types.length > 0)) && (
+          <div className="flex flex-wrap gap-1 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
+            {item.evidence_level && (
+              <span className="ow-badge ow-badge-neutral capitalize">{item.evidence_level}</span>
+            )}
+            {item.corruption_types?.slice(0, 2).map((ct) => (
+              <span key={ct} className="ow-badge ow-badge-neutral">{ct}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       <button
         onClick={() => setModalOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-[11px] font-semibold text-muted transition hover:bg-surface-subtle hover:text-primary"
+        className="flex w-full items-center justify-center gap-1.5 border-t px-4 py-2.5 text-caption font-semibold transition-colors"
+        style={{ borderColor: "var(--color-border)", color: "var(--color-text-3)" }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-3)";
+          (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "";
+          (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-3)";
+        }}
       >
         <BookOpen className="h-3.5 w-3.5" />
         Ver detalhes da tipologia
       </button>
 
-      {modalOpen && (
-        <TypologyInfoModal item={item} onClose={() => setModalOpen(false)} />
-      )}
+      {modalOpen && <TypologyInfoModal item={item} onClose={() => setModalOpen(false)} />}
     </div>
   );
 }
@@ -1395,13 +1459,7 @@ const PIPELINE_STAGE_DEFS: { key: StageKey; label: string; description: string; 
   },
 ];
 
-function PipelineModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function PipelineModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [stages, setStages] = useState<Record<StageKey, StageState>>({
     ingest: { status: "idle" },
     entity_resolution: { status: "idle" },
@@ -1414,7 +1472,6 @@ function PipelineModal({
 
   const allDispatched = Object.values(stages).every((s) => s.status === "dispatched");
 
-  // Check pipeline status every time the modal opens
   useEffect(() => {
     if (!open) return;
     setChecking(true);
@@ -1457,7 +1514,6 @@ function PipelineModal({
         signals: { status: "dispatched", taskId: result.stages.signals.task_id },
       });
     } catch (e) {
-      // 409 = already running (race between status check and button click)
       if (e instanceof Error && e.message.includes("409")) {
         setAlreadyRunning(true);
         setStages({ ingest: { status: "idle" }, entity_resolution: { status: "idle" }, signals: { status: "idle" } });
@@ -1474,47 +1530,61 @@ function PipelineModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!running ? resetAndClose : undefined} />
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-surface-card shadow-2xl">
+      <div
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: "rgba(0,0,0,0.7)" }}
+        onClick={!running ? resetAndClose : undefined}
+      />
+      <div
+        className="relative w-full max-w-md rounded-2xl border shadow-2xl"
+        style={{ background: "var(--color-surface)", borderColor: "var(--color-border-strong)" }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <div className="flex items-center justify-between border-b px-6 py-4"
+          style={{ borderColor: "var(--color-border)" }}>
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
-              <Zap className="h-4 w-4 text-accent" />
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-lg border"
+              style={{ background: "var(--color-amber-dim)", borderColor: "var(--color-amber-border)" }}
+            >
+              <Zap className="h-4 w-4" style={{ color: "var(--color-amber-text)" }} />
             </div>
             <div>
-              <p className="font-semibold text-sm text-primary">Executar Pipeline</p>
-              <p className="text-xs text-muted">Ingestão → ER → Sinais de Risco</p>
+              <p className="text-label font-semibold" style={{ color: "var(--color-text)" }}>Executar Pipeline</p>
+              <p className="text-caption" style={{ color: "var(--color-text-3)" }}>Ingestão → ER → Sinais de Risco</p>
             </div>
           </div>
           <button
             onClick={resetAndClose}
-            className="rounded-lg p-1.5 text-muted hover:bg-surface-base hover:text-primary transition-colors"
+            className="rounded-lg p-1.5 transition-colors"
+            style={{ color: "var(--color-text-3)" }}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Already running banner */}
         {alreadyRunning && (
-          <div className="mx-6 mt-5 flex items-start gap-2.5 rounded-xl border border-amber/30 bg-amber/5 px-4 py-3">
-            <Activity className="h-4 w-4 shrink-0 text-amber mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-amber">Pipeline já em execução</p>
-              <p className="mt-0.5 text-xs text-secondary">Os workers já estão processando dados. Não é necessário executar novamente — aguarde a conclusão do ciclo atual.</p>
+          <div className="mx-6 mt-5">
+            <div className="ow-alert ow-alert-warning">
+              <Activity className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-label font-semibold">Pipeline já em execução</p>
+                <p className="mt-0.5 text-caption">
+                  Os workers já estão processando dados. Aguarde a conclusão do ciclo atual.
+                </p>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Checking state */}
         {checking && (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted">
+          <div className="flex items-center justify-center gap-2 py-6 text-caption"
+            style={{ color: "var(--color-text-3)" }}>
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Verificando estado do pipeline...
           </div>
         )}
 
-        {/* Stages */}
         {!checking && (
           <div className="px-6 py-5 space-y-3">
             {PIPELINE_STAGE_DEFS.map((def, i) => {
@@ -1524,28 +1594,39 @@ function PipelineModal({
               const isDispatching = stage.status === "dispatching";
               const isError = stage.status === "error";
 
+              const stageBorderColor = isActive
+                ? "var(--color-amber-border)"
+                : isDispatched
+                ? "var(--color-low-border)"
+                : isError
+                ? "var(--color-critical-border)"
+                : "var(--color-border)";
+              const stageBg = isActive
+                ? "var(--color-amber-dim)"
+                : isDispatched
+                ? "var(--color-low-bg)"
+                : isError
+                ? "var(--color-critical-bg)"
+                : "var(--color-surface-2)";
+
               return (
                 <div
                   key={def.key}
-                  className={[
-                    "flex items-start gap-3 rounded-xl border p-3.5 transition-all duration-300",
-                    isActive ? "border-amber/30 bg-amber/5" :
-                    isDispatched ? "border-success/30 bg-success/5" :
-                    isError ? "border-error/20 bg-error/5" :
-                    "border-border bg-surface-base",
-                  ].join(" ")}
+                  className="flex items-start gap-3 rounded-xl border p-3.5 transition-all duration-300"
+                  style={{ borderColor: stageBorderColor, background: stageBg }}
                 >
-                  <div className={[
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-300",
-                    isActive ? "bg-amber/20 border border-amber/40" :
-                    isDispatched ? "bg-success text-white" :
-                    isError ? "bg-error text-white" :
-                    "bg-surface-card border border-border text-muted",
-                  ].join(" ")}>
+                  <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-mono-xs font-bold transition-all duration-300 border"
+                    style={{
+                      background: isDispatched ? "var(--color-low)" : isError ? "var(--color-critical)" : "var(--color-surface)",
+                      borderColor: isActive ? "var(--color-amber-border)" : "var(--color-border)",
+                      color: isDispatched || isError ? "white" : isActive ? "var(--color-amber-text)" : "var(--color-text-3)",
+                    }}
+                  >
                     {isDispatching ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : isActive ? (
-                      <Activity className="h-3.5 w-3.5 text-amber" />
+                      <Activity className="h-3.5 w-3.5" />
                     ) : isDispatched ? (
                       <CheckCircle2 className="h-4 w-4" />
                     ) : isError ? (
@@ -1557,23 +1638,35 @@ function PipelineModal({
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={[
-                        "text-sm font-semibold",
-                        isActive ? "text-amber" :
-                        isDispatched ? "text-success" :
-                        isError ? "text-error" :
-                        "text-primary",
-                      ].join(" ")}>
+                      <p
+                        className="text-label font-semibold"
+                        style={{
+                          color: isActive
+                            ? "var(--color-amber-text)"
+                            : isDispatched
+                            ? "var(--color-low-text)"
+                            : isError
+                            ? "var(--color-critical-text)"
+                            : "var(--color-text)",
+                        }}
+                      >
                         {def.label}
-                        {isActive && <span className="ml-2 text-[10px] font-normal text-amber/70">em execução</span>}
+                        {isActive && (
+                          <span className="ml-2 text-mono-xs font-normal" style={{ color: "var(--color-amber-text)", opacity: 0.7 }}>
+                            em execução
+                          </span>
+                        )}
                       </p>
-                      <span className="font-mono text-[10px] text-muted bg-surface-card border border-border rounded px-1.5 py-0.5 shrink-0">
+                      <span
+                        className="text-mono-xs px-1.5 py-0.5 rounded border shrink-0"
+                        style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-text-3)" }}
+                      >
                         {def.worker}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs text-secondary">{def.description}</p>
+                    <p className="mt-0.5 text-caption" style={{ color: "var(--color-text-2)" }}>{def.description}</p>
                     {isDispatched && stage.taskId && (
-                      <p className="mt-1.5 font-mono text-[10px] text-success/70 truncate">
+                      <p className="mt-1.5 text-mono-xs truncate" style={{ color: "var(--color-low-text)", opacity: 0.7 }}>
                         task: {stage.taskId}
                       </p>
                     )}
@@ -1584,58 +1677,46 @@ function PipelineModal({
           </div>
         )}
 
-        {/* Error */}
         {error && (
-          <div className="mx-6 mb-4 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
-            {error}
+          <div className="mx-6 mb-4">
+            <div className="ow-alert ow-alert-error">{error}</div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t px-6 py-4"
+          style={{ borderColor: "var(--color-border)" }}>
           {alreadyRunning ? (
             <div className="flex w-full items-center justify-between">
-              <p className="flex items-center gap-1.5 text-xs text-secondary">
+              <p className="flex items-center gap-1.5 text-caption" style={{ color: "var(--color-text-2)" }}>
                 <Clock className="h-3.5 w-3.5" />
                 O pipeline conclui automaticamente
               </p>
-              <button
-                onClick={resetAndClose}
-                className="rounded-lg border border-border bg-surface-base px-4 py-2 text-xs font-semibold text-primary hover:bg-surface-card transition-colors"
-              >
-                Fechar
-              </button>
+              <Button variant="ghost" size="sm" onClick={resetAndClose}>Fechar</Button>
             </div>
           ) : allDispatched ? (
             <div className="flex w-full items-center justify-between">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-success">
+              <p className="flex items-center gap-1.5 text-caption font-semibold" style={{ color: "var(--color-low-text)" }}>
                 <CheckCircle2 className="h-4 w-4" />
                 Pipeline iniciado com sucesso
               </p>
-              <button
-                onClick={resetAndClose}
-                className="rounded-lg border border-border bg-surface-base px-4 py-2 text-xs font-semibold text-primary hover:bg-surface-card transition-colors"
-              >
-                Fechar
-              </button>
+              <Button variant="ghost" size="sm" onClick={resetAndClose}>Fechar</Button>
             </div>
           ) : (
             <>
-              <button
-                onClick={resetAndClose}
-                disabled={running}
-                className="rounded-lg border border-border bg-surface-base px-4 py-2 text-xs font-semibold text-primary hover:bg-surface-card disabled:opacity-40 transition-colors"
-              >
+              <Button variant="ghost" size="sm" onClick={resetAndClose} disabled={running}>
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="amber"
+                size="sm"
                 onClick={handleExecute}
                 disabled={running || checking}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                loading={running}
               >
-                {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                {!running && <Play className="h-3.5 w-3.5" />}
                 {running ? "Iniciando..." : "Executar"}
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -1658,9 +1739,14 @@ export default function CoveragePage() {
   const [analytics, setAnalytics] = useState<CoverageV2AnalyticsResponse | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
+  const [capacity, setCapacity] = useState<PipelineCapacity | null>(null);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | CoverageStatus>("");
   const [enabledOnly, setEnabledOnly] = useState(false);
+
+  const [pipelineModalOpen, setPipelineModalOpen] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -1673,7 +1759,7 @@ export default function CoveragePage() {
     fetchSummary();
     const interval = setInterval(fetchSummary, 10_000);
     return () => { active = false; clearInterval(interval); };
-  }, []);
+  }, [refreshTick]);
 
   useEffect(() => {
     let active = true;
@@ -1685,11 +1771,10 @@ export default function CoveragePage() {
     }
     setSourcesLoading(true);
     fetchSources();
-    // Poll faster (5s) when jobs are running, otherwise 15s
     const hasRunning = sources?.some((s) => s.runtime.running_jobs > 0);
     const interval = setInterval(fetchSources, hasRunning ? 5_000 : 15_000);
     return () => { active = false; clearInterval(interval); };
-  }, [enabledOnly, sources?.some((s) => s.runtime.running_jobs > 0)]);
+  }, [enabledOnly, sources?.some((s) => s.runtime.running_jobs > 0), refreshTick]);
 
   useEffect(() => {
     let active = true;
@@ -1698,7 +1783,15 @@ export default function CoveragePage() {
       .catch(() => {})
       .finally(() => { if (active) setAnalyticsLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [refreshTick]);
+
+  useEffect(() => {
+    let active = true;
+    getPipelineCapacity()
+      .then((d) => { if (active) setCapacity(d); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [refreshTick]);
 
   const filteredSources = useMemo(() => {
     return sources
@@ -1711,7 +1804,6 @@ export default function CoveragePage() {
         return true;
       })
       .sort((a, b) => {
-        // Running jobs always float to top
         const aRunning = a.runtime.running_jobs > 0 ? 0 : 1;
         const bRunning = b.runtime.running_jobs > 0 ? 0 : 1;
         if (aRunning !== bRunning) return aRunning - bRunning;
@@ -1721,56 +1813,73 @@ export default function CoveragePage() {
   }, [sources, search, statusFilter]);
 
   return (
-    <div className="ledger-page min-h-screen">
+    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
 
-      {/* ── Page header ─────────────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
-              <Database className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Cobertura de Dados</h1>
-              <p className="mt-1.5 text-sm text-secondary leading-relaxed">Estado operacional do pipeline de ingestão e qualidade das fontes públicas federais</p>
-            </div>
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <PageHeader
+        eyebrow="SISTEMA"
+        title="Cobertura de Dados"
+        description={
+          summary?.snapshot_at
+            ? `Snapshot: ${new Date(summary.snapshot_at).toLocaleString("pt-BR")} · Estado operacional do pipeline e qualidade das fontes públicas federais`
+            : "Estado operacional do pipeline de ingestão e qualidade das fontes públicas federais"
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setRefreshTick((t) => t + 1)}
+              disabled={summaryLoading}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Atualizar
+            </Button>
+            <Button
+              variant="amber"
+              size="sm"
+              onClick={() => setPipelineModalOpen(true)}
+            >
+              <Zap className="h-3.5 w-3.5" />
+              Executar Pipeline
+            </Button>
           </div>
-
-          <div className="mt-3">
-            <div className="rounded-lg border border-border bg-surface-base px-3 py-2 inline-flex flex-col">
-              <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
-                <Clock className="h-3 w-3" />
-                Snapshot
-              </p>
-              <p className="mt-0.5 font-mono tabular-nums text-xs font-medium text-primary">
-                {summary?.snapshot_at
-                  ? new Date(summary.snapshot_at).toLocaleString("pt-BR")
-                  : "Aguardando dados"}
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </div>
+        }
+      />
 
       {/* ── KPI Strip ────────────────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
+      <div className="border-b" style={{ borderColor: "var(--color-border)" }}>
         <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
           <KpiStrip summary={summary} loading={summaryLoading} />
         </div>
       </div>
 
       {/* ── Body ────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-8">
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-8 animate-fade-in">
 
         {summaryError && (
-          <div className="rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error">
-            {summaryError}
-          </div>
+          <div className="ow-alert ow-alert-error">{summaryError}</div>
         )}
 
-        {/* Pipeline */}
+        {/* Pipeline stages */}
         {!summaryLoading && summary && <PipelineStrip summary={summary} />}
+
+        {/* Capacity metrics */}
+        {capacity && (
+          <section className="ow-card p-5">
+            <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+              Capacidade do Pipeline
+            </p>
+            <div className="ow-strip">
+              {Object.entries(capacity).map(([key, val]) => (
+                <div key={key} className="ow-strip-item">
+                  <span className="ow-strip-value text-mono">{String(val)}</span>
+                  <span className="ow-strip-label">{key.replace(/_/g, " ")}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Live Activity Panel ──────────────────────────────── */}
         {!sourcesLoading && (() => {
@@ -1791,81 +1900,104 @@ export default function CoveragePage() {
           const nextStage = pipelineStages.find(s => s.status === "stale" || s.status === "pending");
 
           return (totalRunning > 0 || errorJobs.length > 0) ? (
-            <section className="rounded-xl border border-border bg-surface-card p-6 space-y-5">
+            <section className="ow-card p-5 space-y-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle">
-                    <Activity className="h-4 w-4 text-muted" />
+                  <div
+                    className="flex h-8 w-8 items-center justify-center rounded-lg"
+                    style={{ background: "var(--color-surface-3)" }}
+                  >
+                    <Activity className="h-4 w-4" style={{ color: "var(--color-text-3)" }} />
                   </div>
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-muted">O que está acontecendo agora?</p>
-                  </div>
+                  <p className="text-mono-xs uppercase tracking-widest" style={{ color: "var(--color-text-3)" }}>
+                    O que está acontecendo agora?
+                  </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-accent">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                <span className="ow-badge ow-badge-amber">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 animate-pulse" style={{ background: "var(--color-amber)" }} />
                   {totalRunning} job{totalRunning !== 1 ? "s" : ""} ativo{totalRunning !== 1 ? "s" : ""}
                 </span>
               </div>
 
-              {/* Active jobs list */}
               <div className="space-y-2">
                 {activeJobs.map((aj) => (
-                  <div key={`${aj.connectorKey}-${aj.job}`} className="flex items-center justify-between gap-3 rounded-lg border border-accent/20 bg-surface-card px-4 py-2.5">
+                  <div
+                    key={`${aj.connectorKey}-${aj.job}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5"
+                    style={{ borderColor: "var(--color-amber-border)", background: "var(--color-amber-dim)" }}
+                  >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="h-2 w-2 rounded-full bg-accent animate-pulse shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-mono text-xs font-bold text-primary truncate">{aj.connector} <span className="text-muted font-normal">/ {aj.job}</span></p>
-                      </div>
+                      <span className="h-2 w-2 rounded-full animate-pulse shrink-0" style={{ background: "var(--color-amber)" }} />
+                      <p className="text-mono-xs font-bold truncate" style={{ color: "var(--color-text)" }}>
+                        {aj.connector}{" "}
+                        <span style={{ color: "var(--color-text-3)", fontWeight: "normal" }}>/ {aj.job}</span>
+                      </p>
                     </div>
-                    <div className="flex items-center gap-4 shrink-0 text-[10px] font-mono text-muted">
+                    <div className="flex items-center gap-4 shrink-0 text-mono-xs" style={{ color: "var(--color-text-3)" }}>
                       {aj.itemsLive > 0 && (
-                        <span className="text-primary font-bold">{aj.itemsLive.toLocaleString("pt-BR")} itens</span>
+                        <span className="font-bold" style={{ color: "var(--color-text)" }}>
+                          {aj.itemsLive.toLocaleString("pt-BR")} itens
+                        </span>
                       )}
                       {aj.rate != null && aj.rate > 0 && (
-                        <span className="text-accent">~{Math.round(aj.rate).toLocaleString("pt-BR")}/min</span>
+                        <span style={{ color: "var(--color-amber-text)" }}>~{Math.round(aj.rate).toLocaleString("pt-BR")}/min</span>
                       )}
-                      {aj.elapsed != null && (
-                        <span>{formatElapsed(aj.elapsed)}</span>
-                      )}
+                      {aj.elapsed != null && <span>{formatElapsed(aj.elapsed)}</span>}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Errors summary */}
               {errorJobs.length > 0 && (
-                <div className="rounded-lg border border-error/20 bg-error/5 px-4 py-3">
-                  <p className="font-mono text-[10px] uppercase tracking-wide text-error font-bold mb-1.5">
-                    {errorJobs.reduce((n, s) => n + s.runtime.error_jobs, 0)} job(s) com erro
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {errorJobs.map(s => (
-                      <span key={s.connector} className="rounded-full bg-error/10 border border-error/20 px-2 py-0.5 font-mono text-[9px] text-error">
-                        {s.connector_label} ({s.runtime.error_jobs})
-                      </span>
-                    ))}
+                <div className="ow-alert ow-alert-error">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="text-mono-xs font-bold mb-1.5">
+                      {errorJobs.reduce((n, s) => n + s.runtime.error_jobs, 0)} job(s) com erro
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {errorJobs.map(s => (
+                        <span key={s.connector} className="ow-badge ow-badge-critical text-mono-xs">
+                          {s.connector_label} ({s.runtime.error_jobs})
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* What comes next? */}
-              <div className="rounded-lg border border-border bg-surface-base px-4 py-3">
-                <p className="font-mono text-[9px] uppercase tracking-widest text-muted mb-2">O que vem depois?</p>
-                <div className="space-y-1.5 text-xs text-secondary">
+              <div
+                className="rounded-lg border px-4 py-3"
+                style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
+              >
+                <p className="text-mono-xs uppercase tracking-widest mb-2" style={{ color: "var(--color-text-3)" }}>
+                  O que vem depois?
+                </p>
+                <div className="space-y-1.5 text-caption" style={{ color: "var(--color-text-2)" }}>
                   {nextStage && (
                     <div className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber shrink-0" />
-                      <span>Próxima etapa do pipeline: <strong className="text-primary">{nextStage.label}</strong> — {nextStage.reason}</span>
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "var(--color-high)" }} />
+                      <span>
+                        Próxima etapa:{" "}
+                        <strong style={{ color: "var(--color-text)" }}>{nextStage.label}</strong>{" "}
+                        — {nextStage.reason}
+                      </span>
                     </div>
                   )}
                   {pendingSources.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-muted/60 shrink-0" />
-                      <span>{pendingSources.length} fonte(s) aguardando início: <span className="font-mono text-[10px] text-muted">{pendingSources.slice(0, 4).map(s => s.connector_label).join(", ")}{pendingSources.length > 4 ? ` +${pendingSources.length - 4}` : ""}</span></span>
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "var(--color-text-3)" }} />
+                      <span>
+                        {pendingSources.length} fonte(s) aguardando:{" "}
+                        <span className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>
+                          {pendingSources.slice(0, 4).map(s => s.connector_label).join(", ")}
+                          {pendingSources.length > 4 ? ` +${pendingSources.length - 4}` : ""}
+                        </span>
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent/40 shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "var(--color-amber)", opacity: 0.5 }} />
                     <span>Após ingestão: Resolução de Entidades → Baselines → Detecção de Sinais → Geração de Cases</span>
                   </div>
                 </div>
@@ -1875,31 +2007,41 @@ export default function CoveragePage() {
         })()}
 
         {/* ── Sources section ──────────────────────────────────── */}
-        <section className="rounded-xl border border-border bg-surface-card p-6">
+        <section className="ow-card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle shrink-0">
-                <Database className="h-4 w-4 text-muted" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0"
+                style={{ background: "var(--color-surface-3)" }}>
+                <Database className="h-4 w-4" style={{ color: "var(--color-text-3)" }} />
               </div>
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Fontes de Dados</p>
-              </div>
+              <p className="text-mono-xs uppercase tracking-widest" style={{ color: "var(--color-text-3)" }}>
+                Fontes de Dados
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5">
-                <Search className="h-3.5 w-3.5 text-muted shrink-0" />
+              <label
+                className="flex items-center gap-2 rounded-lg border px-3 py-1.5"
+                style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+              >
+                <Search className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-text-3)" }} />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar fonte..."
-                  className="w-36 bg-transparent text-xs text-primary outline-none placeholder:text-placeholder"
+                  className="w-36 bg-transparent text-caption outline-none"
+                  style={{ color: "var(--color-text)" }}
                 />
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as "" | CoverageStatus)}
-                className="rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs text-primary outline-none"
+                className="rounded-lg border px-3 py-1.5 text-caption outline-none"
+                style={{
+                  borderColor: "var(--color-border)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                }}
               >
                 <option value="">Todos os status</option>
                 <option value="ok">OK</option>
@@ -1908,7 +2050,14 @@ export default function CoveragePage() {
                 <option value="error">Erro</option>
                 <option value="pending">Pendente</option>
               </select>
-              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-1.5 cursor-pointer text-xs text-secondary">
+              <label
+                className="flex items-center gap-2 rounded-lg border px-3 py-1.5 cursor-pointer text-caption"
+                style={{
+                  borderColor: "var(--color-border)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text-2)",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={enabledOnly}
@@ -1921,22 +2070,21 @@ export default function CoveragePage() {
           </div>
 
           {sourcesError && (
-            <div className="rounded-lg border border-error/20 bg-error-subtle px-3 py-2 text-sm text-error mb-4">
-              {sourcesError}
-            </div>
+            <div className="ow-alert ow-alert-error mb-4">{sourcesError}</div>
           )}
 
           {sourcesLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-56 rounded-xl border border-border bg-surface-card animate-pulse" />
+                <div key={i} className="ow-skeleton h-56 rounded-xl" />
               ))}
             </div>
           ) : filteredSources.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface-card py-12 gap-2">
-              <AlertTriangle className="h-7 w-7 text-muted" />
-              <p className="text-sm text-muted">Nenhuma fonte encontrada com os filtros aplicados.</p>
-            </div>
+            <EmptyState
+              icon={Database}
+              title="Nenhuma fonte encontrada"
+              description="Tente ajustar os filtros de busca."
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredSources.map((item) => (
@@ -1947,27 +2095,22 @@ export default function CoveragePage() {
         </section>
 
         {/* ── Analytics section ────────────────────────────────── */}
-        <section className="rounded-xl border border-border bg-surface-card p-6">
+        <section className="ow-card p-5">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-subtle shrink-0">
-                <Lightbulb className="h-4 w-4 text-muted" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0"
+                style={{ background: "var(--color-surface-3)" }}>
+                <Lightbulb className="h-4 w-4" style={{ color: "var(--color-text-3)" }} />
               </div>
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Cobertura Analítica por Tipologia</p>
-              </div>
+              <p className="text-mono-xs uppercase tracking-widest" style={{ color: "var(--color-text-3)" }}>
+                Cobertura Analítica por Tipologia
+              </p>
             </div>
             {analytics && (
               <div className="flex gap-2 flex-wrap">
-                {[
-                  { label: `${analytics.summary.apt_count} aptas`,             cls: "text-success border-success/30 bg-success/5"    },
-                  { label: `${analytics.summary.blocked_count} bloqueadas`,    cls: "text-error   border-error/30   bg-error/5"      },
-                  { label: `${analytics.summary.with_signals_30d} c/ sinais`,  cls: "text-accent  border-accent/30  bg-accent-subtle" },
-                ].map((s) => (
-                  <span key={s.label} className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-bold ${s.cls}`}>
-                    {s.label}
-                  </span>
-                ))}
+                <span className="ow-badge ow-badge-low">{analytics.summary.apt_count} aptas</span>
+                <span className="ow-badge ow-badge-critical">{analytics.summary.blocked_count} bloqueadas</span>
+                <span className="ow-badge ow-badge-amber">{analytics.summary.with_signals_30d} c/ sinais</span>
               </div>
             )}
           </div>
@@ -1975,7 +2118,7 @@ export default function CoveragePage() {
           {analyticsLoading ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="h-40 rounded-xl border border-border bg-surface-card animate-pulse" />
+                <div key={i} className="ow-skeleton h-40 rounded-xl" />
               ))}
             </div>
           ) : analytics ? (
@@ -1986,7 +2129,11 @@ export default function CoveragePage() {
             </div>
           ) : null}
         </section>
+
       </div>
+
+      {/* ── Pipeline modal ───────────────────────────────────────── */}
+      <PipelineModal open={pipelineModalOpen} onClose={() => setPipelineModalOpen(false)} />
     </div>
   );
 }
