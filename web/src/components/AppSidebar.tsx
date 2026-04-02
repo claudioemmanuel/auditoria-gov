@@ -11,6 +11,13 @@ const NAV_ITEMS = [
   { href: "/api-health",  label: "Saúde API",    shortcut: "S" },
 ];
 
+const SIDEBAR_BG   = "var(--color-sidebar-bg)";
+const SIDEBAR_BORDER = "var(--color-sidebar-border)";
+const SIDEBAR_TEXT = "var(--color-sidebar-text)";
+const SIDEBAR_TEXT_ACTIVE = "var(--color-sidebar-text-active)";
+const SIDEBAR_HOVER = "var(--color-sidebar-hover)";
+const CYAN = "var(--color-accent-trust)";
+
 export function AppSidebar() {
   const pathname = usePathname();
 
@@ -32,37 +39,57 @@ export function AppSidebar() {
         top: 0,
         left: 0,
         right: 0,
-        height: "40px",
+        height: "48px",
         zIndex: 40,
         display: "flex",
-        alignItems: "center",
-        gap: "0",
-        borderBottom: "1px solid var(--color-border)",
-        backgroundColor: "var(--color-bg)",
+        alignItems: "stretch",
+        backgroundColor: SIDEBAR_BG,
+        borderBottom: `1px solid ${SIDEBAR_BORDER}`,
+        boxShadow: "0 1px 12px rgba(0,0,0,0.35)",
       }}
     >
       {/* Logo */}
       <Link
         href="/"
         style={{
-          padding: "0 1rem",
+          padding: "0 1.25rem",
           fontFamily: "var(--font-mono)",
-          fontSize: "0.75rem",
-          fontWeight: 500,
-          color: "var(--color-fg)",
+          fontSize: "0.8125rem",
+          fontWeight: 600,
+          color: SIDEBAR_TEXT_ACTIVE,
           textDecoration: "none",
-          borderRight: "1px solid var(--color-border)",
-          height: "100%",
+          borderRight: `1px solid ${SIDEBAR_BORDER}`,
           display: "flex",
           alignItems: "center",
-          letterSpacing: "0.1em",
+          gap: "0.5rem",
+          letterSpacing: "0.06em",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
         }}
       >
-        OW
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "20px",
+            height: "20px",
+            borderRadius: "4px",
+            background: "var(--color-accent-trust)",
+            color: "#fff",
+            fontSize: "0.625rem",
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            flexShrink: 0,
+          }}
+        >
+          OW
+        </span>
+        <span>OpenWatch</span>
       </Link>
 
       {/* Nav links */}
-      <div style={{ display: "flex", alignItems: "center", flex: 1, height: "100%" }}>
+      <div style={{ display: "flex", alignItems: "stretch", flex: 1 }}>
         {NAV_ITEMS.map(item => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -71,15 +98,24 @@ export function AppSidebar() {
               href={item.href}
               style={{
                 padding: "0 1rem",
-                height: "100%",
                 display: "flex",
                 alignItems: "center",
-                fontSize: "0.75rem",
-                color: isActive ? "var(--color-accent)" : "var(--color-muted)",
-                textDecoration: "none",
-                borderBottom: isActive ? "3px solid var(--color-accent)" : "3px solid transparent",
+                fontSize: "0.8125rem",
                 fontWeight: isActive ? 500 : 400,
-                transition: "color 150ms ease-out, border-color 150ms ease-out",
+                color: isActive ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT,
+                textDecoration: "none",
+                borderBottom: isActive
+                  ? `2px solid ${CYAN}`
+                  : "2px solid transparent",
+                background: "transparent",
+                transition: "color 150ms ease-out, background 150ms ease-out, border-color 150ms ease-out",
+                letterSpacing: "0.01em",
+              }}
+              onMouseEnter={e => {
+                if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = SIDEBAR_HOVER;
+              }}
+              onMouseLeave={e => {
+                if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
               }}
               aria-current={isActive ? "page" : undefined}
             >
@@ -89,15 +125,21 @@ export function AppSidebar() {
         })}
       </div>
 
-      {/* ThemeToggle */}
-      <div style={{
-        padding: "0 0.75rem",
-        borderLeft: "1px solid var(--color-border)",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-      }}>
-        <ThemeToggle />
+      {/* Right: keyboard hint + ThemeToggle */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.25rem",
+          padding: "0 0.75rem",
+          borderLeft: `1px solid ${SIDEBAR_BORDER}`,
+          flexShrink: 0,
+        }}
+      >
+        <ThemeToggle
+          collapsed
+          className="!text-[var(--color-sidebar-text)] hover:!bg-[var(--color-sidebar-hover)] hover:!text-[var(--color-sidebar-text-active)]"
+        />
       </div>
     </nav>
   );

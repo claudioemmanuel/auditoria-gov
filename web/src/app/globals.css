@@ -121,6 +121,16 @@
   --border-light:    #E2E8F0;
   --border-medium:   #CBD5E1;
   --border-focus:    #0EA5E9;
+
+  /* ── Sidebar Navigation — Dark Navy Theme ── */
+  --color-sidebar-bg:          #080E1A;
+  --color-sidebar-border:      rgba(255, 255, 255, 0.07);
+  --color-sidebar-text:        #94A3B8;
+  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-hover:       rgba(255, 255, 255, 0.05);
+
+  /* ── Subtle Surface (hover states) ── */
+  --color-surface-subtle:      #F1F5F9;
 }
 
 /* ── Component Layer (Buttons, Inputs, etc.) ── */
@@ -129,9 +139,9 @@
   .btn-primary {
     @apply bg-[var(--color-accent-alert)] text-white font-medium 
            rounded-[var(--radius-sm)] 
-           hover:bg-opacity-90 
+           hover:opacity-90
            focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
-           transition-all duration-150 ease;
+           transition-all duration-150 ease-in-out;
   }
 
   .btn-secondary {
@@ -140,7 +150,7 @@
            rounded-[var(--radius-sm)]
            hover:bg-[var(--color-surface-active)]
            focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
-           transition-all duration-150 ease;
+           transition-all duration-150 ease-in-out;
   }
 
   .btn-tertiary {
@@ -148,7 +158,7 @@
            hover:bg-[var(--color-accent-dim)]
            rounded-[var(--radius-sm)]
            focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
-           transition-all duration-150 ease;
+           transition-all duration-150 ease-in-out;
   }
 
   .btn-destructive {
@@ -156,7 +166,7 @@
            rounded-[var(--radius-sm)]
            hover:brightness-110
            focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
-           transition-all duration-150 ease;
+           transition-all duration-150 ease-in-out;
   }
 
   /* Input/form fields */
@@ -166,7 +176,7 @@
            rounded-[var(--radius-sm)]
            focus:outline-none focus:border-[var(--border-focus)] 
            focus:shadow-[var(--shadow-focus)]
-           transition-all duration-150 ease;
+           transition-all duration-150 ease-in-out;
   }
 
   .input-error {
@@ -247,7 +257,7 @@
   }
 
   .text-body-md {
-    @apply font-[var(--font-sans)] text-base font-normal line-height-relaxed;
+    @apply font-[var(--font-sans)] text-base font-normal leading-relaxed;
   }
 
   .text-caption {
@@ -366,8 +376,6 @@ select {
 
 /* Disable dark mode stylesheet in old globals */
 
-}
-
 .evidence-block-critical {
   border-left: 3px solid var(--color-critical);
   padding-left: 1rem;
@@ -397,6 +405,7 @@ select {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
+}
 
 /* ────────────────────────────────────────────────────────────── */
 /* ANIMATIONS & TRANSITIONS                                       */
@@ -436,6 +445,17 @@ select {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -552,7 +572,12 @@ select {
 
 select,
 textarea {
-  @apply input-base;
+  @apply px-3 py-2 bg-white border border-[var(--border-light)]
+         text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]
+         rounded-[var(--radius-sm)]
+         focus:outline-none focus:border-[var(--border-focus)]
+         focus:shadow-[var(--shadow-focus)]
+         transition-all duration-150 ease-in-out;
   width: 100%;
 }
 

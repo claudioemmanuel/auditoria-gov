@@ -13,16 +13,30 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
       <label
         htmlFor={checkboxId}
         className={cn(
-          "inline-flex cursor-pointer items-center gap-2 text-sm text-secondary",
+          "inline-flex cursor-pointer items-center gap-2 text-sm",
           props.disabled && "cursor-not-allowed opacity-50",
           className,
         )}
+        style={{ color: "var(--color-text-secondary)" }}
       >
         <input
           ref={ref}
           id={checkboxId}
           type="checkbox"
-          className="h-4 w-4 rounded border-border text-accent accent-accent focus:ring-accent"
+          className="shrink-0 cursor-pointer"
+          style={{
+            width: "16px",
+            height: "16px",
+            borderRadius: "var(--radius-xs)",
+            accentColor: "var(--color-accent-trust)",
+            outline: "none",
+          }}
+          onFocus={e => {
+            (e.currentTarget as HTMLInputElement).style.boxShadow = "var(--shadow-focus)";
+          }}
+          onBlur={e => {
+            (e.currentTarget as HTMLInputElement).style.boxShadow = "";
+          }}
           {...props}
         />
         {label && <span>{label}</span>}

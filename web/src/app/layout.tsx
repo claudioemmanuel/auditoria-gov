@@ -36,7 +36,7 @@ export default function RootLayout({
       </head>
       <body
         className={`${inter.variable} ${ibmPlexMono.variable} ${dmSans.variable} antialiased`}
-        style={{ paddingTop: "40px" }}
+        style={{ paddingTop: "48px" }}
       >
         <ThemeProvider>
           <div className="relative z-50">
