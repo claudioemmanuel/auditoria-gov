@@ -99,3 +99,52 @@ def senado_client() -> httpx.AsyncClient:
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
+
+
+def tcu_contas_client() -> httpx.AsyncClient:
+    """HTTP client for TCU contas API (inidoneos, inabilitados)."""
+    return _guarded_client(
+        "https://contas.tcu.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tcu_dados_client() -> httpx.AsyncClient:
+    """HTTP client for TCU dados abertos API (acordaos)."""
+    return _guarded_client(
+        "https://dados-abertos.apps.tcu.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def ibge_client() -> httpx.AsyncClient:
+    """HTTP client for IBGE open-data API (servicodados.ibge.gov.br)."""
+    return _guarded_client(
+        "https://servicodados.ibge.gov.br/api",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def datajud_client() -> httpx.AsyncClient:
+    """HTTP client for DataJud (CNJ) public Elasticsearch API.
+
+    Auth is optional: if DATAJUD_API_KEY is set it is sent as
+    'APIKey {key}'; otherwise the header is omitted (public, rate-limited).
+    """
+    import os
+
+    headers: dict[str, str] = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    key = os.environ.get("DATAJUD_API_KEY", "")
+    if key:
+        headers["Authorization"] = f"APIKey {key}"
+    return _guarded_client(
+        "https://api-publica.datajud.cnj.jus.br",
+        headers=headers,
+        timeout=DEFAULT_TIMEOUT,
+    )

@@ -34,6 +34,9 @@ _CONNECTOR_URLS: dict[str, str] = {
     "receita_cnpj": "https://dados.rfb.gov.br",
     "orcamento_bim": "https://www.gov.br",
     "querido_diario": "https://api.queridodiario.ok.org.br",
+    "tcu": "https://contas.tcu.gov.br",
+    "datajud": "https://api-publica.datajud.cnj.jus.br",
+    "ibge": "https://servicodados.ibge.gov.br/api",
 }
 
 

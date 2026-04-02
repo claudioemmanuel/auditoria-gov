@@ -10,6 +10,9 @@ from shared.connectors.tse import TSEConnector
 from shared.connectors.receita_cnpj import ReceitaCNPJConnector
 from shared.connectors.querido_diario import QueridoDiarioConnector
 from shared.connectors.orcamento_bim import OrcamentoBIMConnector
+from shared.connectors.tcu import TCUConnector
+from shared.connectors.datajud import DataJudConnector
+from shared.connectors.ibge import IBGEConnector
 
 ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "portal_transparencia": PortalTransparenciaConnector,
@@ -23,6 +26,9 @@ ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "receita_cnpj": ReceitaCNPJConnector,
     "querido_diario": QueridoDiarioConnector,
     "orcamento_bim": OrcamentoBIMConnector,
+    "tcu": TCUConnector,
+    "datajud": DataJudConnector,
+    "ibge": IBGEConnector,
 }
 
 

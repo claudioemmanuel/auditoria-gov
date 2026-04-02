@@ -168,10 +168,36 @@ _ORCAMENTO_BIM_PROFILE = SourceVeracityProfile(
     legal_authority=0.90,
     public_availability=0.90,
     official_api_documented=0.60,
+
+# TCU (Tribunal de Contas da União) — highest legal authority for public spending audits
+_TCU_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=1.0,
+    public_availability=1.0,
+    official_api_documented=0.95,
     metadata_traceability=0.90,
     domain_tier=_GOV,
 )
 
+# DataJud (CNJ) — national judicial registry, .jus.br, documented public API
+_DATAJUD_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=1.0,
+    public_availability=1.0,
+    official_api_documented=0.90,
+    metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
+
+# IBGE — official statistics institute, .gov.br, enrichment-only reference data
+_IBGE_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.80,
+    public_availability=1.0,
+    official_api_documented=1.0,
+    metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
 
 SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     # Portal da Transparência (8 jobs)
@@ -217,4 +243,14 @@ SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     "orcamento_bim:orcamento_bim_items": _ORCAMENTO_BIM_PROFILE,
     # Querido Diário (1 job)
     "querido_diario:qd_gazettes": _QD_PROFILE,
+    # TCU — Tribunal de Contas da União (3 jobs)
+    "tcu:tcu_inidoneos": _TCU_PROFILE,
+    "tcu:tcu_inabilitados": _TCU_PROFILE,
+    "tcu:tcu_acordaos": _TCU_PROFILE,
+    # DataJud/CNJ — national judicial registry (2 jobs)
+    "datajud:datajud_processos_improbidade": _DATAJUD_PROFILE,
+    "datajud:datajud_processos_licitacao": _DATAJUD_PROFILE,
+    # IBGE — geographic and statistical reference data (2 jobs)
+    "ibge:ibge_municipios": _IBGE_PROFILE,
+    "ibge:ibge_cnae": _IBGE_PROFILE,
 }
