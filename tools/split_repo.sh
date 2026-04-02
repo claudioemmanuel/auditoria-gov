@@ -223,7 +223,7 @@ elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
     }" | grep -E '"full_name"|"html_url"|"message"'
 
   cd "${CORE_DIR}"
-  git remote set-url origin "${CORE_REMOTE}"
+  git remote add origin "${CORE_REMOTE}"
   git push --mirror
   cd "${REPO_ROOT}"
 else

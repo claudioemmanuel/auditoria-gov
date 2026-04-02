@@ -96,6 +96,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Default database credentials must not be used in production"
                 )
+        # Validate open-core split config: both values required together
+        if self.CORE_SERVICE_URL and not self.CORE_API_KEY:
+            raise ValueError(
+                "CORE_API_KEY must be set when CORE_SERVICE_URL is configured"
+            )
         return self
 
 
