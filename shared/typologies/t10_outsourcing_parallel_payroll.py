@@ -48,11 +48,7 @@ class T10OutsourcingParallelPayrollTypology(BaseTypology):
         return ["contract_duration", "amendment_count", "supplier_entity_id"]
 
     async def run(self, session) -> list[RiskSignalOut]:
-        now = datetime.now(timezone.utc)
-
-        # Query outsourcing contracts — use a 10-year window to capture long-duration
-        # patterns (5+ years continuous), while still bounding the full-table scan.
-        window_start = now - timedelta(days=365 * 10)
+        window_start, now = await self.resolve_window(session, self.required_domains)
         stmt = (
             select(Event)
             .where(

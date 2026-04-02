@@ -60,6 +60,9 @@ _JOB_CONFIG: dict[str, _TSEJobCfg] = {
     "tse_receitas_candidatos": _TSEJobCfg(
         "prestacao_contas", "prestacao_de_contas_eleitorais_candidatos", "receitas_candidatos",
     ),
+    "tse_doacoes": _TSEJobCfg(
+        "prestacao_contas", "prestacao_de_contas_eleitorais_candidatos", "receitas_candidatos",
+    ),
     "tse_despesas_candidatos": _TSEJobCfg(
         "prestacao_contas", "prestacao_de_contas_eleitorais_candidatos", "despesas_contratadas_candidatos",
     ),
@@ -246,9 +249,16 @@ class TSEConnector(BaseConnector):
             JobSpec(
                 name="tse_receitas_candidatos",
                 description="Candidate campaign fundraising",
-                domain="doacao",
+                domain="doacao_eleitoral",
                 supports_incremental=False,
                 enabled=True,
+            ),
+            JobSpec(
+                name="tse_doacoes",
+                description="Alias for candidate campaign fundraising (compatibility)",
+                domain="doacao_eleitoral",
+                supports_incremental=False,
+                enabled=False,
             ),
             JobSpec(
                 name="tse_despesas_candidatos",
@@ -325,7 +335,7 @@ class TSEConnector(BaseConnector):
             return self._normalize_candidatos(raw_items)
         if job.name == "tse_bens_candidatos":
             return self._normalize_bens_candidatos(raw_items)
-        if job.name == "tse_receitas_candidatos":
+        if job.name in {"tse_receitas_candidatos", "tse_doacoes"}:
             return self._normalize_receitas(raw_items)
         if job.name == "tse_despesas_candidatos":
             return self._normalize_despesas(raw_items)
@@ -508,7 +518,9 @@ class TSEConnector(BaseConnector):
                         "ano": ano,
                     },
                     participants=[
+                        CanonicalEventParticipant(entity_ref=doador, role="donor"),
                         CanonicalEventParticipant(entity_ref=doador, role="doador"),
+                        CanonicalEventParticipant(entity_ref=candidato, role="recipient"),
                         CanonicalEventParticipant(entity_ref=candidato, role="candidato"),
                     ],
                 )

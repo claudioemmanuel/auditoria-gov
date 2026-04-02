@@ -1,5 +1,6 @@
 """Tests for all data connectors — registry, structure, normalize, fetch (mocked HTTP)."""
 
+import json
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,15 +15,14 @@ from shared.models.raw import RawItem
 # ── Registry ──────────────────────────────────────────────────────────
 
 class TestConnectorRegistry:
-    def test_has_13_connectors(self):
-        assert len(ConnectorRegistry) == 13
+    def test_has_11_connectors(self):
+        assert len(ConnectorRegistry) == 11
 
     def test_all_keys(self):
         expected = {
             "portal_transparencia", "compras_gov", "comprasnet_contratos",
             "pncp", "transferegov", "camara", "senado", "tse",
-            "receita_cnpj", "querido_diario",
-            "tcu", "datajud", "ibge",
+            "receita_cnpj", "querido_diario", "orcamento_bim",
         }
         assert set(ConnectorRegistry.keys()) == expected
 
@@ -40,6 +40,11 @@ class TestGetConnector:
     def test_invalid_name(self):
         with pytest.raises(ValueError, match="Unknown connector"):
             get_connector("nonexistent")
+
+    def test_alias_receita_federal_cnpj(self):
+        c = get_connector("receita_federal_cnpj")
+        assert isinstance(c, BaseConnector)
+        assert c.name == "receita_cnpj"
 
 
 class TestJobSpec:
@@ -1088,6 +1093,29 @@ class TestPNCP:
         result = self.c.normalize(job, items)
         assert result.entities[0].name == "UFMG"
         assert result.events[0].value_brl == 80000.0
+        assert "source_limitations" in result.events[0].attrs
+
+    def test_normalize_enriches_limitation_sensitive_attrs(self):
+        items = [RawItem(raw_id="pncp:1:1", data={
+            "cnpjOrgao": "00394445000166",
+            "nomeOrgao": "UFMG",
+            "objetoCompra": "Obra teste",
+            "valorTotalEstimado": 120000.0,
+            "modalidadeNome": "Inexigibilidade",
+            "situacaoCompra": "Publicado",
+            "beneficioMicroEmpresa": "true",
+            "tipoInexigibilidade": "fornecedor exclusivo",
+            "pmiRealizado": "sim",
+            "porteFornecedor": "ME",
+        })]
+        job = self.c.list_jobs()[0]
+        result = self.c.normalize(job, items)
+        attrs = result.events[0].attrs
+        assert attrs["me_epp_exclusive"] is True
+        assert attrs["inexigibilidade_subtype"] == "fornecedor exclusivo"
+        assert attrs["pmi_realizado"] is True
+        assert attrs["porte_empresa"] == "ME"
+        assert "source_limitations" not in attrs
 
     @pytest.mark.asyncio
     async def test_fetch(self):
@@ -1239,6 +1267,7 @@ class TestTSE:
             "tse_candidatos",
             "tse_bens_candidatos",
             "tse_receitas_candidatos",
+            "tse_doacoes",
             "tse_despesas_candidatos",
         }
 
@@ -1255,6 +1284,26 @@ class TestTSE:
         assert len(result.entities) == 1
         assert result.entities[0].name == "CANDIDATO X"
         assert result.events[0].value_brl == 500000.0
+
+    def test_normalize_receitas_adds_portuguese_and_english_roles(self):
+        items = [RawItem(raw_id="tse:receita:0", data={
+            "SQ_CANDIDATO": "12345",
+            "NM_CANDIDATO": "CANDIDATO X",
+            "NM_DOADOR": "EMPRESA Y",
+            "NR_CPF_CNPJ_DOADOR": "12345678000199",
+            "VR_RECEITA": "10000.00",
+            "DS_ORIGEM_RECEITA": "Doacao",
+            "SG_UF": "DF",
+            "ANO_ELEICAO": "2024",
+            "DT_RECEITA": "2024-10-01",
+        })]
+        job = JobSpec(name="tse_receitas_candidatos", description="", domain="doacao_eleitoral")
+        result = self.c.normalize(job, items)
+        roles = sorted(p.role for p in result.events[0].participants)
+        assert "doador" in roles
+        assert "donor" in roles
+        assert "candidato" in roles
+        assert "recipient" in roles
 
 
 # ── Regression: Senado log NameError ────────────────────────────────

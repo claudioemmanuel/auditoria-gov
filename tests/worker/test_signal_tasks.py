@@ -33,7 +33,7 @@ def test_run_all_signals_dispatches_every_loaded_typology(monkeypatch):
     assert result["count"] == len(expected_typologies)
     assert sorted(dispatched) == sorted(expected_typologies)
     assert result["waves"] == [len(w) for w in [
-        [t for t in get_all_typologies() if t.id in {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18","T19","T20","T21","T22","T23","T24","T25"}],
+        [t for t in get_all_typologies() if t.id in {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18","T19","T20","T21","T22","T23","T24"}],
         [t for t in get_all_typologies() if t.id in {"T13","T17"}],
         [t for t in get_all_typologies() if t.id in {"T14"}],
     ]]

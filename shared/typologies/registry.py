@@ -23,7 +23,6 @@ from shared.typologies.t21_collusive_cluster import T21CollusiveClusterTypology
 from shared.typologies.t22_political_favoritism import T22PoliticalFavoritismTypology
 from shared.typologies.t23_bim_cost_overrun import T23BimCostOverrunTypology
 from shared.typologies.t24_me_epp_quota_fraud import T24MeEppQuotaFraudTypology
-from shared.typologies.t25_tcu_condemned import T25TCUCondemnedTypology
 
 TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T01": T01ConcentrationTypology,
@@ -50,7 +49,6 @@ TypologyRegistry: dict[str, type[BaseTypology]] = {
     "T22": T22PoliticalFavoritismTypology,
     "T23": T23BimCostOverrunTypology,
     "T24": T24MeEppQuotaFraudTypology,
-    "T25": T25TCUCondemnedTypology,
 }
 
 

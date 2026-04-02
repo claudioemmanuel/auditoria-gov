@@ -44,9 +44,13 @@ The same input data will always produce the same signal. This is a design requir
 
 ## 3. Temporal Windows
 
-All typology detectors use a **minimum 5-year lookback window** to capture Brazilian government data that was published retroactively (PNCP historical baseline starts at 2021).
+Typology detectors use a **data-aware dynamic lookback window**:
 
-Shorter windows (1–2 years) were found to miss the majority of available procurement records. The 5-year floor is a technical requirement, not a policy choice.
+- A minimum floor (default 365 days)
+- An automatic expansion to available historical data in the required domains
+- A capped maximum (default 3650 days)
+
+This prevents undercounting when only recent data exists while still avoiding unbounded scans. The resolved window is emitted in debug logs (`typology.window_resolved`) for auditability.
 
 ---
 
@@ -110,14 +114,14 @@ All AI functions are decorated with `@explanatory_only` (enforced at runtime). T
 
 ---
 
-## 8. Known Limitations
+## 8. Current Limitations and Mitigations
 
 | Limitation | Impact |
 |-----------|--------|
 | Government API quality varies | Some sources have gaps, stale data, or undocumented schema changes |
-| PNCP data starts at 2021 | Historical signals before 2021 are not available for procurement typologies |
+| PNCP data starts at 2021 | Historical signals before 2021 remain unavailable; dynamic windows now bound analysis to observed data to reduce baseline distortion |
 | ER is not perfect | Some distinct entities may share a cluster (false merge); some aliases may remain unlinked (false split) |
-| Electoral contribution data is annual | T22 (political favoritism) can only detect year-level correlations, not intra-year timing |
+| Electoral contribution data is annual | T22 remains limited by source granularity, but now accepts both PT-BR and EN participant role mappings (`doador`/`donor`, `winner`/`supplier`) to avoid silent misses |
 | Querido Diário coverage is uneven | Municipal gazette coverage varies by state/municipality; gaps are not flagged per municipality |
 | No real-time ingestion | Data freshness depends on connector run schedules; lag can be hours to days |
 

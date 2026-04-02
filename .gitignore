@@ -82,6 +82,8 @@ CLAUDE.local.md
 .claude/settings.local.json
 .claude/
 
+# ── GitHub Copilot ─────────────────────────────────────────────────────
+.github/copilot-instructions.md
 
 # ── Alembic ──────────────────────────────────────────────────────────
 api/alembic/versions/__pycache__/
@@ -104,6 +106,3 @@ infra/aws/terraform.tfvars
 # ── Documentation ───────────────────────────────────────────────────
 docs/plans/
 .worktrees/
-
-# Worktree artifacts
-_worktrees/

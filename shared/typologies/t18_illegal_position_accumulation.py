@@ -70,8 +70,7 @@ class T18IllegalPositionAccumulationTypology(BaseTypology):
         return "direct"
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # Query remuneration events
         stmt = select(Event).where(

@@ -62,6 +62,22 @@ async def test_t22_zero_no_donations():
 
 
 @pytest.mark.asyncio
+async def test_t22_accepts_portuguese_roles():
+    company_id = uuid.uuid4()
+    don, _ = _donation_event(days_ago=300, company_id=company_id, value=5_000.0)
+    don2, _ = _donation_event(days_ago=310, company_id=company_id, value=8_000.0)
+    con, _ = _contract_event(days_ago=50, company_id=company_id, value=200_000.0)
+    con2, _ = _contract_event(days_ago=60, company_id=company_id, value=300_000.0)
+    dp1 = EventParticipant(id=uuid.uuid4(), event_id=don.id, entity_id=company_id, role="doador", attrs={})
+    dp2 = EventParticipant(id=uuid.uuid4(), event_id=don2.id, entity_id=company_id, role="doador", attrs={})
+    cp1 = EventParticipant(id=uuid.uuid4(), event_id=con.id, entity_id=company_id, role="winner", attrs={})
+    cp2 = EventParticipant(id=uuid.uuid4(), event_id=con2.id, entity_id=company_id, role="winner", attrs={})
+    session = _FakeSession([[don, don2], [con, con2], [dp1, dp2], [cp1, cp2]])
+    signals = await T22PoliticalFavoritismTypology().run(session)
+    assert len(signals) == 1
+
+
+@pytest.mark.asyncio
 async def test_t22_zero_delta_too_large():
     company_id = uuid.uuid4()
     don, dp = _donation_event(days_ago=800, company_id=company_id)

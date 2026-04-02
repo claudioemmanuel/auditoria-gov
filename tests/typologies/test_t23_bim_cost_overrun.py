@@ -1,4 +1,4 @@
-"""Tests for T23 — Superfaturamento BIM stub (P5.2)."""
+"""Tests for T23 — Superfaturamento BIM."""
 import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -60,11 +60,11 @@ def _make_session(events=()):
     return session
 
 
-# ── Zero-result (stub / no data) ──────────────────────────────────────────────
+# ── Zero-result ────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_no_signals_when_no_bim_events():
-    """No orcamento_bim events → stub returns [] (BIM data not loaded)."""
+    """No orcamento_bim events → returns []."""
     session = _make_session(events=[])
     typology = T23BimCostOverrunTypology()
     signals = await typology.run(session)

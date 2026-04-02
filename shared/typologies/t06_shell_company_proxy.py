@@ -48,8 +48,7 @@ class T06ShellCompanyProxyTypology(BaseTypology):
         return ["cnpj", "founding_date", "cnae_codes", "capital"]
 
     async def run(self, session) -> list[RiskSignalOut]:
-        now = datetime.now(timezone.utc)
-        window_start = now - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
+        window_start, now = await self.resolve_window(session, self.required_domains)
 
         # Get companies that have won contracts within the analysis window
         winner_stmt = (

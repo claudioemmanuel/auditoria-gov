@@ -708,7 +708,7 @@ TYPOLOGY_LEGAL_METADATA: dict[str, dict[str, list[str] | str]] = {
         "corruption_types": ["fraude_licitatoria", "peculato"],
         "spheres": ["administrativa"],
         "evidence_level": "direct",
-        "description_legal": "Sobrepreco em obras publicas detectado por comparacao de precos unitarios contratados com referencias SINAPI via modelo BIM. Stub: requer conector orcamento_bim.",
+        "description_legal": "Sobrepreco em obras publicas detectado por comparacao de precos unitarios contratados com referencias SINAPI via modelo BIM (fonte orcamento_bim).",
         "law_articles": [
             {"law_name": "Lei 14.133/2021", "article": "Art. 122, §3°", "violation_type": "fraude_licitatoria"},
             {"law_name": "Decreto 9.983/2019", "article": "Art. 1°", "violation_type": "fraude_licitatoria"},

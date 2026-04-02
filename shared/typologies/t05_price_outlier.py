@@ -63,8 +63,7 @@ class T05PriceOutlierTypology(BaseTypology):
         return ["unit_price", "catmat_code", "quantity"]
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # Query events with value_brl
         stmt = (

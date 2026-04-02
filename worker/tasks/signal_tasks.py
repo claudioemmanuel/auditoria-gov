@@ -211,7 +211,7 @@ def run_all_signals(dry_run: bool = False, force: bool = False):
         )
 
     # Wave 1: Independent typologies (no ER/meta dependency)
-    wave1_codes = {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18","T19","T20","T21","T22","T23","T24","T25"}
+    wave1_codes = {"T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11","T12","T15","T16","T18","T19","T20","T21","T22","T23","T24"}
     # Wave 2: ER-dependent
     wave2_codes = {"T13","T17"}
     # Wave 3: Meta-typology (depends on wave 1+2 results)
