@@ -202,6 +202,56 @@ _IBGE_PROFILE = SourceVeracityProfile(
     domain_tier=_GOV,
 )
 
+# TCE-RJ — state audit court, exception domain (dados.tcerj.tc.br)
+_TCE_RJ_PROFILE = SourceVeracityProfile(
+    government_domain=0.80,
+    legal_authority=1.0,
+    public_availability=1.0,
+    official_api_documented=0.90,
+    metadata_traceability=0.85,
+    domain_tier=_EXC,
+)
+
+# TCE-SP — state audit court, .gov.br, strong legal authority
+_TCE_SP_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=1.0,
+    public_availability=1.0,
+    official_api_documented=0.85,
+    metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
+
+# Jurisprudência — STF/STJ higher courts, .jus.br
+_JURIS_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=1.0,
+    public_availability=1.0,
+    official_api_documented=0.80,
+    metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
+
+# Bacen — Banco Central, .gov.br, enrichment-only economic reference
+_BACEN_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.90,
+    public_availability=1.0,
+    official_api_documented=1.0,
+    metadata_traceability=0.90,
+    domain_tier=_GOV,
+)
+
+# BNDES — development bank, .gov.br, financing operations
+_BNDES_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.90,
+    public_availability=1.0,
+    official_api_documented=0.90,
+    metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
+
 SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     # Portal da Transparência (8 jobs)
     "portal_transparencia:pt_sancoes_ceis_cnep": _PT_PROFILE,
@@ -256,4 +306,21 @@ SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     # IBGE — geographic and statistical reference data (2 jobs)
     "ibge:ibge_municipios": _IBGE_PROFILE,
     "ibge:ibge_cnae": _IBGE_PROFILE,
+    # TCE-RJ — state audit court, .tc.br (exception domain, strong legal authority)
+    "tce_rj:tce_rj_licitacoes": _TCE_RJ_PROFILE,
+    "tce_rj:tce_rj_contratos": _TCE_RJ_PROFILE,
+    "tce_rj:tce_rj_penalidades": _TCE_RJ_PROFILE,
+    # TCE-SP — state audit court, .gov.br
+    "tce_sp:tce_sp_despesas": _TCE_SP_PROFILE,
+    "tce_sp:tce_sp_receitas": _TCE_SP_PROFILE,
+    # Jurisprudência — STF higher court rulings, .jus.br
+    "jurisprudencia:juris_stf_licitacao": _JURIS_PROFILE,
+    "jurisprudencia:juris_stf_improbidade": _JURIS_PROFILE,
+    # Bacen — Banco Central economic indicators, .gov.br (enrichment-only)
+    "bacen:bacen_selic": _BACEN_PROFILE,
+    "bacen:bacen_ipca": _BACEN_PROFILE,
+    "bacen:bacen_cambio": _BACEN_PROFILE,
+    # BNDES — development bank financing operations, .gov.br
+    "bndes:bndes_operacoes_auto": _BNDES_PROFILE,
+    "bndes:bndes_operacoes_nao_auto": _BNDES_PROFILE,
 }

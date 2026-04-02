@@ -93,6 +93,14 @@ Each source receives a weighted composite score:
 | TSE | government | ~0.95 | official |
 | Receita Federal (CNPJ) | government | ~0.95 | official |
 | Querido Diário | exception | ~0.435 | low |
+| TCU | government | ~0.975 | official |
+| DataJud/CNJ | government | ~0.96 | official |
+| IBGE | government | ~0.925 | high |
+| TCE-RJ | exception | ~0.90 | high |
+| TCE-SP | government | ~0.965 | official |
+| Jurisprudência (STF) | government | ~0.955 | official |
+| Bacen | government | ~0.965 | official |
+| BNDES | government | ~0.955 | official |
 
 Profiles are defined in `shared/connectors/veracity.py` and exposed via `GET /public/sources`.
 

@@ -37,6 +37,11 @@ _CONNECTOR_URLS: dict[str, str] = {
     "tcu": "https://contas.tcu.gov.br",
     "datajud": "https://api-publica.datajud.cnj.jus.br",
     "ibge": "https://servicodados.ibge.gov.br/api",
+    "tce_rj": "https://dados.tcerj.tc.br/api/v1",
+    "tce_sp": "https://transparencia.tce.sp.gov.br/api/json",
+    "jurisprudencia": "https://jurisprudencia.stf.jus.br/api/search",
+    "bacen": "https://api.bcb.gov.br/dados/serie/bcdata.sgs",
+    "bndes": "https://dadosabertos.bndes.gov.br/api/3/action",
 }
 
 

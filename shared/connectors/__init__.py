@@ -13,6 +13,11 @@ from shared.connectors.orcamento_bim import OrcamentoBIMConnector
 from shared.connectors.tcu import TCUConnector
 from shared.connectors.datajud import DataJudConnector
 from shared.connectors.ibge import IBGEConnector
+from shared.connectors.jurisprudencia import JurisprudenciaConnector
+from shared.connectors.tce_rj import TCERJConnector
+from shared.connectors.tce_sp import TCESPConnector
+from shared.connectors.bacen import BacenConnector
+from shared.connectors.bndes import BNDESConnector
 
 ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "portal_transparencia": PortalTransparenciaConnector,
@@ -29,6 +34,11 @@ ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "tcu": TCUConnector,
     "datajud": DataJudConnector,
     "ibge": IBGEConnector,
+    "jurisprudencia": JurisprudenciaConnector,
+    "tce_rj": TCERJConnector,
+    "tce_sp": TCESPConnector,
+    "bacen": BacenConnector,
+    "bndes": BNDESConnector,
 }
 
 

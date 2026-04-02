@@ -128,6 +128,46 @@ def ibge_client() -> httpx.AsyncClient:
     )
 
 
+def jurisprudencia_stf_client() -> httpx.AsyncClient:
+    """HTTP client for STF Jurisprudência search API."""
+    return _guarded_client(
+        "https://jurisprudencia.stf.jus.br",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "OpenWatch/1.0 (https://github.com/claudioemmanuel/openwatch)",
+        },
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_rj_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-RJ open-data API (dados.tcerj.tc.br)."""
+    return _guarded_client(
+        "https://dados.tcerj.tc.br/api/v1",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def bacen_client() -> httpx.AsyncClient:
+    """HTTP client for Banco Central do Brasil SGS time-series API."""
+    return _guarded_client(
+        "https://api.bcb.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def bndes_client() -> httpx.AsyncClient:
+    """HTTP client for BNDES open-data CKAN API."""
+    return _guarded_client(
+        "https://dadosabertos.bndes.gov.br/api/3/action",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
 def datajud_client() -> httpx.AsyncClient:
     """HTTP client for DataJud (CNJ) public Elasticsearch API.
 
@@ -146,5 +186,14 @@ def datajud_client() -> httpx.AsyncClient:
     return _guarded_client(
         "https://api-publica.datajud.cnj.jus.br",
         headers=headers,
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_sp_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-SP (Tribunal de Contas do Estado de São Paulo)."""
+    return _guarded_client(
+        "https://transparencia.tce.sp.gov.br/api/json",
+        headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
