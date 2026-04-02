@@ -53,18 +53,32 @@ export function InvestigationSidebar({
   // Always render the panel — show empty state when no node selected
   if (!node) {
     return (
-      <div className="flex w-80 shrink-0 flex-col border-l border-border bg-surface-card">
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-          <Network className="h-8 w-8 text-muted" />
-          <p className="text-sm font-medium text-secondary">Selecione um node</p>
-          <p className="text-xs text-muted">
-            Clique em uma entidade no grafo para ver seus detalhes e sinais associados.
-          </p>
-          <p className="mt-2 text-[10px] text-muted">
-            Atalhos: <kbd className="rounded bg-surface-subtle px-1 py-0.5 font-mono text-[9px]">Espaço</kbd> ajustar vista &nbsp;
-            <kbd className="rounded bg-surface-subtle px-1 py-0.5 font-mono text-[9px]">E</kbd> expandir &nbsp;
-            <kbd className="rounded bg-surface-subtle px-1 py-0.5 font-mono text-[9px]">Esc</kbd> limpar
-          </p>
+      <div className="flex w-80 shrink-0 flex-col border-l border-[var(--color-border-light)] bg-[var(--color-surface-card)]">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+          <Network className="h-9 w-9 text-[var(--color-text-muted)]" />
+          <div>
+            <p className="text-base font-semibold text-[var(--color-text-primary)] mb-2">Selecione um node</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Clique em uma entidade no grafo para ver seus detalhes e sinais associados.
+            </p>
+          </div>
+          <div className="mt-4 p-3 rounded-lg bg-[var(--color-surface-hover)] border border-[var(--color-border-light)]">
+            <p className="text-xs text-[var(--color-text-muted)] mb-2">Atalhos de teclado:</p>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center gap-2">
+                <kbd className="rounded bg-[var(--color-surface-card)] px-2 py-1 font-mono text-[10px] border border-[var(--color-border-light)]">Espaço</kbd>
+                <span className="text-[var(--color-text-secondary)]">Ajustar vista</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="rounded bg-[var(--color-surface-card)] px-2 py-1 font-mono text-[10px] border border-[var(--color-border-light)]">E</kbd>
+                <span className="text-[var(--color-text-secondary)]">Expandir node</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="rounded bg-[var(--color-surface-card)] px-2 py-1 font-mono text-[10px] border border-[var(--color-border-light)]">Esc</kbd>
+                <span className="text-[var(--color-text-secondary)]">Limpar</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -116,88 +130,87 @@ export function InvestigationSidebar({
     : "A entidade foi carregada no grafo, mas ainda sem sinais diretamente vinculados no caso.";
 
   return (
-    <div className="flex w-80 shrink-0 flex-col overflow-hidden border-l border-border bg-surface-card">
+    <div className="flex w-80 shrink-0 flex-col overflow-hidden border-l border-[var(--color-border-light)] bg-[var(--color-surface-card)]">
       {/* Colored top accent bar */}
-      <div className={cn("h-1 w-full shrink-0", config.headerBar)} />
+      <div className={cn("h-2 w-full shrink-0", config.headerBar)} />
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+      {/* Header — modernized */}
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border-light)] px-4 py-4">
         <div className="flex min-w-0 items-start gap-3">
           {photoUrl ? (
             <img
               src={photoUrl}
               alt={`Foto de ${node.label}`}
-              className="h-9 w-9 shrink-0 rounded-lg object-cover"
+              className="h-10 w-10 shrink-0 rounded-lg object-cover"
             />
           ) : (
-            <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", config.iconBg)}>
-              <Icon className={cn("h-4 w-4", config.accent)} strokeWidth={2} />
+            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", config.iconBg)}>
+              <Icon className={cn("h-5 w-5", config.accent)} strokeWidth={2} />
             </div>
           )}
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-primary leading-tight">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-bold font-[var(--font-display)] text-[var(--color-text-primary)] leading-tight">
               {node.label}
             </h3>
-            <span className={cn("text-xs font-medium opacity-75", config.accent)}>
+            <span className={cn("text-xs font-semibold uppercase tracking-widest", config.accent)}>
               {config.label}
             </span>
           </div>
         </div>
         <button
           onClick={onClose}
-          title="Limpar selecao (Esc)"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-surface-subtle hover:text-secondary"
+          title="Limpar seleção (Esc)"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </button>
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        {/* Identifiers */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Identifiers — improved with new tokens */}
         {identifiers.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {identifiers.map(([key, val]) => (
               <span
                 key={key}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-subtle px-2 py-1 text-[11px]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-2.5 py-1 text-xs font-mono"
               >
-                <span className="font-medium text-muted">{key}</span>
-                <span className="font-mono tabular-nums text-secondary">{val}</span>
+                <span className="font-semibold text-[var(--color-text-secondary)]">{key}:</span>
+                <span className="tabular-nums text-[var(--color-text-primary)]">{val}</span>
               </span>
             ))}
           </div>
         )}
 
-        {/* Link to entity */}
+        {/* Link to entity — modern button style */}
         <Link
           href={`/entity/${node.entity_id}`}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-accent-subtle bg-accent-subtle px-2.5 py-1.5 text-[11px] font-medium text-accent transition hover:bg-accent hover:text-white"
+          className="inline-flex items-center justify-center gap-2 w-full rounded-lg bg-[var(--color-secondary)] text-white px-3 py-2 text-sm font-semibold transition hover:shadow-md hover:shadow-[var(--color-secondary)]/30"
         >
-          Ver detalhes da entidade
-          <ExternalLink className="h-3 w-3" />
+          Ver Detalhes da Entidade
+          <ExternalLink className="h-4 w-4" />
         </Link>
 
-        {/* Divider */}
-        <div className="my-4 h-px bg-border" />
-
-        <div className="rounded-lg border border-amber/20 bg-amber-subtle p-2.5">
-          <p className="text-[11px] font-semibold text-amber">
-            Por que esta entidade está ligada ao padrão
+        {/* Why linked section — modernized with new design tokens */}
+        <div className="rounded-lg border border-[var(--color-medium)]/30 bg-[#FEF9E7] p-3">
+          <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-medium)] mb-2">
+            Por que está ligada
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-amber/80">
+          <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
             {whyLinked}
           </p>
         </div>
 
+        {/* Public profile attributes */}
         {attrsToShow.length > 0 && (
-          <div className="mt-3 rounded-lg border border-border bg-surface-subtle p-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-              Perfil publico
+          <div className="rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] p-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-secondary)] mb-2">
+              Perfil Público
             </p>
-            <div className="mt-1.5 grid grid-cols-1 gap-1.5">
+            <div className="space-y-2">
               {attrsToShow.map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between rounded bg-surface-card px-2 py-1">
+                <div key={key} className="flex items-start justify-between bg-white rounded px-2.5 py-1.5 text-xs border border-[var(--color-border-light)]">
                   <span className="text-[10px] font-medium text-muted">{key}</span>
                   <span className="ml-2 text-[10px] font-semibold text-secondary">{String(value)}</span>
                 </div>

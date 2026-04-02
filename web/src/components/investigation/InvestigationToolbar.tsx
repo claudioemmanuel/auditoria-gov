@@ -36,84 +36,95 @@ export function InvestigationToolbar({
 }: InvestigationToolbarProps) {
   return (
     <>
-      {/* Top bar: case info */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex items-center gap-2 rounded-xl border border-border bg-surface-card/95 px-3 py-2 shadow-sm backdrop-blur-sm">
-        {/* Back */}
+      {/* Top bar: case info — modernized with Navy/Red/Cyan design tokens */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center gap-3 rounded-lg border border-[var(--color-border-light)] bg-white shadow-[var(--shadow-md)] backdrop-blur-sm p-4">
+        {/* Back link */}
         <Link
           href={`/case/${caseId}`}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-surface-subtle hover:text-secondary"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-accent-alert)]"
           title="Voltar ao caso"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-4 w-4" />
         </Link>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-5 w-px bg-[var(--color-border-light)]" />
 
-        {/* Title */}
-        <h1 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-primary">
-          {caseTitle}
-        </h1>
+        {/* Title & severity */}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-sm font-bold font-[var(--font-display)] text-[var(--color-text-primary)]">
+            {caseTitle}
+          </h1>
+        </div>
 
         <span
-          className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold", severityColor(caseSeverity))}
+          className={cn(
+            "shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
+            severityColor(caseSeverity),
+          )}
         >
           {SEVERITY_LABELS[caseSeverity]}
         </span>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-5 w-px bg-[var(--color-border-light)]" />
 
-        {/* Stats */}
-        <div className="flex items-center gap-2 text-[10px] text-muted">
-          <span className="flex items-center gap-1">
-            <CircleDot className="h-2.5 w-2.5" />
-            <strong className="font-semibold text-secondary">{nodeCount}</strong> nos
-          </span>
-          <span>
-            <strong className="font-semibold text-secondary">{edgeCount}</strong> arestas
-          </span>
-          <span>
-            <strong className="font-semibold text-secondary">{seedCount}</strong> seeds
-          </span>
+        {/* Stats — improved typography and spacing */}
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <CircleDot className="h-3 w-3 text-[var(--color-accent-trust)]" />
+            <span className="text-[var(--color-text-secondary)]">
+              <strong className="font-semibold text-[var(--color-text-primary)]">{nodeCount}</strong> nós
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--color-text-secondary)]">
+              <strong className="font-semibold text-[var(--color-text-primary)]">{edgeCount}</strong> arestas
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--color-text-secondary)]">
+              <strong className="font-semibold text-[var(--color-text-primary)]">{seedCount}</strong> seeds
+            </span>
+          </div>
         </div>
 
-        {/* Status indicators */}
+        {/* Status indicators — updated colors */}
         {truncated && (
-          <span className="flex items-center gap-1 rounded-full border border-amber/20 bg-amber-subtle px-2 py-0.5 text-[10px] font-medium text-amber">
-            <AlertTriangle className="h-2.5 w-2.5" />
+          <span className="flex items-center gap-1.5 rounded-full border border-[var(--color-high)]/30 bg-[#FEF3C7] px-3 py-1 text-xs font-semibold text-[var(--color-high)]">
+            <AlertTriangle className="h-3.5 w-3.5" />
             Truncado
           </span>
         )}
 
         {expanding && (
-          <span className="flex items-center gap-1.5 text-[10px] font-medium text-accent">
-            <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-accent border-t-transparent" />
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent-alert)]">
+            <div className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--color-accent-alert)] border-t-transparent" />
             Expandindo...
           </span>
         )}
       </div>
 
-      {/* Bottom-left toolbar: canvas actions */}
-      <div className="absolute bottom-4 left-4 z-20 flex gap-1 rounded-lg border border-border bg-surface-card p-1 shadow-sm">
+      {/* Bottom-left toolbar: canvas actions — modernized */}
+      <div className="absolute bottom-16 left-4 z-20 flex gap-1 rounded-lg border border-[var(--color-border-light)] bg-white shadow-[var(--shadow-md)] p-1">
         <button
           onClick={onFitView}
-          title="Ajustar vista (Espaco / F)"
-          className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-secondary transition hover:bg-surface-subtle hover:text-primary"
+          title="Ajustar vista (Espaço)"
+          className="flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
-          <Maximize2 className="h-3.5 w-3.5" />
-          Fit
+          <Maximize2 className="h-4 w-4" />
+          Ajustar
         </button>
-        <div className="w-px bg-border" />
+        <div className="w-px bg-[var(--color-border-light)]" />
         <button
           onClick={onToggleLegend}
           title="Mostrar legenda"
           className={cn(
-            "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition",
+            "flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition",
             legendOpen
-              ? "bg-accent-subtle text-accent"
-              : "text-secondary hover:bg-surface-subtle hover:text-primary",
+              ? "bg-[var(--color-accent-alert)]/10 text-[var(--color-accent-alert)]"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]",
           )}
         >
-          <Map className="h-3.5 w-3.5" />
+          <Map className="h-4 w-4" />
           Legenda
         </button>
       </div>
