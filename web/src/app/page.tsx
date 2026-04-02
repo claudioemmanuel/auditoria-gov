@@ -1,231 +1,310 @@
 import Link from "next/link";
 import { DATA_SOURCES, TYPOLOGY_LABELS } from "@/lib/constants";
-import { Scale, Shield, Code, FileText, Activity } from "lucide-react";
+import { ArrowRight, Radar, BookOpen, Activity, Scale, Shield, Code, FileText, BarChart3 } from "lucide-react";
+import { Button } from "@/components/Button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, MetricCard } from "@/components/Card";
 
 export default function HomePage() {
   const typologyCount = Object.keys(TYPOLOGY_LABELS).length;
   const sourceCount = DATA_SOURCES.length;
 
-  const today = new Date().toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
   return (
-    <div className="ledger-page min-h-screen flex flex-col">
-      {/* ── Edition strip ─────────────────────────────────────── */}
-      <div className="edition-strip bg-newsprint">
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-8 flex items-center justify-between">
-          <span>OpenWatch · Edição Gov · v2</span>
-          <span className="hidden sm:block">{today}</span>
-          <span>LGPD · LAI · CF/88</span>
-        </div>
-      </div>
-
-      {/* ── Masthead ──────────────────────────────────────────── */}
-      <div className="bg-newsprint px-4 sm:px-8 pt-8 pb-6">
-        <div className="mx-auto max-w-[1280px]">
-          {/* Double rule above */}
-          <div className="masthead-rule mb-6" />
-
-          {/* Logotype */}
-          <div className="text-center mb-4">
-            <h1
-              className="font-black uppercase leading-none tracking-[0.18em] sm:tracking-[0.25em]"
-              style={{ fontSize: "clamp(2.5rem, 10vw, 7rem)" }}
-            >
-              OpenWatch
+    <div className="min-h-screen bg-[var(--color-surface-base)]">
+      {/* ── Hero Section ──────────────────────────────────────────────── */}
+      <section className="bg-gradient-to-br from-[var(--color-primary-dark)] via-[var(--color-primary-dark)] to-[#1A2847] text-white py-20 md:py-28">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <h1 className="text-5xl md:text-6xl font-bold font-[var(--font-display)] mb-6 leading-tight">
+              Citizen Audit Platform for Federal Government Data
             </h1>
-            <p
-              className="mt-3 text-base leading-relaxed"
-              style={{ color: "var(--color-muted)" }}
-            >
-              Sistema de Inteligência Investigativa sobre o Governo Federal Brasileiro
+            <p className="text-lg text-blue-100 mb-8 leading-relaxed">
+              Evidence-based corruption risk signals from public data. Deterministic, auditable, reproducible. 
+              Open source, LGPD-compliant, built for citizen investigation.
             </p>
-          </div>
-
-          {/* Double rule below */}
-          <div className="masthead-rule mt-6" />
-
-          {/* Stats byline — única linha mono */}
-          <div className="text-center py-2 text-sm" style={{ fontFamily: "var(--font-mono)", color: "var(--color-muted)" }}>
-            {typologyCount} tipologias ativas
-            &nbsp;·&nbsp; {sourceCount} fontes públicas
-            &nbsp;·&nbsp; 3 eixos de score
-            &nbsp;·&nbsp; 5 etapas no pipeline
-            &nbsp;·&nbsp;{" "}
-            <span className="text-masthead font-bold">ATIVO</span>
-          </div>
-
-          {/* Bottom rule */}
-          <div className="h-px bg-border mt-2" />
-        </div>
-      </div>
-
-      {/* ── Navigation Cards — broadsheet 3 colunas ───────────── */}
-      <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-8 py-0">
-        {/* Section label */}
-        <div className="flex items-center gap-3 py-3 border-b border-border">
-          <span className="section-flag">Central de Investigação</span>
-        </div>
-
-        {/* 3-column grid with column rules */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border">
-          {[
-            {
-              href: "/radar",
-              title: "Radar de Riscos",
-              desc: "Sinais e casos classificados por tipologia, severidade e período. Ponto de entrada para investigações cidadãs sobre contratos e licitações federais.",
-              tag: "PRINCIPAL",
-              tagClass: "bg-masthead text-newsprint",
-            },
-            {
-              href: "/coverage",
-              title: "Cobertura de Dados",
-              desc: "Estado operacional das fontes e conectores. Monitoramento do pipeline de ingestão, normalização e qualidade dos dados públicos.",
-              tag: "OPERACIONAL",
-              tagClass: "bg-ink-secondary text-newsprint",
-            },
-            {
-              href: "/methodology",
-              title: "Metodologia",
-              desc: "Fundamentos técnicos e legais das tipologias, fatores de risco e critérios de classificação de evidência para auditoria cidadã.",
-              tag: "REFERÊNCIA",
-              tagClass: "bg-ink-muted text-newsprint",
-            },
-          ].map((item, i) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`nav-ledger-card relative group flex flex-col gap-3 p-6 transition-colors duration-100 hover:bg-newsprint-hover ${
-                i < 2 ? "sm:col-rule" : ""
-              }`}
-            >
-              <span
-                className={`self-start font-mono text-[9px] font-bold tracking-[0.2em] uppercase px-2 py-1 ${item.tagClass}`}
-              >
-                {item.tag}
-              </span>
-              <h2 className="font-bold leading-snug text-xl">
-                {item.title}
-              </h2>
-              <p className="text-[13px] leading-relaxed flex-1" style={{ color: "var(--color-muted)" }}>
-                {item.desc}
-              </p>
-              <div className="byline text-masthead transition-colors group-hover:text-masthead-hover">
-                ACESSAR →
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Marco Institucional ───────────────────────────────── */}
-      <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-8">
-        <div className="flex items-center gap-3 py-3 border-b border-border">
-          <span className="section-flag">Marco Institucional</span>
-          <Link
-            href="/compliance"
-            className="byline text-masthead hover:text-masthead-hover ml-auto"
-          >
-            VER COMPLIANCE →
-          </Link>
-        </div>
-
-        {/* 4-column institutional grid with col rules */}
-        <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-4 border-b border-border">
-          {[
-            {
-              icon: Code,
-              title: "Tecnologicamente Robusto",
-              sub: "Whitelist gov, código aberto, proveniência auditável",
-              badge: "TÉCNICO",
-            },
-            {
-              icon: FileText,
-              title: "Metodologicamente Defensável",
-              sub: "Tipologias com base legal, scoring determinístico",
-              badge: "MÉTODO",
-            },
-            {
-              icon: Scale,
-              title: "Juridicamente Responsável",
-              sub: "LAI + CF/88 + LGPD + Lei Anticorrupção",
-              badge: "JURÍDICO",
-            },
-            {
-              icon: Shield,
-              title: "Publicamente Auditável",
-              sub: "Open source, fontes públicas, GET /public/sources",
-              badge: "ABERTO",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="flex items-start gap-3 bg-newsprint p-5"
-            >
-              <span className="section-flag shrink-0 mt-0.5">{item.badge}</span>
-              <div>
-                <p
-                  className="text-xs font-semibold text-ink leading-snug"
-                  style={{ fontFamily: "var(--font-ibm-plex-serif, Georgia, serif)" }}
-                >
-                  {item.title}
-                </p>
-                <p className="mt-1 text-[11px] text-ink-muted leading-relaxed">
-                  {item.sub}
-                </p>
-              </div>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/radar">
+                <Button variant="primary" size="lg" className="flex items-center gap-2">
+                  Explore Risk Signals
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/methodology">
+                <Button variant="secondary" size="lg">
+                  Learn Methodology
+                </Button>
+              </Link>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── Sistema & Conformidade ────────────────────────────── */}
-      <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-8 py-6 space-y-6">
-        <div>
-          <p className="byline mb-3">Sistema & Conformidade</p>
-          <div className="flex flex-wrap gap-2">
+      {/* ── Stats Strip ───────────────────────────────────────────────── */}
+      <section className="bg-white border-b border-[var(--color-border-light)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <MetricCard 
+              label="Active Typologies"
+              value={typologyCount}
+              accentColor="var(--color-accent-alert)"
+            />
+            <MetricCard 
+              label="Data Sources"
+              value={sourceCount}
+              accentColor="var(--color-accent-trust)"
+            />
+            <MetricCard 
+              label="Detection Patterns"
+              value={12}
+              accentColor="var(--color-metric-signals)"
+            />
+            <MetricCard 
+              label="Pipeline Stages"
+              value={5}
+              accentColor="var(--color-metric-typologies)"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Quick Actions ─────────────────────────────────────────────── */}
+      <section className="py-16 md:py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold font-[var(--font-display)] mb-4 text-[var(--color-text-primary)]">
+            Get Started
+          </h2>
+          <p className="text-lg text-[var(--color-text-secondary)] mb-12 max-w-2xl">
+            Three main pathways to explore government data and investigate corruption risks
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { href: "/api-health",           icon: Activity, label: "Saúde da API"       },
-              { href: "/compliance",           icon: Scale,    label: "Conformidade Legal" },
-              { href: "/methodology#base-legal",icon: FileText, label: "Base Legal"        },
-              { href: "/methodology#escopo",   icon: Shield,   label: "Escopo & LGPD"     },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="inline-flex items-center gap-1.5 border border-border bg-newsprint-card px-3 py-2 font-mono text-[10px] font-medium text-ink-secondary transition-colors duration-100 hover:border-ink hover:text-ink"
-              >
-                <link.icon className="h-3.5 w-3.5" />
-                {link.label}
+              {
+                href: "/radar",
+                icon: Radar,
+                title: "Risk Radar",
+                desc: "Signals and cases classified by typology, severity, and period. Starting point for citizen investigations.",
+                delay: "0ms"
+              },
+              {
+                href: "/coverage",
+                icon: Activity,
+                title: "Data Coverage",
+                desc: "Operational status of sources and connectors. Monitor pipeline ingestion, normalization, and quality.",
+                delay: "50ms"
+              },
+              {
+                href: "/methodology",
+                icon: BookOpen,
+                title: "Methodology",
+                desc: "Technical and legal foundations of typologies, risk factors, and evidence classification criteria.",
+                delay: "100ms"
+              },
+            ].map((item) => (
+              <Link key={item.href} href={item.href}>
+                <Card
+                  className="hover:shadow-lg cursor-pointer transition-all duration-300 h-full flex flex-col group animate-slideup"
+                  style={{ animationDelay: item.delay }}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="p-2 bg-[var(--color-accent-dim)] rounded-[var(--radius-md)] group-hover:bg-[var(--color-accent-alert)] group-hover:text-white transition-all">
+                        <item.icon className="h-6 w-6 text-[var(--color-accent-alert)] group-hover:text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent-alert)] transition-colors" />
+                    </div>
+                    <CardTitle className="group-hover:text-[var(--color-accent-alert)] transition-colors">
+                      {item.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1">
+                    <CardDescription className="text-[var(--color-text-secondary)]">
+                      {item.desc}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
               </Link>
             ))}
           </div>
         </div>
+      </section>
 
-        {/* ── Legal footer ─────────────────────────────────── */}
-        <footer className="evidence-block border border-border bg-newsprint-card p-5">
-          <div className="flex items-start gap-3">
-            <Scale className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" />
-            <p
-              className="text-xs text-ink-muted leading-relaxed"
-              style={{ fontFamily: "var(--font-ibm-plex-serif, Georgia, serif)" }}
-            >
-              <strong className="font-semibold text-ink-secondary">Aviso legal:</strong>{" "}
-              Esta plataforma é um instrumento de triagem para controle social e auditoria cidadã.
-              Os resultados representam hipóteses investigáveis baseadas em dados públicos e{" "}
-              <strong className="font-medium text-ink-secondary">
-                não configuram acusação, prova definitiva ou juízo de culpa
-              </strong>
-              . Tratamento de dados conforme LGPD (Lei 13.709/2018), art. 7, VII.
-              Dados pessoais são anonimizados conforme art. 12.
-            </p>
+      {/* ── Institutional Pillars ─────────────────────────────────────── */}
+      <section className="bg-[var(--color-surface-hover)] py-16 md:py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold font-[var(--font-display)] mb-4 text-[var(--color-text-primary)]">
+            Built for Trust
+          </h2>
+          <p className="text-lg text-[var(--color-text-secondary)] mb-12 max-w-2xl">
+            We commit to four pillars that make OpenWatch a reliable instrument for citizen audit
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                title: "Technologically Robust",
+                desc: "Whitelist gov APIs, open source code, auditable data provenance",
+                icon: Code,
+              },
+              {
+                title: "Methodologically Sound",
+                desc: "Typologies with legal basis, deterministic scoring, reproducible results",
+                icon: FileText,
+              },
+              {
+                title: "Legally Responsible",
+                desc: "FOI + Constitution + LGPD + Anti-Corruption Law compliant",
+                icon: Scale,
+              },
+              {
+                title: "Publicly Auditable",
+                desc: "Open source repository, public data sources, transparent APIs",
+                icon: Shield,
+              },
+            ].map((item) => (
+              <div key={item.title} className="bg-white p-6 rounded-[var(--radius-md)] border border-[var(--color-border-light)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-shadow">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 bg-[var(--color-accent-dim)] rounded-[var(--radius-md)]">
+                    <item.icon className="h-6 w-6 text-[var(--color-accent-alert)]" />
+                  </div>
+                </div>
+                <h3 className="font-semibold text-[var(--color-text-primary)] mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
           </div>
-        </footer>
-      </div>
+        </div>
+      </section>
+
+      {/* ── Featured Signals / Recent Activity ──────────────────────── */}
+      <section className="py-16 md:py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <h2 className="text-3xl font-bold font-[var(--font-display)] mb-2 text-[var(--color-text-primary)]">
+                Recent Signals
+              </h2>
+              <p className="text-[var(--color-text-secondary)]">
+                Latest corruption risk flags across federal procurement
+              </p>
+            </div>
+            <Link href="/radar">
+              <Button variant="secondary" size="md" className="flex items-center gap-2">
+                View All
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              {
+                severity: "critical",
+                title: "High-Value Sole Source Contracts",
+                desc: "Pattern detected: Single-vendor contracts above R$500k without competitive bidding",
+              },
+              {
+                severity: "high",
+                title: "Repeated Bidder Networks",
+                desc: "Companies with interconnected leadership appearing in same procurements",
+              },
+              {
+                severity: "medium",
+                title: "Geographic Price Anomalies",
+                desc: "Regional pricing discrepancies suggest potential fraud or market manipulation",
+              },
+            ].map((signal, idx) => (
+              <div
+                key={idx}
+                className="p-4 rounded-[var(--radius-md)] border-l-4 bg-white shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-shadow cursor-pointer"
+                style={{
+                  borderLeftColor: {
+                    critical: "var(--color-critical)",
+                    high: "var(--color-high)",
+                    medium: "var(--color-medium)",
+                  }[signal.severity],
+                }}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-[var(--color-text-primary)] mb-1">
+                      {signal.title}
+                    </h4>
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      {signal.desc}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ml-4 ${
+                    {
+                      critical: "bg-[#FEE2E2] text-[#991B1B]",
+                      high: "bg-[#FEF3C7] text-[#92400E]",
+                      medium: "bg-[#FEF9E7] text-[#78350F]",
+                    }[signal.severity]
+                  }`}>
+                    {signal.severity.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer / Compliance ───────────────────────────────────────── */}
+      <footer className="bg-[var(--color-primary-dark)] text-white py-12 border-t border-[#1A2847]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h4 className="font-bold mb-4">Navigation</h4>
+              <ul className="space-y-2 text-sm text-blue-100">
+                <li><Link href="/radar" className="hover:text-white transition">Risk Radar</Link></li>
+                <li><Link href="/coverage" className="hover:text-white transition">Data Coverage</Link></li>
+                <li><Link href="/methodology" className="hover:text-white transition">Methodology</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Compliance</h4>
+              <ul className="space-y-2 text-sm text-blue-100">
+                <li><Link href="/methodology#legal" className="hover:text-white transition">Legal Basis</Link></li>
+                <li><Link href="/methodology#lgpd" className="hover:text-white transition">LGPD Policy</Link></li>
+                <li><Link href="/compliance" className="hover:text-white transition">Compliance</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Resources</h4>
+              <ul className="space-y-2 text-sm text-blue-100">
+                <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">GitHub</a></li>
+                <li><a href="https://docs.openwatch.org" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">Documentation</a></li>
+                <li><a href="https://api.openwatch.org" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">API</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">System Status</h4>
+              <p className="text-sm text-blue-100 mb-2">API Status: <span className="text-green-400 font-semibold">Operational</span></p>
+              <p className="text-xs text-blue-200">Last updated: Now</p>
+            </div>
+          </div>
+
+          <div className="border-t border-[#1A2847] pt-8">
+            <div className="bg-[#1A2847] p-4 rounded-[var(--radius-md)] mb-6">
+              <p className="text-xs text-blue-100 leading-relaxed">
+                <strong className="text-white">Legal Notice:</strong> This platform is a screening tool for social control and citizen audit. 
+                Results represent investigable hypotheses based on public data and{" "}
+                <strong>do not constitute accusations, definitive proof, or judgment of guilt.</strong>{" "}
+                Data processing per LGPD (Law 13.709/2018), art. 7, VII. Personal data anonymized per art. 12.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-blue-200">
+              <p>&copy; 2026 OpenWatch. Open source under MIT License.</p>
+              <p>FOI • Constitution • LGPD • Anti-Corruption Law</p>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

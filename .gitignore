@@ -93,6 +93,9 @@ api/alembic/versions/__pycache__/
 *.tmp
 .hypothesis/
 
+# ── Planning / Work-in-Progress ────────────────────────────────────
+.plan/
+
 # ── Terraform ──────────────────────────────────────────────────────
 infra/aws/.terraform/
 infra/aws/*.tfstate

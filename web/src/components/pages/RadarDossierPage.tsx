@@ -364,37 +364,42 @@ export default function DossierPage() {
   const fullSignalForModal = openSignal ? (signalMap.get(openSignal.id) ?? null) : null;
 
   return (
-    <div className="ledger-page min-h-screen bg-surface-base">
-      {/* ── Hero severity banner ──────────────────────────────────── */}
-      <div className={cn("border-b", sevData.bg, sevData.border)}>
-        <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/radar" className={cn("transition-opacity hover:opacity-70", sevData.text)}>
-              <ArrowLeft className="h-4 w-4" />
+    <div className="ledger-page min-h-screen bg-[var(--color-surface-base)]">
+      {/* ── Hero severity banner - modernized ──────────────────────────── */}
+      <div className="border-b border-[var(--color-border-light)]" style={{ 
+        background: `linear-gradient(135deg, ${
+          sevData.bg === 'bg-severity-critical-bg' ? 'rgba(220, 38, 38, 0.08)' : 
+          sevData.bg === 'bg-severity-high-bg' ? 'rgba(217, 119, 6, 0.08)' : 
+          'rgba(14, 165, 233, 0.08)'
+        })`
+      }}>
+        <div className="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/radar" className={`transition-opacity hover:opacity-70 text-[var(--color-text-secondary)]`}>
+              <ArrowLeft className="h-5 w-5" />
             </Link>
             <div className={cn(
-              "flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs font-bold",
-              sevData.border, sevData.text,
+              "inline-flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-sm font-bold",
+              `border-[var(--color-border-light)]`,
             )}>
-              <span className={cn("h-2 w-2 rounded-full", sevData.dot, isPulsing && "animate-pulse")} />
-              {sevData.label} — Dossiê {caseData.id}
+              <span className={cn("h-2.5 w-2.5 rounded-full", sevData.dot, isPulsing && "animate-pulse")} />
+              <span className={sevData.text}>{sevData.label}</span>
+              <span className="opacity-50">·</span>
+              <span className="text-[var(--color-text-secondary)]">Dossiê {caseData.id}</span>
             </div>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-widest opacity-50">
-            Sala de Guerra
-          </span>
         </div>
       </div>
 
-      {/* ── Case header ──────────────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-6xl px-6 py-8">
-          <h1 className="font-display text-3xl font-black text-primary mb-2">{caseData.title}</h1>
+      {/* ── Case header - modernized with better typography ──────────────────────────── */}
+      <div className="border-b border-[var(--color-border-light)] bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-10">
+          <h1 className="font-display text-4xl font-black text-[var(--color-text-primary)] mb-3">{caseData.title}</h1>
           {caseData.summary && (
-            <p className="text-secondary leading-relaxed max-w-3xl mb-6">{caseData.summary}</p>
+            <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-3xl mb-8">{caseData.summary}</p>
           )}
 
-          {/* Stats grid */}
+          {/* Stats grid - modern card-like layout */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             {[
               { Icon: Calendar,      label: "Período",     val: periodStr },
@@ -403,10 +408,10 @@ export default function DossierPage() {
               { Icon: AlertTriangle, label: "Sinais",      val: String(allSignals.length) },
               { Icon: DollarSign,    label: "Valor Total", val: totalValue > 0 ? formatBRL(totalValue) : "—" },
             ].map(({ Icon, label, val }) => (
-              <div key={label} className="rounded-xl border border-border bg-surface-subtle p-4">
-                <Icon className="h-4 w-4 text-muted mb-2" />
-                <p className="font-mono text-xs text-muted mb-0.5">{label}</p>
-                <p className="font-mono font-bold text-primary tabular-nums">{val}</p>
+              <div key={label} className="rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] p-4 hover:shadow-sm transition-all">
+                <Icon className="h-5 w-5 text-[var(--color-secondary)] mb-2" />
+                <p className="font-mono text-xs text-[var(--color-text-secondary)] mb-1 uppercase tracking-wide">{label}</p>
+                <p className="font-mono font-bold text-lg text-[var(--color-text-primary)] tabular-nums">{val}</p>
               </div>
             ))}
           </div>
@@ -416,13 +421,16 @@ export default function DossierPage() {
       {/* ── Body ─────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-6xl px-6 py-10 space-y-14">
 
-        {/* ── Atores Identificados ─────────────────────────────── */}
+        {/* ── Atores Identificados - modernized section header ─────────────────────────── */}
         <section id="atores">
-          <div className="mb-4 flex items-center gap-2">
-            <User className="h-4 w-4 text-accent" />
-            <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+            <User className="h-5 w-5 text-[var(--color-secondary)]" />
+            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
               Atores Identificados
             </h2>
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
+              {entities.length} {entities.length !== 1 ? "atores" : "ator"}
+            </span>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {entityMatrix.map(({ entity, eventCount, roles, signalCount }) => {
@@ -437,50 +445,50 @@ export default function DossierPage() {
               const cpf = entity.identifiers.cpf;
 
               return (
-                <div key={entity.id} className="rounded-2xl border border-border bg-surface-card p-5">
-                  <div className="mb-3 flex items-start gap-3">
+                <div key={entity.id} className="rounded-lg border border-[var(--color-border-light)] bg-white p-6 hover:shadow-md hover:shadow-[var(--color-primary-dark)]/5 transition-all">
+                  <div className="mb-4 flex items-start gap-3">
                     {/* Photo or initials avatar */}
                     {photoUrl ? (
                       <img
                         src={photoUrl}
                         alt={entity.name}
-                        className="h-10 w-10 shrink-0 rounded-xl object-cover"
+                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
                       />
                     ) : (
                       <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
                         style={{ backgroundColor: col }}
                       >
                         {initials(entity.name)}
                       </div>
                     )}
-                    <div className="min-w-0">
-                      <p className="font-semibold text-primary leading-tight line-clamp-2">{entity.name}</p>
-                      <span className="font-mono text-[9px] font-bold uppercase" style={{ color: col }}>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display font-semibold text-[var(--color-text-primary)] leading-tight line-clamp-2">{entity.name}</p>
+                      <span className="font-mono text-xs font-bold uppercase" style={{ color: col }}>
                         {ENTITY_LABEL[entity.type] ?? entity.type}
                       </span>
                     </div>
                   </div>
 
-                  {/* Identifiers — unmasked */}
-                  {cnpj && <p className="mb-1 font-mono text-[10px] text-muted">CNPJ {cnpj}</p>}
-                  {cpf && <p className="mb-1 font-mono text-[10px] text-muted">CPF {cpf}</p>}
+                  {/* Identifiers */}
+                  {cnpj && <p className="mb-1 font-mono text-xs text-[var(--color-text-secondary)]">CNPJ {cnpj}</p>}
+                  {cpf && <p className="mb-1 font-mono text-xs text-[var(--color-text-secondary)]">CPF {cpf}</p>}
 
                   {/* Attribute badges */}
                   {(party || sphere || parliament) && (
-                    <div className="mb-2 flex flex-wrap gap-1">
+                    <div className="mb-3 flex flex-wrap gap-1.5">
                       {party && (
-                        <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[9px] font-bold text-accent">
+                        <span className="rounded-full border border-[var(--color-secondary)]/30 bg-[var(--color-secondary)]/10 px-2.5 py-1 font-mono text-xs font-semibold text-[var(--color-secondary)]">
                           {party}
                         </span>
                       )}
                       {sphere && (
-                        <span className="rounded-full border border-border bg-surface-subtle px-2 py-0.5 font-mono text-[9px] text-muted">
+                        <span className="rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-2.5 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
                           {sphere}
                         </span>
                       )}
                       {parliament && (
-                        <span className="rounded-full border border-border bg-surface-subtle px-2 py-0.5 font-mono text-[9px] text-muted">
+                        <span className="rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-2.5 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
                           {parliament}
                         </span>
                       )}
@@ -489,23 +497,23 @@ export default function DossierPage() {
 
                   {/* Mandate */}
                   {(mandateStart || mandateEnd) && (
-                    <p className="mb-2 font-mono text-[10px] text-muted">
+                    <p className="mb-3 font-mono text-xs text-[var(--color-text-secondary)]">
                       Mandato: {mandateStart ? String(mandateStart).slice(0, 4) : "?"}
                       {mandateEnd ? `–${String(mandateEnd).slice(0, 4)}` : "–?"}
                     </p>
                   )}
 
                   {/* Event / signal stats */}
-                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+                  <div className="grid grid-cols-2 gap-2 border-t border-[var(--color-border-light)] pt-3">
                     <div>
-                      <p className="font-mono text-xl font-black text-primary">{eventCount}</p>
-                      <p className="font-mono text-[9px] text-muted">eventos</p>
+                      <p className="font-mono text-lg font-black text-[var(--color-text-primary)]">{eventCount}</p>
+                      <p className="font-mono text-xs text-[var(--color-text-secondary)]">eventos</p>
                     </div>
                     <div>
-                      <p className={cn("font-mono text-xl font-black", signalCount > 0 ? "text-severity-high" : "text-muted")}>
+                      <p className={cn("font-mono text-lg font-black", signalCount > 0 ? "text-[var(--color-severity-high)]" : "text-[var(--color-text-secondary)]")}>
                         {signalCount}
                       </p>
-                      <p className="font-mono text-[9px] text-muted">sinais</p>
+                      <p className="font-mono text-xs text-[var(--color-text-secondary)]">sinais</p>
                     </div>
                   </div>
 
@@ -525,13 +533,16 @@ export default function DossierPage() {
           </div>
         </section>
 
-        {/* ── Linha do Tempo de Eventos ────────────────────────── */}
+        {/* ── Linha do Tempo de Eventos - modernized section header ────────────────────────── */}
         <section id="timeline">
-          <div className="mb-4 flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-accent" />
-            <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+            <Calendar className="h-5 w-5 text-[var(--color-secondary)]" />
+            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
               Linha do Tempo de Eventos
             </h2>
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
+              {events.length} {events.length !== 1 ? "eventos" : "evento"}
+            </span>
           </div>
           <div className="space-y-4">
             {sortedEvents.map((evt, idx) => {
@@ -652,14 +663,17 @@ export default function DossierPage() {
           </div>
         </section>
 
-        {/* ── Análise Detalhada dos Sinais ─────────────────────── */}
+        {/* ── Análise Detalhada dos Sinais - modernized section header ────────────────────── */}
         {uniqueEventSignals.length > 0 && (
           <section id="sinais">
-            <div className="mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-accent" />
-              <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+            <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+              <AlertTriangle className="h-5 w-5 text-[var(--color-secondary)]" />
+              <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
                 Análise Detalhada dos Sinais
               </h2>
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
+                {uniqueEventSignals.length} {uniqueEventSignals.length !== 1 ? "sinais" : "sinal"}
+              </span>
             </div>
             <div className="space-y-4">
               {uniqueEventSignals.map((sig) => {
@@ -806,11 +820,11 @@ export default function DossierPage() {
           </section>
         )}
 
-        {/* ── Matriz de Cruzamento ─────────────────────────────── */}
+        {/* ── Matriz de Cruzamento - modernized section header ─────────────────────────── */}
         <section id="matriz">
-          <div className="mb-4 flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-accent" />
-            <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+            <Link2 className="h-5 w-5 text-[var(--color-secondary)]" />
+            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
               Matriz de Cruzamento — Atores × Eventos
             </h2>
           </div>
@@ -835,14 +849,17 @@ export default function DossierPage() {
           </p>
         </section>
 
-        {/* ── Hipóteses Jurídicas ──────────────────────────────── */}
+        {/* ── Hipóteses Jurídicas - modernized section header ───────────────────────────── */}
         {legal_hypotheses.length > 0 && (
           <section id="juridico">
-            <div className="mb-4 flex items-center gap-2">
-              <Scale className="h-4 w-4 text-accent" />
-              <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+            <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+              <Scale className="h-5 w-5 text-[var(--color-secondary)]" />
+              <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
                 Hipóteses Jurídicas
               </h2>
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
+                {legal_hypotheses.length} {legal_hypotheses.length !== 1 ? "hipóteses" : "hipótese"}
+              </span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {legal_hypotheses.map((lh, i) => (
@@ -861,11 +878,11 @@ export default function DossierPage() {
           </section>
         )}
 
-        {/* ── Fontes de Dados ──────────────────────────────────── */}
+        {/* ── Fontes de Dados - modernized section header ───────────────────────────────── */}
         <section>
-          <div className="mb-4 flex items-center gap-2">
-            <Database className="h-4 w-4 text-accent" />
-            <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+            <Database className="h-5 w-5 text-[var(--color-secondary)]" />
+            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
               Fontes de Dados
             </h2>
           </div>
@@ -885,14 +902,17 @@ export default function DossierPage() {
           </p>
         </section>
 
-        {/* ── Casos Relacionados ───────────────────────────────── */}
+        {/* ── Casos Relacionados - modernized section header ───────────────────────────────── */}
         {related_cases.length > 0 && (
           <section>
-            <div className="mb-4 flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-accent" />
-              <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+            <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
+              <Link2 className="h-5 w-5 text-[var(--color-secondary)]" />
+              <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
                 Casos Relacionados
               </h2>
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
+                {related_cases.length} {related_cases.length !== 1 ? "casos" : "caso"}
+              </span>
             </div>
             <div className="space-y-2">
               {related_cases.map((rc) => {

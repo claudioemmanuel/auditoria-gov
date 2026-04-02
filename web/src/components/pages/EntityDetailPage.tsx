@@ -137,25 +137,25 @@ export default function EntityDetailPage() {
   // ── Aside ────────────────────────────────────────────────────────
   const aside = (
     <>
-      {/* Identity card */}
-      <div className="rounded-lg border border-border bg-surface-card p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center bg-accent-subtle" style={{ border: "1px solid var(--color-border)", borderRadius: 0 }}>
-            <TypeIcon className="h-6 w-6 text-accent" />
+      {/* Identity card - updated styling */}
+      <div className="rounded-lg border border-[var(--color-border-light)] bg-white p-6 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="inline-flex h-14 w-14 shrink-0 items-center justify-center bg-[var(--color-secondary)]/10 border border-[var(--color-secondary)]/20 rounded-lg">
+            <TypeIcon className="h-7 w-7 text-[var(--color-secondary)]" />
           </div>
-          <div className="min-w-0">
-            <h2 className="font-display text-sm font-bold text-primary truncate">{entity.name}</h2>
-            <p className="text-xs text-muted">{typeLabel}</p>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-lg font-bold text-[var(--color-text-primary)] line-clamp-1">{entity.name}</h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">{typeLabel}</p>
           </div>
         </div>
 
         {/* Identifiers */}
         {identifierEntries.length > 0 && (
-          <div className="border-t border-border pt-3 space-y-2">
+          <div className="border-t border-[var(--color-border-light)] pt-4 space-y-3">
             {identifierEntries.map(([key, value]) => (
               <div key={key}>
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted">{key}</p>
-                <p className="font-mono tabular-nums text-xs text-primary">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)] mb-1">{key}</p>
+                <p className="font-mono text-sm tabular-nums text-[var(--color-text-primary)]">
                   {normalizeUnknownDisplay(value)}
                 </p>
               </div>
@@ -165,9 +165,9 @@ export default function EntityDetailPage() {
 
         {/* Cluster */}
         {entity.cluster_id && (
-          <div className="border-t border-border pt-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted">Cluster</p>
-            <p className="font-mono tabular-nums text-xs text-secondary">
+          <div className="border-t border-[var(--color-border-light)] pt-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)] mb-2">Cluster ID</p>
+            <p className="font-mono text-sm tabular-nums text-[var(--color-text-primary)]">
               #{entity.cluster_id.slice(0, 8)}
             </p>
           </div>
@@ -178,15 +178,15 @@ export default function EntityDetailPage() {
 
         {/* Aliases */}
         {entity.aliases.length > 0 && (
-          <div className="border-t border-border pt-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted mb-1">
-              Nomes alternativos
+          <div className="border-t border-[var(--color-border-light)] pt-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)] mb-2">
+              Nomes Alternativos
             </p>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {entity.aliases.map((alias, i) => (
-                <li key={i} className="text-xs text-secondary">
+                <li key={i} className="text-sm text-[var(--color-text-secondary)]">
                   {alias.value}
-                  <span className="ml-1 text-[10px] text-muted">
+                  <span className="ml-2 text-xs text-[var(--color-text-secondary)] opacity-70">
                     ({normalizeUnknownDisplay(alias.type)})
                   </span>
                 </li>
@@ -196,7 +196,7 @@ export default function EntityDetailPage() {
         )}
       </div>
 
-      {/* Health status card */}
+      {/* Health status card - updated styling */}
       {(() => {
         const eventCount = neighborhood?.diagnostics?.entity_event_count ?? 0;
         const cpCount = coParticipants.length;
@@ -204,42 +204,43 @@ export default function EntityDetailPage() {
         let statusClass: string;
         if (eventCount === 0) {
           statusLabel = "Sem dados";
-          statusClass = "bg-gray-500/10 text-gray-400 border-gray-500/20";
+          statusClass = "bg-gray-100 text-gray-700 border-gray-300";
         } else if (cpCount === 0) {
           statusLabel = "Baixo risco";
-          statusClass = "bg-green-500/10 text-green-400 border-green-500/20";
+          statusClass = "bg-green-100 text-green-700 border-green-300";
         } else if (cpCount <= 5) {
           statusLabel = "Conectividade moderada";
-          statusClass = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+          statusClass = "bg-amber-100 text-amber-700 border-amber-300";
         } else {
           statusLabel = "Alta conectividade";
-          statusClass = "bg-red-500/10 text-red-400 border-red-500/20";
+          statusClass = "bg-red-100 text-red-700 border-red-300";
         }
         return (
-          <div className="rounded-lg border border-border bg-surface-card p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-muted" />
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
+          <div className="rounded-lg border border-[var(--color-border-light)] bg-white p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <Activity className="h-5 w-5 text-[var(--color-secondary)]" />
+              <p className="text-sm font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">
                 Saúde da Entidade
               </p>
             </div>
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusClass}`}>
+            <span className={`inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold ${statusClass}`}>
               {statusLabel}
             </span>
-            <p className="text-xs text-secondary">
-              {eventCount} evento{eventCount !== 1 ? "s" : ""} · {cpCount} conexõe{cpCount !== 1 ? "s" : ""}
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              <span className="font-semibold">{eventCount}</span> evento{eventCount !== 1 ? "s" : ""} · 
+              <span className="font-semibold ml-1">{cpCount}</span> conexão{cpCount !== 1 ? "es" : ""}
             </p>
           </div>
         );
       })()}
 
-      {/* Radar link */}
-      <div className="rounded-lg border border-border bg-surface-card p-4">
+      {/* Radar link - updated styling */}
+      <div className="rounded-lg border border-[var(--color-border-light)] bg-white p-6">
         <Link
           href={`/radar?entity=${entity.id}`}
-          className="flex items-center gap-2 rounded-md bg-accent-subtle text-accent px-3 py-2 text-xs font-medium transition hover:opacity-80 w-full"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-secondary)] text-white px-4 py-3 text-sm font-semibold transition-all hover:shadow-md hover:shadow-[var(--color-secondary)]/30 w-full"
         >
-          <Radar className="h-3.5 w-3.5" />
+          <Radar className="h-4 w-4" />
           Ver no Radar
         </Link>
       </div>
@@ -249,10 +250,10 @@ export default function EntityDetailPage() {
   // ── Main ─────────────────────────────────────────────────────────
   const main = (
     <>
-      {/* Risk Signals */}
-      <section className="rounded-lg border border-border bg-surface-card p-4">
-        <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary mb-3">
-          <AlertTriangle className="h-4 w-4 text-severity-high" />
+      {/* Risk Signals - modernized section header */}
+      <section className="rounded-lg border border-[var(--color-border-light)] bg-white p-6">
+        <h2 className="font-display flex items-center gap-2 text-xl font-bold text-[var(--color-text-primary)] mb-4">
+          <AlertTriangle className="h-5 w-5 text-[var(--color-severity-high)]" />
           Sinais de Risco
         </h2>
         <div className="space-y-1.5">
@@ -271,10 +272,10 @@ export default function EntityDetailPage() {
         </p>
       </section>
 
-      {/* Relationship Graph */}
+      {/* Relationship Graph - modernized section header */}
       <section>
-        <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary mb-3">
-          <GitBranch className="h-4 w-4 text-accent" />
+        <h2 className="font-display flex items-center gap-2 text-xl font-bold text-[var(--color-text-primary)] mb-4">
+          <GitBranch className="h-5 w-5 text-[var(--color-secondary)]" />
           Rede de Relacionamentos
         </h2>
         <EntityNetworkGraph
@@ -283,10 +284,10 @@ export default function EntityDetailPage() {
         />
       </section>
 
-      {/* Co-participants */}
+      {/* Co-participants - modernized section header */}
       <section>
-        <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary mb-3">
-          <Users className="h-4 w-4 text-accent" />
+        <h2 className="font-display flex items-center gap-2 text-xl font-bold text-[var(--color-text-primary)] mb-4">
+          <Users className="h-5 w-5 text-[var(--color-secondary)]" />
           Co-Participantes ({coParticipants.length})
         </h2>
         {coParticipants.length === 0 ? (

@@ -56,52 +56,55 @@ function CaseListCard({ item }: { item: RadarV2CaseItem }) {
   const corruptionTypes = [...new Set(item.typology_codes.flatMap((c) => TYPOLOGY_META[c]?.corruption_types ?? []))];
 
   return (
-    <div className={`relative flex overflow-hidden rounded-sm border bg-surface-card transition-all hover:border-accent/40 hover:shadow-lg hover:shadow-black/20 ${s.border}`}>
-      {/* Left severity stripe */}
-      <div className={`w-1 shrink-0 ${s.bar}`} />
+    <div className={`relative flex flex-col rounded-lg border border-[var(--color-border-light)] bg-white overflow-hidden transition-all hover:shadow-lg hover:shadow-[var(--color-primary-dark)]/10 hover:border-[var(--color-secondary-light)]`}>
+      {/* Top severity bar */}
+      <div className={`h-1 w-full ${s.bar}`} />
 
-      <div className="flex-1 p-4">
-        {/* KICKER: typology codes + exhibit ID */}
-        <div className="mb-1.5 flex items-center gap-2">
-          <div className="flex gap-1.5">
-            {item.typology_codes.slice(0, 2).map((code) => (
-              <span
-                key={code}
-                className="font-mono text-[9px] font-bold tracking-[0.12em] text-accent uppercase"
-                title={TYPOLOGY_LABELS[code]}
-              >
-                {code}
-              </span>
-            ))}
-            {item.typology_codes.length > 2 && (
-              <span className="font-mono text-[9px] text-muted">+{item.typology_codes.length - 2}</span>
-            )}
-          </div>
-          <span className="font-mono text-[9px] text-muted/60">·</span>
-          <span className="exhibit-id">#{item.id.slice(-6).toUpperCase()}</span>
+      <div className="flex-1 p-6">
+        {/* KICKER: typology codes with background pills */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {item.typology_codes.slice(0, 2).map((code) => (
+            <span
+              key={code}
+              className="inline-flex items-center rounded-full border border-[var(--color-secondary-light)] bg-[var(--color-secondary-light)]/10 px-2.5 py-1 font-mono text-[11px] font-semibold text-[var(--color-secondary)] uppercase tracking-wide"
+              title={TYPOLOGY_LABELS[code]}
+            >
+              {code}
+            </span>
+          ))}
+          {item.typology_codes.length > 2 && (
+            <span className="font-mono text-xs text-[var(--color-text-secondary)]">+{item.typology_codes.length - 2}</span>
+          )}
         </div>
 
-        {/* HEADLINE: case title */}
-        <p className="font-display text-sm font-bold leading-snug text-primary line-clamp-2 mb-1.5" title={item.title}>
+        {/* HEADLINE: case title - using new typography system */}
+        <h3 className="font-display text-base font-bold leading-snug text-[var(--color-text-primary)] line-clamp-2 mb-3" title={item.title}>
           {item.title}
-        </p>
+        </h3>
 
-        {/* DATELINE: date + period + signal count */}
-        <p className="dateline mb-3">
-          {foundDate}
-          {periodStr && ` · ${periodStr}`}
-          {` · `}
-          <span className={s.text}>{item.signal_count}</span>
-          {` ${item.signal_count !== 1 ? "sinais" : "sinal"}`}
-        </p>
+        {/* METADATA: date + period + signal count */}
+        <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-secondary)]">
+          <span className="font-mono text-xs">{foundDate}</span>
+          {periodStr && (
+            <>
+              <span className="h-1 w-1 rounded-full bg-[var(--color-border-light)]" />
+              <span className="font-mono text-xs">{periodStr}</span>
+            </>
+          )}
+          <span className="h-1 w-1 rounded-full bg-[var(--color-border-light)]" />
+          <span className="font-semibold">
+            <span className={s.text}>{item.signal_count}</span>
+            {` ${item.signal_count !== 1 ? "sinais" : "sinal"}`}
+          </span>
+        </div>
 
-        {/* TAGS: corruption types */}
+        {/* TAGS: corruption types - simpler inline layout */}
         {corruptionTypes.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
+          <div className="mb-4 flex flex-wrap gap-2">
             {corruptionTypes.slice(0, 3).map((ct) => (
               <span
                 key={ct}
-                className="rounded-[3px] border border-border px-1.5 py-0.5 font-mono text-[9px] text-muted"
+                className="rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-[10px] text-[var(--color-text-secondary)]"
               >
                 {CORRUPTION_TYPE_LABELS[ct] ?? ct}
               </span>
@@ -109,10 +112,10 @@ function CaseListCard({ item }: { item: RadarV2CaseItem }) {
           </div>
         )}
 
-        {/* CTA */}
-        <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] font-medium text-accent">VER DOSSIÊ</span>
-          <span className="font-mono text-[10px] text-accent/60">→</span>
+        {/* CTA Button - using new Button style inline */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-secondary)] bg-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-md hover:shadow-[var(--color-secondary)]/30">
+          <span>Ver Dossiê</span>
+          <span className="text-lg">→</span>
         </div>
       </div>
     </div>
@@ -192,44 +195,60 @@ function SeverityAccordionSection({
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
-    <div className={`rounded-sm border ${s.border} overflow-hidden`}>
-      {/* Header */}
+    <div className={`rounded-lg border border-[var(--color-border-light)] overflow-hidden bg-white transition-all`}>
+      {/* Modern header with gradient background */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors ${s.bg} hover:opacity-95`}
+        className={`w-full flex items-center gap-4 px-6 py-5 text-left transition-all hover:bg-[var(--color-surface-hover)]`}
+        style={{
+          backgroundImage: open 
+            ? `linear-gradient(135deg, ${s.bg === 'bg-error/5' ? 'rgba(220, 38, 38, 0.05)' : s.bg === 'bg-amber/5' ? 'rgba(217, 119, 6, 0.05)' : s.bg === 'bg-yellow-500/5' ? 'rgba(234, 179, 8, 0.05)' : 'rgba(14, 165, 233, 0.05)'})`
+            : 'none'
+        }}
       >
-        <span className={`font-mono text-xs font-bold tracking-[0.15em] uppercase ${s.text}`}>{s.label}</span>
-        <span className={`rounded-[4px] border px-2 py-0.5 font-mono text-xs font-bold tabular-nums ${s.border} ${s.text}`}>
+        {/* Severity indicator dot + label */}
+        <div className="flex items-center gap-3">
+          <span className={`h-3 w-3 rounded-full ${s.dot}`} />
+          <span className={`font-mono text-sm font-bold tracking-widest uppercase ${s.text}`}>{s.label}</span>
+        </div>
+
+        {/* Count badge */}
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-xs font-semibold tabular-nums ${s.border} ${s.text}`}>
           {count.toLocaleString("pt-BR")}
+          <span className="font-normal opacity-70">{count !== 1 ? "casos" : "caso"}</span>
         </span>
-        <span className="font-mono text-[10px] text-muted">
-          {count !== 1 ? "casos" : "caso"}
-        </span>
+
         <div className="flex-1" />
-        {open
-          ? <ChevronDown className={`h-4 w-4 ${s.text}`} />
-          : <ChevronRight className={`h-4 w-4 ${s.text}`} />
-        }
+
+        {/* Indicator chevron */}
+        <div className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`}>
+          {open
+            ? <ChevronDown className={`h-5 w-5 ${s.text}`} />
+            : <ChevronRight className={`h-5 w-5 ${s.text}`} />
+          }
+        </div>
       </button>
 
-      {/* Body */}
+      {/* Body - cases grid */}
       {open && (
-        <div className="border-t border-border bg-surface-base px-4 py-4">
+        <div className="border-t border-[var(--color-border-light)] bg-[var(--color-surface-base)] px-6 py-6">
           {loading && <TableSkeleton rows={3} />}
 
           {error && (
-            <p className="text-xs text-error text-center py-4">{error}</p>
+            <div className="rounded-lg border border-[var(--color-severity-critical)]/20 bg-[var(--color-severity-critical)]/5 px-4 py-3 text-sm text-[var(--color-severity-critical)]">
+              {error}
+            </div>
           )}
 
           {!loading && !error && filteredCases.length === 0 && (
-            <p className="text-xs text-muted text-center py-4">
+            <p className="text-sm text-[var(--color-text-secondary)] text-center py-8">
               {search.trim() ? "Nenhum caso encontrado para esta busca." : "Nenhum caso nesta severidade."}
             </p>
           )}
 
           {!loading && !error && filteredCases.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {filteredCases.map((c) => (
                 <Link key={c.id} href={`/radar/dossie/${c.id}`} className="block">
                   <CaseListCard item={c} />
@@ -240,18 +259,18 @@ function SeverityAccordionSection({
 
           {/* Pagination */}
           {!loading && !search.trim() && totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-border pt-3 mt-1">
-              <span className="text-xs text-muted">
+            <div className="flex items-center justify-between border-t border-[var(--color-border-light)] pt-6 mt-6">
+              <span className="text-sm text-[var(--color-text-secondary)] font-mono">
                 Página {currentPage} de {totalPages}
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="secondary"
                   size="sm"
                   disabled={currentPage <= 1}
                   onClick={(e) => { e.preventDefault(); setOffset(Math.max(0, offset - PAGE_SIZE)); }}
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <ChevronLeft className="h-4 w-4" />
                   Anterior
                 </Button>
                 <Button
@@ -261,7 +280,7 @@ function SeverityAccordionSection({
                   onClick={(e) => { e.preventDefault(); setOffset(offset + PAGE_SIZE); }}
                 >
                   Próxima
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -340,9 +359,9 @@ function RadarPageInner() {
 
   return (
     <>
-      {/* Summary strip */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
+      {/* Summary strip - modern card styling */}
+      <div className="border-b border-[var(--color-border-light)] bg-white">
+        <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
           <RadarSummaryStrip
             summary={summary}
             loading={summaryLoading}
@@ -352,13 +371,16 @@ function RadarPageInner() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
-        {/* Header + filters */}
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-6">
+        {/* Header + filters section */}
+        <div className="mb-8 flex flex-col gap-6">
           <div>
             <RadarBreadcrumb crumbs={[{ label: "Radar" }]} />
-            <p className="text-xs text-secondary mt-0.5">
-              Casos agrupados por severidade — clique em uma seção para expandir
+            <h1 className="font-display text-3xl font-bold text-[var(--color-text-primary)] mt-2">
+              Análise de Risco por Severidade
+            </h1>
+            <p className="text-base text-[var(--color-text-secondary)] mt-2">
+              Explore casos agrupados por nível de severidade. Clique em uma seção para visualizar os casos relacionados.
             </p>
           </div>
           <RadarInlineFilters
@@ -378,8 +400,8 @@ function RadarPageInner() {
           />
         </div>
 
-        {/* Severity accordions */}
-        <div className="space-y-3">
+        {/* Severity accordions - modern spacing */}
+        <div className="space-y-4">
           {summaryLoading
             ? null
             : (() => {
@@ -388,9 +410,11 @@ function RadarPageInner() {
                 );
                 if (activeSevs.length === 0) {
                   return (
-                    <p className="py-12 text-center text-sm text-muted">
-                      Nenhum caso encontrado com os filtros aplicados.
-                    </p>
+                    <div className="rounded-lg border border-[var(--color-border-light)] bg-white p-12 text-center">
+                      <p className="text-lg text-[var(--color-text-secondary)]">
+                        Nenhum caso encontrado com os filtros aplicados.
+                      </p>
+                    </div>
                   );
                 }
                 return activeSevs.map((sev, i) => (
@@ -417,11 +441,30 @@ function RadarPageInner() {
       />
     </>
   );
+                    filters={filters}
+                    search={search}
+                    defaultOpen={i === 0}
+                  />
+                ));
+              })()
+          }
+        </div>
+      </div>
+
+      <RadarCoveragePanel
+        open={coverageOpen}
+        onClose={() => setCoverageOpen(false)}
+        loading={coverageLoading}
+        error={coverageError}
+        data={coverage}
+      />
+    </>
+  );
 }
 
 export default function RadarPage() {
   return (
-    <div className="ledger-page">
+    <div className="min-h-screen bg-[var(--color-surface-base)]">
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><TableSkeleton rows={6} /></div>}>
         <RadarPageInner />
       </Suspense>

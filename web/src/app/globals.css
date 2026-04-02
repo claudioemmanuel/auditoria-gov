@@ -1,254 +1,371 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: 'DM Sans', sans-serif;
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  /* ── Typography — Modern Minimalist Professional ── */
+  --font-display: 'Lora', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Fira Code', 'Monaco', monospace;
 
-  /* Intelligence Vault — light palette */
-  --color-bg:             #F5F5FC;
-  --color-fg:             #0A0A1A;
-  --color-surface:        #EAEAF5;
-  --color-border:         #CACAE0;
-  --color-muted:          #5252A0;
-  --color-accent:         #6E3ED6;
-  --color-accent-dim:     #E8E0FA;
+  /* ── Authority + Alert + Trust — Modern Design System ── */
+  --color-primary-dark:   #0F172A;  /* Navy — Authority & Trust */
+  --color-primary-light:  #FFFFFF;  /* Off-white — Clean */
+  --color-accent-alert:   #DC2626;  /* Red — Critical Alert */
+  --color-accent-trust:   #0EA5E9;  /* Cyan — Trust & Info */
 
-  /* Severity */
-  --color-critical:       #9B1616;
-  --color-high:           #C94A0A;
-  --color-medium:         #8A6400;
-  --color-low:            #1A6840;
+  /* ── Legacy aliases (maintain compatibility) ── */
+  --color-bg:             #F8FAFC;  /* Light page background */
+  --color-fg:             #0F172A;  /* Navy text */
+  --color-surface:        #FFFFFF;  /* Card surfaces */
+  --color-border:         #E2E8F0;  /* Light borders */
+  --color-muted:          #475569;  /* Secondary gray text */
+  --color-accent:         #DC2626;  /* Primary accent → red */
+  --color-accent-dim:     #FEE2E2;  /* Red tinted background */
 
-  /* Status */
-  --color-success:        #1A6840;
-  --color-warning:        #8A6400;
-  --color-error:          #9B1616;
-  --color-info:           #3848C8;
+  /* ── Severity — WCAG AA Compliant ── */
+  --color-critical:       #DC2626;  /* Red */
+  --color-high:           #EA580C;  /* Orange */
+  --color-medium:         #EAB308;  /* Amber */
+  --color-low:            #16A34A;  /* Green */
 
-  /* Surface hierarchy */
-  --color-surface-base:   #F5F5FC;
-  --color-surface-card:   #E2E2F0;
-  --color-surface-subtle: #EBEBF8;
 
-  /* Typography variants */
-  --color-text-primary:   #0A0A1A;
-  --color-text-secondary: #3A3A70;
-  --color-text-muted:     #6060A0;
+  /* ── Status — New system ── */
+  --color-success:        #16A34A;
+  --color-warning:        #EAB308;
+  --color-error:          #DC2626;
+  --color-info:           #0EA5E9;
 
-  /* Semantic aliases */
-  --color-primary:        #0A0A1A;
-  --color-secondary:      #3A3A70;
-  --color-destructive:    #9B1616;
-  --color-accent-subtle:  #E8E0FA;
+  /* ── Surface Hierarchy — Modern with navy + white ── */
+  --color-surface-base:   #F8FAFC;  /* Page background */
+  --color-surface-card:   #FFFFFF;  /* Card/modal surfaces */
+  --color-surface-hover:  #F1F5F9;  /* Hover state */
+  --color-surface-active: #E2E8F0;  /* Active/selected state */
 
-  /* Entity type colors (graph visualization) */
-  --color-entity-person:  #7C6AE0;
-  --color-entity-company: #4A82D4;
-  --color-entity-org:     #3A90A0;
+  /* ── Text Colors — Navy-based ── */
+  --color-text-primary:   #0F172A;  /* Navy (main content) */
+  --color-text-secondary: #475569;  /* Gray (supporting) */
+  --color-text-muted:     #94A3B8;  /* Gray (disabled/caption) */
+  --color-text-inverse:   #FFFFFF;  /* White (on dark) */
 
-  /* Edge/relationship colors (graph visualization) */
-  --color-edge-compra:    #4A82D4;
-  --color-edge-favorecido: #E05050;
-  --color-edge-copart:    #7070A8;
-  --color-edge-copartsup: #9090C0;
-  --color-edge-coparorg:  #A080E0;
-  --color-edge-socio:     #30A060;
-  --color-edge-same-socio: #C89820;
-  --color-edge-address:   #8090B0;
-  --color-edge-phone:     #7080A0;
-  --color-edge-acct:      #8090B0;
-  --color-edge-subsidiary: #8A63E8;
-  --color-edge-holding:   #8A63E8;
-  --color-edge-cluster:   #D46020;
+  /* ── Semantic Aliases ── */
+  --color-primary:        #0F172A;  /* Navy */
+  --color-secondary:      #0EA5E9;  /* Cyan */
+  --color-destructive:    #DC2626;  /* Red */
+  --color-accent-subtle:  #FEE2E2;  /* Red tint */
+  --color-focus:          #0EA5E9;  /* Cyan focus ring */
 
-  /* Event type colors (timeline) */
-  --color-event-licitacao:     #4A82D4;
-  --color-event-contrato:      #8A63E8;
-  --color-event-sancao:        #E05050;
-  --color-event-transferencia: #D46020;
-  --color-event-emenda:        #30A060;
+  /* ── Entity Type Colors (Graph) — Updated palette ── */
+  --color-entity-person:      #8B5CF6;  /* Purple */
+  --color-entity-company:     #F59E0B;  /* Amber */
+  --color-entity-org:         #6366F1;  /* Indigo */
+  --color-entity-unknown:     #9CA3AF;  /* Gray */
 
-  /* Metric card colors */
-  --color-metric-hypotheses:   #8A63E8;
-  --color-metric-laws:         #30A060;
-  --color-metric-typologies:   #D46020;
-  --color-metric-signals:      #4A82D4;
+  /* ── Event Type Colors (Timeline) — Updated ── */
+  --color-event-licitacao:    #0EA5E9;  /* Blue */
+  --color-event-contrato:     #8B5CF6;  /* Purple */
+  --color-event-sancao:       #DC2626;  /* Red */
+  --color-event-transferencia: #F59E0B;  /* Amber */
+  --color-event-emenda:       #16A34A;  /* Green */
 
-  /* Role badge colors (radar) */
-  --color-role-buyer:      #7AAAF0;
-  --color-role-supplier:   #B090F8;
-  --color-role-winner:     #50D090;
-  --color-role-bidder:     #E8B840;
-  --color-role-sanctioned: #F08080;
-  --color-role-owner:      #F09050;
-  --color-role-employee:   #50C0D8;
-  --color-role-manager:    #A878F0;
+  /* ── Edge/Relationship Colors (Graph) — Distinct & accessible ── */
+  --color-edge-compra:        #0EA5E9;
+  --color-edge-favorecido:    #DC2626;
+  --color-edge-copart:        #8B5CF6;
+  --color-edge-copartsup:     #9090C0;
+  --color-edge-coparorg:      #A080E0;
+  --color-edge-socio:         #16A34A;
+  --color-edge-same-socio:    #F59E0B;
+  --color-edge-address:       #64748B;
+  --color-edge-phone:         #64748B;
+  --color-edge-acct:          #64748B;
+  --color-edge-subsidiary:    #8B5CF6;
+  --color-edge-holding:       #8B5CF6;
+  --color-edge-cluster:       #EA580C;
 
-  /* ── Radius (zero — sharp edges enforced) ── */
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
+  /* ── Metric Card Colors ── */
+  --color-metric-hypotheses:  #8B5CF6;
+  --color-metric-laws:        #16A34A;
+  --color-metric-typologies:  #EA580C;
+  --color-metric-signals:     #0EA5E9;
 
-  /* ── Shadow system (light mode defaults) ── */
-  --shadow-xs:  0 1px 2px rgba(10, 10, 26, 0.04);
-  --shadow-sm:  0 1px 3px rgba(10, 10, 26, 0.08);
-  --shadow-md:  0 4px 6px rgba(10, 10, 26, 0.10);
-  --shadow-lg:  0 10px 15px rgba(10, 10, 26, 0.12);
-  --shadow-xl:  0 20px 25px rgba(10, 10, 26, 0.15);
+  /* ── Role Badge Colors (Radar) ── */
+  --color-role-buyer:        #0EA5E9;
+  --color-role-supplier:     #8B5CF6;
+  --color-role-winner:       #16A34A;
+  --color-role-bidder:       #F59E0B;
+  --color-role-sanctioned:   #DC2626;
+  --color-role-owner:        #EA580C;
+  --color-role-employee:     #06B6D4;
+  --color-role-manager:      #A78BFA;
+
+  /* ── Radius System — Modern with slight rounding ── */
+  --radius-none:  0px;
+  --radius-xs:    2px;
+  --radius-sm:    4px;
+  --radius-md:    8px;
+  --radius-lg:    12px;
+
+  /* ── Shadow System — Navy-based shadows ── */
+  --shadow-xs:  0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm:  0 1px 3px rgba(15, 23, 42, 0.10);
+  --shadow-md:  0 4px 6px rgba(15, 23, 42, 0.10);
+  --shadow-lg:  0 10px 15px rgba(15, 23, 42, 0.12);
+  --shadow-xl:  0 20px 25px rgba(15, 23, 42, 0.15);
+
+  /* ── Focus Ring (Cyan) ── */
+  --shadow-focus: 0 0 0 3px rgba(14, 165, 233, 0.1), 
+                  0 0 0 1px #0EA5E9;
+
+  /* ── Border System ── */
+  --border-width:    1px;
+  --border-strong:   2px;
+  --border-light:    #E2E8F0;
+  --border-strong:   #CBD5E1;
+  --border-focus:    #0EA5E9;
 }
 
-/* ── Dark mode overrides ──────────────────────────────────────────── */
+/* ── Component Layer (Buttons, Inputs, etc.) ── */
+@layer components {
+  /* Button variants */
+  .btn-primary {
+    @apply bg-[var(--color-accent-alert)] text-white font-medium 
+           rounded-[var(--radius-sm)] 
+           hover:bg-opacity-90 
+           focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
+           transition-all duration-150 ease;
+  }
+
+  .btn-secondary {
+    @apply bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-medium
+           border border-[var(--border-light)]
+           rounded-[var(--radius-sm)]
+           hover:bg-[var(--color-surface-active)]
+           focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
+           transition-all duration-150 ease;
+  }
+
+  .btn-tertiary {
+    @apply text-[var(--color-accent-alert)] font-medium
+           hover:bg-[var(--color-accent-dim)]
+           rounded-[var(--radius-sm)]
+           focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
+           transition-all duration-150 ease;
+  }
+
+  .btn-destructive {
+    @apply bg-[var(--color-destructive)] text-white font-medium
+           rounded-[var(--radius-sm)]
+           hover:brightness-110
+           focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]
+           transition-all duration-150 ease;
+  }
+
+  /* Input/form fields */
+  .input-base {
+    @apply px-3 py-2 bg-white border border-[var(--border-light)] 
+           text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]
+           rounded-[var(--radius-sm)]
+           focus:outline-none focus:border-[var(--border-focus)] 
+           focus:shadow-[var(--shadow-focus)]
+           transition-all duration-150 ease;
+  }
+
+  .input-error {
+    @apply border-[var(--color-destructive)] 
+           focus:border-[var(--color-destructive)];
+  }
+
+  /* Card component */
+  .card {
+    @apply bg-[var(--color-surface-card)] 
+           border border-[var(--border-light)]
+           rounded-[var(--radius-md)]
+           shadow-[var(--shadow-sm)]
+           p-6;
+  }
+
+  .card:hover {
+    @apply shadow-[var(--shadow-md)] transition-shadow duration-200;
+  }
+
+  .card-dense {
+    @apply p-4;
+  }
+
+  /* Badge/pill */
+  .badge {
+    @apply inline-block px-3 py-1 text-xs font-semibold 
+           rounded-full border;
+  }
+
+  .badge-critical {
+    @apply bg-[#FEE2E2] text-[#991B1B] border-[#FECACA];
+  }
+
+  .badge-high {
+    @apply bg-[#FEF3C7] text-[#92400E] border-[#FCD34D];
+  }
+
+  .badge-medium {
+    @apply bg-[#FEF9E7] text-[#78350F] border-[#FEF08A];
+  }
+
+  .badge-low {
+    @apply bg-[#DBEAFE] text-[#164E63] border-[#BAE6FD];
+  }
+
+  /* Table components */
+  .table-header {
+    @apply bg-[var(--color-surface-hover)] 
+           border-b border-[var(--border-light)]
+           text-[var(--color-text-primary)]
+           font-semibold text-sm;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 border-b border-[var(--border-light)] text-sm;
+  }
+
+  .table-row:hover {
+    @apply bg-[var(--color-surface-hover)] transition-colors;
+  }
+
+  /* Text utilities */
+  .text-display-lg {
+    @apply font-[var(--font-display)] text-5xl font-bold leading-tight;
+  }
+
+  .text-display-md {
+    @apply font-[var(--font-display)] text-4xl font-bold leading-tight;
+  }
+
+  .text-headline-lg {
+    @apply font-[var(--font-display)] text-2xl font-semibold;
+  }
+
+  .text-headline-md {
+    @apply font-[var(--font-display)] text-xl font-semibold;
+  }
+
+  .text-body-md {
+    @apply font-[var(--font-sans)] text-base font-normal line-height-relaxed;
+  }
+
+  .text-caption {
+    @apply font-[var(--font-sans)] text-xs text-[var(--color-text-muted)];
+  }
+
+  .text-mono {
+    @apply font-[var(--font-mono)] text-sm;
+  }
+}
+
+/* ── Dark mode (minimal — not primary focus) ── */
 html.dark {
-  --color-bg:             #0D0D17;
-  --color-fg:             #DCDDEE;
-  --color-surface:        #16162A;
-  --color-border:         #2E2E50;
-  --color-muted:          #9090C0;
-  --color-accent:         #8A63E8;
-  --color-accent-dim:     #1A0A38;
+  --color-primary-dark:   #FFFFFF;
+  --color-primary-light:  #1E293B;
+  --color-accent-alert:   #FCA5A5;
+  --color-accent-trust:   #67E8F9;
 
-  /* Surface hierarchy */
-  --color-surface-base:   #0D0D17;
-  --color-surface-card:   #1E1E35;
-  --color-surface-subtle: #131325;
+  --color-bg:             #0F172A;
+  --color-fg:             #FFFFFF;
+  --color-surface:        #1E293B;
+  --color-border:         #334155;
+  --color-muted:          #CBD5E1;
+  --color-accent:         #FCA5A5;
+  --color-accent-dim:     #7F1D1D;
 
-  /* Severity — brighter for dark backgrounds */
-  --color-critical:       #E05050;
-  --color-high:           #D46020;
-  --color-medium:         #C89820;
-  --color-low:            #30A060;
+  --color-surface-base:   #0F172A;
+  --color-surface-card:   #1E293B;
+  --color-surface-hover:  #334155;
+  --color-surface-active: #475569;
 
-  /* Status */
-  --color-success:        #30A060;
-  --color-warning:        #C89820;
-  --color-error:          #E05050;
-  --color-info:           #5870E0;
-
-  /* Typography */
-  --color-text-primary:   #DCDDEE;
-  --color-text-secondary: #A0A0C8;
-  --color-text-muted:     #7070A8;
-
-  /* Semantic aliases */
-  --color-primary:        #DCDDEE;
-  --color-secondary:      #A0A0C8;
-  --color-destructive:    #E05050;
-  --color-accent-subtle:  #1A0A38;
-
-  /* Entity type colors (graph visualization — brighten for dark backgrounds) */
-  --color-entity-person:  #9D8FFF;
-  --color-entity-company: #5FA3FF;
-  --color-entity-org:     #4EB8D4;
-
-  /* Edge/relationship colors (graph visualization) */
-  --color-edge-compra:    #5FA3FF;
-  --color-edge-favorecido: #E05050;
-  --color-edge-copart:    #9090FF;
-  --color-edge-copartsup: #B8A8FF;
-  --color-edge-coparorg:  #D0B8FF;
-  --color-edge-socio:     #30A060;
-  --color-edge-same-socio: #C89820;
-  --color-edge-address:   #A0B0D0;
-  --color-edge-phone:     #90A8C0;
-  --color-edge-acct:      #A0B0D0;
-  --color-edge-subsidiary: #9873FF;
-  --color-edge-holding:   #9873FF;
-  --color-edge-cluster:   #D46020;
-
-  /* ── Shadow system (dark mode — darker, more pronounced) ── */
-  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.08);
-  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.16);
-  --shadow-md:  0 4px 6px rgba(0, 0, 0, 0.20);
-  --shadow-lg:  0 10px 15px rgba(0, 0, 0, 0.25);
-  --shadow-xl:  0 20px 25px rgba(0, 0, 0, 0.30);
+  --color-text-primary:   #FFFFFF;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted:     #94A3B8;
+  
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.30);
+  --shadow-md:  0 4px 6px rgba(0, 0, 0, 0.40);
+  --shadow-lg:  0 10px 15px rgba(0, 0, 0, 0.50);
+  --shadow-xl:  0 20px 25px rgba(0, 0, 0, 0.60);
 }
 
-/* ── Zero radius globally ────────────────────────────────────────── */
-*, *::before, *::after { border-radius: 0 !important; }
+/* ────────────────────────────────────────────────────────────── */
+/* BASE STYLES                                                     */
+/* ────────────────────────────────────────────────────────────── */
 
-/* ── Base body ───────────────────────────────────────── */
+* {
+  border-radius: var(--radius-sm);
+}
+
+*:where(button, a, input, select, textarea, [role="button"]) {
+  border-radius: var(--radius-sm);
+}
+
 body {
+  margin: 0;
+  padding: 0;
   font-family: var(--font-sans);
-  font-size: 1rem;         /* 16px explícito — evita scaling indesejado */
-  line-height: 1.5;        /* Vision Council: mínimo para sessões > 30 min */
-  color: var(--color-fg);
-  background-color: var(--color-bg);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Global typography ───────────────────────────────── */
+/* Headings use display font */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--color-text-primary);
 }
 
-/* Data displays must NOT use heading font */
-[data-mono-heading], .dateline, .exhibit-id, .byline-data {
+h1 { font-size: 2.25rem; } /* 36px */
+h2 { font-size: 1.875rem; } /* 30px */
+h3 { font-size: 1.5rem; } /* 24px */
+h4 { font-size: 1.25rem; } /* 20px */
+
+/* Monospace for data/identifiers */
+code, pre, [data-mono] {
   font-family: var(--font-mono);
+  font-size: 0.875rem;
 }
 
-/* ── Page container ──────────────────────────────────── */
-.page-wrap {
-  padding: 1.5rem 1rem 2rem;
-  max-width: 1280px;
-  margin-left: auto;
-  margin-right: auto;
+/* Links */
+a {
+  color: var(--color-accent-trust);
+  text-decoration: none;
+  transition: color 150ms ease;
 }
 
-/* ── Card utilities ──────────────────────────────────── */
-.surface-card {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+a:hover {
+  color: var(--color-accent-alert);
 }
 
-.metric-card {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 1rem;
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
-.surface-muted {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+/* Focus visible for better accessibility */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
-.panel-title {
-  font-family: var(--font-sans);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--color-fg);
+/* Remove default input styling */ 
+input:where([type="text"], [type="email"], [type="password"], [type="search"], [type="number"]),
+textarea,
+select {
+  font-family: inherit;
+  font-size: 1rem;
 }
 
-/* ── Status badge utilities ──────────────────────────── */
-.status-ok {
-  background-color: color-mix(in srgb, var(--color-success) 10%, transparent);
-  color: var(--color-success);
-  border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
-}
-.status-warning {
-  background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
-  color: var(--color-warning);
-  border: 1px solid color-mix(in srgb, var(--color-warning) 20%, transparent);
-}
-.status-error {
-  background-color: color-mix(in srgb, var(--color-error) 10%, transparent);
-  color: var(--color-error);
-  border: 1px solid color-mix(in srgb, var(--color-error) 20%, transparent);
-}
-.status-pending {
-  background-color: var(--color-surface);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
-}
+/* Disable dark mode stylesheet in old globals */
 
-/* ── Evidence block (editorial left-stripe) ─────────── */
-.evidence-block {
-  border-left: 3px solid var(--color-accent);
-  padding-left: 1rem;
 }
 
 .evidence-block-critical {
@@ -280,109 +397,11 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  padding: 2px 6px;
-}
 
-/* ── Section kicker (mono label) ────────────────────── */
-.section-kicker {
-  font-family: var(--font-mono);
-  font-size: 0.5625rem;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
+/* ────────────────────────────────────────────────────────────── */
+/* ANIMATIONS & TRANSITIONS                                       */
+/* ────────────────────────────────────────────────────────────── */
 
-/* ── Byline ──────────────────────────────────────────── */
-.byline {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-/* ── Edition strip ───────────────────────────────────── */
-.edition-strip {
-  font-family: var(--font-mono);
-  font-size: 0.5625rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-  padding: 3px 0;
-}
-
-/* ── Dateline & exhibit ID ───────────────────────────── */
-.dateline {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.exhibit-id {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.12em;  /* era 0.1em — padroniza com byline (0.12em) */
-  color: var(--color-muted);
-}
-
-/* ── Focus ring ──────────────────────────────────────── */
-*:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
-}
-
-/* ── Row hover ───────────────────────────────────────── */
-.row-hover {
-  transition: background-color 100ms ease;
-}
-.row-hover:hover {
-  background-color: var(--color-surface);
-}
-
-/* ── Investigation canvas ────────────────────────────── */
-.investigation-bg {
-  background-color: var(--color-bg);
-}
-
-.investigation-sidebar {
-  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ── React Flow overrides ────────────────────────────── */
-.investigation-bg .react-flow__pane {
-  cursor: grab;
-}
-.investigation-bg .react-flow__pane:active {
-  cursor: grabbing;
-}
-.investigation-bg .react-flow__minimap {
-  overflow: hidden;
-}
-.investigation-bg .react-flow__controls {
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(13, 13, 23, 0.08);
-}
-.investigation-bg .react-flow__controls button {
-  border-color: var(--color-border);
-}
-.investigation-bg .react-flow__controls button:hover {
-  background-color: var(--color-surface);
-}
-.investigation-bg .react-flow__edge-textbg {
-  fill: transparent;
-}
-.investigation-bg .react-flow__node {
-  transition: filter 150ms ease;
-}
-.investigation-bg .react-flow__node.selected {
-  filter: drop-shadow(0 4px 12px rgba(110, 62, 214, 0.25));
-}
-
-/* ── Motion: reduced-motion preference ───────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -393,11 +412,10 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* ── Staggered entrance animations ───────────────────── */
-@keyframes staggeredSlideUp {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -405,16 +423,12 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-@keyframes staggeredFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes staggeredScaleIn {
+@keyframes scaleIn {
   from {
     opacity: 0;
     transform: scale(0.95);
@@ -425,110 +439,211 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Stagger timing: 50ms per element */
+.animate-slideup {
+  animation: slideUp 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-fadein {
+  animation: fadeIn 200ms ease-out;
+}
+
+.animate-scalein {
+  animation: scaleIn 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Stagger support */
 .stagger-item-1 { animation-delay: 0ms; }
 .stagger-item-2 { animation-delay: 50ms; }
 .stagger-item-3 { animation-delay: 100ms; }
 .stagger-item-4 { animation-delay: 150ms; }
 .stagger-item-5 { animation-delay: 200ms; }
-.stagger-item-6 { animation-delay: 250ms; }
-.stagger-item-7 { animation-delay: 300ms; }
-.stagger-item-8 { animation-delay: 350ms; }
 
-/* Apply animation: add @keyframes name + duration */
-.animate-staggered-slideup {
-  animation: staggeredSlideUp 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+/* ────────────────────────────────────────────────────────────── */
+/* UTILITY CLASSES                                                 */
+/* ────────────────────────────────────────────────────────────── */
+
+/* Page layout */
+.page-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
 }
 
-.animate-staggered-fadein {
-  animation: staggeredFadeIn 300ms ease-out forwards;
+.page-container-compact {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
 }
 
-.animate-staggered-scalein {
-  animation: staggeredScaleIn 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+/* Spacing utilities */
+.gap-xs { gap: 0.5rem; }
+.gap-sm { gap: 1rem; }
+.gap-md { gap: 1.5rem; }
+.gap-lg { gap: 2rem; }
+
+/* Text truncation */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ════════════════════════════════════════════════════════
-   FORENSIC LEDGER UTILITIES
-   ════════════════════════════════════════════════════════ */
-
-.ledger-page {
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-  min-height: 100vh;
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.ledger-header {
+/* Flex utilities */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  color: var(--color-muted);
-  letter-spacing: 0.08em;  /* era 0.05em — evita colisão de glifos mono a 11px */
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.5rem;
+  align-items: center;
 }
 
-.ledger-row {
-  border-bottom: 1px solid var(--color-border);
-  padding: 1rem 0;  /* era 0.75rem — NNG: 16px mínimo para leitura tabular 30min+ */
+/* Accessibility utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
-.ledger-row:last-child {
-  border-bottom: none;
+/* Scrollbar styling (Firefox + Chrome) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.data-value {
-  font-family: var(--font-mono);
+::-webkit-scrollbar-track {
+  background: var(--color-surface-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-light);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-color: var(--color-border-light) var(--color-surface-base);
+  scrollbar-width: thin;
+}
+
+/* ────────────────────────────────────────────────────────────── */
+/* FORM DEFAULTS                                                   */
+/* ────────────────────────────────────────────────────────────── */
+
+select,
+textarea {
+  @apply input-base;
+  width: 100%;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
   font-size: 0.875rem;
 }
 
-.accent-rule {
-  height: 1px;
-  background-color: var(--color-accent);
-  border: none;
+/* Checkbox + Radio */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-accent-alert);
+  cursor: pointer;
 }
 
-.severity-border-critical {
-  border-left: 2px solid var(--color-critical);
-}
+/* ────────────────────────────────────────────────────────────── */
+/* RESPONSIVE                                                      */
+/* ────────────────────────────────────────────────────────────── */
 
-.severity-border-high {
-  border-left: 2px solid var(--color-high);
-}
-
-.severity-border-medium {
-  border-left: 2px solid var(--color-medium);
-}
-
-.severity-border-low {
-  border-left: 2px solid var(--color-low);
-}
-
-/* ── Nav ledger card ─────────────────────────────────── */
-.nav-ledger-card {
-  border-radius: 0;
-  border: 1px solid var(--color-border);
-}
-
-.nav-ledger-card:hover {
-  border-left: 3px solid var(--color-accent);
-}
-
-/* ── Mobile layout ───────────────────────────────────── */
-@media (max-width: 767px) {
-  nav[aria-label="Navegação principal"] {
-    overflow-x: auto;
-    overflow-y: hidden;
+@media (max-width: 768px) {
+  .page-container {
+    padding: 1rem 0.75rem;
   }
-  nav[aria-label="Navegação principal"] > div:first-child + div {
-    flex-shrink: 0;
+
+  h1 { font-size: 1.875rem; } /* 30px */
+  h2 { font-size: 1.5rem; } /* 24px */
+}
+
+@media (max-width: 480px) {
+  body { font-size: 14px; }
+  h1 { font-size: 1.5rem; } /* 24px */
+  h2 { font-size: 1.25rem; } /* 20px */
+  h3 { font-size: 1.125rem; } /* 18px */
+}
+
+/* ────────────────────────────────────────────────────────────── */
+/* COMPONENT OVERRIDES                                             */
+/* ────────────────────────────────────────────────────────────── */
+
+/* React Flow  customizations (if used) */
+.react-flow-wrapper {
+  background-color: var(--color-surface-base);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Table base */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+thead {
+  background-color: var(--color-surface-hover);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
+}
+
+tbody tr:hover {
+  background-color: rgba(15, 23, 42, 0.02);
+}
+
+/* Print styles */
+@media print {
+  body {
+    background-color: white;
+    color: black;
   }
-  h1, h2, h3, h4, h5, h6 {
-    font-size: 110%;
+
+  .no-print {
+    display: none !important;
   }
 }
+
 

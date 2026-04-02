@@ -21,69 +21,69 @@ const ENTITY_TYPE_ICONS: Record<string, typeof Building2> = {
 // Legend overlay shown when legendOpen=true
 function LegendOverlay({ onClose }: { onClose: () => void }) {
   return (
-    <div className="absolute bottom-16 left-4 z-30 w-52 rounded-xl border border-border bg-surface-card p-3 shadow-md">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Legenda</p>
+    <div className="absolute bottom-16 left-4 z-30 w-56 rounded-lg border border-[var(--color-border-light)] bg-white p-4 shadow-lg">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="font-semibold uppercase tracking-widest text-sm text-[var(--color-text-primary)]">Legenda</p>
         <button
           onClick={onClose}
-          className="flex h-5 w-5 items-center justify-center rounded text-muted hover:text-secondary"
+          className="flex h-5 w-5 items-center justify-center rounded text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Tipos de node</p>
-      <div className="space-y-1 text-[11px]">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">Tipos de Node</p>
+      <div className="space-y-1.5 text-sm">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-          <span className="text-secondary">Pessoa</span>
+          <span className="text-[var(--color-text-secondary)]">Pessoa</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          <span className="text-secondary">Empresa</span>
+          <span className="text-[var(--color-text-secondary)]">Empresa</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-violet-500" />
-          <span className="text-secondary">Órgão Público</span>
+          <span className="text-[var(--color-text-secondary)]">Órgão Público</span>
         </div>
       </div>
-      <div className="my-2 h-px bg-border" />
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Arestas</p>
-      <div className="space-y-1 text-[11px]">
+      <div className="my-3 h-px bg-[var(--color-border-light)]" />
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">Arestas</p>
+      <div className="space-y-1.5 text-sm">
         <div className="flex items-center gap-2">
           <span className="h-px w-5 bg-indigo-500" />
-          <span className="text-secondary">Contrato</span>
+          <span className="text-[var(--color-text-secondary)]">Contrato</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-px w-5 bg-emerald-600" />
-          <span className="text-secondary">Socio / Repr.</span>
+          <span className="text-[var(--color-text-secondary)]">Sócio / Repr.</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-px w-5 border-t-2 border-dashed border-red-500" style={{ display: "inline-block" }} />
-          <span className="text-secondary">Socio Oculto</span>
+          <span className="text-[var(--color-text-secondary)]">Sócio Oculto</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-px w-5 bg-violet-600" />
-          <span className="text-secondary">Servidor</span>
+          <span className="text-[var(--color-text-secondary)]">Servidor</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-px w-5 bg-pink-500" />
-          <span className="text-secondary">Vinculo Familiar</span>
+          <span className="text-[var(--color-text-secondary)]">Vínculo Familiar</span>
         </div>
       </div>
-      <div className="my-2 h-px bg-border" />
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Atalhos</p>
-      <div className="space-y-0.5 text-[10px] text-muted">
-        <div className="flex justify-between">
-          <kbd className="rounded bg-surface-subtle px-1 font-mono">Espaco</kbd>
-          <span>ajustar vista</span>
+      <div className="my-3 h-px bg-[var(--color-border-light)]" />
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">Atalhos</p>
+      <div className="space-y-1 text-xs text-[var(--color-text-secondary)]">
+        <div className="flex items-center justify-between">
+          <kbd className="rounded bg-[var(--color-surface-hover)] px-1.5 py-0.5 font-mono text-xs">Espaço</kbd>
+          <span>Ajustar vista</span>
         </div>
-        <div className="flex justify-between">
-          <kbd className="rounded bg-surface-subtle px-1 font-mono">E</kbd>
-          <span>expandir node</span>
+        <div className="flex items-center justify-between">
+          <kbd className="rounded bg-[var(--color-surface-hover)] px-1.5 py-0.5 font-mono text-xs">E</kbd>
+          <span>Expandir node</span>
         </div>
-        <div className="flex justify-between">
-          <kbd className="rounded bg-surface-subtle px-1 font-mono">Esc</kbd>
-          <span>limpar selecao</span>
+        <div className="flex items-center justify-between">
+          <kbd className="rounded bg-[var(--color-surface-hover)] px-1.5 py-0.5 font-mono text-xs">Esc</kbd>
+          <span>Limpar seleção</span>
         </div>
       </div>
     </div>
