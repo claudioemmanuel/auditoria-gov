@@ -52,10 +52,10 @@ def _sanction_event(
     event = SimpleNamespace(
         id=eid,
         type="sancao_tcu",
+        subtype=subtype,
         attrs={
             "sanction_start": start.isoformat(),
             "sanction_end": end.isoformat() if end else None,
-            "subtype": subtype,
         },
         occurred_at=start,
         description="TCU sanction",

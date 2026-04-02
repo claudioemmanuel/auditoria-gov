@@ -108,7 +108,8 @@ class T25TCUCondemnedTypology(BaseTypology):
             )
             # data_final = None means the sanction is indefinite (most severe).
             sanction_end = s.attrs.get("sanction_end") or s.attrs.get("data_final")
-            subtype = s.attrs.get("subtype", "inidoneo")  # default: company-level bar
+            # TCU connector stores type (inidoneo/inabilitado) in event.subtype field
+            subtype = s.subtype or "inidoneo"  # default: company-level bar
 
             if sanction_start:
                 entity_sanctions[str(p.entity_id)].append({
