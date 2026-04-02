@@ -1,10 +1,14 @@
 from celery import Celery
+from celery.signals import worker_process_init
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from shared.config import settings
+from shared.logging import log, setup_logging
 from shared.scheduler.schedule import BEAT_SCHEDULE
 import shared.middleware.task_metrics  # noqa: F401 — registers Celery signals
 
 app = Celery("auditoria")
+setup_logging()
 
 app.conf.update(
     broker_url=settings.CELERY_BROKER_URL,
@@ -47,6 +51,10 @@ app.conf.update(
     task_time_limit=3900,       # 65 min hard kill
     # Recycle worker after 100 tasks to release leaked memory.
     worker_max_tasks_per_child=100,
+    # Keep Celery logs machine-parsable and consistent with structlog JSON output.
+    worker_hijack_root_logger=False,
+    worker_log_format="%(message)s",
+    worker_task_log_format="%(message)s",
     # ── Dead-letter handling ─────────────────────────────────────────
     # After max_retries exhausted, route to dead-letter queue instead
     # of silently dropping the task.
@@ -60,10 +68,14 @@ app.autodiscover_tasks(["worker.tasks"])
 # Celery uses prefork: each worker child inherits the parent's SQLAlchemy
 # connection pool. After fork, psycopg3 connections become invalid/stale.
 # Disposing the engine forces each child to open fresh connections on first use.
-from celery.signals import worker_process_init  # noqa: E402
-
 @worker_process_init.connect(weak=False)
 def _reset_sync_engine_after_fork(**kwargs):
+    clear_contextvars()
+    bind_contextvars(
+        service="worker-primary",
+        component="celery-worker",
+        environment=settings.APP_ENV,
+    )
     try:
         from shared.db_sync import sync_engine
         sync_engine.dispose()
@@ -79,7 +91,6 @@ def _reset_sync_engine_after_fork(**kwargs):
     # hold stale file descriptors in the forked child.  Re-configuring
     # forces fresh logger instances in each worker process.
     try:
-        from shared.logging import setup_logging
         setup_logging()
     except Exception:  # noqa: BLE001
         pass
@@ -93,11 +104,7 @@ def _reset_sync_engine_after_fork(**kwargs):
 @app.on_after_finalize.connect
 def _cold_start_bootstrap(sender, **kwargs):
     """Fire initial ingest when first deployed with an empty database."""
-    import logging
-
     from celery.signals import worker_ready
-
-    log = logging.getLogger("auditoria.cold_start")
 
     @worker_ready.connect(weak=False)
     def _on_worker_ready(sender, **kw):
@@ -134,7 +141,7 @@ def _cold_start_bootstrap(sender, **kwargs):
                         "worker.tasks.reference_tasks.seed_reference_data",
                         queue="default",
                     )
-                    log.info("cold_start: seeding reference data", missing=list(missing))
+                    log.info("cold_start.seed_reference_data", missing_categories=sorted(missing))
 
                 # Check if any ingest run has ever completed.
                 completed = session.execute(
@@ -148,10 +155,14 @@ def _cold_start_bootstrap(sender, **kwargs):
                 "worker.tasks.ingest_tasks.ingest_all_incremental",
                 queue="ingest",
             )
-            log.info("cold_start: dispatched initial ingest_all_incremental")
+            log.info("cold_start.initial_ingest_dispatched")
 
         except Exception as exc:  # noqa: BLE001
-            log.warning("cold_start: skipped due to error: %s", exc)
+            log.warning(
+                "cold_start.skipped",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
 
 
 def _recover_stale_er_state() -> int:
@@ -232,7 +243,10 @@ def _recover_orphaned_runs(log, select, SyncSession, RawRun, IngestState):
                 redispatch_keys.append((run.connector, run.job))
 
             session.commit()
-            log.info("worker_ready: recovered %d orphaned runs", len(orphans))
+            log.info(
+                "worker_ready.orphans_recovered recovered_count=%s",
+                len(orphans),
+            )
 
             # De-duplicate and re-dispatch up to MAX_REDISPATCH
             seen: set[tuple[str, str]] = set()
@@ -259,9 +273,15 @@ def _recover_orphaned_runs(log, select, SyncSession, RawRun, IngestState):
                 )
                 dispatched += 1
                 log.info(
-                    "worker_ready: re-dispatched %s/%s (cursor=%s)",
-                    connector, job, cursor[:20] if cursor else None,
+                    "worker_ready.redispatched connector=%s job=%s cursor=%s",
+                    connector,
+                    job,
+                    cursor[:20] if cursor else None,
                 )
 
     except Exception as exc:  # noqa: BLE001
-        log.warning("worker_ready: orphan recovery failed: %s", exc)
+        log.warning(
+            "worker_ready.orphan_recovery_failed error_type=%s error=%s",
+            type(exc).__name__,
+            str(exc),
+        )
