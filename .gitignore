@@ -106,3 +106,6 @@ infra/aws/terraform.tfvars
 # ── Documentation ───────────────────────────────────────────────────
 docs/plans/
 .worktrees/
+
+# Worktree artifacts
+_worktrees/
