@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+import sys as _sys
+if hasattr(_sys.stdout, "reconfigure"):
+    _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 """
 Boundary enforcement tool for the OpenWatch open-core split.
 
@@ -13,7 +18,6 @@ Exit codes:
     0 — No violations found
     1 — Violations found (or --strict and warnings exist)
 """
-from __future__ import annotations
 
 import ast
 import sys
