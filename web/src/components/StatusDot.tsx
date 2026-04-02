@@ -1,33 +1,24 @@
-import { cn } from "@/lib/utils";
+import { clsx } from "clsx";
 
 type StatusDotSize = "sm" | "md" | "lg";
-type StatusDotStatus =
-  | "ok"
-  | "warning"
-  | "error"
-  | "stale"
-  | "pending"
-  | "critical"
-  | "high"
-  | "medium"
-  | "low";
+type StatusDotStatus = "ok" | "warning" | "error" | "stale" | "pending" | "critical" | "high" | "medium" | "low";
 
-const SIZE_CLASSES: Record<StatusDotSize, string> = {
-  sm: "h-1.5 w-1.5",
-  md: "h-2 w-2",
-  lg: "h-2.5 w-2.5",
+const SIZE: Record<StatusDotSize, string> = {
+  sm: "w-1.5 h-1.5",
+  md: "w-2 h-2",
+  lg: "w-2.5 h-2.5",
 };
 
-const STATUS_CLASSES: Record<StatusDotStatus, string> = {
-  ok: "bg-success",
-  warning: "bg-amber",
-  error: "bg-error",
-  stale: "bg-amber",
-  pending: "bg-placeholder",
-  critical: "bg-severity-critical",
-  high: "bg-severity-high",
-  medium: "bg-severity-medium",
-  low: "bg-severity-low",
+const COLOR: Record<StatusDotStatus, string> = {
+  ok:       "ow-status-ok",
+  warning:  "ow-status-warning",
+  stale:    "ow-status-stale",
+  error:    "ow-status-error",
+  pending:  "ow-status-pending",
+  critical: "ow-status-error",
+  high:     "ow-status-stale",
+  medium:   "ow-status-warning",
+  low:      "ow-status-ok",
 };
 
 interface StatusDotProps {
@@ -40,12 +31,12 @@ interface StatusDotProps {
 export function StatusDot({ size = "md", status = "ok", className, pulse }: StatusDotProps) {
   return (
     <span
-      className={cn(
-        "inline-block rounded-full",
-        SIZE_CLASSES[size],
-        STATUS_CLASSES[status],
+      className={clsx(
+        "ow-status-dot inline-block rounded-full",
+        SIZE[size],
+        COLOR[status],
         pulse && "animate-pulse",
-        className,
+        className
       )}
     />
   );

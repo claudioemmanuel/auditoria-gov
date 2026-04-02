@@ -1,12 +1,10 @@
 /**
  * Design token values for JavaScript/TypeScript contexts
  * (React Flow node colors, chart rendering, canvas operations).
- *
- * CSS custom properties in globals.css are the single source of truth (ADR-1).
- * This module reads them at runtime via getComputedStyle — no hardcoded values.
+ * CSS custom properties in globals.css are the single source of truth.
  */
 
-export type Theme = "light" | "dark";
+export type Theme = "dark";
 
 function getCSSToken(varName: string): string {
   if (typeof document === "undefined") return "";
@@ -29,54 +27,55 @@ export interface TokenSet {
   readonly warning: string;
   readonly error: string;
   readonly info: string;
+  readonly entityPerson: string;
+  readonly entityCompany: string;
+  readonly entityOrg: string;
 }
 
-/** SSR fallback — Intelligence Vault light palette */
 const fallbackTokens: TokenSet = {
-  bg:        "#F5F5FC",
-  fg:        "#0A0A1A",
-  surface:   "#EAEAF5",
-  border:    "#CACAE0",
-  muted:     "#5252A0",
-  accent:    "#6E3ED6",
-  accentDim: "#E8E0FA",
-  critical:  "#9B1616",
-  high:      "#C94A0A",
-  medium:    "#8A6400",
-  low:       "#1A6840",
-  success:   "#1A6840",
-  warning:   "#8A6400",
-  error:     "#9B1616",
-  info:      "#3848C8",
+  bg:            "#09090b",
+  fg:            "#fafafa",
+  surface:       "#111113",
+  border:        "#27272a",
+  muted:         "#52525b",
+  accent:        "#f59e0b",
+  accentDim:     "#1c1505",
+  critical:      "#ef4444",
+  high:          "#f97316",
+  medium:        "#eab308",
+  low:           "#22c55e",
+  success:       "#22c55e",
+  warning:       "#eab308",
+  error:         "#ef4444",
+  info:          "#3b82f6",
+  entityPerson:  "#a78bfa",
+  entityCompany: "#f59e0b",
+  entityOrg:     "#60a5fa",
 };
 
-/**
- * Get the full token set, reading current CSS custom property values.
- * Theme argument is kept for API compatibility but is unused —
- * the active theme is determined by the html.dark class (ADR-2).
- */
 export function getTokens(_theme?: Theme): TokenSet {
   if (typeof document === "undefined") return fallbackTokens;
   return {
-    bg:        getCSSToken("--color-bg")         || fallbackTokens.bg,
-    fg:        getCSSToken("--color-fg")         || fallbackTokens.fg,
-    surface:   getCSSToken("--color-surface")    || fallbackTokens.surface,
-    border:    getCSSToken("--color-border")     || fallbackTokens.border,
-    muted:     getCSSToken("--color-muted")      || fallbackTokens.muted,
-    accent:    getCSSToken("--color-accent")     || fallbackTokens.accent,
-    accentDim: getCSSToken("--color-accent-dim") || fallbackTokens.accentDim,
-    critical:  getCSSToken("--color-critical")   || fallbackTokens.critical,
-    high:      getCSSToken("--color-high")       || fallbackTokens.high,
-    medium:    getCSSToken("--color-medium")     || fallbackTokens.medium,
-    low:       getCSSToken("--color-low")        || fallbackTokens.low,
-    success:   getCSSToken("--color-success")    || fallbackTokens.success,
-    warning:   getCSSToken("--color-warning")    || fallbackTokens.warning,
-    error:     getCSSToken("--color-error")      || fallbackTokens.error,
-    info:      getCSSToken("--color-info")       || fallbackTokens.info,
+    bg:            getCSSToken("--color-bg")             || fallbackTokens.bg,
+    fg:            getCSSToken("--color-text")           || fallbackTokens.fg,
+    surface:       getCSSToken("--color-surface")        || fallbackTokens.surface,
+    border:        getCSSToken("--color-border")         || fallbackTokens.border,
+    muted:         getCSSToken("--color-text-3")         || fallbackTokens.muted,
+    accent:        getCSSToken("--color-amber")          || fallbackTokens.accent,
+    accentDim:     getCSSToken("--color-amber-dim")      || fallbackTokens.accentDim,
+    critical:      getCSSToken("--color-critical")       || fallbackTokens.critical,
+    high:          getCSSToken("--color-high")           || fallbackTokens.high,
+    medium:        getCSSToken("--color-medium")         || fallbackTokens.medium,
+    low:           getCSSToken("--color-low")            || fallbackTokens.low,
+    success:       getCSSToken("--color-success")        || fallbackTokens.success,
+    warning:       getCSSToken("--color-medium")         || fallbackTokens.warning,
+    error:         getCSSToken("--color-critical")       || fallbackTokens.error,
+    info:          getCSSToken("--color-info")           || fallbackTokens.info,
+    entityPerson:  getCSSToken("--color-entity-person")  || fallbackTokens.entityPerson,
+    entityCompany: getCSSToken("--color-entity-company") || fallbackTokens.entityCompany,
+    entityOrg:     getCSSToken("--color-entity-org")     || fallbackTokens.entityOrg,
   };
 }
 
-/** Default export — reads current CSS tokens (SSR-safe, falls back to Forensic Ledger light palette). */
 export const tokens: TokenSet = fallbackTokens;
-
 export type SeverityLevel = "critical" | "high" | "medium" | "low";

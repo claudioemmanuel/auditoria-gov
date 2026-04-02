@@ -6,13 +6,11 @@ import Link from "next/link";
 import { getSignal, fetchTypologyLegalBasis, fetchRelatedSignals } from "@/lib/api";
 import type { TypologyLegalBasis, RelatedSignal } from "@/lib/types";
 import { Markdown } from "@/components/Markdown";
-import { Badge } from "@/components/Badge";
+import { SeverityBadge } from "@/components/Badge";
 import { SignalEvidenceSection } from "@/components/SignalEvidenceSection";
-import { DetailPageLayout } from "@/components/DetailPageLayout";
-import { DetailHeader } from "@/components/DetailHeader";
 import { DetailSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
-import { formatBRL, formatDate, normalizeUnknownDisplay, severityDotColor, cn } from "@/lib/utils";
+import { formatBRL, formatDate, normalizeUnknownDisplay, cn } from "@/lib/utils";
 import { TYPOLOGY_LABELS } from "@/lib/constants";
 import type { SignalDetail, FactorMeta, SignalSeverity } from "@/lib/types";
 import {
@@ -27,9 +25,14 @@ import {
   HelpCircle,
   Scale,
   Layers,
+  ChevronRight,
+  AlertTriangle,
+  FileText,
+  GitBranch,
+  Share2,
 } from "lucide-react";
 
-// ---- Helpers ----
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 const ENTITY_TYPE_ICONS: Record<string, typeof Building2> = {
   company: Building2,
@@ -81,28 +84,54 @@ function formatFactorValue(value: unknown, meta?: FactorMeta): string {
   return normalizeUnknownDisplay(value);
 }
 
-// ---- Score pill ----
+// ── ScoreBar ─────────────────────────────────────────────────────────────────
 
-function ScorePill({ label, value }: { label: string; value: number }) {
+function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
+  const barColor =
+    pct >= 75
+      ? "var(--color-low)"
+      : pct >= 50
+      ? "var(--color-medium)"
+      : "var(--color-critical)";
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-secondary">{label}:</span>
-      <span className="font-mono tabular-nums text-xs font-semibold text-primary">
-        {pct}%
-      </span>
-      <div className="h-1.5 w-16 rounded-full bg-surface-base">
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-caption" style={{ color: "var(--color-text-2)" }}>
+          {label}
+        </span>
+        <span
+          className="text-mono-sm font-semibold tabular-nums"
+          style={{ color: "var(--color-text)" }}
+        >
+          {pct}%
+        </span>
+      </div>
+      <div
+        className="h-1 w-full rounded-full overflow-hidden"
+        style={{ background: "var(--color-surface-3)" }}
+      >
         <div
-          className="h-1.5 rounded-full bg-accent"
-          style={{ width: `${pct}%` }}
+          className="h-1 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: barColor }}
         />
       </div>
     </div>
   );
 }
 
-// ---- Page ----
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 
+type TabId = "resumo" | "evidencias" | "legal" | "relacionados";
+
+const TABS: { id: TabId; label: string; Icon: typeof FileText }[] = [
+  { id: "resumo", label: "Resumo", Icon: FileText },
+  { id: "evidencias", label: "Evidências", Icon: Layers },
+  { id: "legal", label: "Base Legal", Icon: Scale },
+  { id: "relacionados", label: "Relacionados", Icon: GitBranch },
+];
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SignalDetailPage() {
   const params = useParams<{ id: string }>();
@@ -112,6 +141,7 @@ export default function SignalDetailPage() {
   const [legalBasis, setLegalBasis] = useState<TypologyLegalBasis | null>(null);
   const [relatedSignals, setRelatedSignals] = useState<RelatedSignal[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>("resumo");
 
   useEffect(() => {
     if (!id) return;
@@ -123,7 +153,6 @@ export default function SignalDetailPage() {
         if (cancelled) return;
         setSignal(s);
 
-        // Fetch legal basis and related signals in parallel
         const [lb, rs] = await Promise.all([
           fetchTypologyLegalBasis(s.typology_code).catch(() => null),
           fetchRelatedSignals(id).catch((): RelatedSignal[] => []),
@@ -137,20 +166,25 @@ export default function SignalDetailPage() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (error === "not_found") {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <EmptyState title="Sinal nao encontrado" description="O sinal solicitado nao existe ou foi removido." />
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 animate-fade-in">
+        <EmptyState
+          title="Sinal nao encontrado"
+          description="O sinal solicitado nao existe ou foi removido."
+        />
       </div>
     );
   }
 
   if (!signal) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <DetailSkeleton />
       </div>
     );
@@ -163,9 +197,10 @@ export default function SignalDetailPage() {
   const entities = signal.entities ?? [];
 
   const fallbackInvestigation = {
-    what_crossed: signal.typology_code === "T03"
-      ? ["orgao_comprador", "modalidade_dispensa", "grupo_catmat", "janela_temporal"]
-      : ["entidades", "eventos", "fatores_quantitativos"],
+    what_crossed:
+      signal.typology_code === "T03"
+        ? ["orgao_comprador", "modalidade_dispensa", "grupo_catmat", "janela_temporal"]
+        : ["entidades", "eventos", "fatores_quantitativos"],
     period_start: signal.period_start ?? null,
     period_end: signal.period_end ?? null,
     observed_total_brl: toNumberOrNull(
@@ -193,346 +228,827 @@ export default function SignalDetailPage() {
     fatores_quantitativos: "Indicadores quantitativos da tipologia",
   };
 
-  // ── Aside ──────────────────────────────────────────────────────────
-  const aside = (
-    <>
-      {/* Typology + Severity */}
-      <div className="rounded-lg border border-border bg-surface-card p-4 space-y-3">
-        <div className="space-y-1.5">
-          <span className="rounded bg-accent-subtle px-1.5 py-0.5 font-mono text-xs font-bold text-accent">
-            {signal.typology_code}
-          </span>
-          <p className="text-xs font-medium text-secondary leading-snug">
-            {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
-          </p>
-        </div>
-        <div>
-          <Badge severity={signal.severity as SignalSeverity} dot />
-        </div>
-        <div className="space-y-1.5 pt-1 border-t border-border">
-          <ScorePill label="Confianca" value={confidence} />
-          <ScorePill label="Completude" value={completeness} />
-        </div>
-        {(signal.period_start || signal.period_end) && (
-          <div className="pt-1 border-t border-border">
-            <p className="text-xs font-medium text-muted mb-1">Período</p>
-            <p className="font-mono tabular-nums text-xs text-primary">
-              {signal.period_start ? formatDate(signal.period_start) : "—"}
-              {" → "}
-              {signal.period_end ? formatDate(signal.period_end) : "—"}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Entities */}
-      {(entities.length > 0 || signal.entity_ids.length > 0) && (
-        <div className="rounded-lg border border-border bg-surface-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-            Entidades
-          </h3>
-          <ul className="space-y-1.5">
-            {entities.length > 0
-              ? entities.map((entity) => {
-                  const EntityIcon = ENTITY_TYPE_ICONS[entity.type] ?? Building2;
-                  const identifierEntries = Object.entries(entity.identifiers);
-                  return (
-                    <li key={entity.id}>
-                      <Link
-                        href={`/entity/${entity.id}`}
-                        className="flex items-center gap-2 rounded-md border border-border bg-surface-base p-2 transition hover:border-accent/30 hover:bg-accent-subtle/30"
-                      >
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-card border border-border">
-                          <EntityIcon className="h-3 w-3 text-accent" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-primary truncate">
-                            {entity.name}
-                          </p>
-                          {identifierEntries.length > 0 && (
-                            <p className="font-mono tabular-nums text-[10px] text-muted truncate">
-                              {identifierEntries
-                                .map(([k, v]) => `${k.toUpperCase()}: ${maskIdentifier(k, v)}`)
-                                .join(" · ")}
-                            </p>
-                          )}
-                        </div>
-                        <ExternalLink className="h-3 w-3 shrink-0 text-muted" />
-                      </Link>
-                    </li>
-                  );
-                })
-              : signal.entity_ids.map((eid) => (
-                  <li key={eid}>
-                    <Link
-                      href={`/entity/${eid}`}
-                      className="flex items-center gap-1.5 rounded-md border border-border bg-surface-base px-2.5 py-1.5 font-mono text-xs text-accent transition hover:bg-accent-subtle/30"
-                    >
-                      {eid.slice(0, 8)}...
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
-                  </li>
-                ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="rounded-lg border border-border bg-surface-card p-4 space-y-2">
-        <Link
-          href={`/signal/${signal.id}/graph`}
-          className="flex items-center gap-2 rounded-md border border-border bg-surface-base px-3 py-2 text-xs font-medium text-primary transition hover:bg-surface-subtle w-full"
-        >
-          <Network className="h-3.5 w-3.5 text-accent" />
-          Ver Grafo
-        </Link>
-        {signal.case_id && (
-          <Link
-            href={`/case/${signal.case_id}`}
-            className="flex items-center gap-2 rounded-md border border-accent/30 bg-accent-subtle/40 px-3 py-2 text-xs font-medium text-accent transition hover:bg-accent-subtle w-full"
-          >
-            <Briefcase className="h-3.5 w-3.5" />
-            <span className="truncate">
-              Investigar Caso{signal.case_title ? `: ${signal.case_title}` : ""}
-            </span>
-          </Link>
-        )}
-      </div>
-
-      {/* Metadata */}
-      <div className="rounded-lg border border-border bg-surface-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-          Metadados
-        </h3>
-        <dl className="space-y-1.5">
-          <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-muted">ID</dt>
-            <dd className="font-mono text-xs text-primary">{shortId}…</dd>
-          </div>
-        </dl>
-      </div>
-    </>
-  );
-
-  // ── Main ───────────────────────────────────────────────────────────
-  const main = (
-    <>
-      {/* Summary */}
-      {signal.explanation_md ? (
-        <section>
-          <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-secondary mb-2">
-            Resumo
-          </h2>
-          <p style={{ borderLeft: "3px solid var(--color-accent)", paddingLeft: "0.75rem" }}><Markdown content={signal.explanation_md} /></p>
-        </section>
-      ) : signal.summary ? (
-        <section>
-          <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-secondary mb-2">
-            Resumo
-          </h2>
-          <p style={{ borderLeft: "3px solid var(--color-accent)", paddingLeft: "0.75rem" }} className="text-sm text-primary">{sanitizeText(signal.summary)}</p>
-        </section>
-      ) : null}
-
-      {/* Risk Factors */}
-      {signal.factors && Object.keys(signal.factors).length > 0 && (
-        <section className="rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary mb-3">
-            <Layers className="h-4 w-4 text-accent" />
-            Fatores de Risco
-          </h2>
-          <dl className="space-y-2">
-            {Object.entries(signal.factors).map(([key, value]) => {
-              const meta = factorDescriptions[key];
-              const isBoolean = meta?.unit === "boolean" || typeof value === "boolean";
-              const boolVal = isBoolean ? Boolean(value) : null;
-              return (
-                <div
-                  key={key}
-                  className="flex items-start justify-between gap-2 rounded-md bg-surface-base px-3 py-2"
-                >
-                  <dt className="flex items-center gap-1 text-xs text-secondary">
-                    {meta?.label ?? key}
-                    {meta?.description && (
-                      <span className="group relative">
-                        <HelpCircle className="h-3 w-3 text-muted" />
-                        <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden w-52 -translate-x-1/2 rounded-lg bg-surface-card border border-border px-3 py-2 text-xs text-primary group-hover:block">
-                          {meta.description}
-                        </span>
-                      </span>
-                    )}
-                  </dt>
-                  <dd className="font-mono tabular-nums text-xs font-semibold text-primary">
-                    {isBoolean ? (
-                      <span className="inline-flex items-center gap-1">
-                        {boolVal ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5 text-muted" />
-                        )}
-                        {boolVal ? "Sim" : "Nao"}
-                      </span>
-                    ) : (
-                      formatFactorValue(value, meta)
-                    )}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </section>
-      )}
-
-      {/* Investigation summary */}
-      {investigation && (
-        <div className="rounded-lg border border-border bg-surface-base p-4">
-          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary">
-            <Scale className="h-4 w-4 text-accent" />
-            Por que este sinal existe?
-          </h2>
-          <p className="mt-2 text-xs text-secondary">
-            O motor cruzou dados públicos para identificar um padrão atípico nesta tipologia.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-md bg-surface-card border border-border px-3 py-2">
-              <p className="text-xs font-semibold text-secondary">Valor observado</p>
-              <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-primary">
-                {typeof investigation.observed_total_brl === "number"
-                  ? formatBRL(investigation.observed_total_brl)
-                  : "Nao informado"}
-              </p>
-            </div>
-            <div className="rounded-md bg-surface-card border border-border px-3 py-2">
-              <p className="text-xs font-semibold text-secondary">Limite de referencia</p>
-              <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-primary">
-                {typeof investigation.legal_threshold_brl === "number"
-                  ? formatBRL(investigation.legal_threshold_brl)
-                  : "Nao informado"}
-              </p>
-            </div>
-            <div className="rounded-md bg-surface-card border border-border px-3 py-2">
-              <p className="text-xs font-semibold text-secondary">Razao sobre limite</p>
-              <p className="mt-0.5 font-mono tabular-nums text-xs font-semibold text-primary">
-                {typeof investigation.ratio_over_threshold === "number"
-                  ? `${investigation.ratio_over_threshold.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}x`
-                  : "Nao informado"}
-              </p>
-            </div>
-            <div className="rounded-md bg-surface-card border border-border px-3 py-2">
-              <p className="text-xs font-semibold text-secondary">Base legal</p>
-              <p className="mt-0.5 text-xs text-primary">
-                {investigation.legal_reference ?? "Nao informado"}
-              </p>
-            </div>
-          </div>
-          {investigation.what_crossed.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-semibold text-secondary">Dados cruzados</p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {investigation.what_crossed.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full bg-surface-card border border-border px-2 py-0.5 text-xs text-secondary"
-                  >
-                    {WHAT_CROSSED_LABELS[item] ?? item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Base Legal */}
-      {legalBasis && legalBasis.law_articles.length > 0 && (
-        <section className="rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary mb-3">
-            <Scale className="h-4 w-4 text-accent" />
-            Base Legal
-          </h2>
-          {legalBasis.description_legal && (
-            <p className="text-xs text-secondary mb-3">{legalBasis.description_legal}</p>
-          )}
-          <ul className="space-y-2">
-            {legalBasis.law_articles.map((article, i) => (
-              <li key={i} className="rounded-md bg-surface-base px-3 py-2">
-                <p className="text-xs font-semibold text-primary">{article.law_name}</p>
-                {article.article && (
-                  <p className="text-[11px] text-secondary mt-0.5">{article.article}</p>
-                )}
-                {article.violation_type && (
-                  <p className="text-[11px] text-muted mt-0.5">{article.violation_type}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Related Signals */}
-      {relatedSignals.length > 0 && (
-        <section className="rounded-lg border border-border bg-surface-card p-4">
-          <h2 className="font-display text-sm font-semibold text-primary mb-3">
-            Outros Sinais com as Mesmas Entidades
-          </h2>
-          <ul className="space-y-1.5">
-            {relatedSignals.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/signal/${s.id}`}
-                  className="flex items-center gap-2 rounded-md border border-border bg-surface-base px-3 py-2 text-xs transition hover:bg-surface-subtle"
-                >
-                  <span className={cn("h-2 w-2 shrink-0 rounded-full", severityDotColor(s.severity))} />
-                  <span className="font-mono tabular-nums font-bold text-accent shrink-0">{s.typology_code}</span>
-                  <span className="flex-1 truncate text-secondary">{s.title}</span>
-                  <ExternalLink className="h-3 w-3 shrink-0 text-muted" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Evidence */}
-      <SignalEvidenceSection
-        signalId={signal.id}
-        evidenceRefs={signal.evidence_refs}
-        evidenceStats={signal.evidence_stats}
-      />
-
-      {/* Legal disclaimer */}
-      <div className="rounded-lg border border-border bg-surface-base p-3">
-        <p className="text-xs text-muted">
-          <strong className="text-secondary">Aviso legal:</strong>{" "}
-          Este sinal constitui uma{" "}
-          <em>hipótese investigativa</em> baseada em cruzamento automático de
-          dados publicos. Nao equivale a acusacao, condenacao ou juizo de
-          culpa. A decisao final pertence aos orgaos competentes (controle
-          interno, auditoria, corregedoria, Ministerio Publico e Judiciario).
-        </p>
-      </div>
-    </>
-  );
+  const severityAccent: Record<SignalSeverity, string> = {
+    critical: "var(--color-critical)",
+    high: "var(--color-high)",
+    medium: "var(--color-medium)",
+    low: "var(--color-low)",
+  };
 
   return (
-    <div className="ledger-page">
-      <div className="ledger-header">
-        <span className="font-mono text-xs text-muted">SINAL #{shortId.toUpperCase()}</span>
-        {signal.period_end && (
-          <span className="font-mono text-xs text-muted">{formatDate(signal.period_end)}</span>
-        )}
-      </div>
-      <DetailPageLayout
-        header={
-          <DetailHeader
-            breadcrumbs={[{ label: "Radar", href: "/radar" }, { label: `Sinal #${shortId}` }]}
-            title={sanitizeText(signal.title)}
-            badge={<Badge severity={signal.severity as SignalSeverity} dot />}
+    <div
+      className="min-h-screen animate-fade-in"
+      style={{ background: "var(--color-surface)" }}
+    >
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-5">
+
+        {/* Breadcrumb */}
+        <nav
+          className="flex items-center gap-1.5 text-caption"
+          style={{ color: "var(--color-text-3)" }}
+        >
+          <Link
+            href="/radar"
+            className="transition-colors hover:text-white"
+          >
+            Radar
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-40" />
+          <span
+            className="text-mono-sm font-bold"
+            style={{ color: "var(--color-amber)" }}
+          >
+            #{shortId.toUpperCase()}
+          </span>
+        </nav>
+
+        {/* Page header card */}
+        <div
+          className="ow-card animate-slide-up overflow-hidden"
+          style={{ border: "1px solid var(--color-border)" }}
+        >
+          {/* Severity accent line */}
+          <div
+            className="h-px w-full"
+            style={{
+              background: `linear-gradient(90deg, ${severityAccent[signal.severity as SignalSeverity] ?? "var(--color-border)"} 0%, transparent 60%)`,
+            }}
           />
-        }
-        aside={aside}
-        main={main}
-      />
+
+          <div className="p-5 space-y-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              {/* Title block */}
+              <div className="space-y-2.5 flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="text-mono-sm font-bold px-2 py-0.5 rounded"
+                    style={{
+                      background: "var(--color-surface-3)",
+                      border: "1px solid var(--color-border-strong)",
+                      color: "var(--color-amber)",
+                    }}
+                  >
+                    {signal.typology_code}
+                  </span>
+                  <SeverityBadge severity={signal.severity as SignalSeverity} />
+                  {signal.completeness_status === "insufficient" && (
+                    <span className="ow-badge ow-badge-neutral flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Evidência parcial
+                    </span>
+                  )}
+                </div>
+                <h1
+                  className="text-display-md leading-tight"
+                  style={{ color: "var(--color-text)" }}
+                >
+                  {sanitizeText(signal.title)}
+                </h1>
+                <p className="text-caption" style={{ color: "var(--color-text-3)" }}>
+                  {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-row sm:flex-col gap-2 sm:items-end shrink-0">
+                {signal.case_id && (
+                  <Link
+                    href={`/case/${signal.case_id}`}
+                    className="ow-btn ow-btn-primary ow-btn-md flex items-center gap-1.5"
+                  >
+                    <Briefcase className="h-3.5 w-3.5" />
+                    <span className="truncate max-w-[160px]">
+                      {signal.case_title ? signal.case_title : "Ver Caso"}
+                    </span>
+                  </Link>
+                )}
+                <Link
+                  href={`/signal/${signal.id}/graph`}
+                  className="ow-btn ow-btn-ghost ow-btn-sm flex items-center gap-1.5"
+                >
+                  <Network className="h-3.5 w-3.5" />
+                  Grafo
+                </Link>
+              </div>
+            </div>
+
+            {/* Meta strip */}
+            <div
+              className="ow-divider"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+              <div>
+                <p
+                  className="text-label uppercase tracking-widest mb-1"
+                  style={{ color: "var(--color-text-3)" }}
+                >
+                  Severidade
+                </p>
+                <SeverityBadge severity={signal.severity as SignalSeverity} />
+              </div>
+              <div>
+                <p
+                  className="text-label uppercase tracking-widest mb-1"
+                  style={{ color: "var(--color-text-3)" }}
+                >
+                  ID do Sinal
+                </p>
+                <span className="ow-id">{shortId}…</span>
+              </div>
+              {signal.period_start && (
+                <div>
+                  <p
+                    className="text-label uppercase tracking-widest mb-1"
+                    style={{ color: "var(--color-text-3)" }}
+                  >
+                    Início
+                  </p>
+                  <span
+                    className="text-mono-sm tabular-nums"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    {formatDate(signal.period_start)}
+                  </span>
+                </div>
+              )}
+              {signal.period_end && (
+                <div>
+                  <p
+                    className="text-label uppercase tracking-widest mb-1"
+                    style={{ color: "var(--color-text-3)" }}
+                  >
+                    Fim
+                  </p>
+                  <span
+                    className="text-mono-sm tabular-nums"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    {formatDate(signal.period_end)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Body: aside + tabbed main */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[288px_1fr]">
+
+          {/* ── Aside ──────────────────────────────────────────────── */}
+          <aside className="space-y-3">
+
+            {/* Score indicators */}
+            <div
+              className="ow-card p-4 space-y-4"
+              style={{ border: "1px solid var(--color-border)" }}
+            >
+              <h3
+                className="text-label uppercase tracking-widest"
+                style={{ color: "var(--color-text-3)" }}
+              >
+                Indicadores
+              </h3>
+              <ScoreBar label="Confiança" value={confidence} />
+              <ScoreBar label="Completude" value={completeness} />
+            </div>
+
+            {/* Entities */}
+            {(entities.length > 0 || signal.entity_ids.length > 0) && (
+              <div
+                className="ow-card p-4 space-y-3"
+                style={{ border: "1px solid var(--color-border)" }}
+              >
+                <h3
+                  className="text-label uppercase tracking-widest"
+                  style={{ color: "var(--color-text-3)" }}
+                >
+                  Entidades
+                </h3>
+                <ul className="space-y-2">
+                  {entities.length > 0
+                    ? entities.map((entity) => {
+                        const EntityIcon =
+                          ENTITY_TYPE_ICONS[entity.type] ?? Building2;
+                        const identifierEntries = Object.entries(
+                          entity.identifiers
+                        );
+                        return (
+                          <li key={entity.id}>
+                            <Link
+                              href={`/entity/${entity.id}`}
+                              className="ow-card-hover flex items-center gap-2.5 rounded-md p-2.5 transition-colors"
+                              style={{
+                                background: "var(--color-surface-2)",
+                                border: "1px solid var(--color-border)",
+                              }}
+                            >
+                              <div
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                                style={{
+                                  background: "var(--color-surface-3)",
+                                  border: "1px solid var(--color-border-strong)",
+                                }}
+                              >
+                                <EntityIcon
+                                  className="h-3.5 w-3.5"
+                                  style={{ color: "var(--color-amber)" }}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className="text-body font-medium truncate"
+                                  style={{ color: "var(--color-text)" }}
+                                >
+                                  {entity.name}
+                                </p>
+                                {identifierEntries.length > 0 && (
+                                  <p
+                                    className="text-mono-xs truncate"
+                                    style={{ color: "var(--color-text-3)" }}
+                                  >
+                                    {identifierEntries
+                                      .map(
+                                        ([k, v]) =>
+                                          `${k.toUpperCase()}: ${maskIdentifier(k, v)}`
+                                      )
+                                      .join(" · ")}
+                                  </p>
+                                )}
+                              </div>
+                              <ExternalLink
+                                className="h-3 w-3 shrink-0"
+                                style={{ color: "var(--color-text-3)" }}
+                              />
+                            </Link>
+                          </li>
+                        );
+                      })
+                    : signal.entity_ids.map((eid) => (
+                        <li key={eid}>
+                          <Link
+                            href={`/entity/${eid}`}
+                            className="ow-card-hover flex items-center gap-2 rounded-md p-2.5 transition-colors"
+                            style={{
+                              background: "var(--color-surface-2)",
+                              border: "1px solid var(--color-border)",
+                            }}
+                          >
+                            <span className="ow-id flex-1">
+                              {eid.slice(0, 8)}…
+                            </span>
+                            <ExternalLink
+                              className="h-3 w-3"
+                              style={{ color: "var(--color-amber)" }}
+                            />
+                          </Link>
+                        </li>
+                      ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Metadata */}
+            <div
+              className="ow-card p-4 space-y-3"
+              style={{ border: "1px solid var(--color-border)" }}
+            >
+              <h3
+                className="text-label uppercase tracking-widest"
+                style={{ color: "var(--color-text-3)" }}
+              >
+                Metadados
+              </h3>
+              <dl className="space-y-3">
+                <div>
+                  <dt
+                    className="text-label mb-0.5"
+                    style={{ color: "var(--color-text-3)" }}
+                  >
+                    ID
+                  </dt>
+                  <dd>
+                    <span className="ow-id">{shortId}…</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt
+                    className="text-label mb-0.5"
+                    style={{ color: "var(--color-text-3)" }}
+                  >
+                    Tipologia
+                  </dt>
+                  <dd
+                    className="text-mono-sm"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    {signal.typology_code}
+                  </dd>
+                </div>
+                {signal.created_at && (
+                  <div>
+                    <dt
+                      className="text-label mb-0.5"
+                      style={{ color: "var(--color-text-3)" }}
+                    >
+                      Detectado em
+                    </dt>
+                    <dd
+                      className="text-mono-sm tabular-nums"
+                      style={{ color: "var(--color-text)" }}
+                    >
+                      {formatDate(signal.created_at)}
+                    </dd>
+                  </div>
+                )}
+                <div>
+                  <dt
+                    className="text-label mb-0.5"
+                    style={{ color: "var(--color-text-3)" }}
+                  >
+                    Status evidência
+                  </dt>
+                  <dd>
+                    <span
+                      className={cn(
+                        "ow-badge",
+                        signal.completeness_status === "sufficient"
+                          ? "ow-badge-info"
+                          : "ow-badge-neutral"
+                      )}
+                    >
+                      {signal.completeness_status === "sufficient"
+                        ? "Suficiente"
+                        : "Insuficiente"}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </aside>
+
+          {/* ── Main: Tabs ─────────────────────────────────────────── */}
+          <div className="min-w-0">
+            {/* Tab navigation */}
+            <div
+              className="flex items-center gap-0 rounded-t-lg border-b overflow-x-auto"
+              style={{
+                background: "var(--color-surface-2)",
+                borderColor: "var(--color-border)",
+                borderLeft: "1px solid var(--color-border)",
+                borderRight: "1px solid var(--color-border)",
+                borderTop: "1px solid var(--color-border)",
+              }}
+            >
+              {TABS.map(({ id: tabId, label, Icon }) => (
+                <button
+                  key={tabId}
+                  onClick={() => setActiveTab(tabId)}
+                  className="relative flex items-center gap-1.5 px-5 py-3.5 text-label font-medium whitespace-nowrap transition-colors"
+                  style={{
+                    color:
+                      activeTab === tabId
+                        ? "var(--color-text)"
+                        : "var(--color-text-3)",
+                  }}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                  {activeTab === tabId && (
+                    <span
+                      className="absolute bottom-0 left-0 right-0 h-px rounded-t-full"
+                      style={{ background: "var(--color-amber)" }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div
+              className="rounded-b-lg p-5 space-y-5"
+              style={{
+                background: "var(--color-surface-2)",
+                border: "1px solid var(--color-border)",
+                borderTop: "none",
+              }}
+            >
+              {/* ── Resumo ── */}
+              {activeTab === "resumo" && (
+                <div className="space-y-6 animate-fade-in">
+
+                  {/* Summary / explanation */}
+                  {(signal.explanation_md || signal.summary) && (
+                    <section>
+                      <h2
+                        className="text-label uppercase tracking-widest mb-3"
+                        style={{ color: "var(--color-text-3)" }}
+                      >
+                        Análise do Sinal
+                      </h2>
+                      <div
+                        className="text-body rounded-md p-4"
+                        style={{
+                          borderLeft: "3px solid var(--color-amber)",
+                          background: "var(--color-surface-3)",
+                          color: "var(--color-text-2)",
+                        }}
+                      >
+                        {signal.explanation_md ? (
+                          <Markdown content={signal.explanation_md} />
+                        ) : (
+                          <p>{sanitizeText(signal.summary ?? "")}</p>
+                        )}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Risk Factors */}
+                  {signal.factors && Object.keys(signal.factors).length > 0 && (
+                    <section>
+                      <h2
+                        className="text-label uppercase tracking-widest mb-3 flex items-center gap-1.5"
+                        style={{ color: "var(--color-text-3)" }}
+                      >
+                        <Layers className="h-3.5 w-3.5" />
+                        Fatores de Risco
+                      </h2>
+                      <div className="ow-table-wrapper">
+                        <table className="ow-table">
+                          <thead>
+                            <tr>
+                              <th>Fator</th>
+                              <th>Valor</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(signal.factors).map(
+                              ([key, value]) => {
+                                const meta = factorDescriptions[key];
+                                const isBoolean =
+                                  meta?.unit === "boolean" ||
+                                  typeof value === "boolean";
+                                const boolVal = isBoolean
+                                  ? Boolean(value)
+                                  : null;
+                                return (
+                                  <tr key={key}>
+                                    <td>
+                                      <span
+                                        className="flex items-center gap-1.5"
+                                        style={{ color: "var(--color-text-2)" }}
+                                      >
+                                        {meta?.label ?? key}
+                                        {meta?.description && (
+                                          <span className="group relative inline-flex">
+                                            <HelpCircle
+                                              className="h-3 w-3"
+                                              style={{
+                                                color:
+                                                  "var(--color-text-3)",
+                                              }}
+                                            />
+                                            <span
+                                              className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden w-56 -translate-x-1/2 rounded-md px-3 py-2 text-xs group-hover:block"
+                                              style={{
+                                                background:
+                                                  "var(--color-surface-3)",
+                                                border:
+                                                  "1px solid var(--color-border-strong)",
+                                                color: "var(--color-text)",
+                                              }}
+                                            >
+                                              {meta.description}
+                                            </span>
+                                          </span>
+                                        )}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span
+                                        className="text-mono-sm font-semibold tabular-nums"
+                                        style={{ color: "var(--color-text)" }}
+                                      >
+                                        {isBoolean ? (
+                                          <span className="inline-flex items-center gap-1">
+                                            {boolVal ? (
+                                              <CheckCircle2
+                                                className="h-3.5 w-3.5"
+                                                style={{
+                                                  color: "var(--color-low)",
+                                                }}
+                                              />
+                                            ) : (
+                                              <XCircle
+                                                className="h-3.5 w-3.5"
+                                                style={{
+                                                  color:
+                                                    "var(--color-text-3)",
+                                                }}
+                                              />
+                                            )}
+                                            {boolVal ? "Sim" : "Nao"}
+                                          </span>
+                                        ) : (
+                                          formatFactorValue(value, meta)
+                                        )}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Investigation summary */}
+                  {investigation && (
+                    <section>
+                      <h2
+                        className="text-label uppercase tracking-widest mb-3 flex items-center gap-1.5"
+                        style={{ color: "var(--color-text-3)" }}
+                      >
+                        <Scale className="h-3.5 w-3.5" />
+                        Por que este sinal existe?
+                      </h2>
+                      <div
+                        className="rounded-md p-4 space-y-4"
+                        style={{
+                          background: "var(--color-surface-3)",
+                          border: "1px solid var(--color-border)",
+                        }}
+                      >
+                        <p
+                          className="text-caption"
+                          style={{ color: "var(--color-text-3)" }}
+                        >
+                          O motor cruzou dados públicos para identificar um
+                          padrão atípico nesta tipologia.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            {
+                              label: "Valor observado",
+                              value:
+                                typeof investigation.observed_total_brl ===
+                                "number"
+                                  ? formatBRL(investigation.observed_total_brl)
+                                  : null,
+                            },
+                            {
+                              label: "Limite de referência",
+                              value:
+                                typeof investigation.legal_threshold_brl ===
+                                "number"
+                                  ? formatBRL(investigation.legal_threshold_brl)
+                                  : null,
+                            },
+                            {
+                              label: "Razão sobre limite",
+                              value:
+                                typeof investigation.ratio_over_threshold ===
+                                "number"
+                                  ? `${investigation.ratio_over_threshold.toLocaleString(
+                                      "pt-BR",
+                                      { maximumFractionDigits: 2 }
+                                    )}x`
+                                  : null,
+                            },
+                            {
+                              label: "Base legal",
+                              value: investigation.legal_reference ?? null,
+                            },
+                          ].map(({ label, value }) => (
+                            <div
+                              key={label}
+                              className="rounded-md p-3"
+                              style={{
+                                background: "var(--color-surface-2)",
+                                border: "1px solid var(--color-border)",
+                              }}
+                            >
+                              <p
+                                className="text-label mb-1"
+                                style={{ color: "var(--color-text-3)" }}
+                              >
+                                {label}
+                              </p>
+                              <p
+                                className="text-mono-sm font-semibold"
+                                style={{
+                                  color: value
+                                    ? "var(--color-text)"
+                                    : "var(--color-text-3)",
+                                }}
+                              >
+                                {value ?? "Nao informado"}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        {investigation.what_crossed.length > 0 && (
+                          <div>
+                            <p
+                              className="text-label mb-2"
+                              style={{ color: "var(--color-text-3)" }}
+                            >
+                              Dados cruzados
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {investigation.what_crossed.map((item) => (
+                                <span
+                                  key={item}
+                                  className="ow-badge ow-badge-neutral"
+                                >
+                                  {WHAT_CROSSED_LABELS[item] ?? item}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Legal disclaimer */}
+                  <div className="ow-alert ow-alert-warning flex gap-2.5">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p className="text-caption">
+                      <strong>Aviso legal:</strong>{" "}
+                      Este sinal constitui uma{" "}
+                      <em>hipótese investigativa</em> baseada em cruzamento
+                      automático de dados públicos. Nao equivale a acusação,
+                      condenação ou juízo de culpa. A decisão final pertence
+                      aos órgãos competentes (controle interno, auditoria,
+                      corregedoria, Ministério Público e Judiciário).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Evidências ── */}
+              {activeTab === "evidencias" && (
+                <div className="animate-fade-in">
+                  <SignalEvidenceSection
+                    signalId={signal.id}
+                    evidenceRefs={signal.evidence_refs}
+                    evidenceStats={signal.evidence_stats}
+                  />
+                </div>
+              )}
+
+              {/* ── Base Legal ── */}
+              {activeTab === "legal" && (
+                <div className="space-y-5 animate-fade-in">
+                  {legalBasis ? (
+                    <>
+                      {legalBasis.description_legal && (
+                        <div
+                          className="text-body rounded-md p-4"
+                          style={{
+                            borderLeft: "3px solid var(--color-amber)",
+                            background: "var(--color-surface-3)",
+                            color: "var(--color-text-2)",
+                          }}
+                        >
+                          {legalBasis.description_legal}
+                        </div>
+                      )}
+
+                      {legalBasis.law_articles.length > 0 && (
+                        <div>
+                          <h3
+                            className="text-label uppercase tracking-widest mb-3"
+                            style={{ color: "var(--color-text-3)" }}
+                          >
+                            Artigos aplicáveis
+                          </h3>
+                          <div className="ow-table-wrapper">
+                            <table className="ow-table">
+                              <thead>
+                                <tr>
+                                  <th>Lei</th>
+                                  <th>Artigo</th>
+                                  <th>Tipo de Violação</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {legalBasis.law_articles.map((article, i) => (
+                                  <tr key={i}>
+                                    <td
+                                      className="font-medium"
+                                      style={{ color: "var(--color-text)" }}
+                                    >
+                                      {article.law_name}
+                                    </td>
+                                    <td
+                                      className="text-mono-sm"
+                                      style={{ color: "var(--color-text-2)" }}
+                                    >
+                                      {article.article || "—"}
+                                    </td>
+                                    <td
+                                      style={{ color: "var(--color-text-3)" }}
+                                    >
+                                      {article.violation_type || "—"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {legalBasis.corruption_types?.length > 0 && (
+                        <div>
+                          <p
+                            className="text-label uppercase tracking-widest mb-2"
+                            style={{ color: "var(--color-text-3)" }}
+                          >
+                            Tipos de corrupção relacionados
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {legalBasis.corruption_types.map((type) => (
+                              <span key={type} className="ow-badge ow-badge-high">
+                                {type}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="ow-empty">
+                      <Scale className="h-8 w-8 opacity-30 mb-2" />
+                      <p>
+                        Nenhuma base legal disponível para esta tipologia.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Relacionados ── */}
+              {activeTab === "relacionados" && (
+                <div className="animate-fade-in">
+                  {relatedSignals.length > 0 ? (
+                    <ul className="space-y-2">
+                      {relatedSignals.map((s) => (
+                        <li key={s.id}>
+                          <Link
+                            href={`/signal/${s.id}`}
+                            className="ow-signal-card ow-card-hover flex items-center gap-3 rounded-md p-3 transition-colors"
+                            style={{
+                              background: "var(--color-surface-3)",
+                              border: "1px solid var(--color-border)",
+                            }}
+                          >
+                            <SeverityBadge severity={s.severity} />
+                            <span
+                              className="text-mono-sm font-bold shrink-0"
+                              style={{ color: "var(--color-amber)" }}
+                            >
+                              {s.typology_code}
+                            </span>
+                            <span
+                              className="flex-1 truncate text-body"
+                              style={{ color: "var(--color-text-2)" }}
+                            >
+                              {s.title}
+                            </span>
+                            <span
+                              className="text-mono-xs tabular-nums shrink-0"
+                              style={{ color: "var(--color-text-3)" }}
+                            >
+                              {Math.round(s.confidence * 100)}%
+                            </span>
+                            <ExternalLink
+                              className="h-3.5 w-3.5 shrink-0"
+                              style={{ color: "var(--color-text-3)" }}
+                            />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="ow-empty">
+                      <Share2 className="h-8 w-8 opacity-30 mb-2" />
+                      <p>
+                        Nenhum sinal relacionado encontrado para estas
+                        entidades.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
