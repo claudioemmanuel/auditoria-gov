@@ -14,7 +14,7 @@ _NAME_TO_LEVEL = {
 
 def setup_logging() -> None:
     level = _NAME_TO_LEVEL.get(settings.LOG_LEVEL.lower(), logging.INFO)
-    use_console = settings.LOG_FORMAT == "console" or settings.APP_ENV == "development"
+    use_console = settings.LOG_FORMAT == "console"
 
     shared_processors = [
         structlog.contextvars.merge_contextvars,
