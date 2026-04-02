@@ -34,11 +34,9 @@ PROTECTED_MODULES: list[str] = [
     "shared.services",
     "shared.repo",
     "shared.scheduler",
-    "shared.models.orm",
-    "shared.models.raw",
-    "shared.models.graph",
-    "shared.models.radar",
-    "shared.models.coverage",
+    "shared.models.orm",   # DB schema — PROTECTED
+    "shared.models.raw",   # Internal raw source models — PROTECTED
+    # NOTE: shared.models.graph, .radar, .coverage_v2 are PUBLIC API schemas — not protected
     "worker.tasks",
     "worker.worker_app",
     "api.app.routers.internal",
@@ -78,11 +76,12 @@ PUBLIC_PATHS: list[str] = [
     "packages/ui",
     "packages/utils",
     "packages/config",
-    # Public API surface only
+    # Public API surface
     "api/app/routers/public.py",
     "api/app/main.py",
     "api/app/deps.py",
     "api/core_client.py",
+    "api/app/adapters",        # Dual-mode adapter — post-split removes the DB fallback branch
     # Generic connectors
     "shared/connectors/http_client.py",
     "shared/connectors/domain_guard.py",
@@ -93,13 +92,46 @@ PUBLIC_PATHS: list[str] = [
     "shared/connectors/compras_gov.py",
     "shared/connectors/comprasnet_contratos.py",
     "shared/connectors/base.py",
-    # Public models
+    # Public models — response schemas (API contract)
     "shared/models/canonical.py",
     "shared/models/signals.py",
     "shared/models/vocabulary.py",
     "shared/models/base.py",
+    "shared/models/graph.py",      # Pydantic API response schemas
+    "shared/models/radar.py",      # Pydantic API response schemas
+    "shared/models/coverage_v2.py",# Pydantic API response schemas
+    "shared/models/public_filter.py",
     "shared/logging.py",
     "shared/config.py",
+]
+
+
+# ---------------------------------------------------------------------------
+# Files that are AUTHORIZED to import from both layers.
+# The adapter is the intentional bridge — its monorepo-mode imports are expected.
+# After the split, the monorepo fallback branch is deleted and this exemption
+# is removed along with api/app/adapters/ entry in PUBLIC_PATHS.
+# ---------------------------------------------------------------------------
+ADAPTER_EXEMPT_PATHS: list[str] = [
+    "api/app/adapters",
+    "api/app/main.py",  # Internal router import is runtime-guarded by CORE_SERVICE_URL check
+]
+
+
+# ---------------------------------------------------------------------------
+# Public connector files that import shared.models.raw for their return types.
+# At split time these connectors move to openwatch-core (they are data-fetching
+# pipeline components, not pure public API helpers). Until the split, their
+# raw model imports are tracked as WARNINGS, not violations.
+# ---------------------------------------------------------------------------
+CONNECTOR_SPLIT_TODO_PATHS: list[str] = [
+    "shared/connectors/base.py",
+    "shared/connectors/ibge.py",
+    "shared/connectors/brasilapi_cnpj.py",
+    "shared/connectors/pncp.py",
+    "shared/connectors/portal_transparencia.py",
+    "shared/connectors/compras_gov.py",
+    "shared/connectors/comprasnet_contratos.py",
 ]
 
 
@@ -112,6 +144,16 @@ def collect_python_files(paths: list[str]) -> list[Path]:
         elif p.is_dir():
             files.extend(p.rglob("*.py"))
     return files
+
+
+def _is_adapter_exempt(file: Path) -> bool:
+    rel = str(file.relative_to(ROOT)).replace("\\", "/")
+    return any(rel.startswith(exempt) for exempt in ADAPTER_EXEMPT_PATHS)
+
+
+def _is_connector_split_todo(file: Path) -> bool:
+    rel = str(file.relative_to(ROOT)).replace("\\", "/")
+    return any(rel == p for p in CONNECTOR_SPLIT_TODO_PATHS)
 
 
 def extract_imports(file: Path) -> list[tuple[int, str]]:
@@ -139,11 +181,19 @@ def check_violations(strict: bool = False) -> int:
 
     for file in files:
         rel_path = file.relative_to(ROOT)
+        if _is_adapter_exempt(file):
+            # core_adapter.py is the authorized bridge — exempt from boundary checks.
+            # POST-SPLIT: remove this exemption when the monorepo fallback is deleted.
+            continue
+        is_connector_todo = _is_connector_split_todo(file)
         for line_no, module in extract_imports(file):
             for protected in ALL_PROTECTED:
                 if module == protected or module.startswith(protected + "."):
                     msg = f"  {rel_path}:{line_no}  imports  {module!r}"
-                    if protected in PROTECTED_MODULES:
+                    if is_connector_todo and (protected == "shared.models.raw" or protected == "shared.models.orm"):
+                        # Connectors import raw/orm models — tracked as SPLIT-TODO warning
+                        warnings.append(f"{msg}  [SPLIT-TODO: connector moves to core]")
+                    elif protected in PROTECTED_MODULES:
                         violations.append(msg)
                     else:
                         # Protected connectors are warnings (enrichment strategy)

@@ -9,7 +9,12 @@ from shared.config import settings
 from shared.db import engine
 from shared.logging import setup_logging
 from api.app.routers.public import router as public_router
-from api.app.routers.internal import router as internal_router
+# Internal router is only mounted in monorepo mode (CORE_SERVICE_URL not set).
+# In the split architecture, the internal router lives in openwatch-core only.
+if not settings.CORE_SERVICE_URL:
+    from api.app.routers.internal import router as internal_router  # type: ignore[assignment]  # noqa: F401
+else:
+    internal_router = None  # type: ignore[assignment]
 from api.app.middleware.rate_limit import RateLimitMiddleware
 from api.app.middleware.cache import CacheMiddleware
 from api.app.middleware.security_events import SecurityEventsMiddleware
@@ -57,12 +62,13 @@ app.add_middleware(
 )
 
 app.include_router(public_router, prefix="/public", tags=["public"])
-app.include_router(
-    internal_router,
-    prefix="/internal",
-    tags=["internal"],
-    dependencies=[Depends(_require_internal_key)],
-)
+if internal_router is not None:
+    app.include_router(
+        internal_router,
+        prefix="/internal",
+        tags=["internal"],
+        dependencies=[Depends(_require_internal_key)],
+    )
 
 
 @app.get("/health")

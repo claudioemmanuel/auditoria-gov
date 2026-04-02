@@ -1,0 +1,30 @@
+name: Documentation
+description: Improve or add documentation
+title: "[docs] "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs documenting?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is this important?
+    validations:
+      required: true
+  - type: dropdown
+    id: location
+    attributes:
+      label: Location
+      options:
+        - README.md
+        - docs/ARCHITECTURE.md
+        - CONTRIBUTING.md
+        - docs/OPEN_CORE_STRATEGY.md
+        - API docstring / OpenAPI
+        - Other
+    validations:
+      required: true

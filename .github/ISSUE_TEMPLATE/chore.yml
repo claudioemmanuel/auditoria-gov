@@ -1,0 +1,17 @@
+name: Chore
+description: Maintenance tasks (deps, CI, tooling)
+title: "[chore] "
+labels: ["chore", "needs-triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs to be done?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why?
+    validations:
+      required: true

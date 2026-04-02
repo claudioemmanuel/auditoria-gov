@@ -1,26 +1,57 @@
-* @claudioemmanuel
+# CODEOWNERS
+# All PRs require review from @claudioemmanuel by default.
+# More specific rules override the default for their paths.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
-# ── Core (private IP) — owner review required on ALL changes ─────────────────
-core/ @claudioemmanuel
-core/typologies/ @claudioemmanuel
-core/er/ @claudioemmanuel
-core/analytics/ @claudioemmanuel
-core/baselines/ @claudioemmanuel
-core/services/ @claudioemmanuel
-core/queries/ @claudioemmanuel
-core/pipelines/ @claudioemmanuel
-core/scheduler/ @claudioemmanuel
-core/ai/ @claudioemmanuel
+# ── Default owner (catch-all) ─────────────────────────────────────────────────
+*                          @claudioemmanuel
 
-# ── Infrastructure ────────────────────────────────────────────────────────────
-infra/ @claudioemmanuel
-infra/docker/ @claudioemmanuel
+# ── Protected core modules — MUST have owner review ─────────────────────────
+# These paths exist only in openwatch-core (private repo post-split).
+# Listed here so the public monorepo also enforces ownership during transition.
+shared/typologies/         @claudioemmanuel
+shared/analytics/          @claudioemmanuel
+shared/er/                 @claudioemmanuel
+shared/ai/                 @claudioemmanuel
+shared/baselines/          @claudioemmanuel
+shared/services/           @claudioemmanuel
+shared/repo/               @claudioemmanuel
+shared/scheduler/          @claudioemmanuel
 
-# ── Public packages ───────────────────────────────────────────────────────────
-packages/connectors/ @claudioemmanuel
+# ── Enrichment connectors (protected) ─────────────────────────────────────────
+shared/connectors/veracity.py        @claudioemmanuel
+shared/connectors/bacen.py           @claudioemmanuel
+shared/connectors/datajud.py         @claudioemmanuel
+shared/connectors/tce_pe.py          @claudioemmanuel
+shared/connectors/tce_rj.py          @claudioemmanuel
+shared/connectors/tce_rs.py          @claudioemmanuel
+shared/connectors/tce_sp.py          @claudioemmanuel
+shared/connectors/tcu.py             @claudioemmanuel
+shared/connectors/tse.py             @claudioemmanuel
+shared/connectors/camara.py          @claudioemmanuel
+shared/connectors/senado.py          @claudioemmanuel
+shared/connectors/bndes.py           @claudioemmanuel
+shared/connectors/jurisprudencia.py  @claudioemmanuel
+shared/connectors/querido_diario.py  @claudioemmanuel
+shared/connectors/transferegov.py    @claudioemmanuel
+shared/connectors/anvisa_bps.py      @claudioemmanuel
+shared/connectors/receita_cnpj.py    @claudioemmanuel
+shared/connectors/orcamento_bim.py   @claudioemmanuel
 
-# ── CI / Security ─────────────────────────────────────────────────────────────
-.github/ @claudioemmanuel
-.import-linter @claudioemmanuel
-pyproject.toml @claudioemmanuel
+# ── Worker tasks (protected pipeline) ─────────────────────────────────────────
+worker/                    @claudioemmanuel
 
+# ── Internal API router ────────────────────────────────────────────────────────
+api/app/routers/internal.py @claudioemmanuel
+
+# ── Infrastructure ─────────────────────────────────────────────────────────────
+infra/                     @claudioemmanuel
+docker-compose.yml         @claudioemmanuel
+docker-compose.prod.yml    @claudioemmanuel
+
+# ── CI / Security / Governance ────────────────────────────────────────────────
+.github/                   @claudioemmanuel
+tools/                     @claudioemmanuel
+pyproject.toml             @claudioemmanuel
+LICENSE                    @claudioemmanuel
+LICENSE-BSL                @claudioemmanuel
