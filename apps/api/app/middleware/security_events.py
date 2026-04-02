@@ -37,9 +37,16 @@ _SCAN_LIMIT = 4096
 
 
 def _extract_client_ip(request: Request) -> str:
+    """Return the real client IP using the same trust model as RateLimitMiddleware.
+
+    The AWS ALB appends the original client IP as the *last* X-Forwarded-For
+    entry — we use that to ensure security logs match rate-limiting behavior.
+    """
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+        parts = [p.strip() for p in forwarded_for.split(",") if p.strip()]
+        if parts:
+            return parts[-1]
     return request.client.host if request.client else "unknown"
 
 

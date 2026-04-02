@@ -8,11 +8,11 @@ from fastapi.security import APIKeyHeader
 from openwatch_config.settings import settings
 from openwatch_db.db import engine
 from openwatch_utils.logging import setup_logging
-from api.app.routers.public import router as public_router
-from api.app.routers.internal import router as internal_router
-from api.app.middleware.rate_limit import RateLimitMiddleware
-from api.app.middleware.cache import CacheMiddleware
-from api.app.middleware.security_events import SecurityEventsMiddleware
+from app.routers.public import router as public_router
+from app.routers.internal import router as internal_router
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.cache import CacheMiddleware
+from app.middleware.security_events import SecurityEventsMiddleware
 
 
 @asynccontextmanager

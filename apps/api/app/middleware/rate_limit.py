@@ -1,4 +1,5 @@
 import time
+import uuid
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -31,7 +32,9 @@ async def _check_rate_limit(redis, key: str, burst: int) -> bool:
     pipe = redis.pipeline()
     pipe.zremrangebyscore(key, 0, now_ms - window_ms)
     pipe.zcard(key)
-    pipe.zadd(key, {str(now_ms): now_ms})
+    # Use a unique member per request (timestamp:uuid) to prevent collisions
+    # within the same millisecond — ensures ZADD never overwrites existing entries.
+    pipe.zadd(key, {f"{now_ms}:{uuid.uuid4().hex}": now_ms})
     pipe.expire(key, 2)
 
     try:

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Database, FileJson, Loader2 } from "lucide-react";
 import { CONNECTOR_COLORS, CONNECTOR_LABELS } from "@/lib/constants";
-import { formatBRL, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import type { SignalProvenanceResponse, RawSourceItem } from "@/lib/types";
 
 interface ProvenanceChainProps {

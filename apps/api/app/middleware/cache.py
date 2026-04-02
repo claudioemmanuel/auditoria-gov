@@ -7,6 +7,21 @@ from starlette.responses import Response
 
 from openwatch_config.settings import settings
 
+# Headers that are safe to replay from a cached response.
+# Excludes: Set-Cookie (session leakage), Content-Encoding/Transfer-Encoding
+# (no longer accurate after body buffering), Content-Length (recalculated).
+_SAFE_HEADERS = frozenset({
+    "content-type",
+    "cache-control",
+    "etag",
+    "last-modified",
+    "vary",
+    "x-request-id",
+    "access-control-allow-origin",
+    "access-control-allow-methods",
+    "access-control-allow-headers",
+})
+
 
 async def cache_invalidate_pattern(redis, pattern: str) -> int:
     """Invalidate all cache keys matching a glob pattern using SCAN + DEL.
@@ -62,7 +77,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
                     content=data["body"],
                     status_code=data["status"],
                     headers={**data["headers"], "X-Cache": "HIT"},
-                    media_type="application/json",
+                    media_type=data["media_type"],
                 )
         except Exception:
             pass
@@ -75,16 +90,27 @@ class CacheMiddleware(BaseHTTPMiddleware):
             async for chunk in response.body_iterator:
                 body += chunk if isinstance(chunk, bytes) else chunk.encode()
 
+            # Capture the actual content-type so we can replay it accurately.
+            original_media_type = response.headers.get("content-type", "application/json")
+
             # Use longer TTL for unfiltered radar summary
             ttl = settings.CACHE_TTL_SECONDS
             if "/radar/v2/summary" in request.url.path and not request.url.query:
                 ttl = 300  # 5 min for unfiltered summary
 
+            # Only persist whitelisted headers to prevent leaking auth/session headers.
+            safe_headers = {
+                k: v
+                for k, v in response.headers.items()
+                if k.lower() in _SAFE_HEADERS
+            }
+
             try:
                 cache_data = json.dumps({
                     "body": body.decode(),
                     "status": response.status_code,
-                    "headers": dict(response.headers),
+                    "headers": safe_headers,
+                    "media_type": original_media_type,
                 })
                 await redis.setex(cache_key, ttl, cache_data)
             except Exception:
@@ -93,12 +119,18 @@ class CacheMiddleware(BaseHTTPMiddleware):
             return Response(
                 content=body,
                 status_code=response.status_code,
-                headers={**dict(response.headers), "X-Cache": "MISS"},
-                media_type="application/json",
+                headers={**safe_headers, "X-Cache": "MISS"},
+                media_type=original_media_type,
             )
 
         return response
 
     def _build_key(self, request: Request) -> str:
-        url = str(request.url)
-        return f"cache:{hashlib.sha256(url.encode()).hexdigest()}"
+        # Key on path + sorted query params only — excludes scheme/host so that
+        # requests through different load-balancer hostnames share the same entry.
+        sorted_query = "&".join(
+            f"{k}={v}"
+            for k, v in sorted(request.query_params.multi_items())
+        )
+        raw = f"{request.url.path}?{sorted_query}" if sorted_query else request.url.path
+        return f"cache:{hashlib.sha256(raw.encode()).hexdigest()}"

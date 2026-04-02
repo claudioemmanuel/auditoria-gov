@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { User, Building2, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ export interface EntityNodeData {
 
 function EntityNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as EntityNodeData;
-  const typeConfig = buildTypeConfig();
+  const typeConfig = useMemo(() => buildTypeConfig(), []);
   const config = typeConfig[nodeData.nodeType] ?? typeConfig.person;
   const { Icon } = config;
 

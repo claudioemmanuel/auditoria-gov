@@ -66,26 +66,29 @@ export function SignalInlineFilters({
             className="w-full rounded-lg border border-border bg-surface-card py-1.5 pl-8 pr-3 text-xs text-primary placeholder:text-placeholder outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
           />
         </div>
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
-            filtersOpen || hasFilters
-              ? "border-accent/30 bg-accent/5 text-accent"
-              : "border-border text-muted hover:text-secondary hover:border-border",
-          )}
-        >
-          <Filter className="h-3.5 w-3.5" />
-          Filtros
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              filtersOpen || hasFilters
+                ? "border-accent/30 bg-accent/5 text-accent"
+                : "border-border text-muted hover:text-secondary hover:border-border",
+            )}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filtros
+          </button>
           {hasFilters && (
             <button
-              onClick={(e) => { e.stopPropagation(); onClearAll(); }}
-              className="ml-1 rounded-full p-0.5 hover:bg-accent/20"
+              onClick={() => onClearAll()}
+              className="rounded-full p-0.5 hover:bg-accent/20 text-accent"
+              aria-label="Limpar filtros"
             >
               <X className="h-3 w-3" />
             </button>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Filter row */}

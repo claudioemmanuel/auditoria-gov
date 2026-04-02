@@ -54,20 +54,22 @@ export function buildBookSequence(
   }
 
   // Sort chapters by severity (critical first), then by code
-  const sortedChapters = [...byTypology.entries()].sort(([codeA, sigsA], [codeB, sigsB]) => {
-    const sevA = SEVERITY_ORDER[sigsA[0]?.severity ?? "low"] ?? 3;
-    const sevB = SEVERITY_ORDER[sigsB[0]?.severity ?? "low"] ?? 3;
-    if (sevA !== sevB) return sevA - sevB;
-    return codeA.localeCompare(codeB);
-  });
+  const sortedChapters = [...byTypology.entries()]
+    .map(([code, sigs]) => {
+      const maxSev = sigs.reduce<SignalSeverity>((max, s) => {
+        return (SEVERITY_ORDER[s.severity] ?? 3) < (SEVERITY_ORDER[max] ?? 3)
+          ? s.severity
+          : max;
+      }, "low");
+      return [code, sigs, maxSev] as const;
+    })
+    .sort(([codeA, , sevA], [codeB, , sevB]) => {
+      const diff = (SEVERITY_ORDER[sevA] ?? 3) - (SEVERITY_ORDER[sevB] ?? 3);
+      if (diff !== 0) return diff;
+      return codeA.localeCompare(codeB);
+    });
 
-  for (const [code, signals] of sortedChapters) {
-    const maxSeverity = signals.reduce<SignalSeverity>((max, s) => {
-      return (SEVERITY_ORDER[s.severity] ?? 3) < (SEVERITY_ORDER[max] ?? 3)
-        ? s.severity
-        : max;
-    }, "low");
-
+  for (const [code, signals, maxSeverity] of sortedChapters) {
     // Chapter page
     pages.push({
       type: "chapter",

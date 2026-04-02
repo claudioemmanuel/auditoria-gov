@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, Github, ExternalLink } from "lucide-react";
+import { Eye, ExternalLink } from "lucide-react";
 
 export function SiteFooter() {
   return (

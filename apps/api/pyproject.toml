@@ -13,8 +13,6 @@ dependencies = [
     "openwatch-utils",
     "openwatch-connectors",
     "openwatch-queries",
-    "openwatch-services",
-    "openwatch-ai",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
     "alembic>=1.14",

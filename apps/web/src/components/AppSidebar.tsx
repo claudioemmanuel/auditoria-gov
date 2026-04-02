@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Radar,
   Activity,
@@ -39,6 +39,7 @@ const NAV = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   return (
     <aside className="ow-sidebar">
@@ -79,7 +80,7 @@ export function AppSidebar() {
                 item.href === "/radar"
                   ? pathname === "/radar" || pathname?.startsWith("/signal") || pathname?.startsWith("/case")
                   : item.href === "/radar?view=cases"
-                  ? false
+                  ? pathname === "/radar" && searchParams.get("view") === "cases"
                   : pathname?.startsWith(item.href);
 
               return (
