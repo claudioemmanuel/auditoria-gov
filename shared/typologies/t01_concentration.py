@@ -46,8 +46,7 @@ class T01ConcentrationTypology(BaseTypology):
         return ["value_brl", "winner_entity_id", "catmat_group"]
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # 1. Query licitacao events in window
         stmt = (

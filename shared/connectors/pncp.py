@@ -16,6 +16,7 @@ import httpx
 
 from shared.connectors.base import BaseConnector, JobSpec, RateLimitPolicy
 from shared.connectors.http_client import pncp_client, DEFAULT_PAGE_SIZE
+from shared.logging import log
 from shared.models.canonical import (
     CanonicalEntity,
     CanonicalEvent,
@@ -109,6 +110,21 @@ def _parse_any_datetime(value: object) -> Optional[datetime]:
         return None
 
 
+def _parse_optional_bool(value: object) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    raw = str(value).strip().lower()
+    if not raw:
+        return None
+    if raw in {"1", "true", "t", "yes", "y", "sim", "s"}:
+        return True
+    if raw in {"0", "false", "f", "no", "n", "nao", "não"}:
+        return False
+    return None
+
+
 class PNCPConnector(BaseConnector):
     """Connector for PNCP — Portal Nacional de Contratações Públicas."""
 
@@ -195,8 +211,7 @@ class PNCPConnector(BaseConnector):
                 # PNCP 500s on specific windows are common (corrupted/unavailable data).
                 # PNCP 400s occur when the API changes required parameters for a window.
                 # Skip this window rather than failing the entire task.
-                from shared.logging import log as _log
-                _log.warning(
+                log.warning(
                     "pncp.window_skip",
                     endpoint=endpoint,
                     window=f"{di}/{df}",
@@ -322,6 +337,18 @@ class PNCPConnector(BaseConnector):
                     CanonicalEventParticipant(entity_ref=orgao, role="buyer"),
                 ]
 
+            me_epp_exclusive = _parse_optional_bool(
+                d.get("indicadorAmparoLegal")
+                or d.get("amparoLegal")
+                or d.get("beneficioMicroEmpresa")
+                or d.get("beneficioMeEpp")
+                or d.get("cotaReservadaMEEPP"),
+            )
+            pmi_realizado = _parse_optional_bool(
+                d.get("procedimentoManifestacaoInteresse")
+                or d.get("pmiRealizado"),
+            )
+
             events.append(
                 CanonicalEvent(
                     source_connector="pncp",
@@ -342,6 +369,22 @@ class PNCPConnector(BaseConnector):
                         "catmat_group": str(
                             d.get("codigoCatmat") or d.get("catmat_group") or "sem classificacao"
                         ),
+                        "me_epp_exclusive": me_epp_exclusive,
+                        "inexigibilidade_subtype": (
+                            str(
+                                d.get("justificativaInexigibilidade")
+                                or d.get("tipoInexigibilidade")
+                                or "",
+                            ).strip()
+                        ),
+                        "pmi_realizado": pmi_realizado,
+                        "porte_empresa": (
+                            str(
+                                d.get("porteFornecedor")
+                                or d.get("porteEmpresa")
+                                or "",
+                            ).strip().upper()
+                        ),
                         "uf": (
                             (d.get("unidadeOrgao") or {}).get("ufSigla", "")
                             if isinstance(d.get("unidadeOrgao"), dict)
@@ -351,6 +394,21 @@ class PNCPConnector(BaseConnector):
                     participants=participants,
                 )
             )
+
+            if job.domain == "licitacao":
+                missing_attrs = []
+                event_attrs = events[-1].attrs
+                for attr_name in ("me_epp_exclusive", "inexigibilidade_subtype", "pmi_realizado"):
+                    value = event_attrs.get(attr_name)
+                    if value in ("", None):
+                        missing_attrs.append(attr_name)
+                if missing_attrs:
+                    events[-1].attrs["source_limitations"] = sorted(missing_attrs)
+                    log.debug(
+                        "pncp.normalize.missing_attrs",
+                        source_id=item.raw_id,
+                        missing_attrs=sorted(missing_attrs),
+                    )
 
         return NormalizeResult(entities=entities, events=events)
 

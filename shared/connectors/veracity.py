@@ -162,6 +162,16 @@ _QD_PROFILE = SourceVeracityProfile(
     domain_tier=_EXC,
 )
 
+# Orçamento BIM (file-backed deterministic government dataset).
+_ORCAMENTO_BIM_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.90,
+    public_availability=0.90,
+    official_api_documented=0.60,
+    metadata_traceability=0.90,
+    domain_tier=_GOV,
+)
+
 # TCU (Tribunal de Contas da União) — highest legal authority for public spending audits
 _TCU_PROFILE = SourceVeracityProfile(
     government_domain=1.0,
@@ -191,7 +201,6 @@ _IBGE_PROFILE = SourceVeracityProfile(
     metadata_traceability=0.85,
     domain_tier=_GOV,
 )
-
 
 SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     # Portal da Transparência (8 jobs)
@@ -227,11 +236,14 @@ SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     "tse:tse_candidatos": _TSE_PROFILE,
     "tse:tse_bens_candidatos": _TSE_PROFILE,
     "tse:tse_receitas_candidatos": _TSE_PROFILE,
+    "tse:tse_doacoes": _TSE_PROFILE,
     "tse:tse_despesas_candidatos": _TSE_PROFILE,
     # Receita Federal (3 jobs)
     "receita_cnpj:rf_empresas": _RECEITA_PROFILE,
     "receita_cnpj:rf_socios": _RECEITA_PROFILE,
     "receita_cnpj:rf_estabelecimentos": _RECEITA_PROFILE,
+    # Orçamento BIM (1 job)
+    "orcamento_bim:orcamento_bim_items": _ORCAMENTO_BIM_PROFILE,
     # Querido Diário (1 job)
     "querido_diario:qd_gazettes": _QD_PROFILE,
     # TCU — Tribunal de Contas da União (3 jobs)

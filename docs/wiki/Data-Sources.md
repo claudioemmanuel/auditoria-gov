@@ -13,12 +13,14 @@
 | Senado Federal | Public | `senado` |
 | TSE eleitoral | Public bulk | `tse` |
 | Receita Federal CNPJ | Public bulk | `receita_cnpj` |
+| Orcamento BIM (arquivo controlado) | File-backed deterministic | `orcamento_bim` |
 | Querido Diario | Public | `querido_diario` |
 
-Together these connectors provide 11 public-source streams used by the platform.
+Together these connectors provide 12 source streams used by the platform.
 
 ## Notes
 
 - Portal da Transparencia requires `PORTAL_TRANSPARENCIA_TOKEN`
 - TSE and Receita CNPJ connectors depend on local data directories due file size
+- Orcamento BIM reads JSONL from `ORCAMENTO_BIM_DATA_FILE` (default `/data/orcamento_bim/items.jsonl`)
 - All connectors must implement deterministic `fetch` and `normalize` behavior

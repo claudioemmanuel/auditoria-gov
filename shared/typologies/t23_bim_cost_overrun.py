@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -20,7 +20,7 @@ _CRITICAL_OVERRUN_PCT = 80.0
 
 
 class T23BimCostOverrunTypology(BaseTypology):
-    """T23 — Superfaturamento via BIM (stub).
+    """T23 — Superfaturamento via BIM.
 
     Legal basis:
     - Lei 14.133/2021, Art. 122 §3° (orçamento BIM em obras acima de R$ 75M)
@@ -29,11 +29,11 @@ class T23BimCostOverrunTypology(BaseTypology):
     - Lei 8.429/1992, Art. 9°, XI (dano ao erário por sobrepreço em obras)
     - Acórdão TCU 2.622/2013 (sobrepreço em obras públicas — metodologia)
 
-    Status: STUB — requires BIM cost data connector (orcamento_bim event type).
-    Returns [] until BIM ingestion pipeline is operational.
+    Status: active — consumes `orcamento_bim` events produced by the
+    Orçamento BIM connector (file-backed deterministic source).
 
     Planned Algorithm (when data available):
-    1. Query events with type == "orcamento_bim" in 5-year window.
+    1. Query events with type == "orcamento_bim" in the resolved analysis window.
        Attrs expected: {
          "sinapi_reference_brl": float,  # SINAPI unit price reference
          "contracted_unit_price_brl": float,  # actual contracted price
@@ -78,8 +78,7 @@ class T23BimCostOverrunTypology(BaseTypology):
         return "direct"
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # Step 1: Query BIM cost events
         stmt = select(Event).where(
@@ -90,7 +89,7 @@ class T23BimCostOverrunTypology(BaseTypology):
         result = await session.execute(stmt)
         bim_events = result.scalars().all()
 
-        # Step 2: Early exit — BIM connector not yet operational
+        # Step 2: Early exit — no BIM data loaded yet
         if not bim_events:
             return []
 

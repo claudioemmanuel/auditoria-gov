@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # Data directories for bulk CSV connectors
     TSE_DATA_DIR: str = "/data/tse"
     RECEITA_CNPJ_DATA_DIR: str = "/data/receita_cnpj"
+    ORCAMENTO_BIM_DATA_FILE: str = "/data/orcamento_bim/items.jsonl"
 
     # LLM
     LLM_PROVIDER: Literal["openai", "anthropic", "none"] = "none"
@@ -59,6 +60,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: Literal["json", "console"] = "json"
     SQL_ECHO: bool = False
+    TYPOLOGY_WINDOW_MIN_DAYS: int = 365
+    TYPOLOGY_WINDOW_MAX_DAYS: int = 3650
 
     # CORS — comma-separated list of allowed origins
     ALLOWED_ORIGINS: str = "http://localhost:3000"

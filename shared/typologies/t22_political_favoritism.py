@@ -1,6 +1,6 @@
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -60,8 +60,7 @@ class T22PoliticalFavoritismTypology(BaseTypology):
         return "indirect"
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # Step 1: Query doacao_eleitoral events
         donation_stmt = select(Event).where(
@@ -111,7 +110,7 @@ class T22PoliticalFavoritismTypology(BaseTypology):
         donation_event_map: dict[str, Event] = {str(e.id): e for e in donation_events}
 
         for p in donation_participants:
-            if p.role == "donor":
+            if p.role in {"donor", "doador"}:
                 eid = str(p.event_id)
                 entity_id = str(p.entity_id)
                 if eid in donation_event_map:
@@ -125,7 +124,7 @@ class T22PoliticalFavoritismTypology(BaseTypology):
         contract_event_map: dict[str, Event] = {str(e.id): e for e in contract_events}
 
         for p in contract_participants:
-            if p.role == "supplier":
+            if p.role in {"supplier", "winner"}:
                 eid = str(p.event_id)
                 entity_id = str(p.entity_id)
                 if eid in contract_event_map:

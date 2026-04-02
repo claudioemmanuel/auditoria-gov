@@ -93,8 +93,7 @@ class T15FalseSoleSourceTypology(BaseTypology):
         return "indirect"
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # Query all licitacao events in window
         stmt = select(Event).where(

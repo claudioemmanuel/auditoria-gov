@@ -46,8 +46,7 @@ class T04AmendmentsOutlierTypology(BaseTypology):
         return ["original_value", "amendment_value", "amendment_count"]
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)  # 5-year window to cover historical ingest
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         # Query contracts
         stmt = (

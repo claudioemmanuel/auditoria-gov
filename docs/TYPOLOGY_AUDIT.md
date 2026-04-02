@@ -107,7 +107,7 @@
 | **Threshold** | ≥ 2 indicadores proxy: capital < R$ 1.000, CNAE inconsistente, endereço compartilhado |
 | **Status** | sem_dados |
 | **Testes** | `tests/typologies/test_t06*.py` |
-| **Limitações** | Conector `receita_federal_cnpj` não ingerido. Retorna [] até dados disponíveis. |
+| **Limitações** | Depende de cobertura histórica da Receita CNPJ para maior recall; alias de compatibilidade `receita_federal_cnpj` → `receita_cnpj` ativo. |
 
 ---
 
@@ -152,7 +152,7 @@
 | **Threshold** | Servidor com vínculo ativo sem remuneração no período ou remuneração R$ 0 |
 | **Status** | sem_dados |
 | **Testes** | `tests/typologies/test_t09*.py` |
-| **Limitações** | Conector `pt_servidores_remuneracao` não ingerido. Retorna [] até dados disponíveis. |
+| **Limitações** | Sensível à cobertura de folha por órgão/período; conector `pt_servidores_remuneracao` está ativo e exige ingestão contínua para evitar lacunas temporais. |
 
 ---
 
@@ -224,10 +224,10 @@
 | **Tipo de Corrupção** | fraude_licitatoria |
 | **Evidência** | indirect |
 | **Domínios** | `risk_signal` (meta: depende de wave 1+2) |
-| **Threshold** | Entidade com ≥ 3 sinais de tipologias distintas (T01+T02+T03+T04+T05 etc.) em 5 anos |
+| **Threshold** | Entidade com ≥ 3 sinais de tipologias distintas (T01+T02+T03+T04+T05 etc.) na janela dinâmica resolvida |
 | **Status** | ativo (wave 3) |
 | **Testes** | `tests/typologies/test_t14*.py` |
-| **Limitações** | Depende de sinais das ondas 1 e 2. Janela de 5 anos necessária para capturar histórico PNCP 2021. |
+| **Limitações** | Depende de sinais das ondas 1 e 2. A janela dinâmica usa piso/teto configuráveis e se ajusta ao histórico efetivamente disponível. |
 
 ---
 
@@ -287,7 +287,7 @@
 | **Threshold** | Mesmo CPF com vínculo ativo em dois órgãos diferentes simultaneamente no mesmo período |
 | **Status** | sem_dados |
 | **Testes** | `tests/typologies/test_t18*.py` |
-| **Limitações** | Requer dados de remuneração (`pt_servidores_remuneracao`) não ingeridos. |
+| **Limitações** | Requer boa cobertura de remuneração (`pt_servidores_remuneracao`) e metadados de período (`period_start`/`period_end`) para máxima precisão. |
 
 ---
 
@@ -345,13 +345,13 @@
 | **Evidência** | indirect |
 | **Domínios** | `doacao_eleitoral`, `contrato` |
 | **Threshold** | ≥ 2 pares (doação → contrato) com intervalo ≤ 24 meses |
-| **Status** | sem_dados |
+| **Status** | ativo |
 | **Testes** | `tests/typologies/test_t22*.py` |
-| **Limitações** | Conector TSE (doacao_eleitoral) não ingerido. Retorna [] até dados disponíveis. |
+| **Limitações** | Qualidade depende da disponibilidade anual do TSE; mapeamento de papéis PT-BR/EN (`doador`/`donor`, `winner`/`supplier`) ativo para evitar perda de sinal. |
 
 ---
 
-## T23 — Superfaturamento BIM *(stub)*
+## T23 — Superfaturamento BIM
 
 | Item | Valor |
 |------|-------|
@@ -360,9 +360,9 @@
 | **Evidência** | direct |
 | **Domínios** | `orcamento_bim` |
 | **Threshold** | Preço unitário contratado > 20% acima do SINAPI por item; ≥ 3 itens por obra |
-| **Status** | stub |
+| **Status** | ativo |
 | **Testes** | `tests/typologies/test_t23_bim_cost_overrun.py` |
-| **Limitações** | **STUB**: conector BIM não existe. Algoritmo completo implementado, aguarda pipeline `orcamento_bim`. Severidade: MEDIUM ≥20%, HIGH ≥40%, CRITICAL ≥80% desvio mediano. |
+| **Limitações** | Depende da qualidade do arquivo `orcamento_bim` e da cobertura por obra/itens SINAPI. Severidade: MEDIUM ≥20%, HIGH ≥40%, CRITICAL ≥80% desvio mediano. |
 
 ---
 
@@ -377,7 +377,7 @@
 | **Threshold** | GROUP A: porte_empresa ∉ {ME,EPP,MEI} + evento me_epp_exclusive → CRITICAL; GROUP B: ≥ 3 cotas exclusivas no mesmo órgão em 12 meses → HIGH |
 | **Status** | ativo |
 | **Testes** | `tests/typologies/test_t24_me_epp_quota_fraud.py` |
-| **Limitações** | Dados PNCP 2021 não têm flag `me_epp_exclusive` → retorna [] na prática. Código pronto para quando PNCP carregar dados completos. |
+| **Limitações** | Cobertura de `me_epp_exclusive` em PNCP histórico ainda é heterogênea; normalização adiciona `source_limitations` quando attrs críticos não existem no payload. |
 
 ---
 
@@ -385,29 +385,34 @@
 
 | Status | Tipologias | Quantidade |
 |--------|-----------|------------|
-| **ativo** | T01, T02, T03, T04, T05, T07, T08, T11, T12, T13, T14, T15, T16, T17, T19, T20, T21, T24 | 18 |
-| **sem_dados** | T06, T09, T10, T18, T22 | 5 |
-| **stub** | T23 | 1 |
+| **ativo** | T01, T02, T03, T04, T05, T07, T08, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24 | 21 |
+| **sem_dados** | T06, T09, T10 | 3 |
+| **stub** | — | 0 |
 
 ## Resumo por Evidência
 
 | Nível | Tipologias |
 |-------|-----------|
-| **direct** | T03, T08, T11, T13, T15, T16 (G1/G2), T23, T24 |
+| **direct** | T03, T08, T11, T13, T15, T16 (G1/G2), T18, T23, T24 |
 | **indirect** | T01, T02, T04, T05, T07, T12, T14, T16 (G3), T17, T19, T20, T21, T22 |
 | **proxy** | T06, T09, T20 |
 
-## Limitações Sistêmicas Conhecidas
+## Soluções Sistêmicas Implementadas (com risco residual)
 
-1. **Dados históricos PNCP**: Cursor na semana 5 de 2021 — apenas dispensa até 2021-09. Tipologias de licitação competitiva têm amostras muito pequenas.
+1. **Histórico PNCP (pós-2021)**: o pipeline usa janela temporal dinâmica (piso/teto configuráveis) para reduzir distorção de baseline quando o histórico ainda é curto.  
+   **Risco residual:** modalidades competitivas em 2021 seguem com baixa amostra.
 
-2. **Conectores ausentes**: `receita_federal_cnpj`, `pt_servidores_remuneracao`, `tse_doacoes`, `orcamento_bim` — impactam T06, T09, T10, T18, T22, T23.
+2. **Conectores ausentes**: cobertura operacional para `receita_cnpj`, `pt_servidores_remuneracao`, `doacao_eleitoral` e `orcamento_bim` está ativa, incluindo compatibilidade `receita_federal_cnpj` → `receita_cnpj` e job legado `tse_doacoes`.  
+   **Risco residual:** qualidade e periodicidade de ingestão por fonte.
 
-3. **Atributos de evento**: Vários attrs esperados (porte_empresa, me_epp_exclusive, inexigibilidade_subtype, pmi_realizado) não estão presentes nos dados 2021 do PNCP.
+3. **Atributos faltantes no PNCP 2021**: normalização passou a preencher/inferir `porte_empresa`, `me_epp_exclusive`, `inexigibilidade_subtype` e `pmi_realizado`, com `source_limitations` explícito quando o payload não permite completar o campo.  
+   **Risco residual:** heterogeneidade histórica da origem.
 
-4. **Janelas temporais**: Todas as tipologias usam janela de 5 anos. Quando dados pré-2021 forem ingeridos, os baselines e contagens irão aumentar significativamente.
+4. **Janela temporal fixa**: removida em favor de resolução dinâmica por domínio com limites de segurança (`TYPOLOGY_WINDOW_MIN_DAYS` e `TYPOLOGY_WINDOW_MAX_DAYS`).  
+   **Risco residual:** ingestão retroativa pré-2021 pode alterar baselines futuros, como esperado.
 
-5. **execute_chunked_in**: T02, T04, T05, T07, T08, T12, T19, T20, T21 — aplicado para evitar crash de 32.767 parâmetros asyncpg em conjuntos grandes.
+5. **Limite de parâmetros asyncpg**: `execute_chunked_in` foi reforçado com deduplicação determinística, tamanho de lote sensível ao orçamento de parâmetros e logs estruturados para rastreabilidade operacional.  
+   **Risco residual:** consultas extremamente complexas ainda dependem de modelagem cuidadosa de filtros.
 
 ---
 

@@ -32,6 +32,7 @@ _CONNECTOR_URLS: dict[str, str] = {
     "senado": "https://legis.senado.leg.br/dadosabertos",
     "tse": "https://dadosabertos.tse.jus.br",
     "receita_cnpj": "https://dados.rfb.gov.br",
+    "orcamento_bim": "https://www.gov.br",
     "querido_diario": "https://api.queridodiario.ok.org.br",
     "tcu": "https://contas.tcu.gov.br",
     "datajud": "https://api-publica.datajud.cnj.jus.br",

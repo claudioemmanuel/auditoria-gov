@@ -9,6 +9,7 @@ from shared.connectors.senado import SenadoConnector
 from shared.connectors.tse import TSEConnector
 from shared.connectors.receita_cnpj import ReceitaCNPJConnector
 from shared.connectors.querido_diario import QueridoDiarioConnector
+from shared.connectors.orcamento_bim import OrcamentoBIMConnector
 from shared.connectors.tcu import TCUConnector
 from shared.connectors.datajud import DataJudConnector
 from shared.connectors.ibge import IBGEConnector
@@ -24,6 +25,7 @@ ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "tse": TSEConnector,
     "receita_cnpj": ReceitaCNPJConnector,
     "querido_diario": QueridoDiarioConnector,
+    "orcamento_bim": OrcamentoBIMConnector,
     "tcu": TCUConnector,
     "datajud": DataJudConnector,
     "ibge": IBGEConnector,
@@ -32,7 +34,11 @@ ConnectorRegistry: dict[str, type[BaseConnector]] = {
 
 def get_connector(name: str) -> BaseConnector:
     """Factory to instantiate a connector by name."""
-    cls = ConnectorRegistry.get(name)
+    alias_map = {
+        "receita_federal_cnpj": "receita_cnpj",
+    }
+    resolved_name = alias_map.get(name, name)
+    cls = ConnectorRegistry.get(resolved_name)
     if cls is None:
         raise ValueError(f"Unknown connector: {name}")
     return cls()

@@ -1,6 +1,6 @@
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -68,8 +68,7 @@ class T19BidRotationTypology(BaseTypology):
         return "indirect"
 
     async def run(self, session) -> list[RiskSignalOut]:
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(days=365 * 5)
+        window_start, window_end = await self.resolve_window(session, self.required_domains)
 
         stmt = select(Event).where(
             Event.type == "licitacao",
