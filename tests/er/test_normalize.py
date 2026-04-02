@@ -1,4 +1,6 @@
 from shared.er.normalize import normalize_entity_for_matching
+from shared.config import settings
+from shared.utils.hashing import hash_cpf
 
 
 class TestNormalizeEntityForMatching:
@@ -21,6 +23,14 @@ class TestNormalizeEntityForMatching:
     def test_cpf_hash_none_when_missing(self):
         result = normalize_entity_for_matching("Test", {})
         assert result["cpf_hash"] is None
+
+    def test_cpf_generates_hash_when_cpf_hash_missing(self):
+        result = normalize_entity_for_matching("Test", {"cpf": "215.768.058-67"})
+        assert result["cpf_hash"] == hash_cpf("21576805867", settings.CPF_HASH_SALT)
+
+    def test_cnpj_cpf_generates_hash_when_cpf_hash_missing(self):
+        result = normalize_entity_for_matching("Test", {"cnpj_cpf": "215.768.058-67"})
+        assert result["cpf_hash"] == hash_cpf("21576805867", settings.CPF_HASH_SALT)
 
     def test_tokens_extracted(self):
         result = normalize_entity_for_matching("Maria Silva Santos", {})

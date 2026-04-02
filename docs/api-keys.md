@@ -30,6 +30,17 @@ PORTAL_TRANSPARENCIA_TOKEN=your-token-here
 
 ## Optional
 
+### DataJud/CNJ (`DATAJUD_API_KEY`)
+
+DataJud public API supports unauthenticated access, but you can provide an API key
+for better quota/reliability where available.
+
+```env
+DATAJUD_API_KEY=your-datajud-key
+```
+
+---
+
 ### OpenAI (`OPENAI_API_KEY`)
 
 Required only for AI explanation features (typology summaries, risk narratives).
@@ -56,8 +67,20 @@ All other connectors use public APIs or bulk downloads with no authentication:
 | `comprasnet_contratos` | Compras.gov.br / PNCP fallback | Public REST API |
 | `transferegov` | TransfereGov PostgREST API | Public REST API |
 | `camara` | Câmara dos Deputados open-data API | Public REST API |
-| `senado` | Senado Federal / Codante API | Public REST API |
+| `senado` | Senado Federal dados abertos API | Public REST API |
 | `querido_diario` | Querido Diário gazette API | Public REST API |
+| `tcu` | Tribunal de Contas da União APIs | Public REST API |
+| `datajud` | CNJ DataJud API | Public REST API (optional key) |
+| `ibge` | IBGE APIs | Public REST API |
+| `tce_rj` | TCE-RJ open data API | Public REST API |
+| `tce_rs` | TCE-RS open data API | Public REST API |
+| `tce_sp` | TCE-SP transparência API | Public REST API |
+| `tce_pe` | TCE-PE DadosAbertos API | Public REST API |
+| `jurisprudencia` | STF jurisprudência API | Public REST API |
+| `bacen` | Banco Central SGS API | Public REST API |
+| `bndes` | BNDES CKAN API | Public REST API |
+| `brasilapi_cnpj` | BrasilAPI CNPJ wrapper | Public REST API (exception domain) |
+| `anvisa_bps` | ANVISA/BPS + Bulário APIs | Public REST API |
 | `tse` | TSE CDN ZIP downloads | ~200MB per dataset, one-time |
 | `receita_cnpj` | Receita Federal CNPJ bulk CSVs | ~6GB total, one-time download |
 

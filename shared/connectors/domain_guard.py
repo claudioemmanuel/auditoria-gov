@@ -53,6 +53,16 @@ DOMAIN_EXCEPTIONS: dict[str, DomainException] = {
         approved_date=date(2026, 7, 10),
         review_by=date(2027, 1, 10),  # 6-month review
     ),
+    "brasilapi.com.br": DomainException(
+        domain="brasilapi.com.br",
+        justification=(
+            "BrasilAPI is a public mirror/wrapper that republishes official "
+            "Brazilian government registration data, including CNPJ records."
+        ),
+        max_veracity=0.78,
+        approved_date=date(2026, 7, 10),
+        review_by=date(2027, 1, 10),  # 6-month review
+    ),
 }
 
 

@@ -141,6 +141,15 @@ def jurisprudencia_stf_client() -> httpx.AsyncClient:
     )
 
 
+def tce_rs_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-RS (Tribunal de Contas do Estado do Rio Grande do Sul)."""
+    return _guarded_client(
+        "https://dados.tce.rs.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
 def tce_rj_client() -> httpx.AsyncClient:
     """HTTP client for TCE-RJ open-data API (dados.tcerj.tc.br)."""
     return _guarded_client(
@@ -154,6 +163,15 @@ def bacen_client() -> httpx.AsyncClient:
     """HTTP client for Banco Central do Brasil SGS time-series API."""
     return _guarded_client(
         "https://api.bcb.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def brasilapi_client() -> httpx.AsyncClient:
+    """HTTP client for BrasilAPI CNPJ endpoint."""
+    return _guarded_client(
+        "https://brasilapi.com.br",
         headers={"Accept": "application/json"},
         timeout=DEFAULT_TIMEOUT,
     )
@@ -193,5 +211,35 @@ def tce_sp_client() -> httpx.AsyncClient:
     return _guarded_client(
         "https://transparencia.tce.sp.gov.br/api/json",
         headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def tce_pe_client() -> httpx.AsyncClient:
+    """HTTP client for TCE-PE (Tribunal de Contas do Estado de Pernambuco)."""
+    return _guarded_client(
+        "https://sistemas.tce.pe.gov.br/DadosAbertos",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def anvisa_bps_client() -> httpx.AsyncClient:
+    """HTTP client for ANVISA/BPS prices API."""
+    return _guarded_client(
+        "https://apidadosabertos.saude.gov.br",
+        headers={"Accept": "application/json"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+
+def anvisa_bulario_client() -> httpx.AsyncClient:
+    """HTTP client for ANVISA bulario registry API."""
+    return _guarded_client(
+        "https://consultas.anvisa.gov.br",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        },
         timeout=DEFAULT_TIMEOUT,
     )

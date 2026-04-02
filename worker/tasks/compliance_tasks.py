@@ -32,16 +32,20 @@ _CONNECTOR_URLS: dict[str, str] = {
     "senado": "https://legis.senado.leg.br/dadosabertos",
     "tse": "https://dadosabertos.tse.jus.br",
     "receita_cnpj": "https://dados.rfb.gov.br",
+    "brasilapi_cnpj": "https://brasilapi.com.br/api/cnpj/v1",
     "orcamento_bim": "https://www.gov.br",
     "querido_diario": "https://api.queridodiario.ok.org.br",
     "tcu": "https://contas.tcu.gov.br",
     "datajud": "https://api-publica.datajud.cnj.jus.br",
     "ibge": "https://servicodados.ibge.gov.br/api",
     "tce_rj": "https://dados.tcerj.tc.br/api/v1",
+    "tce_rs": "https://dados.tce.rs.gov.br/dados",
     "tce_sp": "https://transparencia.tce.sp.gov.br/api/json",
+    "tce_pe": "https://sistemas.tce.pe.gov.br/DadosAbertos",
     "jurisprudencia": "https://jurisprudencia.stf.jus.br/api/search",
     "bacen": "https://api.bcb.gov.br/dados/serie/bcdata.sgs",
     "bndes": "https://dadosabertos.bndes.gov.br/api/3/action",
+    "anvisa_bps": "https://apidadosabertos.saude.gov.br/economia-da-saude/bps",
 }
 
 

@@ -14,10 +14,14 @@ from shared.connectors.tcu import TCUConnector
 from shared.connectors.datajud import DataJudConnector
 from shared.connectors.ibge import IBGEConnector
 from shared.connectors.jurisprudencia import JurisprudenciaConnector
+from shared.connectors.brasilapi_cnpj import BrasilAPICNPJConnector
 from shared.connectors.tce_rj import TCERJConnector
+from shared.connectors.tce_rs import TCERSConnector
 from shared.connectors.tce_sp import TCESPConnector
+from shared.connectors.tce_pe import TCEPEConnector
 from shared.connectors.bacen import BacenConnector
 from shared.connectors.bndes import BNDESConnector
+from shared.connectors.anvisa_bps import AnvisaBPSConnector
 
 ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "portal_transparencia": PortalTransparenciaConnector,
@@ -35,10 +39,14 @@ ConnectorRegistry: dict[str, type[BaseConnector]] = {
     "datajud": DataJudConnector,
     "ibge": IBGEConnector,
     "jurisprudencia": JurisprudenciaConnector,
+    "brasilapi_cnpj": BrasilAPICNPJConnector,
     "tce_rj": TCERJConnector,
+    "tce_rs": TCERSConnector,
     "tce_sp": TCESPConnector,
+    "tce_pe": TCEPEConnector,
     "bacen": BacenConnector,
     "bndes": BNDESConnector,
+    "anvisa_bps": AnvisaBPSConnector,
 }
 
 

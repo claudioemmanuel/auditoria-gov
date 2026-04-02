@@ -41,6 +41,8 @@ Non-government sources require formal approval with a time-limited exception:
 | Domain | Justification | Max Veracity | Approved | Review By |
 |--------|--------------|-------------|----------|-----------|
 | `api.queridodiario.ok.org.br` | Open Knowledge Brasil — municipal gazette aggregation; no official federal API exists | 0.85 | 2026-03-04 | 2026-09-04 |
+| `dados.tcerj.tc.br` | TCE-RJ open data domain outside standard government TLD list | 0.90 | 2026-07-10 | 2027-01-10 |
+| `brasilapi.com.br` | Public wrapper of official government registration datasets (CNPJ fallback enrichment) | 0.78 | 2026-07-10 | 2027-01-09 |
 
 **Nota sobre o score do Querido Diário (0.435 — "low"):** O score reflete que a fonte não é hospedada em domínio governamental e não possui API oficial documentada pelo governo. A exceção é mantida porque: (1) o Querido Diário é o único agregador nacional de diários municipais disponível; (2) Open Knowledge Brasil é uma organização estabelecida e auditável; (3) sinais baseados exclusivamente nessa fonte recebem penalidade de veracidade na composição do score final. Nenhum sinal crítico depende exclusivamente desta fonte.
 
@@ -97,10 +99,14 @@ Each source receives a weighted composite score:
 | DataJud/CNJ | government | ~0.96 | official |
 | IBGE | government | ~0.925 | high |
 | TCE-RJ | exception | ~0.90 | high |
+| TCE-RS | government | ~0.968 | official |
 | TCE-SP | government | ~0.965 | official |
+| TCE-PE | government | ~0.955 | official |
 | Jurisprudência (STF) | government | ~0.955 | official |
 | Bacen | government | ~0.965 | official |
 | BNDES | government | ~0.955 | official |
+| BrasilAPI CNPJ | exception | ~0.50 | low |
+| ANVISA/BPS | government | ~0.925 | high |
 
 Profiles are defined in `shared/connectors/veracity.py` and exposed via `GET /public/sources`.
 

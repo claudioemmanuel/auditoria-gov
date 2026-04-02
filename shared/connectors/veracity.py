@@ -162,6 +162,16 @@ _QD_PROFILE = SourceVeracityProfile(
     domain_tier=_EXC,
 )
 
+# BrasilAPI CNPJ — non-government mirror/wrapper of official sources
+_BRASILAPI_CNPJ_PROFILE = SourceVeracityProfile(
+    government_domain=0.0,
+    legal_authority=0.70,
+    public_availability=1.0,
+    official_api_documented=0.90,
+    metadata_traceability=0.75,
+    domain_tier=_EXC,
+)
+
 # Orçamento BIM (file-backed deterministic government dataset).
 _ORCAMENTO_BIM_PROFILE = SourceVeracityProfile(
     government_domain=1.0,
@@ -212,10 +222,30 @@ _TCE_RJ_PROFILE = SourceVeracityProfile(
     domain_tier=_EXC,
 )
 
+# TCE-RS — state audit court, .gov.br, strong legal authority
+_TCE_RS_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.95,
+    public_availability=1.0,
+    official_api_documented=0.90,
+    metadata_traceability=0.90,
+    domain_tier=_GOV,
+)
+
 # TCE-SP — state audit court, .gov.br, strong legal authority
 _TCE_SP_PROFILE = SourceVeracityProfile(
     government_domain=1.0,
     legal_authority=1.0,
+    public_availability=1.0,
+    official_api_documented=0.85,
+    metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
+
+# TCE-PE — state audit court, .gov.br, strong legal authority
+_TCE_PE_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.95,
     public_availability=1.0,
     official_api_documented=0.85,
     metadata_traceability=0.85,
@@ -249,6 +279,16 @@ _BNDES_PROFILE = SourceVeracityProfile(
     public_availability=1.0,
     official_api_documented=0.90,
     metadata_traceability=0.85,
+    domain_tier=_GOV,
+)
+
+# ANVISA/BPS — official health surveillance and procurement references (.gov.br)
+_ANVISA_BPS_PROFILE = SourceVeracityProfile(
+    government_domain=1.0,
+    legal_authority=0.90,
+    public_availability=0.95,
+    official_api_documented=0.85,
+    metadata_traceability=0.80,
     domain_tier=_GOV,
 )
 
@@ -296,6 +336,8 @@ SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     "orcamento_bim:orcamento_bim_items": _ORCAMENTO_BIM_PROFILE,
     # Querido Diário (1 job)
     "querido_diario:qd_gazettes": _QD_PROFILE,
+    # BrasilAPI CNPJ (1 job)
+    "brasilapi_cnpj:brasilapi_cnpj_lookup": _BRASILAPI_CNPJ_PROFILE,
     # TCU — Tribunal de Contas da União (3 jobs)
     "tcu:tcu_inidoneos": _TCU_PROFILE,
     "tcu:tcu_inabilitados": _TCU_PROFILE,
@@ -310,9 +352,17 @@ SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     "tce_rj:tce_rj_licitacoes": _TCE_RJ_PROFILE,
     "tce_rj:tce_rj_contratos": _TCE_RJ_PROFILE,
     "tce_rj:tce_rj_penalidades": _TCE_RJ_PROFILE,
+    # TCE-RS — state audit court, .gov.br
+    "tce_rs:tce_rs_gestao_fiscal": _TCE_RS_PROFILE,
+    "tce_rs:tce_rs_educacao": _TCE_RS_PROFILE,
+    "tce_rs:tce_rs_saude": _TCE_RS_PROFILE,
     # TCE-SP — state audit court, .gov.br
     "tce_sp:tce_sp_despesas": _TCE_SP_PROFILE,
     "tce_sp:tce_sp_receitas": _TCE_SP_PROFILE,
+    # TCE-PE — state audit court, .gov.br
+    "tce_pe:tce_pe_licitacoes": _TCE_PE_PROFILE,
+    "tce_pe:tce_pe_contratos": _TCE_PE_PROFILE,
+    "tce_pe:tce_pe_despesas": _TCE_PE_PROFILE,
     # Jurisprudência — STF higher court rulings, .jus.br
     "jurisprudencia:juris_stf_licitacao": _JURIS_PROFILE,
     "jurisprudencia:juris_stf_improbidade": _JURIS_PROFILE,
@@ -323,4 +373,7 @@ SOURCE_VERACITY_REGISTRY: dict[str, SourceVeracityProfile] = {
     # BNDES — development bank financing operations, .gov.br
     "bndes:bndes_operacoes_auto": _BNDES_PROFILE,
     "bndes:bndes_operacoes_nao_auto": _BNDES_PROFILE,
+    # ANVISA/BPS — health procurement prices and drug registry, .gov.br
+    "anvisa_bps:anvisa_bps_prices": _ANVISA_BPS_PROFILE,
+    "anvisa_bps:anvisa_bulario_registry": _ANVISA_BPS_PROFILE,
 }

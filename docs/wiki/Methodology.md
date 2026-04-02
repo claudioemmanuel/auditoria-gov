@@ -16,7 +16,7 @@ Ingestion → Normalization → Entity Resolution → Baselines → Signals → 
 
 | Stage | What happens |
 |-------|-------------|
-| **Ingestion** | Raw data is pulled from 19 public government sources (federal + state audit courts, judiciary, economy) and stored as immutable JSON payloads (`RawSource`). |
+| **Ingestion** | Raw data is pulled from 23 connectors (federal + state audit courts, judiciary, economy, and controlled enrichment exceptions) and stored as immutable JSON payloads (`RawSource`). |
 | **Normalization** | Raw payloads are mapped to canonical entities, events, and participant links. Each record preserves its `EventRawSource` link to the original payload. |
 | **Entity Resolution (ER)** | Entities are matched and clustered across sources using name similarity, CNPJ/CPF hash, and shared identifiers. ER runs as a global singleton (advisory-locked). |
 | **Baselines** | Statistical reference values are computed per entity and connector (e.g., average contract value, typical bidder count). These anchor anomaly detection in typologies. |
