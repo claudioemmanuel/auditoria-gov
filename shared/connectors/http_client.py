@@ -75,7 +75,11 @@ def transferegov_client(module: str = "") -> httpx.AsyncClient:
       - /fundoafundo/
     Docs: https://docs.api.transferegov.gestao.gov.br/{module}/
     """
-    base = f"https://api.transferegov.gestao.gov.br/{module}" if module else "https://api.transferegov.gestao.gov.br"
+    base = (
+        f"https://api.transferegov.gestao.gov.br/{module}"
+        if module
+        else "https://api.transferegov.gestao.gov.br"
+    )
     return _guarded_client(
         base,
         headers={"Accept": "application/json"},
