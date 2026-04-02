@@ -1,0 +1,79 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  # ── 1. Require linked issue ───────────────────────────────────────────────────
+  require-issue-link:
+    name: Require linked issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR body for issue reference
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if echo "$PR_BODY" | grep -qiE "(closes|fixes|resolves) #[0-9]+"; then
+            echo "✅ Issue reference found."
+          else
+            echo "❌ PR must reference an issue."
+            echo "   Add 'Closes #<number>' to the PR description."
+            exit 1
+          fi
+
+  # ── 2. Conventional commit title ─────────────────────────────────────────────
+  conventional-title:
+    name: Conventional commit title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          PATTERN='^(feat|fix|refactor|docs|chore|ci|test|perf|revert)(\(.+\))?: .{1,72}$'
+          if echo "$PR_TITLE" | grep -qE "$PATTERN"; then
+            echo "✅ PR title follows conventional commits."
+          else
+            echo "❌ PR title must follow conventional commits format."
+            echo "   Expected: <type>(<scope>): <description>"
+            echo "   Types: feat fix refactor docs chore ci test perf revert"
+            echo "   Example: feat(sdk): add entity search method"
+            echo ""
+            echo "   Got: $PR_TITLE"
+            exit 1
+          fi
+
+  # ── 3. No direct push check (redundant safety net) ───────────────────────────
+  branch-name:
+    name: Branch name convention
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          PATTERN='^(feat|fix|refactor|docs|chore|ci|test|hotfix)/.+'
+          if echo "$BRANCH" | grep -qE "$PATTERN"; then
+            echo "✅ Branch name: $BRANCH"
+          else
+            echo "❌ Branch must follow naming convention."
+            echo "   Expected: <type>/<description>"
+            echo "   Example: feat/sdk-entity-search"
+            echo ""
+            echo "   Got: $BRANCH"
+            exit 1
+          fi
+
+  # ── 4. Boundary check ────────────────────────────────────────────────────────
+  boundary-check:
+    name: Open-core boundary check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+      - name: Run boundary checker
+        run: uv run python tools/check_boundaries.py

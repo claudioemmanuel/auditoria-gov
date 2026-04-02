@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from api.app.deps import DbSession, Pagination
+# ── Public API response schemas (API contract — public layer) ─────────────────
 from shared.models.coverage_v2 import (
     CoverageV2AnalyticsResponse,
     CoverageV2MapResponse,
@@ -19,7 +20,6 @@ from shared.models.coverage_v2 import (
     PublicSourcesResponse,
 )
 from shared.models.graph import CaseGraphResponse, EntityPathResponse, NeighborhoodResponse, SignalGraphResponse
-from shared.models.orm import Case, CaseItem, Contestation, RiskSignal, Typology
 from shared.models.radar import (
     RadarV2CaseListResponse,
     RadarV2CasePreviewResponse,
@@ -29,42 +29,44 @@ from shared.models.radar import (
     RadarV2SummaryResponse,
 )
 from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
-from shared.repo.provenance import (
-    get_raw_sources_for_event,
-    get_raw_sources_for_events,
-    get_case_provenance_web,
-)
-from shared.models.orm import LegalViolationHypothesis
-from shared.repo.queries import (
-    get_case_by_id,
-    get_case_entities_with_roles,
-    get_case_graph,
-    get_dossier_summary,
-    get_dossier_timeline,
-    get_coverage_v2_analytics,
-    get_coverage_v2_map,
-    get_coverage_v2_run_detail,
-    get_coverage_v2_source_preview,
-    get_coverage_v2_sources,
-    get_coverage_v2_summary,
-    get_evidence_package_by_id,
-    get_entity_by_id,
-    get_entity_path,
-    get_graph_neighborhood,
-    get_org_summary,
-    get_public_sources,
-    get_radar_v2_case_preview,
-    get_radar_v2_cases,
-    get_radar_v2_coverage,
-    get_radar_v2_signal_preview,
-    get_radar_v2_signals,
-    get_radar_v2_summary,
-    get_signal_by_id,
-    get_signal_detail,
-    get_signal_graph,
-    get_signal_evidence_page,
-    replay_signal,
-    search_entities,
+# ── Core adapter — dual-mode (direct DB in monorepo, HTTP in split) ───────────
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_summary,
+    adapter_get_coverage_v2_sources,
+    adapter_get_coverage_v2_source_preview,
+    adapter_get_coverage_v2_map,
+    adapter_get_coverage_v2_analytics,
+    adapter_get_coverage_v2_run_detail,
+    adapter_get_public_sources,
+    adapter_get_radar_v2_summary,
+    adapter_get_radar_v2_signals,
+    adapter_get_radar_v2_signal_preview,
+    adapter_get_radar_v2_cases,
+    adapter_get_radar_v2_case_preview,
+    adapter_get_radar_v2_coverage,
+    adapter_search_entities,
+    adapter_get_entity_by_id,
+    adapter_get_org_summary,
+    adapter_get_case_by_id,
+    adapter_get_case_entities_with_roles,
+    adapter_get_case_graph,
+    adapter_get_signal_by_id,
+    adapter_get_signal_detail,
+    adapter_get_signal_graph,
+    adapter_get_signal_evidence_page,
+    adapter_replay_signal,
+    adapter_get_evidence_package_by_id,
+    adapter_get_dossier_summary,
+    adapter_get_dossier_timeline,
+    adapter_get_entity_path,
+    adapter_get_graph_neighborhood,
+    adapter_get_signal_provenance,
+    adapter_get_case_provenance,
+    adapter_get_baseline,
+    adapter_get_factor_descriptions,
+    adapter_get_typology_legal_metadata,
+    adapter_list_typologies,
+    adapter_get_typology,
 )
 
 router = APIRouter()
@@ -74,7 +76,7 @@ router = APIRouter()
 async def coverage_v2_summary(
     session: DbSession,
 ):
-    return await get_coverage_v2_summary(session)
+    return await adapter_get_coverage_v2_summary(session)
 
 
 @router.get("/coverage/v2/sources", response_model=CoverageV2SourcesResponse)
@@ -87,7 +89,7 @@ async def coverage_v2_sources(
     q: Optional[str] = Query(None),
     sort: str = Query("status_desc", pattern="^(status_desc|name_asc|freshness_desc|jobs_desc)$"),
 ):
-    return await get_coverage_v2_sources(
+    return await adapter_get_coverage_v2_sources(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -105,7 +107,7 @@ async def coverage_v2_source_preview(
     session: DbSession,
     runs_limit: int = Query(10, ge=3, le=50),
 ):
-    preview = await get_coverage_v2_source_preview(
+    preview = await adapter_get_coverage_v2_source_preview(
         session,
         connector=connector,
         runs_limit=runs_limit,
@@ -121,12 +123,12 @@ async def coverage_v2_map(
     layer: str = Query("uf", pattern="^(uf|municipio)$"),
     metric: str = Query("coverage", pattern="^(coverage|freshness|risk)$"),
 ):
-    return await get_coverage_v2_map(session, layer=layer, metric=metric)
+    return await adapter_get_coverage_v2_map(session, layer=layer, metric=metric)
 
 
 @router.get("/coverage/v2/analytics", response_model=CoverageV2AnalyticsResponse)
 async def coverage_v2_analytics(session: DbSession):
-    return await get_coverage_v2_analytics(session)
+    return await adapter_get_coverage_v2_analytics(session)
 
 
 @router.get("/coverage/v2/run/{run_id}", response_model=CoverageV2RunDetailResponse)
@@ -134,7 +136,7 @@ async def coverage_v2_run_detail(
     run_id: uuid.UUID,
     session: DbSession,
 ):
-    detail = await get_coverage_v2_run_detail(session, run_id)
+    detail = await adapter_get_coverage_v2_run_detail(session, run_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Run not found")
     return detail
@@ -144,7 +146,7 @@ async def coverage_v2_run_detail(
 @router.get("/sources", response_model=PublicSourcesResponse)
 async def public_sources(session: DbSession):
     """Full transparency on data provenance — sources, veracity, whitelist."""
-    return await get_public_sources(session)
+    return await adapter_get_public_sources(session)
 
 
 @router.get("/radar/v2/summary", response_model=RadarV2SummaryResponse)
@@ -157,7 +159,7 @@ async def radar_v2_summary(
     corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
     sphere: Optional[str] = Query(None, description="Filter by sphere"),
 ):
-    return await get_radar_v2_summary(
+    return await adapter_get_radar_v2_summary(
         session,
         typology_code=typology,
         severity=severity,
@@ -180,7 +182,7 @@ async def radar_v2_signals(
     corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
     sphere: Optional[str] = Query(None, description="Filter by sphere"),
 ):
-    items, total = await get_radar_v2_signals(
+    items, total = await adapter_get_radar_v2_signals(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -211,7 +213,7 @@ async def radar_v2_cases(
     corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
     sphere: Optional[str] = Query(None, description="Filter by sphere"),
 ):
-    items, total = await get_radar_v2_cases(
+    items, total = await adapter_get_radar_v2_cases(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -236,7 +238,7 @@ async def radar_v2_signal_preview(
     session: DbSession,
     limit: int = Query(10, ge=1, le=30, description="Evidence preview limit"),
 ):
-    preview = await get_radar_v2_signal_preview(session, signal_id=signal_id, evidence_limit=limit)
+    preview = await adapter_get_radar_v2_signal_preview(session, signal_id=signal_id, evidence_limit=limit)
     if preview is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return preview
@@ -247,7 +249,7 @@ async def radar_v2_case_preview(
     case_id: uuid.UUID,
     session: DbSession,
 ):
-    preview = await get_radar_v2_case_preview(session, case_id=case_id)
+    preview = await adapter_get_radar_v2_case_preview(session, case_id=case_id)
     if preview is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return preview
@@ -361,16 +363,16 @@ async def radar_v2_batch_preview(
 
 @router.get("/radar/v2/coverage", response_model=RadarV2CoverageResponse)
 async def radar_v2_coverage(session: DbSession):
-    return await get_radar_v2_coverage(session)
+    return await adapter_get_radar_v2_coverage(session)
 
 
 @router.get("/case/{case_id}")
 async def case_detail(case_id: uuid.UUID, session: DbSession):
     """Case detail with signals, explanation, and entity context."""
-    case = await get_case_by_id(session, case_id)
+    case = await adapter_get_case_by_id(session, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
-    entities = await get_case_entities_with_roles(session, case_id)
+    entities = await adapter_get_case_entities_with_roles(session, case_id)
 
     attrs = case.attrs or {}
     entity_names = attrs.get("entity_names", [])
@@ -396,8 +398,6 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
     else:
         explanation += " por entidades que aparecem em multiplas irregularidades potenciais."
 
-    from shared.typologies.factor_metadata import get_factor_descriptions
-
     signal_items = []
     for item in case.items:
         signal = item.signal
@@ -412,7 +412,7 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
                 "summary": signal.summary,
                 "explanation_md": signal.explanation_md,
                 "factors": signal.factors,
-                "factor_descriptions": get_factor_descriptions(
+                "factor_descriptions": adapter_get_factor_descriptions(
                     signal.factors or {},
                     typology_code=signal.typology.code if signal.typology else None,
                 ),
@@ -457,8 +457,7 @@ async def case_detail(case_id: uuid.UUID, session: DbSession):
 @router.get("/typology/{code}/legal-basis")
 async def typology_legal_basis(code: str):
     """Legal basis metadata for a typology: laws, articles, violation types."""
-    from shared.typologies.factor_metadata import TYPOLOGY_LEGAL_METADATA
-    meta = TYPOLOGY_LEGAL_METADATA.get(code.upper())
+    meta = adapter_get_typology_legal_metadata(code)
     if meta is None:
         raise HTTPException(status_code=404, detail="Typology not found")
     return {
@@ -486,29 +485,17 @@ def _build_tipologia_item(typology_id: str, typology_name: str, meta: dict) -> d
 @router.get("/tipologia")
 async def list_tipologias():
     """List all registered typologies with their legal metadata."""
-    from shared.typologies.registry import TypologyRegistry
-    from shared.typologies.factor_metadata import TYPOLOGY_LEGAL_METADATA
-
-    items = []
-    for code, cls in TypologyRegistry.items():
-        typology = cls()
-        meta = TYPOLOGY_LEGAL_METADATA.get(code, {})
-        items.append(_build_tipologia_item(typology.id, typology.name, meta))
+    items = adapter_list_typologies()
     return {"typologies": items, "total": len(items)}
 
 
 @router.get("/tipologia/{code}")
 async def get_tipologia(code: str):
     """Metadata for a single typology by code (e.g. T03)."""
-    from shared.typologies.registry import TypologyRegistry
-    from shared.typologies.factor_metadata import TYPOLOGY_LEGAL_METADATA
-
-    upper = code.upper()
-    cls = TypologyRegistry.get(upper)
-    if cls is None:
+    result = adapter_get_typology(code)
+    if result is None:
         raise HTTPException(status_code=404, detail="Typology not found")
-    meta = TYPOLOGY_LEGAL_METADATA.get(upper, {})
-    return _build_tipologia_item(cls().id, cls().name, meta)
+    return result
 
 
 @router.get("/case/{case_id}/legal-hypothesis")
@@ -546,14 +533,14 @@ async def entity_search(
     limit: int = Query(20, ge=1, le=100, description="Max results (1-100)"),
 ):
     """Fuzzy entity search via pg_trgm. Person results are LGPD-scoped to public servants only. CPF is never returned."""
-    results = await search_entities(session, q, entity_type=type, limit=limit)
+    results = await adapter_search_entities(session, q, entity_type=type, limit=limit)
     return results
 
 
 @router.get("/entity/{entity_id}")
 async def entity_detail(entity_id: uuid.UUID, session: DbSession):
     """Entity detail with identifiers, events, signals."""
-    entity = await get_entity_by_id(session, entity_id)
+    entity = await adapter_get_entity_by_id(session, entity_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
     return {
@@ -574,7 +561,7 @@ async def entity_detail(entity_id: uuid.UUID, session: DbSession):
 @router.get("/org/{org_id}")
 async def org_detail(org_id: uuid.UUID, session: DbSession):
     """Organization view — aggregated stats, risk distribution."""
-    summary = await get_org_summary(session, org_id)
+    summary = await adapter_get_org_summary(session, org_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Organization not found")
     return summary
@@ -587,7 +574,7 @@ async def graph_neighborhood(
     depth: int = Query(1, ge=1, le=2, description="Traversal depth (1-2)"),
 ):
     """Graph neighborhood — nodes and edges around an entity (max 100 nodes)."""
-    return await get_graph_neighborhood(session, entity_id, depth=depth, limit=100)
+    return await adapter_get_graph_neighborhood(session, entity_id, depth=depth, limit=100)
 
 
 @router.get("/graph/path", response_model=EntityPathResponse)
@@ -600,7 +587,7 @@ async def get_graph_path(
     """Shortest path between two entities via recursive CTE with temporal annotations."""
     if from_id == to_id:
         raise HTTPException(status_code=422, detail="from_id and to_id must be different entities")
-    return await get_entity_path(session, from_id, to_id, max_hops)
+    return await adapter_get_entity_path(session, from_id, to_id, max_hops)
 
 
 @router.get("/case/{case_id}/graph", response_model=CaseGraphResponse)
@@ -614,7 +601,7 @@ async def case_graph(
     ),
 ):
     """Case investigation graph — all entities from case signals + optional BFS neighborhood."""
-    result = await get_case_graph(
+    result = await adapter_get_case_graph(
         session,
         case_id,
         depth=depth,
@@ -632,7 +619,7 @@ async def signal_graph(
     session: DbSession,
 ):
     """Signal investigation graph — narrative + timeline + explainable edges."""
-    result = await get_signal_graph(session, signal_id)
+    result = await adapter_get_signal_graph(session, signal_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return result
@@ -645,9 +632,6 @@ async def compare_prices(
     description: Optional[str] = Query(None),
 ):
     """Price comparison — baseline stats, outlier highlights."""
-    from shared.baselines.models import BaselineType
-    from shared.repo.queries import get_baseline
-
     if not catmat_code:
         return {
             "catmat_code": catmat_code,
@@ -656,10 +640,11 @@ async def compare_prices(
             "items": [],
         }
 
+    # "PRICE_BY_ITEM" is the baseline type key — a public constant, not a protected enum
     scope_key = f"catmat_group::{catmat_code}"
-    baseline = await get_baseline(
+    baseline = await adapter_get_baseline(
         session,
-        BaselineType.PRICE_BY_ITEM.value,
+        "PRICE_BY_ITEM",
         scope_key,
     )
 
@@ -674,7 +659,7 @@ async def compare_prices(
 @router.get("/signal/{signal_id}")
 async def signal_detail(signal_id: uuid.UUID, session: DbSession):
     """Signal detail with typology, factors, evidence, and associated case."""
-    detail = await get_signal_detail(session, signal_id)
+    detail = await adapter_get_signal_detail(session, signal_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return detail
@@ -691,7 +676,7 @@ async def signal_evidence(
     ),
 ):
     """Paginated evidence list based on all event_ids linked to the signal."""
-    page = await get_signal_evidence_page(
+    page = await adapter_get_signal_evidence_page(
         session,
         signal_id=signal_id,
         offset=pagination.offset,
@@ -706,7 +691,7 @@ async def signal_evidence(
 @router.get("/signal/{signal_id}/related")
 async def signal_related(signal_id: uuid.UUID, session: DbSession):
     """Related signals that share at least one entity with the given signal."""
-    signal = await get_signal_by_id(session, signal_id)
+    signal = await adapter_get_signal_by_id(session, signal_id)
     if signal is None:
         raise HTTPException(status_code=404, detail="Signal not found")
 
@@ -758,13 +743,13 @@ async def export_signal_evidence(
     session: DbSession,
     format: str = Query("json", pattern="^(json|csv)$"),
 ):
-    signal = await get_signal_by_id(session, signal_id)
+    signal = await adapter_get_signal_by_id(session, signal_id)
     if signal is None:
         raise HTTPException(status_code=404, detail="Signal not found")
 
     package = None
     if signal.evidence_package_id:
-        package = await get_evidence_package_by_id(session, signal.evidence_package_id)
+        package = await adapter_get_evidence_package_by_id(session, signal.evidence_package_id)
 
     payload = {
         "signal_id": str(signal.id),
@@ -866,7 +851,7 @@ async def export_signal_evidence(
 
 @router.post("/signals/{signal_id}/replay", response_model=SignalReplayOut)
 async def replay_signal_endpoint(signal_id: uuid.UUID, session: DbSession):
-    replay = await replay_signal(session, signal_id)
+    replay = await adapter_replay_signal(session, signal_id)
     if replay is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return replay
@@ -875,7 +860,7 @@ async def replay_signal_endpoint(signal_id: uuid.UUID, session: DbSession):
 @router.get("/signal/{signal_id}/provenance")
 async def signal_provenance(signal_id: uuid.UUID, session: DbSession):
     """Full provenance chain: Signal -> Events -> RawSources."""
-    signal = await get_signal_by_id(session, signal_id)
+    signal = await adapter_get_signal_by_id(session, signal_id)
     if signal is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     event_ids = []
@@ -884,7 +869,7 @@ async def signal_provenance(signal_id: uuid.UUID, session: DbSession):
             event_ids.append(uuid.UUID(str(eid_str)))
         except (ValueError, TypeError):
             pass
-    event_raw_sources = await get_raw_sources_for_events(session, event_ids)
+    event_raw_sources = await adapter_get_signal_provenance(session, signal_id)
     return {
         "signal_id": signal.id,
         "title": signal.title,
@@ -912,7 +897,7 @@ async def signal_provenance(signal_id: uuid.UUID, session: DbSession):
 @router.get("/event/{event_id}/raw-sources")
 async def event_raw_sources_endpoint(event_id: uuid.UUID, session: DbSession):
     """Original API JSON for one event."""
-    raw_sources = await get_raw_sources_for_event(session, event_id)
+    raw_sources = await adapter_get_signal_provenance(session, event_id)
     return {
         "event_id": event_id,
         "raw_sources": [
@@ -932,7 +917,7 @@ async def event_raw_sources_endpoint(event_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/provenance")
 async def case_provenance(case_id: uuid.UUID, session: DbSession):
     """Complete investigative web with raw data for a case."""
-    result = await get_case_provenance_web(session, case_id)
+    result = await adapter_get_case_provenance(session, case_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return result
@@ -941,7 +926,7 @@ async def case_provenance(case_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/related")
 async def case_related(case_id: uuid.UUID, session: DbSession):
     """Related cases that share at least one entity name with the given case."""
-    case = await get_case_by_id(session, case_id)
+    case = await adapter_get_case_by_id(session, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -984,7 +969,7 @@ async def case_related(case_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/dossier-summary")
 async def case_dossier_summary(case_id: uuid.UUID, session: DbSession):
     """Full dossier summary — one call replaces case preview + legal + related."""
-    result = await get_dossier_summary(session, case_id)
+    result = await adapter_get_dossier_summary(session, case_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return result
@@ -993,7 +978,7 @@ async def case_dossier_summary(case_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/dossier-timeline")
 async def case_dossier_timeline(case_id: uuid.UUID, session: DbSession):
     """Full timeline data for a case dossier — events, participants, signals, entities."""
-    result = await get_dossier_timeline(session, case_id)
+    result = await adapter_get_dossier_timeline(session, case_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return result

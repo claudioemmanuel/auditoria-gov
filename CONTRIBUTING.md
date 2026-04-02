@@ -1,7 +1,26 @@
 # Contributing to OpenWatch
 
-Thanks for contributing to OpenWatch.
-This project is a civic-tech platform for reproducible anti-corruption risk analysis of Brazilian federal public data.
+Thanks for contributing to OpenWatch — a civic-tech platform for reproducible anti-corruption risk analysis of Brazilian federal public data.
+
+## Open-Core Model — What You Can Contribute
+
+OpenWatch uses an **open-core strategy**. This repository (`openwatch`) is the **public layer**, licensed MIT. The detection engine (`openwatch-core`) is private.
+
+**In-scope for community contributions (this repo):**
+- 🌐 Web frontend (`web/`)
+- 🔌 SDK (`packages/sdk/`)
+- 🧩 UI components (`packages/ui/`)
+- 🔗 Generic government API connectors (`shared/connectors/` — public wrappers only)
+- 📖 Documentation
+- 🐛 Bug reports and security disclosures
+
+**Out of scope (handled internally):**
+- Typology algorithms (T01–T28)
+- Risk scoring logic
+- Entity resolution engine
+- Data enrichment pipelines
+
+See [`docs/OPEN_CORE_STRATEGY.md`](docs/OPEN_CORE_STRATEGY.md) for the full classification.
 
 ## Development Setup
 

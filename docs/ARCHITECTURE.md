@@ -3,6 +3,17 @@
 This document is the public architecture/specification baseline for OpenWatch.
 It replaces internal planning artifacts under `docs/plans/` for open-source publication.
 
+## Open-Core Model
+
+OpenWatch uses a two-layer architecture:
+
+| Layer | Repo | License | Contains |
+|-------|------|---------|---------|
+| **Public** | `openwatch` (this repo) | MIT | Frontend, SDK, public API gateway, generic connectors |
+| **Protected Core** | `openwatch-core` (private) | BSL 1.1 | Typologies T01–T28, risk scoring, entity resolution, pipelines |
+
+The public API acts as a **gateway only** — all computation runs in the core service on controlled infrastructure. See [`docs/OPEN_CORE_STRATEGY.md`](OPEN_CORE_STRATEGY.md) for the full classification manifest.
+
 ## Mission
 
 OpenWatch is a public-read citizen auditing platform that ingests Brazilian federal open data, resolves entities across sources, detects reproducible corruption-risk patterns, and surfaces investigation-ready evidence.

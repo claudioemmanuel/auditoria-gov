@@ -1,0 +1,76 @@
+name: Issue Pipeline Enforcement
+
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  # ── Warn if PR opened without a linked issue ──────────────────────────────────
+  warn-missing-issue:
+    name: Warn on PR without issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Check for issue link
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if echo "$PR_BODY" | grep -qiE "(closes|fixes|resolves) #[0-9]+"; then
+            echo "Issue linked — no action needed."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body \
+              "👋 **Pipeline reminder**: This PR does not appear to link to an issue.
+
+              All work must follow the task pipeline:
+              **Issue → Ready for Analysis → In Progress → PR → Review → Done**
+
+              Please add \`Closes #<issue-number>\` to the PR description, or close this PR and create an issue first.
+
+              See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the full workflow."
+          fi
+
+  # ── Label new issues with needs-triage ───────────────────────────────────────
+  auto-label-triage:
+    name: Auto-label new issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    permissions:
+      issues: write
+    steps:
+      - name: Add needs-triage label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-label "needs-triage" || true
+
+  # ── Confirm merged PR closes its issue ───────────────────────────────────────
+  merged-summary:
+    name: Post merge summary
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post merge confirmation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body \
+            "✅ **Merged!**
+
+            Cleanup checklist:
+            - [ ] Branch \`$BRANCH\` deleted (auto-deleted if repo setting is on)
+            - [ ] Linked issue closed
+            - [ ] Task moved to **Done** on the project board"
