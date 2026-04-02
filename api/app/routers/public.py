@@ -9,6 +9,35 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from api.app.deps import DbSession, Pagination
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC API ROUTER — SPLIT-READY ARCHITECTURE
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# This router is designed to work in TWO modes:
+#
+# 1. MONOREPO MODE (pre-split)
+#    - Direct database access via SQLAlchemy async
+#    - Uses core_adapter.py for all queries
+#    - All endpoints return full internal data structures
+#
+# 2. SPLIT MODE (post-split in openwatch-public repository)
+#    - HTTP calls to openwatch-core private service via CoreClient
+#    - Uses split_ready_adapter.py for dual-mode access
+#    - All endpoints apply PublicSignalSummary filtering automatically
+#    - Sensitive internal fields are stripped (factors, weights, etc.)
+#
+# MIGRATION PATH POST-SPLIT:
+# - CoreClient is automatically selected when CORE_SERVICE_URL is set
+# - All adapters transparently switch to HTTP mode
+# - PublicSignalSummary and PublicEntitySummary filtering is applied
+# - Endpoint signatures remain UNCHANGED
+#
+# See: api/app/adapters/split_ready_adapter.py for dual-mode patterns
+# See: shared/models/public_filter.py for PublicSignalSummary schema
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
 # ── Public API response schemas (API contract — public layer) ─────────────────
 from shared.models.coverage_v2 import (
     CoverageV2AnalyticsResponse,
@@ -29,6 +58,7 @@ from shared.models.radar import (
     RadarV2SummaryResponse,
 )
 from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
+from shared.models.public_filter import to_public_signal, PublicSignalSummary
 # ── Core adapter — dual-mode (direct DB in monorepo, HTTP in split) ───────────
 from api.app.adapters.core_adapter import (
     adapter_get_coverage_v2_summary,
@@ -658,10 +688,22 @@ async def compare_prices(
 
 @router.get("/signal/{signal_id}")
 async def signal_detail(signal_id: uuid.UUID, session: DbSession):
-    """Signal detail with typology, factors, evidence, and associated case."""
+    """
+    Signal detail with typology, factors, evidence, and associated case.
+    
+    POST-SPLIT: This endpoint will use CoreClient and apply PublicSignalSummary filtering.
+    See split_ready_adapter.py for dual-mode implementation pattern.
+    """
     detail = await adapter_get_signal_detail(session, signal_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Signal not found")
+    
+    # SPLIT-READY: Filter sensitive internal fields for public API
+    # In split mode, CoreClient will handle this automatically
+    if isinstance(detail, dict):
+        # Apply public filter if response is dict (monorepo mode)
+        filtered = to_public_signal(detail) if detail.get("typology_code") else detail
+        return filtered if filtered else detail
     return detail
 
 
