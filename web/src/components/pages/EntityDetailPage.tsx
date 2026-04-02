@@ -24,7 +24,7 @@ import { normalizeUnknownDisplay } from "@/lib/utils";
 import type { SignalSeverity, EntityDetail, NeighborhoodResponse } from "@/lib/types";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import { EntityTypeBadge } from "@/components/Badge";
-import { Button } from "@/components/Button";
+import { Button, LinkButton } from "@/components/Button";
 import { clsx } from "clsx";
 
 const TYPE_ICONS = {
@@ -227,12 +227,10 @@ export default function EntityDetailPage() {
           </div>
 
           <div className="shrink-0">
-            <Button asChild variant="amber" size="sm">
-              <Link href={`/radar?entity=${entity.id}`}>
+            <LinkButton href={`/radar?entity=${entity.id}`} variant="amber" size="sm">
                 <Radar className="mr-1.5 h-3.5 w-3.5" />
                 Ver no Radar
-              </Link>
-            </Button>
+              </LinkButton>
           </div>
         </div>
 
@@ -393,12 +391,10 @@ export default function EntityDetailPage() {
               </div>
 
               <div>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/radar?entity=${entity.id}`}>
+                <LinkButton href={`/radar?entity=${entity.id}`} variant="ghost" size="sm">
                     <Radar className="mr-1.5 h-3.5 w-3.5" />
                     Acessar Radar desta Entidade
-                  </Link>
-                </Button>
+                  </LinkButton>
               </div>
             </div>
           )}

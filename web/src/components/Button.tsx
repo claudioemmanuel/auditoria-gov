@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, type ComponentPropsWithoutRef, type ElementType } from "react";
+import NextLink from "next/link";
 import { clsx } from "clsx";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "destructive" | "amber";
@@ -10,7 +11,6 @@ interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
-  asChild?: boolean;
 }
 
 const variantClass: Record<ButtonVariant, string> = {
@@ -67,14 +67,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 /* Polymorphic link-button (renders <a>) */
-interface LinkButtonProps extends ComponentPropsWithoutRef<"a"> {
+interface LinkButtonProps extends ComponentPropsWithoutRef<typeof NextLink> {
   variant?: ButtonVariant;
   size?: ButtonSize;
 }
 
 export function LinkButton({ variant = "secondary", size = "md", className, ...props }: LinkButtonProps) {
   return (
-    <a
+    <NextLink
       className={clsx("ow-btn", variantClass[variant], sizeClass[size], className)}
       {...props}
     />
