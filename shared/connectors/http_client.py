@@ -174,13 +174,11 @@ def datajud_client() -> httpx.AsyncClient:
     Auth is optional: if DATAJUD_API_KEY is set it is sent as
     'APIKey {key}'; otherwise the header is omitted (public, rate-limited).
     """
-    import os
-
     headers: dict[str, str] = {
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
-    key = os.environ.get("DATAJUD_API_KEY", "")
+    key = settings.DATAJUD_API_KEY
     if key:
         headers["Authorization"] = f"APIKey {key}"
     return _guarded_client(
