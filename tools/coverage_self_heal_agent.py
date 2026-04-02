@@ -512,13 +512,9 @@ class CoverageSelfHealAgent:
             "exec",
             "-T",
             "worker-primary",
-            "celery",
-            "-A",
-            "worker.worker_app",
-            "call",
-            "worker.tasks.ingest_tasks.ingest_all_incremental",
-            "-Q",
-            "ingest",
+            "python",
+            "-c",
+            "from worker.worker_app import app; r=app.send_task('worker.tasks.ingest_tasks.ingest_all_incremental'); print(r.id)",
         ]
         if self.config.dry_run:
             return True, "dry-run"
@@ -532,13 +528,9 @@ class CoverageSelfHealAgent:
             "exec",
             "-T",
             "worker-primary",
-            "celery",
-            "-A",
-            "worker.worker_app",
-            "call",
-            "worker.tasks.coverage_tasks.update_coverage_registry",
-            "-Q",
-            "default",
+            "python",
+            "-c",
+            "from worker.worker_app import app; r=app.send_task('worker.tasks.coverage_tasks.update_coverage_registry'); print(r.id)",
         ]
         if self.config.dry_run:
             return True, "dry-run"
@@ -546,6 +538,22 @@ class CoverageSelfHealAgent:
         if result.ok:
             return True, "coverage refresh dispatched"
         return False, result.stderr or "coverage refresh failed"
+
+    def trigger_cleanup_stale_runs(self) -> tuple[bool, str]:
+        cmd = self.compose_prefix() + [
+            "exec",
+            "-T",
+            "worker-primary",
+            "python",
+            "-c",
+            "from worker.worker_app import app; r=app.send_task('worker.tasks.maintenance_tasks.cleanup_stale_runs', kwargs={'max_age_hours': 2}); print(r.id)",
+        ]
+        if self.config.dry_run:
+            return True, "dry-run"
+        result = self.run_cmd(cmd, timeout=60)
+        if result.ok:
+            return True, "cleanup stale runs dispatched"
+        return False, result.stderr or "cleanup stale runs failed"
 
     def heal(
         self,
@@ -582,6 +590,22 @@ class CoverageSelfHealAgent:
         has_job_issue = any(i.get("type") in {"job", "pipeline", "data_source"} for i in issues)
         has_pipeline_gap = any(g.get("category") in {"pipeline", "data_source", "typology"} for g in gaps)
         if has_job_issue or has_pipeline_gap:
+            has_failed_stuck = any(
+                i.get("type") == "job"
+                and "failed or stuck jobs" in str(i.get("description", "")).lower()
+                for i in issues
+            )
+            if has_failed_stuck:
+                ok0, details0 = self.trigger_cleanup_stale_runs()
+                actions.append(
+                    {
+                        "action": "requeue_job",
+                        "target": "worker.tasks.maintenance_tasks.cleanup_stale_runs",
+                        "reason": "clear orphaned stale runs before re-triggering pipeline",
+                        "result": "success" if ok0 else f"failure ({details0})",
+                    }
+                )
+
             ok, details = self.trigger_ingest_incremental()
             actions.append(
                 {
