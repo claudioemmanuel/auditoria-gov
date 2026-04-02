@@ -9,6 +9,7 @@ import time
 from threading import local
 
 from celery.signals import task_failure, task_postrun, task_prerun, task_retry
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from shared.logging import log
 
@@ -98,6 +99,17 @@ def get_task_metrics() -> dict[str, dict]:
 @task_prerun.connect
 def _on_prerun(sender=None, task_id=None, task=None, **kwargs):
     _state.start = time.monotonic()
+    queue = None
+    retries = 0
+    if task is not None and getattr(task, "request", None) is not None:
+        queue = getattr(task.request, "delivery_info", {}).get("routing_key")
+        retries = getattr(task.request, "retries", 0)
+    bind_contextvars(
+        task_name=(task.name if task else (sender.name if sender else "unknown")),
+        task_id=task_id,
+        task_queue=queue,
+        task_retries=retries,
+    )
 
 
 @task_postrun.connect
@@ -119,6 +131,7 @@ def _on_postrun(sender=None, task_id=None, task=None, retval=None, state=None, *
         _record_metric(task_name, duration_ms, "success")
 
     _state.start = None
+    clear_contextvars()
 
 
 @task_failure.connect
@@ -141,6 +154,7 @@ def _on_failure(sender=None, task_id=None, exception=None, traceback=None, **kwa
         _record_metric(task_name, duration_ms, "failure")
 
     _state.start = None
+    clear_contextvars()
 
 
 @task_retry.connect

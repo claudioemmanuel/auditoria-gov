@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # App
     APP_ENV: Literal["development", "staging", "production"] = "development"
     LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: Literal["json", "console"] = "json"
+    SQL_ECHO: bool = False
 
     # CORS — comma-separated list of allowed origins
     ALLOWED_ORIGINS: str = "http://localhost:3000"
