@@ -22,16 +22,16 @@ interface SignalInlineFiltersProps {
 
 const SEVERITIES = [
   { value: "", label: "Todas" },
-  { value: "critical", label: "Critico" },
+  { value: "critical", label: "Crítico" },
   { value: "high", label: "Alto" },
-  { value: "medium", label: "Medio" },
+  { value: "medium", label: "Médio" },
   { value: "low", label: "Baixo" },
 ];
 
 const SORT_OPTIONS = [
   { value: "", label: "Mais recentes" },
-  { value: "analysis_date", label: "Data de analise" },
-  { value: "ingestion_date", label: "Data de ingestao" },
+  { value: "analysis_date", label: "Data de análise" },
+  { value: "ingestion_date", label: "Data de ingestão" },
 ];
 
 export function SignalInlineFilters({

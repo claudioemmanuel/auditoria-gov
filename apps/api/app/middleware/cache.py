@@ -86,9 +86,10 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         # Cache successful responses
         if response.status_code == 200:
-            body = b""
+            chunks: list[bytes] = []
             async for chunk in response.body_iterator:
-                body += chunk if isinstance(chunk, bytes) else chunk.encode()
+                chunks.append(chunk if isinstance(chunk, bytes) else chunk.encode())
+            body = b"".join(chunks)
 
             # Capture the actual content-type so we can replay it accurately.
             original_media_type = response.headers.get("content-type", "application/json")

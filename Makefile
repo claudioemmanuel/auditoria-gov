@@ -58,7 +58,7 @@ lint:
 
 typecheck:
 	uv run mypy packages/ core/ apps/api/ --ignore-missing-imports
-	cd apps/web && npm run typecheck 2>/dev/null || true
+	cd apps/web && npm run typecheck
 
 boundaries:
 	uv run lint-imports --config .import-linter

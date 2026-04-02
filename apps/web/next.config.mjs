@@ -6,7 +6,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: process.env.NODE_ENV === "production" ? "export" : undefined,
+  // Dynamic routes require server-side rendering (SSR/ISR).
+  // Static export ("output: export") is incompatible with arbitrary IDs —
+  // only pre-enumerated params would be generated, causing 404s on real data.
   images: { unoptimized: true },
   trailingSlash: true,
 

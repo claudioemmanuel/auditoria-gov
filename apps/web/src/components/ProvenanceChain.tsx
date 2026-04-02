@@ -121,7 +121,7 @@ export default function ProvenanceChain({ data, loading, error, onViewRawSource 
                           )}
                           {onViewRawSource && (
                             <button
-                              onClick={() => onViewRawSource(event.raw_sources)}
+                              onClick={() => onViewRawSource([src])}
                               className="mt-1 flex items-center gap-1 text-xs text-accent hover:text-accent-hover transition-colors"
                             >
                               <FileJson className="w-3 h-3" />

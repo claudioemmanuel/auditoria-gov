@@ -25,23 +25,40 @@ def _client_ip(request: Request) -> str:
 
 
 async def _check_rate_limit(redis, key: str, burst: int) -> bool:
-    """Sliding-window counter. Returns True if the request should be blocked."""
+    """Sliding-window counter. Returns True if the request should be blocked.
+
+    Uses a Lua-style approach: check the current count *before* adding the new
+    entry so that blocked requests do not extend the lockout window under bursty
+    traffic. ZCARD is read first and the ZADD is only executed when below limit.
+    All writes are wrapped in a pipeline for atomicity.
+    """
     now_ms = int(time.time() * 1000)
     window_ms = 1000
 
+    # First pipeline: prune expired entries and read current count.
     pipe = redis.pipeline()
     pipe.zremrangebyscore(key, 0, now_ms - window_ms)
     pipe.zcard(key)
-    # Use a unique member per request (timestamp:uuid) to prevent collisions
-    # within the same millisecond — ensures ZADD never overwrites existing entries.
-    pipe.zadd(key, {f"{now_ms}:{uuid.uuid4().hex}": now_ms})
-    pipe.expire(key, 2)
-
     try:
         results = await pipe.execute()
-        return results[1] >= burst
     except Exception:
         return False  # Redis down → allow
+
+    current_count = results[1]
+    if current_count >= burst:
+        return True  # Blocked — do NOT add entry so window doesn't extend.
+
+    # Second pipeline: record this request, then refresh TTL.
+    # Unique member (ts:uuid) prevents same-millisecond overwrites.
+    pipe2 = redis.pipeline()
+    pipe2.zadd(key, {f"{now_ms}:{uuid.uuid4().hex}": now_ms})
+    pipe2.expire(key, 2)
+    try:
+        await pipe2.execute()
+    except Exception:
+        pass
+
+    return False
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
