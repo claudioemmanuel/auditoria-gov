@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
-import { TableOfContents } from "./TableOfContents";
 import { BookOpen, CheckCircle2, ExternalLink, ArrowRight, Scale } from "lucide-react";
 import { fetchTipologiaList } from "@/lib/api";
 import type { TypologyLegalBasis } from "@/lib/types";
+import { PageHeader } from "@/components/PageHeader";
 
 // ── Local data maps ────────────────────────────────────────────────────────────
 
@@ -76,14 +76,6 @@ const PRINCIPLES = [
   },
 ];
 
-const PIPELINE_STEPS = [
-  { n: 1, title: "Ingestao e Catalogacao", desc: "Coleta automatica em fontes publicas com metadados de recencia e status por job." },
-  { n: 2, title: "Normalizacao Canonica", desc: "Padronizacao de contratos, participantes, valores, periodos e identificadores." },
-  { n: 3, title: "Resolucao de Entidades", desc: "Matching deterministico e probabilistico para consolidar pessoas, empresas e orgaos." },
-  { n: 4, title: "Baselines e Scores", desc: "Calculo de distribuicoes historicas, percentis e thresholds com fallback de escopo." },
-  { n: 5, title: "Deteccao e Explicacao", desc: "Aplicacao das tipologias com registro de execucao (candidatos, criados, deduplicados, bloqueados), classificacao de risco e producao de explicacao interpretavel." },
-];
-
 const SCORE_DIMENSIONS = [
   {
     name: "Severidade",
@@ -126,316 +118,354 @@ const LEGAL_REFS: [string, string, string][] = [
   ["Nepotismo/Clientelismo", "Decreto 7.203/2010", "https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2010/decreto/d7203.htm"],
 ];
 
-function SectionHeading({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <h2
-      id={id}
-      className="font-display text-lg font-bold text-primary mb-4 mt-10 pb-2 border-b border-border scroll-mt-24 first:mt-0"
-    >
-      {children}
-    </h2>
-  );
+function Divider() {
+  return <div className="ow-divider" />;
 }
 
 export default async function MethodologyPage() {
   const legalBasisList: TypologyLegalBasis[] = await fetchTipologiaList().catch(() => []);
 
-  const aside = (
-    <div className="rounded-xl border border-border bg-surface-card p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <BookOpen className="h-4 w-4 text-accent" />
-        <h2 className="font-display text-xs font-semibold uppercase tracking-wide text-muted">
-          Conteúdo
-        </h2>
-      </div>
-      <TableOfContents />
-    </div>
-  );
+  const typologyCount = Object.keys(TYPOLOGY_LABELS).length;
+  const uniqueSources = new Set(Object.values(TYPOLOGY_SOURCES).flat()).size;
+  const legalBases = LEGAL_REFS.length;
 
-  const main = (
-    <article className="prose-none">
-
-      {/* ── Principios ─────────────────────────────────────────── */}
-      <SectionHeading id="principios">Princípios</SectionHeading>
-      <div className="space-y-3">
-        {PRINCIPLES.map((p) => (
-          <div key={p.title} className="rounded-lg border border-border bg-surface-card p-4">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-              <div>
-                <h3 className="font-display text-sm font-bold text-primary mb-1">{p.title}</h3>
-                <p className="text-sm text-secondary leading-relaxed">{p.body}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Pipeline ───────────────────────────────────────────── */}
-      <SectionHeading id="pipeline">Pipeline</SectionHeading>
-      <div className="space-y-2">
-        {PIPELINE_STEPS.map((step) => (
-          <div key={step.n} className="flex gap-4 rounded-lg border border-border bg-surface-card p-4">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-subtle border border-accent/20">
-              <span className="font-mono text-xs font-bold text-accent">{step.n}</span>
-            </div>
-            <div>
-              <h3 className="font-display text-sm font-bold text-primary mb-1">{step.title}</h3>
-              <p className="text-sm text-secondary leading-relaxed">{step.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Tipologias ─────────────────────────────────────────── */}
-      <SectionHeading id="tipologias">Tipologias</SectionHeading>
-      <p className="mb-4 text-sm text-secondary leading-relaxed">
-        O motor aplica {Object.keys(TYPOLOGY_LABELS).length} tipologias com thresholds específicos por contexto e baseline.
-        A leitura de cada código deve considerar o nível de evidência: direto (viola regra legal específica),
-        indireto (anomalia estatística) ou proxy (indicador associado ao veículo de risco).
-      </p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {Object.entries(TYPOLOGY_LABELS).map(([code, name]) => {
-          const sources = TYPOLOGY_SOURCES[code] ?? [];
-          const desc = TYPOLOGY_DESCRIPTIONS[code] ?? "";
-          return (
-            <div key={code} className="rounded-lg border border-border bg-surface-card p-3">
-              <div className="flex items-baseline gap-2 mb-1.5">
-                <span className="data-value font-mono text-xs font-bold text-accent">{code}</span>
-                <span className="text-xs font-semibold text-primary leading-snug">{name}</span>
-              </div>
-              {desc && <p className="font-serif text-xs text-secondary leading-relaxed mb-2">{desc}</p>}
-              {sources.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {sources.map((src) => (
-                    <span key={src} className="rounded-full bg-accent-subtle px-2 py-0.5 text-[10px] font-medium text-accent">
-                      {src}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <h3 className="font-display text-sm font-bold text-primary mt-6 mb-3">Fontes de Dados</h3>
-      <div className="flex flex-wrap gap-2">
-        {DATA_SOURCES.map((src) => (
-          <span key={src} className="rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs font-medium text-secondary">
-            {src}
-          </span>
-        ))}
-      </div>
-
-      {/* ── Scores ─────────────────────────────────────────────── */}
-      <SectionHeading id="scores">Scores de Avaliação</SectionHeading>
-      <p className="mb-4 text-sm text-secondary leading-relaxed">
-        A leitura correta exige considerar os três eixos em conjunto. Severidade alta sem
-        completude adequada indica prioridade de verificação, não conclusão final.
-      </p>
-      <div className="space-y-2">
-        {SCORE_DIMENSIONS.map((dim) => (
-          <div key={dim.name} className="rounded-lg border border-border bg-surface-card p-4">
-            <h3 className="font-display text-sm font-bold text-primary mb-1">{dim.name}</h3>
-            <p className="text-sm text-secondary leading-relaxed">{dim.desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Escopo ─────────────────────────────────────────────── */}
-      <SectionHeading id="escopo">Escopo</SectionHeading>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">Cobertura atual</h3>
-          <ul className="space-y-2">
-            {SCOPE_CURRENT.map((item) => (
-              <li key={item} className="flex items-start gap-2 text-xs text-secondary">
-                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-lg border border-border bg-surface-base p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">Roadmap</h3>
-          <ul className="space-y-2">
-            {SCOPE_ROADMAP.map((item) => (
-              <li key={item} className="flex items-start gap-2 text-xs text-muted">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* ── Base Legal ─────────────────────────────────────────── */}
-      <SectionHeading id="base-legal">Base Legal & Compliance</SectionHeading>
-      <p className="mb-4 text-sm text-secondary leading-relaxed">
-        Cada tipologia mapeia para tipos de corrupção com artigos legais específicos e esferas
-        de atuação. Esses filtros estão disponíveis no Radar para busca por categoria jurídica.
-        A plataforma opera exclusivamente sobre dados de transparência ativa obrigatória (LAI art. 8º).
-      </p>
-      <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-base">
-              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Tipo</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Norma / Artigo</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border bg-surface-card">
-            {LEGAL_REFS.map(([name, ref, url], i) => (
-              <tr key={`${name}-${i}`} className="hover:bg-surface-subtle transition-colors">
-                <td className="px-4 py-2.5 text-sm text-primary">{name}</td>
-                <td className="px-4 py-2.5">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-mono text-xs text-accent hover:underline"
-                  >
-                    {ref}
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── Conformidade da Metodologia ──────────────────────── */}
-      <SectionHeading id="conformidade">Conformidade da Metodologia</SectionHeading>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-4">
-        {[
-          {
-            title: "Tecnologicamente Robusto",
-            body: "Whitelist de domínios .gov.br/.leg.br aplicada em nível HTTP. Score de veracidade por fonte. Código aberto (AGPL-3.0). Cadeia de proveniência de cada dado exposta via GET /signal/{id}/provenance.",
-          },
-          {
-            title: "Metodologicamente Defensável",
-            body: "22 tipologias com base legal explícita. Scoring determinístico e reproduzível — nenhuma IA participa da geração de scores ou classificação de risco.",
-          },
-          {
-            title: "Juridicamente Responsável",
-            body: "Opera sobre transparência ativa obrigatória (LAI art. 8º). CPFs hasheados (LGPD art. 12). Aviso obrigatório em todos os sinais: indicador estatístico, não acusação.",
-          },
-          {
-            title: "Publicamente Auditável",
-            body: "GET /public/sources expõe scores de veracidade e status de compliance em tempo real. Compliance automatizado toda segunda-feira 06:00 UTC.",
-          },
-        ].map((item) => (
-          <div key={item.title} className="rounded-lg border border-border bg-surface-card p-4">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-              <div>
-                <h3 className="font-display text-sm font-bold text-primary mb-1">{item.title}</h3>
-                <p className="text-xs text-secondary leading-relaxed">{item.body}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg border border-accent/20 bg-accent-subtle/10 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Scale className="h-4 w-4 text-accent" />
-          <p className="text-xs text-secondary">
-            Veja o documento técnico-jurídico completo com respaldo legal detalhado.
-          </p>
-        </div>
-        <Link
-          href="/compliance"
-          className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline shrink-0"
-        >
-          Compliance completo
-          <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
-
-      {/* ── Base Legal por Tipologia ───────────────────────────── */}
-      <SectionHeading id="base-legal-tipologia">Base Legal por Tipologia</SectionHeading>
-      <p className="mb-4 text-sm text-secondary leading-relaxed">
-        Mapeamento dos artigos legais associados a cada tipologia detectada pelo motor de análise.
-      </p>
-      {legalBasisList.length > 0 ? (
-        <div className="rounded-lg border border-border overflow-hidden mb-6">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-base">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Código</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Tipo de Corrupção</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Base Legal (lei + artigo)</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted">Evidência</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-surface-card">
-              {legalBasisList.map((basis, i) => {
-                const firstArticle = basis.law_articles[0];
-                return (
-                  <tr key={`${basis.code}-${i}`} className="hover:bg-surface-subtle transition-colors">
-                    <td className="px-4 py-2.5">
-                      <span className="font-mono text-xs font-bold text-accent">{basis.code}</span>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-secondary">
-                      {basis.corruption_types.join(", ")}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-primary">
-                      {firstArticle
-                        ? `${firstArticle.law_name} — ${firstArticle.article}`
-                        : basis.description_legal || "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted">
-                      {basis.evidence_level}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-sm text-muted italic mb-6">Dados de base legal não disponíveis.</p>
-      )}
-
-      <p className="mt-6 text-xs text-muted leading-relaxed">
-        A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência
-        por UF/município. Ajustes de threshold, score e tipologias são versionados para
-        rastreabilidade técnica.
-      </p>
-    </article>
+  // Build lookup for legal basis per typology code from API data
+  const legalByCode = new Map<string, TypologyLegalBasis>(
+    legalBasisList.map((b) => [b.code, b])
   );
 
   return (
-    <div className="ledger-page min-h-screen">
+    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
 
-      {/* ── Page header ────────────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
-              <BookOpen className="h-6 w-6 text-accent" />
-            </div>
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <PageHeader
+        eyebrow="METODOLOGIA"
+        title="Tipologias de Risco"
+        description="Fundamentos técnicos e legais das 22 tipologias de detecção. Motor determinístico, scoring reproduzível, auditável por design."
+      />
+
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-10 animate-fade-in">
+
+        {/* ── Quick stats strip ───────────────────────────────── */}
+        <div className="ow-strip">
+          <div className="ow-strip-item">
+            <span className="ow-strip-value text-mono">{typologyCount}</span>
+            <span className="ow-strip-label">Tipologias</span>
+          </div>
+          <div className="ow-strip-item">
+            <span className="ow-strip-value text-mono">{uniqueSources}</span>
+            <span className="ow-strip-label">Fontes de Dados</span>
+          </div>
+          <div className="ow-strip-item">
+            <span className="ow-strip-value text-mono">{legalBases}</span>
+            <span className="ow-strip-label">Bases Legais</span>
+          </div>
+          <div className="ow-strip-item">
+            <span className="ow-strip-value text-mono">3</span>
+            <span className="ow-strip-label">Dimensões de Score</span>
+          </div>
+        </div>
+
+        {/* ── Principles ──────────────────────────────────────── */}
+        <section>
+          <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+            Princípios
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {PRINCIPLES.map((p) => (
+              <div key={p.title} className="ow-card p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                    style={{ color: "var(--color-low-text)" }}
+                  />
+                  <div>
+                    <h3 className="text-label font-bold mb-1" style={{ color: "var(--color-text)" }}>
+                      {p.title}
+                    </h3>
+                    <p className="text-caption leading-relaxed" style={{ color: "var(--color-text-2)" }}>
+                      {p.body}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── Typologies grid ─────────────────────────────────── */}
+        <section>
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
             <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Metodologia</h1>
-              <p className="mt-1.5 text-sm text-secondary leading-relaxed">Fundamentos técnicos e legais das tipologias, fatores de risco e critérios de classificação de evidência</p>
+              <p className="text-mono-xs uppercase tracking-widest mb-1" style={{ color: "var(--color-text-3)" }}>
+                Tipologias de Detecção
+              </p>
+              <p className="text-caption" style={{ color: "var(--color-text-2)" }}>
+                Motor aplica {typologyCount} tipologias com thresholds específicos por contexto e baseline.
+                Leitura de cada código deve considerar o nível de evidência: direto, indireto ou proxy.
+              </p>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Body: TOC aside + content ───────────────────────────── */}
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <aside className="w-full lg:w-72 lg:shrink-0 lg:sticky lg:top-6">
-            {aside}
-          </aside>
-          <div className="flex-1 min-w-0">
-            {main}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {Object.entries(TYPOLOGY_LABELS).map(([code, name]) => {
+              const sources = TYPOLOGY_SOURCES[code] ?? [];
+              const desc = TYPOLOGY_DESCRIPTIONS[code] ?? "";
+              const legal = legalByCode.get(code);
+              const firstArticle = legal?.law_articles?.[0];
+              const legalText = firstArticle
+                ? `${firstArticle.law_name} — ${firstArticle.article}`
+                : legal?.description_legal ?? null;
+
+              return (
+                <div key={code} className="ow-card ow-card-hover p-4 space-y-2.5">
+                  {/* Code + title */}
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <span className="ow-badge ow-badge-neutral text-mono-xs font-bold">{code}</span>
+                    <span className="text-label font-semibold leading-snug" style={{ color: "var(--color-text)" }}>
+                      {name}
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  {desc && (
+                    <p className="text-caption leading-relaxed" style={{ color: "var(--color-text-2)" }}>
+                      {desc}
+                    </p>
+                  )}
+
+                  {/* Legal basis */}
+                  {legalText && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <Scale className="h-3 w-3 shrink-0" style={{ color: "var(--color-text-3)" }} />
+                      <span className="text-mono-xs" style={{ color: "var(--color-text-3)" }}>
+                        {legalText}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Data sources */}
+                  {sources.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {sources.map((src) => (
+                        <span key={src} className="ow-badge ow-badge-info text-mono-xs">
+                          {src}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
+        </section>
+
+        <Divider />
+
+        {/* ── Legal basis from API ────────────────────────────── */}
+        {legalBasisList.length > 0 && (
+          <section>
+            <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+              Base Legal por Tipologia
+            </p>
+            <p className="text-caption mb-4" style={{ color: "var(--color-text-2)" }}>
+              Mapeamento dos artigos legais associados a cada tipologia detectada pelo motor de análise.
+            </p>
+            <div className="ow-table-wrapper">
+              <table className="ow-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Tipo de Corrupção</th>
+                    <th>Base Legal</th>
+                    <th>Evidência</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {legalBasisList.map((basis, i) => {
+                    const firstArticle = basis.law_articles[0];
+                    return (
+                      <tr key={`${basis.code}-${i}`}>
+                        <td>
+                          <span className="ow-badge ow-badge-neutral text-mono-xs">{basis.code}</span>
+                        </td>
+                        <td className="text-caption" style={{ color: "var(--color-text-2)" }}>
+                          {basis.corruption_types.join(", ")}
+                        </td>
+                        <td className="text-mono-xs" style={{ color: "var(--color-text)" }}>
+                          {firstArticle
+                            ? `${firstArticle.law_name} — ${firstArticle.article}`
+                            : basis.description_legal || "—"}
+                        </td>
+                        <td>
+                          <span className="ow-badge ow-badge-neutral text-mono-xs">
+                            {basis.evidence_level}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* ── Score dimensions ────────────────────────────────── */}
+        <section>
+          <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+            Scores de Avaliação
+          </p>
+          <p className="text-caption mb-4" style={{ color: "var(--color-text-2)" }}>
+            A leitura correta exige considerar os três eixos em conjunto. Severidade alta sem
+            completude adequada indica prioridade de verificação, não conclusão final.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {SCORE_DIMENSIONS.map((dim, i) => (
+              <div key={dim.name} className="ow-card p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-mono-xs font-bold"
+                    style={{
+                      background: "var(--color-amber-dim)",
+                      color: "var(--color-amber-text)",
+                      border: "1px solid var(--color-amber-border)",
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <h3 className="text-label font-bold" style={{ color: "var(--color-text)" }}>
+                    {dim.name}
+                  </h3>
+                </div>
+                <p className="text-caption leading-relaxed" style={{ color: "var(--color-text-2)" }}>
+                  {dim.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── Scope ───────────────────────────────────────────── */}
+        <section>
+          <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+            Escopo de Cobertura
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="ow-card p-4">
+              <p className="text-mono-xs uppercase tracking-widest mb-3 font-semibold" style={{ color: "var(--color-low-text)" }}>
+                Cobertura Atual
+              </p>
+              <ul className="space-y-2">
+                {SCOPE_CURRENT.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-caption" style={{ color: "var(--color-text-2)" }}>
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-low-text)" }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="ow-card p-4" style={{ background: "var(--color-surface-3)" }}>
+              <p className="text-mono-xs uppercase tracking-widest mb-3 font-semibold" style={{ color: "var(--color-text-3)" }}>
+                Roadmap
+              </p>
+              <ul className="space-y-2">
+                {SCOPE_ROADMAP.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-caption" style={{ color: "var(--color-text-3)" }}>
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--color-text-3)" }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Legal references ────────────────────────────────── */}
+        <section>
+          <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+            Base Legal &amp; Compliance
+          </p>
+          <p className="text-caption mb-4" style={{ color: "var(--color-text-2)" }}>
+            Cada tipologia mapeia para tipos de corrupção com artigos legais específicos.
+            A plataforma opera exclusivamente sobre dados de transparência ativa obrigatória (LAI art. 8º).
+          </p>
+          <div className="ow-table-wrapper">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Norma / Artigo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {LEGAL_REFS.map(([name, ref, url], i) => (
+                  <tr key={`${name}-${i}`}>
+                    <td style={{ color: "var(--color-text)" }}>{name}</td>
+                    <td>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-mono-xs hover:underline"
+                        style={{ color: "var(--color-amber-text)" }}
+                      >
+                        {ref}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── Data sources ────────────────────────────────────── */}
+        <section>
+          <p className="text-mono-xs uppercase tracking-widest mb-4" style={{ color: "var(--color-text-3)" }}>
+            Fontes de Dados
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {DATA_SOURCES.map((src) => (
+              <span key={src} className="ow-badge ow-badge-neutral">
+                {src}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Conformidade link ───────────────────────────────── */}
+        <div
+          className="ow-card p-4 flex items-center justify-between gap-4"
+          style={{ borderColor: "var(--color-amber-border)", background: "var(--color-amber-dim)" }}
+        >
+          <div className="flex items-center gap-3">
+            <Scale className="h-4 w-4 shrink-0" style={{ color: "var(--color-amber-text)" }} />
+            <p className="text-caption" style={{ color: "var(--color-text-2)" }}>
+              Veja o documento técnico-jurídico completo com respaldo legal detalhado.
+            </p>
+          </div>
+          <Link
+            href="/compliance"
+            className="inline-flex items-center gap-1 text-caption font-medium shrink-0 hover:underline"
+            style={{ color: "var(--color-amber-text)" }}
+          >
+            Compliance completo
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
+
+        <p className="text-caption pb-8" style={{ color: "var(--color-text-3)" }}>
+          A metodologia evolui conforme expansão de cobertura nacional e melhoria de evidência
+          por UF/município. Ajustes de threshold, score e tipologias são versionados para rastreabilidade técnica.
+        </p>
       </div>
     </div>
   );

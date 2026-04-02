@@ -1,104 +1,82 @@
-import { forwardRef } from "react";
-import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+"use client";
 
-type ButtonVariant = "primary" | "secondary" | "tertiary" | "destructive" | "link" | "ghost";
+import { forwardRef, type ComponentPropsWithoutRef, type ElementType } from "react";
+import NextLink from "next/link";
+import { clsx } from "clsx";
+
+type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "destructive" | "amber";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
-/**
- * Button Component — Modern Minimalist Design
- * 
- * Variants:
- * - primary: Red alert accent (strong CTA)
- * - secondary: Gray surface (secondary action)
- * - tertiary: Red text only (soft action)
- * - destructive: Red variant for delete/remove
- * - ghost: No background, no border
- * - link: Text link with underline on hover
- */
-
-const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary:
-    "bg-[var(--color-accent-alert)] text-white font-medium " +
-    "hover:brightness-95 active:brightness-90 " +
-    "focus-visible:shadow-[var(--shadow-focus)] " +
-    "transition-all duration-150",
-
-  secondary:
-    "bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-medium " +
-    "border border-[var(--color-border-light)] " +
-    "hover:bg-[var(--color-surface-active)] " +
-    "focus-visible:shadow-[var(--shadow-focus)] " +
-    "transition-all duration-150",
-
-  tertiary:
-    "text-[var(--color-accent-alert)] font-medium " +
-    "hover:bg-[var(--color-accent-dim)] " +
-    "focus-visible:shadow-[var(--shadow-focus)] " +
-    "transition-all duration-150",
-
-  destructive:
-    "bg-[var(--color-destructive)] text-white font-medium " +
-    "hover:brightness-95 active:brightness-90 " +
-    "focus-visible:shadow-[var(--shadow-focus)] " +
-    "transition-all duration-150",
-
-  ghost:
-    "text-[var(--color-text-primary)] " +
-    "hover:bg-[var(--color-surface-hover)] " +
-    "focus-visible:shadow-[var(--shadow-focus)] " +
-    "transition-all duration-150",
-
-  link:
-    "text-[var(--color-accent-trust)] underline-offset-2 " +
-    "hover:underline " +
-    "focus-visible:underline " +
-    "transition-all duration-150",
-};
-
-const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm:   "h-8 px-3 text-xs font-medium rounded-[var(--radius-sm)] gap-1.5",
-  md:   "h-10 px-4 text-sm font-medium rounded-[var(--radius-sm)] gap-2",
-  lg:   "h-12 px-6 text-base font-medium rounded-[var(--radius-sm)] gap-2",
-  icon: "h-10 w-10 p-0 items-center justify-center rounded-[var(--radius-sm)]",
-};
-
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
-  asChild?: boolean;
 }
 
+const variantClass: Record<ButtonVariant, string> = {
+  primary:     "ow-btn-primary",
+  secondary:   "ow-btn-secondary",
+  ghost:       "ow-btn-ghost",
+  outline:     "ow-btn-outline",
+  destructive: "ow-btn-destructive",
+  amber:       "ow-btn-amber",
+};
+
+const sizeClass: Record<ButtonSize, string> = {
+  sm:   "ow-btn-sm",
+  md:   "ow-btn-md",
+  lg:   "ow-btn-lg",
+  icon: "ow-btn-icon",
+};
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ 
-    className, 
-    variant = "primary", 
-    size = "md", 
-    loading, 
-    disabled, 
-    children, 
-    ...props 
-  }, ref) => {
+  ({ variant = "secondary", size = "md", loading, disabled, children, className, ...props }, ref) => {
     return (
       <button
         ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap font-family-sans",
-          "focus-visible:outline-none",
-          "disabled:opacity-60 disabled:cursor-not-allowed",
-          VARIANT_CLASSES[variant],
-          SIZE_CLASSES[size],
-          className,
-        )}
         disabled={disabled || loading}
+        className={clsx(
+          "ow-btn",
+          variantClass[variant],
+          sizeClass[size],
+          loading && "cursor-wait",
+          className
+        )}
         {...props}
       >
-        {loading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-        {children}
+        {loading ? (
+          <>
+            <svg
+              className="animate-spin"
+              width="14" height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ flexShrink: 0 }}
+            >
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            {children}
+          </>
+        ) : children}
       </button>
     );
-  },
+  }
 );
+
 Button.displayName = "Button";
 
+/* Polymorphic link-button (renders <a>) */
+interface LinkButtonProps extends ComponentPropsWithoutRef<typeof NextLink> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+}
+
+export function LinkButton({ variant = "secondary", size = "md", className, ...props }: LinkButtonProps) {
+  return (
+    <NextLink
+      className={clsx("ow-btn", variantClass[variant], sizeClass[size], className)}
+      {...props}
+    />
+  );
+}

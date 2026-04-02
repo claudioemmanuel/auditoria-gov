@@ -1,37 +1,32 @@
-import type { LucideIcon } from "lucide-react";
-import { Inbox } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { clsx } from "clsx";
+import type { ReactNode, ComponentType } from "react";
+
+type IconProp = ReactNode | ComponentType<{ size?: number; className?: string }>;
 
 interface EmptyStateProps {
-  icon?: LucideIcon;
+  icon?: IconProp;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
   className?: string;
 }
 
-export function EmptyState({
-  icon: Icon = Inbox,
-  title,
-  description,
-  action,
-  className,
-}: EmptyStateProps) {
+function renderIcon(icon: IconProp) {
+  if (!icon) return null;
+  if (typeof icon === "function") {
+    const Icon = icon as ComponentType<{ size?: number; className?: string }>;
+    return <Icon size={32} className="text-[var(--color-text-3)]" />;
+  }
+  return icon;
+}
+
+export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center py-12",
-        className,
-      )}
-    >
-      <div className="flex h-14 w-14 items-center justify-center border border-border bg-surface-subtle">
-        <Icon className="h-7 w-7 text-muted" />
-      </div>
-      <h3 className="mt-4 text-base font-medium text-muted">{title}</h3>
-      {description && (
-        <p className="mt-1 max-w-sm text-center text-sm text-secondary">{description}</p>
-      )}
-      {action && <div className="mt-4">{action}</div>}
+    <div className={clsx("ow-empty", className)}>
+      {icon && <div className="ow-empty-icon">{renderIcon(icon)}</div>}
+      <p className="ow-empty-title">{title}</p>
+      {description && <p className="ow-empty-desc">{description}</p>}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

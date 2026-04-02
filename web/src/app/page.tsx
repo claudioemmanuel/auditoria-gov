@@ -1,251 +1,299 @@
 import Link from "next/link";
-import { DATA_SOURCES, TYPOLOGY_LABELS } from "@/lib/constants";
-import { ArrowRight, Radar, BookOpen, Activity, Scale, Shield, Code, FileText, BarChart3 } from "lucide-react";
-import { Button } from "@/components/Button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, MetricCard } from "@/components/Card";
+import {
+  Radar, Activity, BookOpen, ArrowRight, Shield, Code,
+  FileText, Scale, Eye, TrendingUp, Database, Zap
+} from "lucide-react";
+import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
+
+const TYPOLOGY_SAMPLE = [
+  { code: "T01", name: "Concentração de Fornecedores", severity: "high" },
+  { code: "T06", name: "Empresa de Fachada", severity: "critical" },
+  { code: "T07", name: "Rede de Cartel", severity: "critical" },
+  { code: "T22", name: "Favorecimento Político", severity: "high" },
+  { code: "T03", name: "Dispensa Irregular", severity: "medium" },
+  { code: "T05", name: "Preço Superfaturado", severity: "high" },
+];
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: "var(--color-critical)",
+  high: "var(--color-high)",
+  medium: "var(--color-medium)",
+  low: "var(--color-low)",
+};
+
+const PILLARS = [
+  {
+    icon: Code,
+    title: "Tecnicamente Robusto",
+    desc: "APIs governamentais em whitelist, código aberto, proveniência de dados auditável.",
+  },
+  {
+    icon: FileText,
+    title: "Metodologicamente Sólido",
+    desc: "Tipologias com base legal, pontuação determinística, resultados reproduzíveis.",
+  },
+  {
+    icon: Scale,
+    title: "Juridicamente Responsável",
+    desc: "Conformidade com LAI · Constituição · LGPD · Lei Anticorrupção.",
+  },
+  {
+    icon: Shield,
+    title: "Publicamente Auditável",
+    desc: "Repositório open source, fontes de dados públicas, APIs transparentes.",
+  },
+];
 
 export default function HomePage() {
   const typologyCount = Object.keys(TYPOLOGY_LABELS).length;
   const sourceCount = DATA_SOURCES.length;
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-base)]">
-      {/* ── Hero Section ──────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-br from-[var(--color-primary-dark)] via-[var(--color-primary-dark)] to-[#1A2847] text-white py-20 md:py-28">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <h1 className="text-5xl md:text-6xl font-bold font-[var(--font-display)] mb-6 leading-tight">
-              Citizen Audit Platform for Federal Government Data
+    <div className="min-h-screen">
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-b border-[var(--color-border)]">
+        {/* Background grid */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: `
+              linear-gradient(var(--color-border) 1px, transparent 1px),
+              linear-gradient(90deg, var(--color-border) 1px, transparent 1px)
+            `,
+            backgroundSize: "40px 40px",
+          }}
+        />
+
+        {/* Amber glow */}
+        <div
+          className="absolute top-0 left-0 w-96 h-96 opacity-10 pointer-events-none"
+          style={{
+            background: "radial-gradient(circle at 30% 30%, var(--color-amber) 0%, transparent 70%)",
+          }}
+        />
+
+        <div className="max-w-7xl mx-auto px-6 py-20 md:py-28 relative">
+          <div className="max-w-3xl">
+            {/* Eyebrow */}
+            <div className="flex items-center gap-2 mb-6">
+              <div className="ow-sidebar-logo-mark">
+                <Eye size={14} color="#09090b" strokeWidth={2.5} />
+              </div>
+              <span className="text-label text-[var(--color-amber)]">
+                Plataforma de Auditoria Cidadã
+              </span>
+            </div>
+
+            <h1 className="text-display-2xl text-[var(--color-text)] mb-6">
+              Inteligência investigativa sobre{" "}
+              <span style={{ color: "var(--color-amber)" }}>
+                dados federais
+              </span>
             </h1>
-            <p className="text-lg text-blue-100 mb-8 leading-relaxed">
-              Evidence-based corruption risk signals from public data. Deterministic, auditable, reproducible. 
-              Open source, LGPD-compliant, built for citizen investigation.
+
+            <p className="text-body-lg text-[var(--color-text-2)] mb-10 max-w-xl leading-relaxed">
+              Sinais de risco de corrupção baseados em evidências extraídas de dados
+              públicos. Determinístico, auditável, reproduzível. Open source,
+              em conformidade com a LGPD.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Link href="/radar">
-                <Button variant="primary" size="lg" className="flex items-center gap-2">
-                  Explore Risk Signals
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/radar"
+                className="ow-btn ow-btn-primary ow-btn-lg gap-2"
+              >
+                <Radar size={18} />
+                Explorar Sinais
+                <ArrowRight size={16} />
               </Link>
-              <Link href="/methodology">
-                <Button variant="secondary" size="lg">
-                  Learn Methodology
-                </Button>
+              <Link
+                href="/methodology"
+                className="ow-btn ow-btn-outline ow-btn-lg"
+              >
+                Ver Metodologia
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Stats Strip ───────────────────────────────────────────────── */}
-      <section className="bg-white border-b border-[var(--color-border-light)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <MetricCard 
-              label="Active Typologies"
-              value={typologyCount}
-              accentColor="var(--color-accent-alert)"
-            />
-            <MetricCard 
-              label="Data Sources"
-              value={sourceCount}
-              accentColor="var(--color-accent-trust)"
-            />
-            <MetricCard 
-              label="Detection Patterns"
-              value={12}
-              accentColor="var(--color-metric-signals)"
-            />
-            <MetricCard 
-              label="Pipeline Stages"
-              value={5}
-              accentColor="var(--color-metric-typologies)"
-            />
+      {/* ── Stat Strip ───────────────────────────────────────────────── */}
+      <section className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-[var(--color-border)]">
+            {[
+              { value: typologyCount, label: "Tipologias Ativas",  icon: TrendingUp, color: "var(--color-amber)" },
+              { value: sourceCount,   label: "Fontes de Dados",    icon: Database,   color: "var(--color-trust)" },
+              { value: "5",           label: "Etapas de Pipeline", icon: Zap,        color: "var(--color-info)" },
+              { value: "100%",        label: "Reprodutível",       icon: Shield,     color: "var(--color-low)" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex items-center gap-4 p-5 md:p-6">
+                <div
+                  className="w-8 h-8 rounded flex-center flex-shrink-0"
+                  style={{ background: `${stat.color}18`, color: stat.color }}
+                >
+                  <stat.icon size={16} />
+                </div>
+                <div>
+                  <div
+                    className="font-display text-2xl font-bold tabular-nums"
+                    style={{ color: stat.color, fontFamily: "var(--font-display)" }}
+                  >
+                    {stat.value}
+                  </div>
+                  <div className="text-caption text-[var(--color-text-3)] uppercase tracking-wider font-medium">
+                    {stat.label}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── Quick Actions ─────────────────────────────────────────────── */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold font-[var(--font-display)] mb-4 text-[var(--color-text-primary)]">
-            Get Started
-          </h2>
-          <p className="text-lg text-[var(--color-text-secondary)] mb-12 max-w-2xl">
-            Three main pathways to explore government data and investigate corruption risks
-          </p>
+      {/* ── Navigation Cards ─────────────────────────────────────────── */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="mb-10">
+            <p className="text-label text-[var(--color-amber)] mb-2">Ponto de Entrada</p>
+            <h2
+              className="text-display-lg text-[var(--color-text)] mb-3"
+            >
+              Três caminhos para investigar
+            </h2>
+            <p className="text-body text-[var(--color-text-2)] max-w-lg">
+              Do sinal ao caso, da fonte ao relatório — uma plataforma integrada
+              para auditoria cidadã.
+            </p>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               {
                 href: "/radar",
                 icon: Radar,
-                title: "Risk Radar",
-                desc: "Signals and cases classified by typology, severity, and period. Starting point for citizen investigations.",
-                delay: "0ms"
+                iconColor: "var(--color-amber)",
+                iconBg: "var(--color-amber-dim)",
+                label: "Investigação",
+                title: "Radar de Risco",
+                desc: "Sinais e casos classificados por tipologia, severidade e período. Ponto de partida para investigações cidadãs.",
+                cta: "Explorar Sinais",
+                delay: "0ms",
               },
               {
                 href: "/coverage",
                 icon: Activity,
-                title: "Data Coverage",
-                desc: "Operational status of sources and connectors. Monitor pipeline ingestion, normalization, and quality.",
-                delay: "50ms"
+                iconColor: "var(--color-trust)",
+                iconBg: "#031218",
+                label: "Monitoramento",
+                title: "Cobertura de Dados",
+                desc: "Status operacional de fontes e conectores. Monitore ingestão de pipeline, normalização e qualidade.",
+                cta: "Ver Cobertura",
+                delay: "50ms",
               },
               {
                 href: "/methodology",
                 icon: BookOpen,
-                title: "Methodology",
-                desc: "Technical and legal foundations of typologies, risk factors, and evidence classification criteria.",
-                delay: "100ms"
+                iconColor: "var(--color-info)",
+                iconBg: "var(--color-info-bg)",
+                label: "Referência",
+                title: "Metodologia",
+                desc: "Fundamentos técnicos e jurídicos das tipologias, fatores de risco e critérios de classificação de evidências.",
+                cta: "Ler Metodologia",
+                delay: "100ms",
               },
-            ].map((item) => (
-              <Link key={item.href} href={item.href}>
-                <Card
-                  className="hover:shadow-lg cursor-pointer transition-all duration-300 h-full flex flex-col group animate-slideup"
-                  style={{ animationDelay: item.delay }}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="p-2 bg-[var(--color-accent-dim)] rounded-[var(--radius-md)] group-hover:bg-[var(--color-accent-alert)] group-hover:text-white transition-all">
-                        <item.icon className="h-6 w-6 text-[var(--color-accent-alert)] group-hover:text-white" />
-                      </div>
-                      <ArrowRight className="h-5 w-5 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent-alert)] transition-colors" />
+            ].map((card) => (
+              <Link
+                key={card.href}
+                href={card.href}
+                className="ow-card ow-card-hover group flex flex-col animate-slide-up"
+                style={{ animationDelay: card.delay }}
+              >
+                <div className="ow-card-section flex-1">
+                  <div className="flex items-start justify-between mb-4">
+                    <div
+                      className="w-9 h-9 rounded-lg flex-center"
+                      style={{ background: card.iconBg, color: card.iconColor }}
+                    >
+                      <card.icon size={18} />
                     </div>
-                    <CardTitle className="group-hover:text-[var(--color-accent-alert)] transition-colors">
-                      {item.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <CardDescription className="text-[var(--color-text-secondary)]">
-                      {item.desc}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
+                    <ArrowRight
+                      size={16}
+                      className="text-[var(--color-text-3)] group-hover:text-[var(--color-amber)] transition-colors mt-1"
+                    />
+                  </div>
+
+                  <div className="text-label mb-2" style={{ color: card.iconColor }}>
+                    {card.label}
+                  </div>
+                  <h3
+                    className="text-display-sm text-[var(--color-text)] mb-2 group-hover:text-[var(--color-amber)] transition-colors"
+                  >
+                    {card.title}
+                  </h3>
+                  <p className="text-body text-[var(--color-text-2)]">{card.desc}</p>
+                </div>
+
+                <div
+                  className="ow-card-section border-t border-[var(--color-border)] flex items-center gap-1 text-sm font-medium transition-colors"
+                  style={{ color: card.iconColor }}
+                >
+                  {card.cta}
+                  <ArrowRight size={14} />
+                </div>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Institutional Pillars ─────────────────────────────────────── */}
-      <section className="bg-[var(--color-surface-hover)] py-16 md:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold font-[var(--font-display)] mb-4 text-[var(--color-text-primary)]">
-            Built for Trust
-          </h2>
-          <p className="text-lg text-[var(--color-text-secondary)] mb-12 max-w-2xl">
-            We commit to four pillars that make OpenWatch a reliable instrument for citizen audit
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                title: "Technologically Robust",
-                desc: "Whitelist gov APIs, open source code, auditable data provenance",
-                icon: Code,
-              },
-              {
-                title: "Methodologically Sound",
-                desc: "Typologies with legal basis, deterministic scoring, reproducible results",
-                icon: FileText,
-              },
-              {
-                title: "Legally Responsible",
-                desc: "FOI + Constitution + LGPD + Anti-Corruption Law compliant",
-                icon: Scale,
-              },
-              {
-                title: "Publicly Auditable",
-                desc: "Open source repository, public data sources, transparent APIs",
-                icon: Shield,
-              },
-            ].map((item) => (
-              <div key={item.title} className="bg-white p-6 rounded-[var(--radius-md)] border border-[var(--color-border-light)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-shadow">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="p-2 bg-[var(--color-accent-dim)] rounded-[var(--radius-md)]">
-                    <item.icon className="h-6 w-6 text-[var(--color-accent-alert)]" />
-                  </div>
-                </div>
-                <h3 className="font-semibold text-[var(--color-text-primary)] mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {item.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Featured Signals / Recent Activity ──────────────────────── */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-12">
+      {/* ── Typologies Overview ───────────────────────────────────────── */}
+      <section className="py-16 border-t border-[var(--color-border)] bg-[var(--color-surface-2)]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex-between mb-8 gap-4 flex-wrap">
             <div>
-              <h2 className="text-3xl font-bold font-[var(--font-display)] mb-2 text-[var(--color-text-primary)]">
-                Recent Signals
+              <p className="text-label text-[var(--color-amber)] mb-2">Detecção</p>
+              <h2 className="text-display-lg text-[var(--color-text)]">
+                Tipologias de Risco
               </h2>
-              <p className="text-[var(--color-text-secondary)]">
-                Latest corruption risk flags across federal procurement
-              </p>
             </div>
-            <Link href="/radar">
-              <Button variant="secondary" size="md" className="flex items-center gap-2">
-                View All
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+            <Link
+              href="/methodology"
+              className="ow-btn ow-btn-outline ow-btn-sm gap-1.5"
+            >
+              Ver todas ({typologyCount})
+              <ArrowRight size={14} />
             </Link>
           </div>
 
-          <div className="space-y-4">
-            {[
-              {
-                severity: "critical",
-                title: "High-Value Sole Source Contracts",
-                desc: "Pattern detected: Single-vendor contracts above R$500k without competitive bidding",
-              },
-              {
-                severity: "high",
-                title: "Repeated Bidder Networks",
-                desc: "Companies with interconnected leadership appearing in same procurements",
-              },
-              {
-                severity: "medium",
-                title: "Geographic Price Anomalies",
-                desc: "Regional pricing discrepancies suggest potential fraud or market manipulation",
-              },
-            ].map((signal, idx) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {TYPOLOGY_SAMPLE.map((t, i) => (
               <div
-                key={idx}
-                className="p-4 rounded-[var(--radius-md)] border-l-4 bg-white shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-shadow cursor-pointer"
-                style={{
-                  borderLeftColor: {
-                    critical: "var(--color-critical)",
-                    high: "var(--color-high)",
-                    medium: "var(--color-medium)",
-                  }[signal.severity],
-                }}
+                key={t.code}
+                className="ow-card flex items-start gap-3 p-4 animate-slide-up"
+                style={{ animationDelay: `${i * 40}ms` }}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-semibold text-[var(--color-text-primary)] mb-1">
-                      {signal.title}
-                    </h4>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      {signal.desc}
-                    </p>
+                <div
+                  className="w-1 self-stretch rounded-full flex-shrink-0"
+                  style={{ background: SEVERITY_COLORS[t.severity] }}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-mono-sm text-[var(--color-text-3)]">{t.code}</span>
+                    <span
+                      className="ow-badge text-[10px]"
+                      style={{
+                        background: `${SEVERITY_COLORS[t.severity]}18`,
+                        color: SEVERITY_COLORS[t.severity],
+                        borderColor: `${SEVERITY_COLORS[t.severity]}40`,
+                      }}
+                    >
+                      {t.severity}
+                    </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ml-4 ${
-                    {
-                      critical: "bg-[#FEE2E2] text-[#991B1B]",
-                      high: "bg-[#FEF3C7] text-[#92400E]",
-                      medium: "bg-[#FEF9E7] text-[#78350F]",
-                    }[signal.severity]
-                  }`}>
-                    {signal.severity.toUpperCase()}
-                  </span>
+                  <p className="text-body-sm text-[var(--color-text-2)] font-medium">
+                    {t.name}
+                  </p>
                 </div>
               </div>
             ))}
@@ -253,58 +301,57 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Footer / Compliance ───────────────────────────────────────── */}
-      <footer className="bg-[var(--color-primary-dark)] text-white py-12 border-t border-[#1A2847]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h4 className="font-bold mb-4">Navigation</h4>
-              <ul className="space-y-2 text-sm text-blue-100">
-                <li><Link href="/radar" className="hover:text-white transition">Risk Radar</Link></li>
-                <li><Link href="/coverage" className="hover:text-white transition">Data Coverage</Link></li>
-                <li><Link href="/methodology" className="hover:text-white transition">Methodology</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-4">Compliance</h4>
-              <ul className="space-y-2 text-sm text-blue-100">
-                <li><Link href="/methodology#legal" className="hover:text-white transition">Legal Basis</Link></li>
-                <li><Link href="/methodology#lgpd" className="hover:text-white transition">LGPD Policy</Link></li>
-                <li><Link href="/compliance" className="hover:text-white transition">Compliance</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-4">Resources</h4>
-              <ul className="space-y-2 text-sm text-blue-100">
-                <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">GitHub</a></li>
-                <li><a href="https://docs.openwatch.org" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">Documentation</a></li>
-                <li><a href="https://api.openwatch.org" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">API</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-4">System Status</h4>
-              <p className="text-sm text-blue-100 mb-2">API Status: <span className="text-green-400 font-semibold">Operational</span></p>
-              <p className="text-xs text-blue-200">Last updated: Now</p>
-            </div>
+      {/* ── Pillars ──────────────────────────────────────────────────── */}
+      <section className="py-16 border-t border-[var(--color-border)]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="mb-10">
+            <p className="text-label text-[var(--color-amber)] mb-2">Fundações</p>
+            <h2 className="text-display-lg text-[var(--color-text)]">
+              Construído para Confiança
+            </h2>
           </div>
 
-          <div className="border-t border-[#1A2847] pt-8">
-            <div className="bg-[#1A2847] p-4 rounded-[var(--radius-md)] mb-6">
-              <p className="text-xs text-blue-100 leading-relaxed">
-                <strong className="text-white">Legal Notice:</strong> This platform is a screening tool for social control and citizen audit. 
-                Results represent investigable hypotheses based on public data and{" "}
-                <strong>do not constitute accusations, definitive proof, or judgment of guilt.</strong>{" "}
-                Data processing per LGPD (Law 13.709/2018), art. 7, VII. Personal data anonymized per art. 12.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-blue-200">
-              <p>&copy; 2026 OpenWatch. Open source under MIT License.</p>
-              <p>FOI • Constitution • LGPD • Anti-Corruption Law</p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {PILLARS.map((p, i) => (
+              <div
+                key={p.title}
+                className="ow-card p-5 animate-slide-up"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <div className="w-8 h-8 rounded-md bg-[var(--color-surface-3)] flex-center mb-4 text-[var(--color-amber)]">
+                  <p.icon size={16} />
+                </div>
+                <h3 className="text-body font-semibold text-[var(--color-text)] mb-2">
+                  {p.title}
+                </h3>
+                <p className="text-body-sm text-[var(--color-text-2)]">{p.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* ── CTA strip ────────────────────────────────────────────────── */}
+      <section
+        className="border-t border-[var(--color-amber-border)] py-12"
+        style={{ background: "var(--color-amber-dim)" }}
+      >
+        <div className="max-w-7xl mx-auto px-6 flex-between gap-6 flex-wrap">
+          <div>
+            <h2 className="text-display-md text-[var(--color-text)] mb-1">
+              Pronto para investigar?
+            </h2>
+            <p className="text-body text-[var(--color-text-2)]">
+              Explore {typologyCount} tipologias de risco e dados de {sourceCount} fontes governamentais.
+            </p>
+          </div>
+          <Link href="/radar" className="ow-btn ow-btn-primary ow-btn-lg gap-2 flex-shrink-0">
+            <Radar size={18} />
+            Abrir Radar
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

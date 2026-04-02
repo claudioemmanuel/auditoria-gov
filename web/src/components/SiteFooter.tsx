@@ -1,135 +1,105 @@
 import Link from "next/link";
-import { Shield, ExternalLink, Scale } from "lucide-react";
-
-const LEGAL_LINKS = [
-  { label: "CF/88 (Constituição Federal)", href: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
-  { label: "Lei 12.527/2011 (LAI)", href: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm" },
-  { label: "Lei 13.709/2018 (LGPD)", href: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm" },
-  { label: "Lei 12.846/2013 (Anticorrupção)", href: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2013/lei/l12846.htm" },
-  { label: "Lei 14.133/2021 (Licitações)", href: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm" },
-];
-
-const AUDIT_LINKS = [
-  { label: "Fontes & Veracidade (GET /public/sources)", href: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/sources`, external: true },
-  { label: "Código-fonte (AGPL-3.0)", href: "https://github.com/claudioemmanuel/openwatch", external: true },
-  { label: "Política de Governança (GOVERNANCE.md)", href: "https://github.com/claudioemmanuel/openwatch/blob/main/docs/GOVERNANCE.md", external: true },
-];
-
-const TRANSPARENCY_LINKS = [
-  { label: "Metodologia", href: "/methodology", external: false },
-  { label: "Cobertura de Dados", href: "/coverage", external: false },
-  { label: "Saúde da API", href: "/api-health", external: false },
-  { label: "Contestar Sinal", href: "/methodology#contestacao", external: false },
-];
+import { Eye, Github, ExternalLink } from "lucide-react";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border bg-surface-base mt-auto">
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-
-        {/* ── Four columns ────────────────────────────────── */}
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* Col 1 — Brand */}
-          <div>
+    <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface-2)] mt-auto">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        {/* Top row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          {/* Brand */}
+          <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-subtle border border-accent/20">
-                <Shield className="h-3.5 w-3.5 text-accent" />
+              <div className="ow-sidebar-logo-mark">
+                <Eye size={14} color="#09090b" strokeWidth={2.5} />
               </div>
-              <span className="font-display text-sm font-bold text-primary">OpenWatch</span>
+              <span className="ow-sidebar-wordmark">OpenWatch</span>
             </div>
-            <p className="text-xs text-muted leading-relaxed mb-3">
-              Plataforma de auditoria cidadã sobre dados públicos federais brasileiros.
-              Sinais determinísticos, evidências rastreáveis.
+            <p className="text-xs text-[var(--color-text-3)] leading-relaxed">
+              Plataforma open-source de auditoria cidadã sobre dados federais brasileiros.
             </p>
-            <Link
-              href="/compliance"
-              className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
-            >
-              <Scale className="h-3 w-3" />
-              Conformidade legal →
-            </Link>
           </div>
 
-          {/* Col 2 — Base Legal */}
+          {/* Navigation */}
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted mb-3">
-              Base Legal
-            </p>
-            <ul className="space-y-1.5">
-              {LEGAL_LINKS.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary transition-colors"
-                  >
-                    {link.label}
-                    <ExternalLink className="h-2.5 w-2.5 text-muted" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Col 3 — Auditabilidade */}
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted mb-3">
-              Auditabilidade
-            </p>
-            <ul className="space-y-1.5">
-              {AUDIT_LINKS.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary transition-colors"
-                  >
-                    {link.label}
-                    <ExternalLink className="h-2.5 w-2.5 text-muted" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Col 4 — Transparência */}
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted mb-3">
-              Transparência
-            </p>
-            <ul className="space-y-1.5">
-              {TRANSPARENCY_LINKS.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-xs text-secondary hover:text-primary transition-colors"
-                  >
-                    {link.label}
+            <h4 className="text-label text-[var(--color-text-3)] mb-3">Investigação</h4>
+            <ul className="space-y-2">
+              {[
+                { href: "/radar", label: "Radar de Risco" },
+                { href: "/radar?view=cases", label: "Casos" },
+                { href: "/coverage", label: "Cobertura de Dados" },
+              ].map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-sm text-[var(--color-text-2)] hover:text-[var(--color-text)] transition-colors">
+                    {l.label}
                   </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h4 className="text-label text-[var(--color-text-3)] mb-3">Legal</h4>
+            <ul className="space-y-2">
+              {[
+                { href: "/methodology", label: "Metodologia" },
+                { href: "/methodology#legal", label: "Base Legal" },
+                { href: "/methodology#lgpd", label: "Política LGPD" },
+                { href: "/compliance", label: "Conformidade" },
+              ].map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-sm text-[var(--color-text-2)] hover:text-[var(--color-text)] transition-colors">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Resources */}
+          <div>
+            <h4 className="text-label text-[var(--color-text-3)] mb-3">Recursos</h4>
+            <ul className="space-y-2">
+              {[
+                { href: "https://github.com", label: "GitHub", ext: true },
+                { href: "https://docs.openwatch.org", label: "Documentação", ext: true },
+                { href: "/api-health", label: "Status da API", ext: false },
+              ].map((l) => (
+                <li key={l.href}>
+                  <a
+                    href={l.href}
+                    target={l.ext ? "_blank" : undefined}
+                    rel={l.ext ? "noopener noreferrer" : undefined}
+                    className="text-sm text-[var(--color-text-2)] hover:text-[var(--color-text)] transition-colors inline-flex items-center gap-1"
+                  >
+                    {l.label}
+                    {l.ext && <ExternalLink size={11} />}
+                  </a>
                 </li>
               ))}
             </ul>
           </div>
         </div>
 
-        {/* ── Bottom bar ──────────────────────────────────── */}
-        <div className="mt-8 pt-4 border-t border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[11px] text-muted leading-relaxed max-w-xl">
-            <strong className="font-medium text-secondary">Aviso:</strong>{" "}
-            Sinais são indicadores estatísticos para triagem — não configuram acusação, prova ou juízo de culpa.
-            Dados de transparência ativa obrigatória (LAI art. 8º). CPFs anonimizados (LGPD art. 12).
+        {/* Legal disclaimer */}
+        <div className="ow-disclaimer mb-6">
+          <strong className="text-[var(--color-text-2)]">Aviso Legal:</strong>{" "}
+          Esta plataforma é uma ferramenta de triagem para controle social e auditoria cidadã.
+          Os resultados representam hipóteses investigáveis baseadas em dados públicos e{" "}
+          <strong className="text-[var(--color-text-2)]">não constituem acusações, provas definitivas ou julgamento de culpa.</strong>{" "}
+          Tratamento de dados em conformidade com a LGPD (Lei 13.709/2018), art. 7º, VII.
+          Dados pessoais anonimizados conforme art. 12.
+        </div>
+
+        {/* Bottom bar */}
+        <div className="flex items-center justify-between flex-wrap gap-4 pt-6 border-t border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-text-3)]">
+            © 2026 OpenWatch. Open source sob licença MIT.
           </p>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="rounded-md border border-border px-2 py-0.5 font-mono text-[10px] text-muted">
-              AGPL-3.0
-            </span>
-            <span className="rounded-md border border-success/30 bg-success/5 px-2 py-0.5 font-mono text-[10px] text-success">
-              OPEN SOURCE
-            </span>
-          </div>
+          <p className="text-xs text-[var(--color-text-3)]">
+            LAI · Constituição · LGPD · Lei Anticorrupção
+          </p>
         </div>
       </div>
     </footer>

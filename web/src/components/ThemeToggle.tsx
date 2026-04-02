@@ -1,7 +1,6 @@
 "use client";
 
-import { Sun, Moon } from "lucide-react";
-import { useTheme } from "@/components/ThemeProvider";
+import { Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ThemeToggleProps {
@@ -10,28 +9,18 @@ interface ThemeToggleProps {
 }
 
 export function ThemeToggle({ collapsed, className }: ThemeToggleProps) {
-  const { theme, toggleTheme } = useTheme();
-
   return (
     <button
-      onClick={toggleTheme}
+      disabled
       className={cn(
-        "flex items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-sm transition-colors",
-        "text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active",
+        "flex items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-sm opacity-40 cursor-not-allowed",
+        "text-sidebar-text",
         className,
       )}
-      aria-label={theme === "light" ? "Ativar modo escuro" : "Ativar modo claro"}
+      aria-label="Modo escuro (padrão)"
     >
-      {theme === "light" ? (
-        <Moon className="h-4 w-4 shrink-0" />
-      ) : (
-        <Sun className="h-4 w-4 shrink-0" />
-      )}
-      {!collapsed && (
-        <span className="truncate">
-          {theme === "light" ? "Modo escuro" : "Modo claro"}
-        </span>
-      )}
+      <Moon className="h-4 w-4 shrink-0" />
+      {!collapsed && <span className="truncate">Modo escuro</span>}
     </button>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Badge } from "@/components/Badge"
+import { SeverityBadge } from "@/components/Badge"
 import { EmptyState } from "@/components/EmptyState"
 import { cn, severityDotColor } from "@/lib/utils";
 import type { RadarV2SignalItem } from "@/lib/types";
@@ -66,7 +66,7 @@ export function RecentSignalsFeed({ signals }: RecentSignalsFeedProps) {
                 {/* Badge + title block */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Badge severity={signal.severity} className="shrink-0" />
+                    <SeverityBadge severity={signal.severity} className="shrink-0" />
                     <span className="font-mono tabular-nums text-xs text-secondary">
                       {signal.typology_code}
                     </span>
