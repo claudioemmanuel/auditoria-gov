@@ -168,6 +168,9 @@ _ORCAMENTO_BIM_PROFILE = SourceVeracityProfile(
     legal_authority=0.90,
     public_availability=0.90,
     official_api_documented=0.60,
+    metadata_traceability=0.90,
+    domain_tier=_GOV,
+)
 
 # TCU (Tribunal de Contas da União) — highest legal authority for public spending audits
 _TCU_PROFILE = SourceVeracityProfile(
