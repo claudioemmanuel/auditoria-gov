@@ -1,7 +1,9 @@
 import { clsx } from "clsx";
-import type { ReactNode, ComponentType } from "react";
+import { isValidElement } from "react";
+import type { ReactNode, ElementType } from "react";
 
-type IconProp = ReactNode | ComponentType<{ size?: number; className?: string }>;
+type IconComponent = ElementType<{ size?: number; className?: string }>;
+type IconProp = ReactNode | IconComponent;
 
 interface EmptyStateProps {
   icon?: IconProp;
@@ -13,11 +15,21 @@ interface EmptyStateProps {
 
 function renderIcon(icon: IconProp) {
   if (!icon) return null;
-  if (typeof icon === "function") {
-    const Icon = icon as ComponentType<{ size?: number; className?: string }>;
+  if (isValidElement(icon)) return icon;
+
+  if (
+    typeof icon === "function" ||
+    (typeof icon === "object" && icon !== null && "$$typeof" in icon)
+  ) {
+    const Icon = icon as IconComponent;
     return <Icon size={32} className="text-[var(--color-text-3)]" />;
   }
-  return icon;
+
+  if (typeof icon === "string" || typeof icon === "number") {
+    return icon;
+  }
+
+  return null;
 }
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {

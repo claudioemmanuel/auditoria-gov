@@ -24,7 +24,6 @@ export function SiteFooter() {
             <ul className="space-y-2">
               {[
                 { href: "/radar", label: "Radar de Risco" },
-                { href: "/radar?view=cases", label: "Casos" },
                 { href: "/coverage", label: "Cobertura de Dados" },
               ].map((l) => (
                 <li key={l.href}>

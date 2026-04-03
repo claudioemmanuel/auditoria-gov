@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Radar,
   Activity,
   BookOpen,
   Scale,
-  GitBranch,
   Eye,
   Search,
 } from "lucide-react";
@@ -19,7 +18,6 @@ const NAV = [
     section: "Investigação",
     items: [
       { href: "/radar",       icon: Radar,      label: "Radar de Risco" },
-      { href: "/radar?view=cases", icon: GitBranch, label: "Casos" },
     ],
   },
   {
@@ -40,7 +38,6 @@ const NAV = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   return (
     <aside className="ow-sidebar">
@@ -71,15 +68,13 @@ export function AppSidebar() {
       {/* Nav sections */}
       <nav className="ow-sidebar-nav" aria-label="Navegação principal">
         {NAV.map((section) => (
-          <div key={section.section} className="ow-sidebar-section">
-            <div className="ow-sidebar-section-label">{section.section}</div>
-            {section.items.map((item) => {
-              const isActive =
-                item.href === "/radar"
-                  ? pathname === "/radar" || pathname?.startsWith("/signal") || pathname?.startsWith("/case")
-                  : item.href === "/radar?view=cases"
-                  ? pathname === "/radar" && searchParams.get("view") === "cases"
-                  : pathname?.startsWith(item.href);
+            <div key={section.section} className="ow-sidebar-section">
+              <div className="ow-sidebar-section-label">{section.section}</div>
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === "/radar"
+                    ? pathname === "/radar" || pathname?.startsWith("/signal") || pathname?.startsWith("/case")
+                    : pathname?.startsWith(item.href);
 
               return (
                 <Link

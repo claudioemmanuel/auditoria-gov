@@ -1,4 +1,4 @@
-.PHONY: build dev dev-down logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync
+.PHONY: build dev dev-down logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync install
 
 # ── Docker build ──────────────────────────────────────────────────────────────
 build:
@@ -52,9 +52,11 @@ boundaries:
 docker compose run --rm api lint-imports --config .import-linter
 
 # ── IDE tooling (optional — for editor/LSP support only) ─────────────────────
+install: sync
+
 sync:
-uv sync --all-packages
-pnpm install
+	uv sync --all-packages
+	pnpm install
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 clean:

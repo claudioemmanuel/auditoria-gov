@@ -170,8 +170,7 @@ export default function ApiHealthPage() {
   const ToneIcon = toneConfig.Icon;
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
-
+    <div className="ow-content">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <PageHeader
         eyebrow="SISTEMA"
@@ -223,7 +222,7 @@ export default function ApiHealthPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in">
 
         {/* ── Auto-refresh notice ─────────────────────────────── */}
         <div className="flex items-center gap-1.5 text-caption" style={{ color: "var(--color-text-3)" }}>
@@ -429,7 +428,6 @@ export default function ApiHealthPage() {
             ))}
           </div>
         </section>
-
       </div>
     </div>
   );
