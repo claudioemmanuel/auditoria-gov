@@ -759,6 +759,7 @@ body {
   .ow-badge-info      { background: var(--color-info-bg);      color: var(--color-info-text);      border-color: #1e3a5f; }
   .ow-badge-neutral   { background: var(--color-surface-3);    color: var(--color-text-2);         border-color: var(--color-border-strong); }
   .ow-badge-amber     { background: var(--color-amber-dim);    color: var(--color-amber-text);     border-color: var(--color-amber-border); }
+  .ow-badge-signal    { background: var(--color-brand-dim);    color: var(--color-brand-text);     border-color: var(--color-brand-border); }
   .ow-badge-trust     { background: #031218;                    color: #67e8f9;                      border-color: #164e63; }
 
   /* Status dots */
