@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -28,11 +28,11 @@ class RefType(str, Enum):
 
 class EvidenceRef(BaseModel):
     ref_type: RefType
-    ref_id: Optional[str] = None
-    url: Optional[str] = None
-    source_hash: Optional[str] = None
-    captured_at: Optional[datetime] = None
-    snapshot_uri: Optional[str] = None
+    ref_id: str | None = None
+    url: str | None = None
+    source_hash: str | None = None
+    captured_at: datetime | None = None
+    snapshot_uri: str | None = None
     description: str
 
 
@@ -50,17 +50,17 @@ class RiskSignalOut(BaseModel):
     severity: SignalSeverity
     confidence: float = Field(ge=0.0, le=1.0)
     title: str
-    summary: Optional[str] = None
-    explanation_md: Optional[str] = None
+    summary: str | None = None
+    explanation_md: str | None = None
     completeness_score: float = Field(default=0.0, ge=0.0, le=1.0)
     completeness_status: CompletenessStatus = CompletenessStatus.INSUFFICIENT
-    evidence_package_id: Optional[uuid.UUID] = None
+    evidence_package_id: uuid.UUID | None = None
     factors: dict = Field(default_factory=dict)
     evidence_refs: list[EvidenceRef] = Field(default_factory=list)
     entity_ids: list[uuid.UUID] = Field(default_factory=list)
     event_ids: list[uuid.UUID] = Field(default_factory=list)
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
     created_at: datetime
     disclaimer: Literal[
         "Este resultado representa um indicador estatístico para triagem e controle social. "
@@ -71,20 +71,20 @@ class RiskSignalOut(BaseModel):
 
 class EvidencePackageOut(BaseModel):
     id: uuid.UUID
-    source_url: Optional[str] = None
-    source_hash: Optional[str] = None
-    captured_at: Optional[datetime] = None
-    parser_version: Optional[str] = None
-    model_version: Optional[str] = None
-    raw_snapshot_uri: Optional[str] = None
-    normalized_snapshot_uri: Optional[str] = None
-    signature: Optional[str] = None
+    source_url: str | None = None
+    source_hash: str | None = None
+    captured_at: datetime | None = None
+    parser_version: str | None = None
+    model_version: str | None = None
+    raw_snapshot_uri: str | None = None
+    normalized_snapshot_uri: str | None = None
+    signature: str | None = None
 
 
 class SignalReplayOut(BaseModel):
     signal_id: uuid.UUID
     replay_hash: str
-    stored_signature: Optional[str] = None
+    stored_signature: str | None = None
     deterministic_match: bool
     checked_at: datetime
 
@@ -93,7 +93,7 @@ class CaseEntityBrief(BaseModel):
     id: uuid.UUID
     name: str
     type: str          # "person" | "company" | "org"
-    cnpj_masked: Optional[str] = None
+    cnpj_masked: str | None = None
     roles: list[str] = Field(default_factory=list)
     signal_ids: list[uuid.UUID] = Field(default_factory=list)
 
@@ -102,27 +102,27 @@ ReportType = Literal["signal_error", "entity_error", "duplicate", "other"]
 
 
 class ContestationCreate(BaseModel):
-    signal_id: Optional[uuid.UUID] = None
-    entity_id: Optional[uuid.UUID] = None
+    signal_id: uuid.UUID | None = None
+    entity_id: uuid.UUID | None = None
     report_type: ReportType = "signal_error"
-    evidence_url: Optional[str] = Field(default=None, max_length=2048)
+    evidence_url: str | None = Field(default=None, max_length=2048)
     requester_name: str = Field(min_length=2, max_length=255)
-    requester_email: Optional[str] = Field(default=None, max_length=255)
+    requester_email: str | None = Field(default=None, max_length=255)
     reason: str = Field(min_length=8, max_length=5000)
     details: dict = Field(default_factory=dict, max_length=50)
 
 
 class ContestationOut(BaseModel):
     id: uuid.UUID
-    signal_id: Optional[uuid.UUID] = None
-    entity_id: Optional[uuid.UUID] = None
+    signal_id: uuid.UUID | None = None
+    entity_id: uuid.UUID | None = None
     report_type: str = "signal_error"
-    evidence_url: Optional[str] = None
+    evidence_url: str | None = None
     status: str
     requester_name: str
-    requester_email: Optional[str] = None
+    requester_email: str | None = None
     reason: str
     details: dict = Field(default_factory=dict)
-    resolution: Optional[str] = None
-    resolved_at: Optional[datetime] = None
+    resolution: str | None = None
+    resolved_at: datetime | None = None
     created_at: datetime

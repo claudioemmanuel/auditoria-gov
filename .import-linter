@@ -1,19 +1,10 @@
 [importlinter]
+include_external_packages = True
 root_packages =
     openwatch_config
     openwatch_utils
     openwatch_models
-    openwatch_db
     openwatch_connectors
-    openwatch_typologies
-    openwatch_er
-    openwatch_analytics
-    openwatch_baselines
-    openwatch_services
-    openwatch_ai
-    openwatch_queries
-    openwatch_pipelines
-    openwatch_scheduler
     app
 
 # ── Public packages must never import core packages ───────────────────────────
@@ -24,7 +15,6 @@ source_modules =
     openwatch_config
     openwatch_utils
     openwatch_models
-    openwatch_db
     openwatch_connectors
     app
 forbidden_modules =
@@ -58,5 +48,4 @@ source_modules =
 forbidden_modules =
     openwatch_utils
     openwatch_models
-    openwatch_db
     openwatch_connectors

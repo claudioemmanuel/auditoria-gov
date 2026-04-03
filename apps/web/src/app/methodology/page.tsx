@@ -135,36 +135,23 @@ export default async function MethodologyPage() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
-
+    <div className="ow-content">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <PageHeader
         eyebrow="METODOLOGIA"
         title="Tipologias de Risco"
         description="Fundamentos técnicos e legais das 22 tipologias de detecção. Motor determinístico, scoring reproduzível, auditável por design."
+        variant="hero"
+        icon={<Scale className="h-5 w-5" />}
+        stats={[
+          { label: "Tipologias", value: typologyCount, mono: true, tone: "brand" },
+          { label: "Fontes públicas", value: uniqueSources, mono: true },
+          { label: "Bases legais", value: legalBases, mono: true },
+          { label: "Dimensões de score", value: 3, mono: true },
+        ]}
       />
 
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-10 animate-fade-in">
-
-        {/* ── Quick stats strip ───────────────────────────────── */}
-        <div className="ow-strip">
-          <div className="ow-strip-item">
-            <span className="ow-strip-value text-mono">{typologyCount}</span>
-            <span className="ow-strip-label">Tipologias</span>
-          </div>
-          <div className="ow-strip-item">
-            <span className="ow-strip-value text-mono">{uniqueSources}</span>
-            <span className="ow-strip-label">Fontes de Dados</span>
-          </div>
-          <div className="ow-strip-item">
-            <span className="ow-strip-value text-mono">{legalBases}</span>
-            <span className="ow-strip-label">Bases Legais</span>
-          </div>
-          <div className="ow-strip-item">
-            <span className="ow-strip-value text-mono">3</span>
-            <span className="ow-strip-label">Dimensões de Score</span>
-          </div>
-        </div>
+      <div className="space-y-10 animate-fade-in">
 
         {/* ── Principles ──────────────────────────────────────── */}
         <section>

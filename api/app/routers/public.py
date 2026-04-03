@@ -1,14 +1,96 @@
-import uuid
 import csv
+import uuid
 from datetime import datetime
 from io import StringIO
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
+from api.app.adapters.core_adapter import (
+    adapter_get_baseline,
+    adapter_get_case_provenance,
+    adapter_get_entity_path,
+    adapter_get_evidence_package_by_id,
+    adapter_get_factor_descriptions,
+    adapter_get_graph_neighborhood,
+    adapter_get_org_summary,
+    adapter_get_signal_by_id,
+    adapter_get_signal_detail,
+    adapter_get_signal_provenance,
+    adapter_get_typology,
+    adapter_get_typology_legal_metadata,
+    adapter_list_typologies,
+    adapter_replay_signal,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_case_by_id as get_case_by_id,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_case_entities_with_roles as get_case_entities_with_roles,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_case_graph as get_case_graph,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_analytics as get_coverage_v2_analytics,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_map as get_coverage_v2_map,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_run_detail as get_coverage_v2_run_detail,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_source_preview as get_coverage_v2_source_preview,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_sources as get_coverage_v2_sources,
+)
+
+# ── Core adapter — dual-mode (direct DB in monorepo, HTTP in split) ───────────
+from api.app.adapters.core_adapter import (
+    adapter_get_coverage_v2_summary as get_coverage_v2_summary,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_dossier_summary as get_dossier_summary,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_dossier_timeline as get_dossier_timeline,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_entity_by_id as get_entity_by_id,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_public_sources as get_public_sources,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_radar_v2_case_preview as get_radar_v2_case_preview,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_radar_v2_cases as get_radar_v2_cases,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_radar_v2_coverage as get_radar_v2_coverage,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_radar_v2_signal_preview as get_radar_v2_signal_preview,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_radar_v2_signals as get_radar_v2_signals,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_radar_v2_summary as get_radar_v2_summary,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_signal_evidence_page as get_signal_evidence_page,
+)
+from api.app.adapters.core_adapter import (
+    adapter_get_signal_graph as get_signal_graph,
+)
+from api.app.adapters.core_adapter import (
+    adapter_search_entities as search_entities,
+)
 from api.app.deps import DbSession, Pagination
+from shared.models.contestation import Contestation
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PUBLIC API ROUTER — SPLIT-READY ARCHITECTURE
@@ -37,7 +119,6 @@ from api.app.deps import DbSession, Pagination
 # See: shared/models/public_filter.py for PublicSignalSummary schema
 #
 # ═══════════════════════════════════════════════════════════════════════════════
-
 # ── Public API response schemas (API contract — public layer) ─────────────────
 from shared.models.coverage_v2 import (
     CoverageV2AnalyticsResponse,
@@ -48,7 +129,13 @@ from shared.models.coverage_v2 import (
     CoverageV2SummaryResponse,
     PublicSourcesResponse,
 )
-from shared.models.graph import CaseGraphResponse, EntityPathResponse, NeighborhoodResponse, SignalGraphResponse
+from shared.models.graph import (
+    CaseGraphResponse,
+    EntityPathResponse,
+    NeighborhoodResponse,
+    SignalGraphResponse,
+)
+from shared.models.public_filter import to_public_signal
 from shared.models.radar import (
     RadarV2CaseListResponse,
     RadarV2CasePreviewResponse,
@@ -58,46 +145,6 @@ from shared.models.radar import (
     RadarV2SummaryResponse,
 )
 from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
-from shared.models.public_filter import to_public_signal, PublicSignalSummary
-# ── Core adapter — dual-mode (direct DB in monorepo, HTTP in split) ───────────
-from api.app.adapters.core_adapter import (
-    adapter_get_coverage_v2_summary,
-    adapter_get_coverage_v2_sources,
-    adapter_get_coverage_v2_source_preview,
-    adapter_get_coverage_v2_map,
-    adapter_get_coverage_v2_analytics,
-    adapter_get_coverage_v2_run_detail,
-    adapter_get_public_sources,
-    adapter_get_radar_v2_summary,
-    adapter_get_radar_v2_signals,
-    adapter_get_radar_v2_signal_preview,
-    adapter_get_radar_v2_cases,
-    adapter_get_radar_v2_case_preview,
-    adapter_get_radar_v2_coverage,
-    adapter_search_entities,
-    adapter_get_entity_by_id,
-    adapter_get_org_summary,
-    adapter_get_case_by_id,
-    adapter_get_case_entities_with_roles,
-    adapter_get_case_graph,
-    adapter_get_signal_by_id,
-    adapter_get_signal_detail,
-    adapter_get_signal_graph,
-    adapter_get_signal_evidence_page,
-    adapter_replay_signal,
-    adapter_get_evidence_package_by_id,
-    adapter_get_dossier_summary,
-    adapter_get_dossier_timeline,
-    adapter_get_entity_path,
-    adapter_get_graph_neighborhood,
-    adapter_get_signal_provenance,
-    adapter_get_case_provenance,
-    adapter_get_baseline,
-    adapter_get_factor_descriptions,
-    adapter_get_typology_legal_metadata,
-    adapter_list_typologies,
-    adapter_get_typology,
-)
 
 router = APIRouter()
 
@@ -106,20 +153,20 @@ router = APIRouter()
 async def coverage_v2_summary(
     session: DbSession,
 ):
-    return await adapter_get_coverage_v2_summary(session)
+    return await get_coverage_v2_summary(session)
 
 
 @router.get("/coverage/v2/sources", response_model=CoverageV2SourcesResponse)
 async def coverage_v2_sources(
     session: DbSession,
     pagination: Pagination,
-    status: Optional[str] = Query(None, pattern="^(ok|warning|stale|error|pending)$"),
-    domain: Optional[str] = Query(None),
+    status: str | None = Query(None, pattern="^(ok|warning|stale|error|pending)$"),
+    domain: str | None = Query(None),
     enabled_only: bool = Query(False),
-    q: Optional[str] = Query(None),
+    q: str | None = Query(None),
     sort: str = Query("status_desc", pattern="^(status_desc|name_asc|freshness_desc|jobs_desc)$"),
 ):
-    return await adapter_get_coverage_v2_sources(
+    return await get_coverage_v2_sources(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -137,7 +184,7 @@ async def coverage_v2_source_preview(
     session: DbSession,
     runs_limit: int = Query(10, ge=3, le=50),
 ):
-    preview = await adapter_get_coverage_v2_source_preview(
+    preview = await get_coverage_v2_source_preview(
         session,
         connector=connector,
         runs_limit=runs_limit,
@@ -153,12 +200,12 @@ async def coverage_v2_map(
     layer: str = Query("uf", pattern="^(uf|municipio)$"),
     metric: str = Query("coverage", pattern="^(coverage|freshness|risk)$"),
 ):
-    return await adapter_get_coverage_v2_map(session, layer=layer, metric=metric)
+    return await get_coverage_v2_map(session, layer=layer, metric=metric)
 
 
 @router.get("/coverage/v2/analytics", response_model=CoverageV2AnalyticsResponse)
 async def coverage_v2_analytics(session: DbSession):
-    return await adapter_get_coverage_v2_analytics(session)
+    return await get_coverage_v2_analytics(session)
 
 
 @router.get("/coverage/v2/run/{run_id}", response_model=CoverageV2RunDetailResponse)
@@ -166,7 +213,7 @@ async def coverage_v2_run_detail(
     run_id: uuid.UUID,
     session: DbSession,
 ):
-    detail = await adapter_get_coverage_v2_run_detail(session, run_id)
+    detail = await get_coverage_v2_run_detail(session, run_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Run not found")
     return detail
@@ -176,20 +223,20 @@ async def coverage_v2_run_detail(
 @router.get("/sources", response_model=PublicSourcesResponse)
 async def public_sources(session: DbSession):
     """Full transparency on data provenance — sources, veracity, whitelist."""
-    return await adapter_get_public_sources(session)
+    return await get_public_sources(session)
 
 
 @router.get("/radar/v2/summary", response_model=RadarV2SummaryResponse)
 async def radar_v2_summary(
     session: DbSession,
-    typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
-    period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
-    period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
-    corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
-    sphere: Optional[str] = Query(None, description="Filter by sphere"),
+    typology: str | None = Query(None, description="Filter by typology code (e.g. T01)"),
+    severity: str | None = Query(None, description="Filter by severity"),
+    period_from: datetime | None = Query(None, description="Filter: analysis period starts on or after this date"),
+    period_to: datetime | None = Query(None, description="Filter: analysis period ends on or before this date"),
+    corruption_type: str | None = Query(None, description="Filter by corruption type"),
+    sphere: str | None = Query(None, description="Filter by sphere"),
 ):
-    return await adapter_get_radar_v2_summary(
+    return await get_radar_v2_summary(
         session,
         typology_code=typology,
         severity=severity,
@@ -204,15 +251,15 @@ async def radar_v2_summary(
 async def radar_v2_signals(
     session: DbSession,
     pagination: Pagination,
-    typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
+    typology: str | None = Query(None, description="Filter by typology code (e.g. T01)"),
+    severity: str | None = Query(None, description="Filter by severity"),
     sort: str = Query("analysis_date", pattern="^(analysis_date|ingestion_date)$", description="Sort by analysis_date (period_end) or ingestion_date (created_at)"),
-    period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
-    period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
-    corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
-    sphere: Optional[str] = Query(None, description="Filter by sphere"),
+    period_from: datetime | None = Query(None, description="Filter: analysis period starts on or after this date"),
+    period_to: datetime | None = Query(None, description="Filter: analysis period ends on or before this date"),
+    corruption_type: str | None = Query(None, description="Filter by corruption type"),
+    sphere: str | None = Query(None, description="Filter by sphere"),
 ):
-    items, total = await adapter_get_radar_v2_signals(
+    items, total = await get_radar_v2_signals(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -236,14 +283,14 @@ async def radar_v2_signals(
 async def radar_v2_cases(
     session: DbSession,
     pagination: Pagination,
-    typology: Optional[str] = Query(None, description="Filter by typology code (e.g. T01)"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
-    period_from: Optional[datetime] = Query(None, description="Filter: analysis period starts on or after this date"),
-    period_to: Optional[datetime] = Query(None, description="Filter: analysis period ends on or before this date"),
-    corruption_type: Optional[str] = Query(None, description="Filter by corruption type"),
-    sphere: Optional[str] = Query(None, description="Filter by sphere"),
+    typology: str | None = Query(None, description="Filter by typology code (e.g. T01)"),
+    severity: str | None = Query(None, description="Filter by severity"),
+    period_from: datetime | None = Query(None, description="Filter: analysis period starts on or after this date"),
+    period_to: datetime | None = Query(None, description="Filter: analysis period ends on or before this date"),
+    corruption_type: str | None = Query(None, description="Filter by corruption type"),
+    sphere: str | None = Query(None, description="Filter by sphere"),
 ):
-    items, total = await adapter_get_radar_v2_cases(
+    items, total = await get_radar_v2_cases(
         session,
         offset=pagination.offset,
         limit=pagination.limit,
@@ -268,7 +315,7 @@ async def radar_v2_signal_preview(
     session: DbSession,
     limit: int = Query(10, ge=1, le=30, description="Evidence preview limit"),
 ):
-    preview = await adapter_get_radar_v2_signal_preview(session, signal_id=signal_id, evidence_limit=limit)
+    preview = await get_radar_v2_signal_preview(session, signal_id=signal_id, evidence_limit=limit)
     if preview is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return preview
@@ -279,7 +326,7 @@ async def radar_v2_case_preview(
     case_id: uuid.UUID,
     session: DbSession,
 ):
-    preview = await adapter_get_radar_v2_case_preview(session, case_id=case_id)
+    preview = await get_radar_v2_case_preview(session, case_id=case_id)
     if preview is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return preview
@@ -290,119 +337,42 @@ async def radar_v2_batch_preview(
     payload: dict,
     session: DbSession,
 ):
-    """Batch case previews — replaces 20 individual calls with 1."""
+    """Batch case previews via the public gateway surface."""
+    from contextlib import suppress
+
     case_ids_raw = payload.get("case_ids", [])
     if not case_ids_raw or len(case_ids_raw) > 50:
         raise HTTPException(status_code=400, detail="Provide 1-50 case_ids")
 
-    case_ids = []
+    case_ids: list[uuid.UUID] = []
     for cid in case_ids_raw:
-        try:
+        with suppress(ValueError, TypeError):
             case_ids.append(uuid.UUID(str(cid)))
-        except (ValueError, TypeError):
-            pass
 
     if not case_ids:
         return {"previews": {}}
 
-    # Fetch all cases in one query
-    cases_stmt = select(Case).where(Case.id.in_(case_ids))
-    cases = {c.id: c for c in (await session.execute(cases_stmt)).scalars().all()}
-
-    # Fetch top 3 signals per case (instead of 10)
-    signals_stmt = (
-        select(
-            CaseItem.case_id,
-            RiskSignal.id,
-            RiskSignal.typology_id,
-            RiskSignal.severity,
-            RiskSignal.confidence,
-            RiskSignal.title,
-            RiskSignal.summary,
-            RiskSignal.period_start,
-            RiskSignal.period_end,
-            RiskSignal.entity_ids,
-            RiskSignal.event_ids,
-        )
-        .join(RiskSignal, CaseItem.signal_id == RiskSignal.id)
-        .where(CaseItem.case_id.in_(case_ids))
-        .order_by(CaseItem.case_id, RiskSignal.confidence.desc())
-    )
-    sig_rows = (await session.execute(signals_stmt)).all()
-
-    # Fetch typologies for the signals
-    typology_ids = {r.typology_id for r in sig_rows if r.typology_id}
-    typo_map = {}
-    if typology_ids:
-        typo_stmt = select(Typology).where(Typology.id.in_(typology_ids))
-        typo_map = {t.id: t for t in (await session.execute(typo_stmt)).scalars().all()}
-
-    # Group signals by case, keep top 3
-    from collections import defaultdict
-    case_signals: dict[uuid.UUID, list] = defaultdict(list)
-    for r in sig_rows:
-        case_signals[r.case_id].append(r)
-
     previews = {}
     for cid in case_ids:
-        case = cases.get(cid)
-        if not case:
-            continue
-
-        sigs = case_signals.get(cid, [])
-        entity_names = list((case.attrs or {}).get("entity_names", []))
-        total_value = (case.attrs or {}).get("total_value_brl")
-
-        top_sigs = sigs[:3]
-        top_signals_out = []
-        for s in top_sigs:
-            typo = typo_map.get(s.typology_id)
-            top_signals_out.append({
-                "id": str(s.id),
-                "typology_code": typo.code if typo else None,
-                "typology_name": typo.name if typo else None,
-                "severity": s.severity,
-                "confidence": s.confidence,
-                "title": s.title,
-                "summary": s.summary,
-                "period_start": s.period_start.isoformat() if s.period_start else None,
-                "period_end": s.period_end.isoformat() if s.period_end else None,
-                "entity_count": len(s.entity_ids or []),
-                "event_count": len(s.event_ids or []),
-            })
-
-        previews[str(cid)] = {
-            "case": {
-                "id": str(case.id),
-                "title": case.title,
-                "status": case.status,
-                "severity": case.severity,
-                "summary": case.summary,
-                "entity_names": entity_names,
-                "signal_count": len(sigs),
-                "period_start": case.attrs.get("period_start") if case.attrs else None,
-                "period_end": case.attrs.get("period_end") if case.attrs else None,
-                "total_value_brl": total_value,
-                "created_at": case.created_at.isoformat() if case.created_at else None,
-            },
-            "top_signals": top_signals_out,
-        }
+        preview = await get_radar_v2_case_preview(session, case_id=cid)
+        if preview is not None:
+            previews[str(cid)] = preview
 
     return {"previews": previews}
 
 
 @router.get("/radar/v2/coverage", response_model=RadarV2CoverageResponse)
 async def radar_v2_coverage(session: DbSession):
-    return await adapter_get_radar_v2_coverage(session)
+    return await get_radar_v2_coverage(session)
 
 
 @router.get("/case/{case_id}")
 async def case_detail(case_id: uuid.UUID, session: DbSession):
     """Case detail with signals, explanation, and entity context."""
-    case = await adapter_get_case_by_id(session, case_id)
+    case = await get_case_by_id(session, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
-    entities = await adapter_get_case_entities_with_roles(session, case_id)
+    entities = await get_case_entities_with_roles(session, case_id)
 
     attrs = case.attrs or {}
     entity_names = attrs.get("entity_names", [])
@@ -530,47 +500,30 @@ async def get_tipologia(code: str):
 
 @router.get("/case/{case_id}/legal-hypothesis")
 async def case_legal_hypothesis(case_id: uuid.UUID, session: DbSession):
-    """Legal violation hypotheses inferred for a case."""
-    from sqlalchemy import select
-    result = await session.execute(
-        select(LegalViolationHypothesis)
-        .where(LegalViolationHypothesis.case_id == case_id)
-        .order_by(LegalViolationHypothesis.confidence.desc())
-    )
-    rows = result.scalars().all()
-    return {
-        "case_id": str(case_id),
-        "hypotheses": [
-            {
-                "id": str(h.id),
-                "law_name": h.law_name,
-                "article": h.article,
-                "violation_type": h.violation_type,
-                "confidence": h.confidence,
-                "signal_cluster": h.signal_cluster,
-                "created_at": h.created_at,
-            }
-            for h in rows
-        ],
-    }
+    """Legal violation hypotheses inferred for a case (served by openwatch-core)."""
+    from api.app.adapters.core_adapter import _client
+    result = await _client().get_case_legal_hypothesis(str(case_id))
+    if result is None:
+        return {"case_id": str(case_id), "hypotheses": []}
+    return result
 
 
 @router.get("/entity/search")
 async def entity_search(
     session: DbSession,
     q: str = Query(..., min_length=2, description="Fuzzy name query (min 2 chars)"),
-    type: Optional[str] = Query(None, pattern="^(company|person)$", description="Filter by entity type"),
+    type: str | None = Query(None, pattern="^(company|person)$", description="Filter by entity type"),
     limit: int = Query(20, ge=1, le=100, description="Max results (1-100)"),
 ):
     """Fuzzy entity search via pg_trgm. Person results are LGPD-scoped to public servants only. CPF is never returned."""
-    results = await adapter_search_entities(session, q, entity_type=type, limit=limit)
+    results = await search_entities(session, q, entity_type=type, limit=limit)
     return results
 
 
 @router.get("/entity/{entity_id}")
 async def entity_detail(entity_id: uuid.UUID, session: DbSession):
     """Entity detail with identifiers, events, signals."""
-    entity = await adapter_get_entity_by_id(session, entity_id)
+    entity = await get_entity_by_id(session, entity_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
     return {
@@ -625,13 +578,13 @@ async def case_graph(
     case_id: uuid.UUID,
     session: DbSession,
     depth: int = Query(1, ge=0, le=2, description="Traversal depth (0=seed-only, 1-2=BFS expansion)"),
-    focus_signal_id: Optional[uuid.UUID] = Query(
+    focus_signal_id: uuid.UUID | None = Query(
         None,
         description="Optional signal id to highlight entities/edges linked to one signal",
     ),
 ):
     """Case investigation graph — all entities from case signals + optional BFS neighborhood."""
-    result = await adapter_get_case_graph(
+    result = await get_case_graph(
         session,
         case_id,
         depth=depth,
@@ -649,7 +602,7 @@ async def signal_graph(
     session: DbSession,
 ):
     """Signal investigation graph — narrative + timeline + explainable edges."""
-    result = await adapter_get_signal_graph(session, signal_id)
+    result = await get_signal_graph(session, signal_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return result
@@ -658,8 +611,8 @@ async def signal_graph(
 @router.get("/compare/prices")
 async def compare_prices(
     session: DbSession,
-    catmat_code: Optional[str] = Query(None),
-    description: Optional[str] = Query(None),
+    catmat_code: str | None = Query(None),
+    description: str | None = Query(None),
 ):
     """Price comparison — baseline stats, outlier highlights."""
     if not catmat_code:
@@ -718,7 +671,7 @@ async def signal_evidence(
     ),
 ):
     """Paginated evidence list based on all event_ids linked to the signal."""
-    page = await adapter_get_signal_evidence_page(
+    page = await get_signal_evidence_page(
         session,
         signal_id=signal_id,
         offset=pagination.offset,
@@ -906,11 +859,10 @@ async def signal_provenance(signal_id: uuid.UUID, session: DbSession):
     if signal is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     event_ids = []
+    from contextlib import suppress
     for eid_str in (signal.event_ids or []):
-        try:
+        with suppress(ValueError, TypeError):
             event_ids.append(uuid.UUID(str(eid_str)))
-        except (ValueError, TypeError):
-            pass
     event_raw_sources = await adapter_get_signal_provenance(session, signal_id)
     return {
         "signal_id": signal.id,
@@ -968,7 +920,7 @@ async def case_provenance(case_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/related")
 async def case_related(case_id: uuid.UUID, session: DbSession):
     """Related cases that share at least one entity name with the given case."""
-    case = await adapter_get_case_by_id(session, case_id)
+    case = await get_case_by_id(session, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -1011,7 +963,7 @@ async def case_related(case_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/dossier-summary")
 async def case_dossier_summary(case_id: uuid.UUID, session: DbSession):
     """Full dossier summary — one call replaces case preview + legal + related."""
-    result = await adapter_get_dossier_summary(session, case_id)
+    result = await get_dossier_summary(session, case_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return result
@@ -1020,7 +972,7 @@ async def case_dossier_summary(case_id: uuid.UUID, session: DbSession):
 @router.get("/case/{case_id}/dossier-timeline")
 async def case_dossier_timeline(case_id: uuid.UUID, session: DbSession):
     """Full timeline data for a case dossier — events, participants, signals, entities."""
-    result = await adapter_get_dossier_timeline(session, case_id)
+    result = await get_dossier_timeline(session, case_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return result

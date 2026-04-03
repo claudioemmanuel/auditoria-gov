@@ -170,13 +170,31 @@ export default function ApiHealthPage() {
   const ToneIcon = toneConfig.Icon;
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
-
+    <div className="ow-content">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <PageHeader
         eyebrow="SISTEMA"
         title="Status da API"
         description="Monitor de disponibilidade técnica dos serviços essenciais"
+        variant="hero"
+        icon={<ShieldCheck className="h-5 w-5" />}
+        stats={[
+          { label: "Checks ativos", value: checks.length, mono: true, tone: "brand" },
+          { label: "Auto-refresh", value: "30s", mono: true },
+          {
+            label: "Estado",
+            value: loading ? "Aguardando…" : toneConfig.label,
+            tone: loading ? "default" : tone === "healthy" ? "success" : tone === "attention" ? "warning" : "danger",
+          },
+          {
+            label: "Última leitura",
+            value: checkedAt
+              ? new Date(checkedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+              : "Aguardando…",
+            sub: checkedAt ? new Date(checkedAt).toLocaleDateString("pt-BR") : undefined,
+            mono: true,
+          },
+        ]}
         actions={
           <div className="flex items-center gap-3">
             {!loading && (
@@ -204,25 +222,13 @@ export default function ApiHealthPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in">
 
-        {/* ── Last checked + auto-refresh notice ──────────────── */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="ow-card px-4 py-2.5 inline-flex items-center gap-3">
-            <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-text-3)" }} />
-            <div>
-              <p className="text-mono-xs uppercase tracking-widest" style={{ color: "var(--color-text-3)" }}>
-                Última verificação
-              </p>
-              <p className="text-mono font-medium" style={{ color: "var(--color-text)" }}>
-                {checkedAt ? new Date(checkedAt).toLocaleString("pt-BR") : "Aguardando…"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 text-caption" style={{ color: "var(--color-text-3)" }}>
-            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--color-amber)" }} />
-            Atualização automática a cada 30s
-          </div>
+        {/* ── Auto-refresh notice ─────────────────────────────── */}
+        <div className="flex items-center gap-1.5 text-caption" style={{ color: "var(--color-text-3)" }}>
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--color-amber)" }} />
+          Atualização automática a cada 30s
         </div>
 
         {/* ── Overall health banner ───────────────────────────── */}
@@ -422,7 +428,6 @@ export default function ApiHealthPage() {
             ))}
           </div>
         </section>
-
       </div>
     </div>
   );

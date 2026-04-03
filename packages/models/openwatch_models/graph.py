@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,8 +19,8 @@ class GraphEdgeOut(BaseModel):
     type: str
     weight: float
     edge_strength: str = "weak"
-    verification_method: Optional[str] = None
-    verification_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    verification_method: str | None = None
+    verification_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     attrs: dict = Field(default_factory=dict)
 
 
@@ -63,7 +62,7 @@ class CaseSignalBrief(BaseModel):
     severity: str
     confidence: float
     title: str
-    summary: Optional[str] = None
+    summary: str | None = None
     entity_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
@@ -74,10 +73,10 @@ class CaseFocusSignalSummary(BaseModel):
     severity: str
     confidence: float
     title: str
-    summary: Optional[str] = None
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
-    pattern_label: Optional[str] = None
+    summary: str | None = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+    pattern_label: str | None = None
 
 
 class CaseGraphResponse(BaseModel):
@@ -103,8 +102,8 @@ class SignalGraphSignalOut(BaseModel):
     severity: str
     confidence: float
     title: str
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
 
 
 class SignalStoryActorOut(BaseModel):
@@ -117,8 +116,8 @@ class SignalStoryActorOut(BaseModel):
 
 class SignalPatternStoryOut(BaseModel):
     pattern_label: str
-    started_at: Optional[datetime] = None
-    ended_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
     started_from_entities: list[SignalStoryActorOut] = Field(default_factory=list)
     flow_targets: list[SignalStoryActorOut] = Field(default_factory=list)
     why_flagged: str
@@ -140,8 +139,8 @@ class SignalGraphEdgeOut(BaseModel):
     label: str
     weight: float
     evidence_event_ids: list[uuid.UUID] = Field(default_factory=list)
-    first_seen_at: Optional[datetime] = None
-    last_seen_at: Optional[datetime] = None
+    first_seen_at: datetime | None = None
+    last_seen_at: datetime | None = None
     attrs: dict = Field(default_factory=dict)
 
 
@@ -150,7 +149,7 @@ class ExpandedNodeOut(BaseModel):
     entity_id: uuid.UUID
     label: str
     node_type: str
-    source_connector: Optional[str] = None
+    source_connector: str | None = None
     attrs: dict = Field(default_factory=dict)
     is_direct_participant: bool = False
 
@@ -168,7 +167,7 @@ class ClusterEntityOut(BaseModel):
     entity_id: uuid.UUID
     name: str
     node_type: str
-    source_connector: Optional[str] = None
+    source_connector: str | None = None
 
 
 class SignalGraphOverviewOut(BaseModel):
@@ -188,8 +187,8 @@ class SignalTimelineParticipantOut(BaseModel):
 
 class SignalTimelineEventOut(BaseModel):
     event_id: uuid.UUID
-    occurred_at: Optional[datetime] = None
-    value_brl: Optional[float] = None
+    occurred_at: datetime | None = None
+    value_brl: float | None = None
     description: str
     source_connector: str
     source_id: str
@@ -210,7 +209,7 @@ class SignalInvolvedEntityProfileOut(BaseModel):
     node_type: str
     identifiers: dict = Field(default_factory=dict)
     attrs: dict = Field(default_factory=dict)
-    photo_url: Optional[str] = None
+    photo_url: str | None = None
     roles_in_signal: list[SignalInvolvedEntityRoleOut] = Field(default_factory=list)
     event_count: int = 0
     is_direct_participant: bool = True
@@ -223,13 +222,13 @@ class PathHopOut(BaseModel):
     from_label: str
     to_label: str
     edge_type: str
-    first_seen_at: Optional[datetime] = None
-    last_seen_at: Optional[datetime] = None
+    first_seen_at: datetime | None = None
+    last_seen_at: datetime | None = None
 
 
 class EntityPathResponse(BaseModel):
     found: bool
-    hops: Optional[int] = None
+    hops: int | None = None
     path: list[PathHopOut] = Field(default_factory=list)
 
 
@@ -240,7 +239,7 @@ class SignalGraphDiagnosticsOut(BaseModel):
     participants_total: int = 0
     unique_entities: int = 0
     has_minimum_network: bool = False
-    fallback_reason: Optional[str] = None
+    fallback_reason: str | None = None
 
 
 class SignalGraphResponse(BaseModel):

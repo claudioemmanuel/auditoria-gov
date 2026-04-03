@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from datetime import date
 from urllib.parse import urlparse
 
-
 GOVERNMENT_TLDS: frozenset[str] = frozenset({
     ".gov.br",
     ".jus.br",

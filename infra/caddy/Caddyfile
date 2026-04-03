@@ -1,13 +1,8 @@
-# OpenWatch — Caddy reverse proxy
-# Handles TLS termination via Let's Encrypt for API.
-# Flower removed — monitoring is now via /internal/celery/* API endpoints.
-# Web frontend is served by Vercel (not proxied here).
-#
-# Replace the domain names below with your actual domains before deploying.
-# Caddy auto-provisions TLS certificates for any site block with a domain name.
+# OpenWatch public gateway — Caddy reverse proxy.
+# Handles TLS termination for the public API.
+# Replace the domain below with your actual domain before deploying.
 
-# API — public + internal endpoints
-{$API_DOMAIN:api.auditoria.example.com} {
+{$API_DOMAIN:api.example.com} {
     reverse_proxy localhost:8000
 
     header {
@@ -23,6 +18,3 @@
         format json
     }
 }
-
-# Flower removed — use GET /internal/celery/workers, /internal/celery/queues,
-# /internal/celery/tasks/active via the API instead.

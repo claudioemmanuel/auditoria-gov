@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import Coroutine
 from threading import Lock
-from typing import Coroutine, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 _loop: asyncio.AbstractEventLoop | None = None

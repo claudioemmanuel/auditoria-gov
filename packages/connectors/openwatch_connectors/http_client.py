@@ -1,8 +1,8 @@
 """Shared async HTTP client for all connectors."""
 
 import httpx
-
 from openwatch_config.settings import settings
+
 from openwatch_connectors.domain_guard import validate_domain
 
 # Timeouts: 30s connect, 60s read

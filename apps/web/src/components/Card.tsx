@@ -5,15 +5,19 @@ import type { HTMLAttributes, ReactNode } from "react";
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hoverable?: boolean;
   amber?: boolean;
+  glass?: boolean;
+  signal?: boolean;
 }
 
-export function Card({ hoverable, amber, className, children, ...props }: CardProps) {
+export function Card({ hoverable, amber, glass, signal, className, children, ...props }: CardProps) {
   return (
     <div
       className={clsx(
         "ow-card",
         hoverable && "ow-card-hover",
         amber && "ow-card-amber",
+        glass && "ow-card-glass",
+        signal && "ow-card-signal",
         className
       )}
       {...props}

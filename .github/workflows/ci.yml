@@ -26,50 +26,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install all workspace deps
-        run: uv sync --all-extras
-      - name: Auto-fix lint
-        run: uv run ruff check --fix packages/ apps/api/ || true
-      - name: Lint (fail on unfixable errors only)
-        run: uv run ruff check packages/ apps/api/
+        run: uv sync --all-packages --all-extras
+      - name: Lint
+        run: uv run ruff check packages/ api/ shared/
       - name: Check import boundaries
         run: uv run lint-imports --config .import-linter
       - name: Run public tests
-        run: uv run pytest tests/public -q
-        env:
-          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
-          DATABASE_URL_SYNC: postgresql+psycopg://test:test@localhost:5432/test
-          CPF_HASH_SALT: test-salt-for-ci
-          INTERNAL_API_KEY: test-internal-key
-          APP_ENV: development
-
-  # ── Core packages (secret-gated — skipped in OSS forks) ──────────────────────
-  python-core:
-    name: Python — Core (Private)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_DB: test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        ports: ["5432:5432"]
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-    # Only runs when CORE_CI_ENABLED secret is set (not available in OSS forks)
-    if: ${{ secrets.CORE_CI_ENABLED != '' }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          python-version: "3.12"
-      - name: Install all workspace deps
-        run: uv sync --all-extras
-      - name: Auto-fix lint (core)
-        run: uv run ruff check --fix core/ || true
-      - name: Lint core (fail on unfixable errors only)
-        run: uv run ruff check core/
-      - name: Run core tests
-        run: uv run pytest tests/core -q
+        run: uv run pytest tests/public/api tests/public/utils -q
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
           DATABASE_URL_SYNC: postgresql+psycopg://test:test@localhost:5432/test
