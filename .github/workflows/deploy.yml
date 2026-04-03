@@ -49,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./api/Dockerfile
+          file: ./apps/api/Dockerfile
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_API_REPO }}:${{ steps.meta.outputs.sha_tag }}
@@ -83,7 +83,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./worker/Dockerfile
+          file: ./core/pipelines/Dockerfile
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:${{ steps.meta.outputs.sha_tag }}
@@ -234,7 +234,7 @@ jobs:
             --task-definition auditoria-gov-api \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=DISABLED}" \
-            --overrides '{"containerOverrides":[{"name":"api","command":["alembic","-c","api/alembic.ini","upgrade","head"]}]}' \
+            --overrides '{"containerOverrides":[{"name":"api","command":["alembic","-c","apps/api/alembic.ini","upgrade","head"]}]}' \
             --query "tasks[0].taskArn" \
             --output text)
 

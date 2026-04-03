@@ -32,7 +32,7 @@ def _extract_cpf_from_raw(raw_data: dict, connector: str) -> str | None:
 
 
 @shared_task(
-    name="worker.tasks.backfill_cpf.backfill_cpf_from_raw_sources",
+    name="openwatch_pipelines.backfill_cpf.backfill_cpf_from_raw_sources",
     soft_time_limit=1800,
     time_limit=1900,
     max_retries=1,

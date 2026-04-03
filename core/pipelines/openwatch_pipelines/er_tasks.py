@@ -373,7 +373,7 @@ _IN_CHUNK = 5_000             # max IDs per IN clause
 
 
 @shared_task(
-    name="worker.tasks.er_tasks.run_entity_resolution",
+    name="openwatch_pipelines.er_tasks.run_entity_resolution",
     soft_time_limit=7200,   # 2h soft (large entity sets + edge building)
     time_limit=7500,        # 2h 5min hard kill
 )

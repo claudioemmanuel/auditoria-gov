@@ -12,7 +12,7 @@ from openwatch_connectors.base import (
     SourceClassification,
 )
 from openwatch_connectors.http_client import anvisa_bps_client, anvisa_bulario_client
-from shared.logging import log
+from openwatch_utils.logging import log
 from openwatch_models.canonical import (
     CanonicalEntity,
     CanonicalEvent,

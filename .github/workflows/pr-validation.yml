@@ -1,7 +1,7 @@
 name: PR Validation
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, edited, synchronize, reopened]
 
@@ -72,6 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"

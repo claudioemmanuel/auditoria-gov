@@ -25,7 +25,7 @@ def _invalidate_radar_cache() -> None:
         pass
 
 
-@shared_task(name="worker.tasks.case_tasks.build_cases")
+@shared_task(name="openwatch_pipelines.case_tasks.build_cases")
 def build_cases():
     """Build investigation cases from ungrouped risk signals.
 
