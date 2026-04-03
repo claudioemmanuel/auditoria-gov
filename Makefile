@@ -1,25 +1,11 @@
-.PHONY: install dev dev-full dev-down logs test test-cov lint typecheck boundaries migrate migrate-new seed clean
+.PHONY: build dev dev-down logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync
 
-# ── Setup ─────────────────────────────────────────────────────────────────────
-install:
-uv sync --all-packages
-pnpm install
+# Docker build
+build:
+docker compose build
 
-# ── Development ───────────────────────────────────────────────────────────────
-# Lightweight: only Postgres + Redis; run api/web natively.
+# Full stack in Docker (public layer only — workers run from openwatch-core)
 dev:
-docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml up -d postgres redis
-@echo ""
-@echo "  Infrastructure running:"
-@echo "    Postgres: localhost:5432"
-@echo "    Redis:    localhost:6379"
-@echo ""
-@echo "  Start API:  uv run uvicorn api.app.main:app --reload --port 8000"
-@echo "  Start Web:  cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev"
-@echo ""
-
-# Full stack (public layer only — workers run from openwatch-core).
-dev-full:
 docker compose up -d
 
 dev-down:
@@ -28,36 +14,41 @@ docker compose down
 logs:
 docker compose logs -f --tail=100
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# Database
 migrate:
-uv run alembic -c api/alembic.ini upgrade head
+docker compose run --rm api alembic -c /app/api/alembic.ini upgrade head
 
 migrate-new:
-uv run alembic -c api/alembic.ini revision --autogenerate -m "$(name)"
+docker compose run --rm api alembic -c /app/api/alembic.ini revision --autogenerate -m "$(name)"
 
 seed:
-uv run python -c "from shared.config import settings; print('DB:', settings.DATABASE_URL)"
+docker compose run --rm api python -c "from shared.config import settings; print('DB:', settings.DATABASE_URL)"
 
-# ── Tests ─────────────────────────────────────────────────────────────────────
+# Tests
 test:
-uv run pytest tests/public -q
+docker compose run --rm api pytest tests/public -q
 
 test-cov:
-uv run pytest tests/public --cov --cov-report=html -q
+docker compose run --rm api pytest tests/public --cov --cov-report=html -q
 
-# ── Quality ───────────────────────────────────────────────────────────────────
+# Quality
 lint:
-uv run ruff check packages/ api/ shared/
+docker compose run --rm api ruff check packages/ api/ shared/
 cd apps/web && npm run lint
 
 typecheck:
-uv run mypy packages/ api/ shared/ --ignore-missing-imports
+docker compose run --rm api mypy packages/ api/ shared/ --ignore-missing-imports
 cd apps/web && npm run typecheck
 
 boundaries:
-uv run lint-imports --config .import-linter
+docker compose run --rm api lint-imports --config .import-linter
 
-# ── Cleanup ───────────────────────────────────────────────────────────────────
+# Optional: local install for IDE/editor support only
+sync:
+uv sync --all-packages
+pnpm install
+
+# Cleanup
 clean:
 docker compose down -v
 find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null; true
