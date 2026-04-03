@@ -25,6 +25,10 @@ class CoreServiceError(Exception):
     """Raised when the core service returns an error response."""
 
 
+class CoreNotFoundError(CoreServiceError):
+    """Raised when the core service returns a 404 Not Found response."""
+
+
 class CoreClient:
     """
     Async HTTP client for the openwatch-core internal service.
@@ -201,16 +205,16 @@ class CoreClient:
             scope_key=scope_key,
         )
 
-    async def get_case_legal_hypothesis(self, case_id: str) -> Any:
+    async def get_case_legal_hypothesis(self, case_id: str) -> Any | None:
         try:
             return await self._get(f"/internal/case/{case_id}/legal-hypothesis")
-        except CoreServiceError:
+        except CoreNotFoundError:
             return None
 
 
 def _raise_for_status(response: httpx.Response) -> None:
     if response.status_code == 404:
-        raise CoreServiceError("Not found in core service")
+        raise CoreNotFoundError("Not found in core service")
     if response.status_code >= 400:
         raise CoreServiceError(
             f"Core service error {response.status_code}: {response.text[:200]}"

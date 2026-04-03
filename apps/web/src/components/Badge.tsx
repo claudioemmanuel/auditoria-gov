@@ -85,7 +85,7 @@ export function Badge({ variant, severity, children, className }: BadgeProps) {
     return <SeverityBadge severity={severity} className={className} />;
   }
   return (
-    <span className={clsx("ow-badge", `ow-badge-${variant === "signal" ? "amber" : variant ?? "neutral"}`, className)}>
+    <span className={clsx("ow-badge", `ow-badge-${variant ?? "neutral"}`, className)}>
       {children}
     </span>
   );
