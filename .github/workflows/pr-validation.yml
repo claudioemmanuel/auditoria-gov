@@ -5,6 +5,10 @@ on:
     branches: [main]
     types: [opened, edited, synchronize, reopened]
 
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   # ── 1. Require linked issue ───────────────────────────────────────────────────
   require-issue-link:
