@@ -15,11 +15,11 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          if echo "$PR_BODY" | grep -qiE "(closes|fixes|resolves) #[0-9]+"; then
+          if echo "$PR_BODY" | grep -qiE "(closes|fixes|resolves|related to|see) #[0-9]+"; then
             echo "✅ Issue reference found."
           else
             echo "❌ PR must reference an issue."
-            echo "   Add 'Closes #<number>' to the PR description."
+            echo "   Add 'Closes #<number>' or 'Related to #<number>' to the PR description."
             exit 1
           fi
 
@@ -54,12 +54,13 @@ jobs:
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
-          PATTERN='^(feat|fix|refactor|docs|chore|ci|test|hotfix)/.+'
+          PATTERN='^(feat|fix|refactor|docs|chore|ci|test|hotfix|copilot)/.+'
           if echo "$BRANCH" | grep -qE "$PATTERN"; then
             echo "✅ Branch name: $BRANCH"
           else
             echo "❌ Branch must follow naming convention."
             echo "   Expected: <type>/<description>"
+            echo "   Types: feat fix refactor docs chore ci test hotfix copilot"
             echo "   Example: feat/sdk-entity-search"
             echo ""
             echo "   Got: $BRANCH"
