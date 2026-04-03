@@ -135,8 +135,7 @@ export default async function MethodologyPage() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
-
+    <div className="ow-content">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <PageHeader
         eyebrow="METODOLOGIA"
@@ -152,7 +151,7 @@ export default async function MethodologyPage() {
         ]}
       />
 
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-10 animate-fade-in">
+      <div className="space-y-10 animate-fade-in">
 
         {/* ── Principles ──────────────────────────────────────── */}
         <section>

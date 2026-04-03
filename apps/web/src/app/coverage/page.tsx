@@ -1815,8 +1815,7 @@ export default function CoveragePage() {
   }, [sources, search, statusFilter]);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-surface-2)" }}>
-
+    <div className="ow-content">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <PageHeader
         eyebrow="SISTEMA"
@@ -1880,13 +1879,13 @@ export default function CoveragePage() {
 
       {/* ── KPI Strip ────────────────────────────────────────────── */}
       <div className="border-b" style={{ borderColor: "var(--color-border)" }}>
-        <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6">
+        <div className="py-4">
           <KpiStrip summary={summary} loading={summaryLoading} />
         </div>
       </div>
 
       {/* ── Body ────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-8 animate-fade-in">
+      <div className="space-y-8 animate-fade-in py-8">
 
         {summaryError && (
           <div className="ow-alert ow-alert-error">{summaryError}</div>

@@ -144,9 +144,8 @@ const WHAT_WE_DONT = [
 
 export default function CompliancePage() {
   return (
-    <div className="ledger-page min-h-screen">
-
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
+    <div className="ow-content">
+      <div>
         <PageHeader
           eyebrow="COMPLIANCE"
           title="Plataforma Juridicamente Responsável"
@@ -168,7 +167,7 @@ export default function CompliancePage() {
         />
       </div>
 
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-10">
+      <div className="space-y-10 animate-fade-in">
 
         {/* ── Four Pillars ─────────────────────────────────────────── */}
         <section>
