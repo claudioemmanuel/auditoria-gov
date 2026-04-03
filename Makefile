@@ -34,10 +34,10 @@ docker compose run --rm api python -c "from shared.config import settings; print
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test:
-docker compose run --rm api pytest tests/public -q
+uv run pytest tests/public -q
 
 test-cov:
-docker compose run --rm api pytest tests/public --cov --cov-report=html -q
+uv run pytest tests/public --cov --cov-report=html -q
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 lint:

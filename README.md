@@ -54,7 +54,7 @@ cp .env.example .env
 ### 2. Install dependencies
 
 ```bash
-make install
+make sync
 ```
 
 ### 3. Start infrastructure
@@ -103,7 +103,7 @@ The public API delegates all analytical queries to `openwatch-core`. For full lo
 
 | Command | Description |
 |---------|-------------|
-| `make install` | Install Python and Node dependencies |
+| `make sync` | Install Python and Node dependencies |
 | `make dev` | Start Postgres + Redis in Docker |
 | `make dev-full` | Start full public stack in Docker |
 | `make migrate` | Run Alembic DB migrations |
