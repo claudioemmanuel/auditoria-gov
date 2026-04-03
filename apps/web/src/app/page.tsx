@@ -1,8 +1,9 @@
 import Link from "next/link";
 import {
   Radar, Activity, BookOpen, ArrowRight, Shield, Code,
-  FileText, Scale, Eye, TrendingUp, Database, Zap
+  FileText, Scale, TrendingUp, Database, Zap
 } from "lucide-react";
+import { OpenWatchLogoMark } from "@/components/OpenWatchLogo";
 import { TYPOLOGY_LABELS, DATA_SOURCES } from "@/lib/constants";
 
 const TYPOLOGY_SAMPLE = [
@@ -76,9 +77,7 @@ export default function HomePage() {
           <div className="max-w-3xl">
             {/* Eyebrow */}
             <div className="flex items-center gap-2 mb-6">
-              <div className="ow-sidebar-logo-mark">
-                <Eye size={14} color="#09090b" strokeWidth={2.5} />
-              </div>
+              <OpenWatchLogoMark size="sm" />
               <span className="text-label text-[var(--color-amber)]">
                 Plataforma de Auditoria Cidadã
               </span>

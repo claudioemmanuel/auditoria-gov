@@ -1,3 +1,4 @@
+import path from "node:path";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -11,6 +12,7 @@ const nextConfig = {
   // only pre-enumerated params would be generated, causing 404s on real data.
   images: { unoptimized: true },
   trailingSlash: true,
+  outputFileTracingRoot: path.join(process.cwd(), "../.."),
 
   // Security headers are now handled by CloudFront response headers policy
   // (or Caddy in local dev). No server-side rewrites needed — the browser

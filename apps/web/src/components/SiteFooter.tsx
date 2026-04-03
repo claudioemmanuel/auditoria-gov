@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Eye, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { OpenWatchLogo } from "./OpenWatchLogo";
 
 export function SiteFooter() {
   return (
@@ -10,10 +11,7 @@ export function SiteFooter() {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
-              <div className="ow-sidebar-logo-mark">
-                <Eye size={14} color="#09090b" strokeWidth={2.5} />
-              </div>
-              <span className="ow-sidebar-wordmark">OpenWatch</span>
+              <OpenWatchLogo size="sm" />
             </div>
             <p className="text-xs text-[var(--color-text-3)] leading-relaxed">
               Plataforma open-source de auditoria cidadã sobre dados federais brasileiros.

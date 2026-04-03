@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Eye, Menu, X, Radar, Activity, BookOpen, Scale } from "lucide-react";
+import { Menu, X, Radar, Activity, BookOpen, Scale } from "lucide-react";
 import { clsx } from "clsx";
+import { OpenWatchLogo } from "./OpenWatchLogo";
 
 const MOBILE_NAV = [
   { href: "/radar",       icon: Radar,    label: "Radar" },
@@ -22,10 +23,7 @@ export function Header() {
       <header className="ow-header md:hidden">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 flex-1" onClick={() => setOpen(false)}>
-          <div className="ow-sidebar-logo-mark" aria-hidden="true">
-            <Eye size={14} color="#09090b" strokeWidth={2.5} />
-          </div>
-          <span className="ow-sidebar-wordmark">OpenWatch</span>
+          <OpenWatchLogo size="sm" />
         </Link>
 
         {/* Hamburger */}

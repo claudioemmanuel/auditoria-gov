@@ -194,91 +194,41 @@ export default function CaseDetailPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 animate-fade-in">
 
-      {/* Breadcrumb */}
       <PageHeader
         breadcrumbs={[
           { label: "Radar", href: "/radar" },
           { label: "Casos", href: "/radar" },
           { label: `#${shortId}` },
         ]}
-        title=""
-        className="mb-0 pb-0"
-      />
-
-      {/* Case header */}
-      <div className="mb-6 mt-3 animate-slide-up">
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          <SeverityBadge severity={caseData.severity} />
-          {caseData.case_type && (
-            <span className="ow-badge ow-badge-info">{caseData.case_type}</span>
-          )}
-          <span className="ow-badge ow-badge-neutral text-mono-xs">{caseData.status}</span>
-        </div>
-
-        <h1
-          className="text-display-md mb-2 leading-tight"
-          style={{ color: "var(--color-text)" }}
-        >
-          {caseData.title}
-        </h1>
-
-        {caseData.summary && (
-          <p
-            className="text-body leading-relaxed"
-            style={{ color: "var(--color-text-2)", maxWidth: "72ch" }}
-          >
-            {caseData.summary}
-          </p>
-        )}
-      </div>
-
-      {/* Meta strip */}
-      <div
-        className="ow-card mb-6"
-        style={{ background: "var(--color-surface-2)" }}
-      >
-        <div className="ow-card-section">
-          <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-            <div>
-              <p className="text-caption mb-1" style={{ color: "var(--color-text-3)" }}>Sinais</p>
-              <p className="text-mono font-bold" style={{ color: "var(--color-text)" }}>
-                {caseData.signals.length}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-caption mb-1" style={{ color: "var(--color-text-3)" }}>Entidades</p>
-              <p className="text-mono font-bold" style={{ color: "var(--color-text)" }}>
-                {entityCount}
-              </p>
-            </div>
-
-            {periodLabel && (
-              <div>
-                <p className="text-caption mb-1" style={{ color: "var(--color-text-3)" }}>Período</p>
-                <p className="text-mono-sm" style={{ color: "var(--color-text)" }}>{periodLabel}</p>
-              </div>
+        eyebrow={caseData.case_type ? `Caso · ${caseData.case_type}` : "Caso investigativo"}
+        title={caseData.title}
+        description={
+          caseData.summary ??
+          (periodLabel
+            ? `Período de análise: ${periodLabel}`
+            : "Agrupamento investigativo de sinais com contexto, hipóteses e entidades relacionadas.")
+        }
+        variant="hero"
+        icon={<Scale className="h-5 w-5" />}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <SeverityBadge severity={caseData.severity} />
+            {caseData.case_type && (
+              <span className="ow-badge ow-badge-info">{caseData.case_type}</span>
             )}
-
-            {caseData.total_value_brl != null && caseData.total_value_brl > 0 && (
-              <div>
-                <p className="text-caption mb-1" style={{ color: "var(--color-text-3)" }}>Valor Total</p>
-                <p
-                  className="text-mono font-bold"
-                  style={{ color: "var(--color-amber)" }}
-                >
-                  {formatBRL(caseData.total_value_brl)}
-                </p>
-              </div>
-            )}
-
-            <div className="ml-auto text-right">
-              <p className="text-caption mb-1" style={{ color: "var(--color-text-3)" }}>ID do Caso</p>
-              <span className="ow-id">{shortId}</span>
-            </div>
+            <span className="ow-badge ow-badge-neutral text-mono-xs">{caseData.status}</span>
           </div>
-        </div>
-      </div>
+        }
+        stats={[
+          { label: "Sinais", value: caseData.signals.length, mono: true },
+          { label: "Entidades", value: entityCount, mono: true },
+          ...(periodLabel ? [{ label: "Período", value: periodLabel, mono: true }] : []),
+          ...(caseData.total_value_brl != null && caseData.total_value_brl > 0
+            ? [{ label: "Valor total", value: formatBRL(caseData.total_value_brl), tone: "warning" as const }]
+            : []),
+          { label: "ID do caso", value: shortId, mono: true },
+        ]}
+      />
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 mb-8">

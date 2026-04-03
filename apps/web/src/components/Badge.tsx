@@ -68,7 +68,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
 }
 
 /* ── Generic Badge ──────────────────────────────────────────────── */
-type BadgeVariant = "critical" | "high" | "medium" | "low" | "info" | "neutral" | "amber" | "trust";
+type BadgeVariant = "critical" | "high" | "medium" | "low" | "info" | "neutral" | "amber" | "trust" | "signal";
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -85,7 +85,7 @@ export function Badge({ variant, severity, children, className }: BadgeProps) {
     return <SeverityBadge severity={severity} className={className} />;
   }
   return (
-    <span className={clsx("ow-badge", `ow-badge-${variant ?? "neutral"}`, className)}>
+    <span className={clsx("ow-badge", `ow-badge-${variant === "signal" ? "amber" : variant ?? "neutral"}`, className)}>
       {children}
     </span>
   );

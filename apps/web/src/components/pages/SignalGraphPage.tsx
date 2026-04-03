@@ -266,31 +266,33 @@ export default function SignalGraphPage() {
   return (
     <div className="ledger-page mx-auto max-w-6xl px-4 py-8">
       <PageHeader
+        eyebrow="Teia investigativa"
         title={data.signal.title}
-        description={`${data.signal.typology_code} - ${data.signal.typology_name}`}
+        description={`${data.signal.typology_code} · ${data.signal.typology_name}`}
         breadcrumbs={[
           { label: "Radar", href: "/radar" },
           { label: "Sinal", href: `/signal/${data.signal.id}` },
           { label: "Teia investigativa" },
         ]}
+        variant="hero"
+        icon={<Network className="h-5 w-5" />}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`rounded-full px-3 py-1 text-xs font-medium ${severityColor(data.signal.severity)}`}>
+              {SEVERITY_LABELS[data.signal.severity]}
+            </span>
+            <span className="rounded-full bg-accent-subtle px-3 py-1 text-xs font-semibold text-accent">
+              {Math.round(data.signal.confidence * 100)}% confiança
+            </span>
+            <Link
+              href={`/signal/${data.signal.id}`}
+              className="rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle"
+            >
+              Voltar ao sinal
+            </Link>
+          </div>
+        }
       />
-
-      <div className="mt-4 flex flex-wrap items-end justify-end gap-2">
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full px-3 py-1 text-xs font-medium ${severityColor(data.signal.severity)}`}>
-            {SEVERITY_LABELS[data.signal.severity]}
-          </span>
-          <span className="rounded-full bg-accent-subtle px-3 py-1 text-xs font-semibold text-accent">
-            {Math.round(data.signal.confidence * 100)}% confiança
-          </span>
-          <Link
-            href={`/signal/${data.signal.id}`}
-            className="rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface-subtle"
-          >
-            Voltar ao sinal
-          </Link>
-        </div>
-      </div>
 
       {/* Summary cards */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

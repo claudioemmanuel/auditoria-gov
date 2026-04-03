@@ -4,7 +4,7 @@ import { forwardRef, type ComponentPropsWithoutRef, type ElementType } from "rea
 import NextLink from "next/link";
 import { clsx } from "clsx";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "destructive" | "amber";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "destructive" | "amber" | "signal";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
@@ -20,6 +20,7 @@ const variantClass: Record<ButtonVariant, string> = {
   outline:     "ow-btn-outline",
   destructive: "ow-btn-destructive",
   amber:       "ow-btn-amber",
+  signal:      "ow-btn-signal",
 };
 
 const sizeClass: Record<ButtonSize, string> = {

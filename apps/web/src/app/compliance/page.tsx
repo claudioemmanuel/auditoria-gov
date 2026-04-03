@@ -11,6 +11,7 @@ import {
   FileText,
   AlertTriangle,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const PILLARS = [
   {
@@ -145,24 +146,26 @@ export default function CompliancePage() {
   return (
     <div className="ledger-page min-h-screen">
 
-      {/* ── Page header ──────────────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle border border-accent/20">
-              <Shield className="h-6 w-6 text-accent" />
-            </div>
-            <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-                Plataforma Juridicamente Responsável
-              </h1>
-              <p className="mt-1.5 text-sm text-secondary leading-relaxed max-w-2xl">
-                O OpenWatch opera exclusivamente sobre dados de transparência ativa obrigatória,
-                com base legal explícita, metodologia auditável e compliance automatizado.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
+        <PageHeader
+          eyebrow="COMPLIANCE"
+          title="Plataforma Juridicamente Responsável"
+          description="O OpenWatch opera exclusivamente sobre dados de transparência ativa obrigatória, com base legal explícita, metodologia auditável e compliance automatizado."
+          variant="hero"
+          icon={<Shield className="h-5 w-5" />}
+          stats={[
+            { label: "Pilares", value: 4, mono: true, tone: "brand" },
+            { label: "Bases legais", value: LEGAL_BASIS.length, mono: true },
+            { label: "Tipologias", value: 22, mono: true },
+            { label: "Status", value: "Auditável", sub: "AGPL-3.0", tone: "success" },
+          ]}
+          actions={
+            <Link href="/methodology" className="ow-btn ow-btn-secondary ow-btn-sm gap-1.5">
+              Ver metodologia
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          }
+        />
       </div>
 
       <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-10">

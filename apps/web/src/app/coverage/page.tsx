@@ -1826,6 +1826,35 @@ export default function CoveragePage() {
             ? `Snapshot: ${new Date(summary.snapshot_at).toLocaleString("pt-BR")} · Estado operacional do pipeline e qualidade das fontes públicas federais`
             : "Estado operacional do pipeline de ingestão e qualidade das fontes públicas federais"
         }
+        variant="hero"
+        icon={<Database className="h-5 w-5" />}
+        stats={[
+          {
+            label: "Fontes",
+            value: summaryLoading ? "—" : formatNumber(summary?.totals?.connectors ?? 0),
+            mono: true,
+            tone: "brand",
+          },
+          {
+            label: "Jobs ativos",
+            value: summaryLoading ? "—" : formatNumber(summary?.totals?.jobs_enabled ?? 0),
+            sub: summaryLoading ? undefined : `${summary?.totals?.jobs ?? 0} jobs`,
+            mono: true,
+          },
+          {
+            label: "Operacionais",
+            value: summaryLoading ? "—" : formatNumber(summary?.totals?.status_counts?.ok ?? 0),
+            mono: true,
+            tone: "success",
+          },
+          {
+            label: "Alertas",
+            value: summaryLoading ? "—" : formatNumber((summary?.totals?.status_counts?.warning ?? 0) + (summary?.totals?.status_counts?.stale ?? 0) + (summary?.totals?.status_counts?.error ?? 0)),
+            sub: summaryLoading ? undefined : `${summary?.totals?.runtime?.failed_or_stuck ?? 0} travados`,
+            mono: true,
+            tone: ((summary?.totals?.status_counts?.error ?? 0) > 0 || (summary?.totals?.runtime?.failed_or_stuck ?? 0) > 0) ? "danger" : "warning",
+          },
+        ]}
         actions={
           <div className="flex items-center gap-2">
             <Button

@@ -411,6 +411,32 @@ function RadarPageInner() {
     label: `${code} — ${name}`,
   }));
 
+  const headerStats = [
+    {
+      label: "Sinais",
+      value: summaryLoading ? "—" : (summary?.totals?.signals ?? 0).toLocaleString("pt-BR"),
+      mono: true,
+      tone: "brand" as const,
+    },
+    {
+      label: "Casos",
+      value: summaryLoading ? "—" : (summary?.totals?.cases ?? 0).toLocaleString("pt-BR"),
+      mono: true,
+    },
+    {
+      label: "Crítico",
+      value: summaryLoading ? "—" : (summary?.severity_counts?.critical ?? 0).toLocaleString("pt-BR"),
+      mono: true,
+      tone: "danger" as const,
+    },
+    {
+      label: "Alto",
+      value: summaryLoading ? "—" : (summary?.severity_counts?.high ?? 0).toLocaleString("pt-BR"),
+      mono: true,
+      tone: "warning" as const,
+    },
+  ];
+
   return (
     <div className="ow-content">
       {/* Page Header */}
@@ -418,6 +444,9 @@ function RadarPageInner() {
         eyebrow="Investigação"
         title="Radar de Risco"
         description="Sinais e casos de corrupção detectados em licitações e contratos federais."
+        variant="hero"
+        icon={<Radar className="h-5 w-5" />}
+        stats={headerStats}
         actions={
           <div className="flex items-center gap-2">
             {/* View toggle */}

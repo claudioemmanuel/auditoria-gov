@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { OpenWatchLogo } from "./OpenWatchLogo";
 
 const NAV = [
   {
@@ -45,10 +46,7 @@ export function AppSidebar() {
     <aside className="ow-sidebar">
       {/* Logo */}
       <div className="ow-sidebar-logo">
-        <div className="ow-sidebar-logo-mark" aria-hidden="true">
-          <Eye size={14} color="#09090b" strokeWidth={2.5} />
-        </div>
-        <span className="ow-sidebar-wordmark">OpenWatch</span>
+        <OpenWatchLogo />
       </div>
 
       {/* Search shortcut */}

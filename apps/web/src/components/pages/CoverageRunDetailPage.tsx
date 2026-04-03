@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getIngestRunDetail } from "@/lib/api";
 import { Button } from "@/components/Button";
+import { PageHeader } from "@/components/PageHeader";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import type { IngestRunDetailResponse, IngestRunFieldProfile } from "@/lib/types";
 import {
@@ -290,18 +291,14 @@ export default function CoverageRunDetailPage() {
   if (error || !detail) {
     return (
       <div className="min-h-screen">
-        <div className="border-b border-border bg-surface-card">
-          <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-error/5 border border-error/20">
-                <AlertTriangle className="h-6 w-6 text-error" />
-              </div>
-              <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">Detalhe da Execução</h1>
-                <p className="mt-1.5 text-sm text-secondary leading-relaxed">Não foi possível carregar os dados desta execução.</p>
-              </div>
-            </div>
-          </div>
+        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
+          <PageHeader
+            eyebrow="PIPELINE"
+            title="Detalhe da Execução"
+            description="Não foi possível carregar os dados desta execução."
+            variant="hero"
+            icon={<AlertTriangle className="h-5 w-5" />}
+          />
         </div>
         <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
           <div className="flex flex-col items-center justify-center rounded-xl border border-error/20 bg-error/5 py-16 gap-4">
@@ -323,32 +320,18 @@ export default function CoverageRunDetailPage() {
   return (
     <div className="min-h-screen">
 
-      {/* ── Page header ─────────────────────────────────────────── */}
-      <div className="border-b border-border bg-surface-card">
-        <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 mb-4 text-xs text-muted">
-            <Link href="/coverage" className="hover:text-accent transition-colors">Cobertura</Link>
-            <span>/</span>
-            <span className="text-primary font-medium">Execução</span>
-          </div>
-
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${statusCfg.border} ${statusCfg.bg}`}>
-                <Database className={`h-6 w-6 ${statusCfg.text}`} />
-              </div>
-              <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl font-mono">
-                  {detail.run.connector}<span className="text-muted font-normal"> / </span>{detail.run.job}
-                </h1>
-                {detail.job.domain && (
-                  <span className="inline-block mt-1.5 font-mono text-xs font-bold text-accent bg-accent-subtle border border-accent/20 px-2 py-0.5 rounded-full">
-                    {detail.job.domain}
-                  </span>
-                )}
-              </div>
-            </div>
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
+        <PageHeader
+          breadcrumbs={[
+            { label: "Cobertura", href: "/coverage" },
+            { label: "Execução" },
+          ]}
+          eyebrow="PIPELINE"
+          title={`${detail.run.connector} / ${detail.run.job}`}
+          description="Detalhe operacional da execução, diagnóstico de normalização e amostras processadas."
+          variant="hero"
+          icon={<Database className="h-5 w-5" />}
+          actions={
             <div className="flex shrink-0 items-center gap-3">
               <div className="flex items-center gap-1.5 text-xs text-muted">
                 <Timer className="h-3.5 w-3.5" />
@@ -359,18 +342,22 @@ export default function CoverageRunDetailPage() {
                 {statusCfg.label}
               </span>
             </div>
-          </div>
+          }
+          stats={[
+            { label: "Domínio", value: detail.job.domain ?? "—" },
+            { label: "Início", value: fmtDate(detail.run.started_at), mono: true },
+            { label: "Fim", value: fmtDate(detail.run.finished_at), mono: true },
+          ]}
+        />
 
-          {/* Back link */}
-          <div className="mt-4">
-            <Link
-              href="/coverage"
-              className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors"
-            >
-              <ArrowLeft className="h-3 w-3" />
-              Voltar para Cobertura
-            </Link>
-          </div>
+        <div className="mt-4">
+          <Link
+            href="/coverage"
+            className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Voltar para Cobertura
+          </Link>
         </div>
       </div>
 

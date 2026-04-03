@@ -1,28 +1,26 @@
 import type { Metadata } from "next";
-import { DM_Sans, Syne, JetBrains_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Header } from "@/components/Header";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CommandPalette } from "@/components/CommandPalette";
 
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const syne = Syne({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-display",
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
   display: "swap",
 });
@@ -65,7 +63,7 @@ export default function RootLayout({
         <meta name="color-scheme" content="dark" />
       </head>
       <body
-        className={`${dmSans.variable} ${syne.variable} ${jetbrainsMono.variable}`}
+        className={`${inter.variable} ${geist.variable} ${geistMono.variable}`}
       >
         {/* Skip-to-content — WCAG 2.4.1 */}
         <a
@@ -83,7 +81,9 @@ export default function RootLayout({
         <div className="ow-page" style={{ paddingTop: "var(--header-height)" }}>
           {/* Desktop sidebar — hidden on mobile */}
           <div className="hidden md:flex md:flex-shrink-0" style={{ marginTop: "calc(-1 * var(--header-height))" }}>
-            <AppSidebar />
+            <Suspense fallback={<div style={{ width: "var(--sidebar-width)" }} aria-hidden="true" />}>
+              <AppSidebar />
+            </Suspense>
           </div>
 
           <main id="main-content" className="ow-main" tabIndex={-1}>
