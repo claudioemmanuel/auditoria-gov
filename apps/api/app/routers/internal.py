@@ -271,7 +271,7 @@ async def trigger_ingest(connector_name: str, job_name: str, cursor: Optional[st
         return {"status": "error", "error": f"Job '{job_name}' not found for connector '{connector_name}'"}
 
     result = celery_app.send_task(
-        "worker.tasks.ingest_tasks.ingest_connector",
+        "openwatch_pipelines.ingest_tasks.ingest_connector",
         args=[connector_name, job_name, cursor],
         queue="ingest",
     )
@@ -299,7 +299,7 @@ async def request_yield_connector(connector_name: str):
 async def trigger_ingest_all():
     """Manually trigger incremental ingestion for all connectors."""
     result = celery_app.send_task(
-        "worker.tasks.ingest_tasks.ingest_all_incremental",
+        "openwatch_pipelines.ingest_tasks.ingest_all_incremental",
         queue="ingest",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -508,7 +508,7 @@ async def trigger_renormalize(connectors: Optional[str] = None):
     # Dispatch normalize_run tasks for each affected run
     for run_id in dispatched:
         celery_app.send_task(
-            "worker.tasks.normalize_tasks.normalize_run",
+            "openwatch_pipelines.normalize_tasks.normalize_run",
             args=[run_id],
             queue="normalize",
         )
@@ -528,7 +528,7 @@ async def trigger_renormalize(connectors: Optional[str] = None):
 async def trigger_er():
     """Trigger entity resolution pipeline."""
     result = celery_app.send_task(
-        "worker.tasks.er_tasks.run_entity_resolution",
+        "openwatch_pipelines.er_tasks.run_entity_resolution",
         queue="er",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -541,7 +541,7 @@ async def trigger_er():
 async def trigger_all_signals():
     """Trigger all typology detectors."""
     result = celery_app.send_task(
-        "worker.tasks.signal_tasks.run_all_signals",
+        "openwatch_pipelines.signal_tasks.run_all_signals",
         queue="signals",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -551,7 +551,7 @@ async def trigger_all_signals():
 async def trigger_build_cases():
     """Trigger case builder to group ungrouped risk signals into investigation cases."""
     result = celery_app.send_task(
-        "worker.tasks.case_tasks.build_cases",
+        "openwatch_pipelines.case_tasks.build_cases",
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -561,7 +561,7 @@ async def trigger_build_cases():
 async def trigger_single_signal(typology_code: str, force_refresh: bool = False):
     """Trigger a single typology detector. Use ?force_refresh=true to update existing signals."""
     result = celery_app.send_task(
-        "worker.tasks.signal_tasks.run_single_signal",
+        "openwatch_pipelines.signal_tasks.run_single_signal",
         args=[typology_code],
         kwargs={"force_refresh": force_refresh},
         queue="signals",
@@ -581,7 +581,7 @@ async def trigger_purge_stale_t02():
     Run once after deploying the T02 refinement before re-running T02.
     """
     result = celery_app.send_task(
-        "worker.tasks.maintenance_tasks.purge_stale_t02_signals",
+        "openwatch_pipelines.maintenance_tasks.purge_stale_t02_signals",
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -618,7 +618,7 @@ async def data_quality():
 async def trigger_signal_clarity_backfill():
     """Dispatch backfill for CATMAT enrichment + T03/T05 refresh + ER run."""
     result = celery_app.send_task(
-        "worker.tasks.maintenance_tasks.backfill_signal_clarity",
+        "openwatch_pipelines.maintenance_tasks.backfill_signal_clarity",
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -628,7 +628,7 @@ async def trigger_signal_clarity_backfill():
 async def trigger_public_profile_photos_backfill():
     """Dispatch backfill to enrich missing official profile photos."""
     result = celery_app.send_task(
-        "worker.tasks.maintenance_tasks.backfill_public_profile_photos",
+        "openwatch_pipelines.maintenance_tasks.backfill_public_profile_photos",
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -641,7 +641,7 @@ async def trigger_public_profile_photos_backfill():
 async def trigger_baselines():
     """Trigger baseline computation."""
     result = celery_app.send_task(
-        "worker.tasks.baseline_tasks.compute_all_baselines",
+        "openwatch_pipelines.baseline_tasks.compute_all_baselines",
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -654,7 +654,7 @@ async def trigger_baselines():
 async def trigger_seed_reference():
     """Trigger one-time population of reference_data table."""
     result = celery_app.send_task(
-        "worker.tasks.reference_tasks.seed_reference_data",
+        "openwatch_pipelines.reference_tasks.seed_reference_data",
         queue="default",
     )
     return {"status": "dispatched", "task_id": result.id}
@@ -808,7 +808,7 @@ async def dispatch_next_pending():
     chosen = candidates[0]
 
     result = celery_app.send_task(
-        "worker.tasks.ingest_tasks.ingest_connector",
+        "openwatch_pipelines.ingest_tasks.ingest_connector",
         args=[chosen["connector"], chosen["job"]],
         queue="ingest",
     )
@@ -1029,17 +1029,17 @@ async def trigger_full_pipeline():
             )
 
     pipeline = chain(
-        celery_app.signature('worker.tasks.ingest_tasks.ingest_all_incremental', queue='ingest', immutable=True),
+        celery_app.signature('openwatch_pipelines.ingest_tasks.ingest_all_incremental', queue='ingest', immutable=True),
         chord(
             group(
-                celery_app.signature('worker.tasks.er_tasks.run_entity_resolution', queue='er', immutable=True),
-                celery_app.signature('worker.tasks.baseline_tasks.compute_all_baselines', queue='default', immutable=True),
+                celery_app.signature('openwatch_pipelines.er_tasks.run_entity_resolution', queue='er', immutable=True),
+                celery_app.signature('openwatch_pipelines.baseline_tasks.compute_all_baselines', queue='default', immutable=True),
             ),
-            celery_app.signature('worker.tasks.signal_tasks.run_all_signals', queue='signals', immutable=True),
+            celery_app.signature('openwatch_pipelines.signal_tasks.run_all_signals', queue='signals', immutable=True),
         ),
         group(
-            celery_app.signature('worker.tasks.case_tasks.build_cases', queue='default', immutable=True),
-            celery_app.signature('worker.tasks.coverage_tasks.update_coverage_registry', queue='default', immutable=True),
+            celery_app.signature('openwatch_pipelines.case_tasks.build_cases', queue='default', immutable=True),
+            celery_app.signature('openwatch_pipelines.coverage_tasks.update_coverage_registry', queue='default', immutable=True),
         ),
     )
     result = pipeline.apply_async()

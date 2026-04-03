@@ -4,7 +4,7 @@ Dispatches the full pipeline (ingest -> normalize -> ER -> baselines ->
 signals -> cases -> coverage) and exits when complete.
 
 Usage:
-    python -m worker.run_pipeline [--pipeline full|bulk|signals|maintenance]
+    python -m openwatch_pipelines.run_pipeline [--pipeline full|bulk|signals|maintenance]
 """
 
 import argparse
@@ -12,7 +12,7 @@ import logging
 import sys
 import time
 
-from worker.worker_app import app
+from openwatch_pipelines.worker_app import app
 
 log = logging.getLogger("auditoria.run_pipeline")
 
@@ -20,7 +20,7 @@ log = logging.getLogger("auditoria.run_pipeline")
 def run_full_pipeline() -> None:
     """Dispatch full pipeline and wait for completion."""
     result = app.send_task(
-        "worker.tasks.ingest_tasks.ingest_all_incremental",
+        "openwatch_pipelines.ingest_tasks.ingest_all_incremental",
         queue="ingest",
     )
     log.info("Dispatched ingest_all_incremental: %s", result.id)
@@ -31,7 +31,7 @@ def run_full_pipeline() -> None:
 def run_bulk_pipeline() -> None:
     """Dispatch bulk ingestion (TSE, Receita CNPJ)."""
     result = app.send_task(
-        "worker.tasks.ingest_tasks.ingest_all_bulk",
+        "openwatch_pipelines.ingest_tasks.ingest_all_bulk",
         queue="bulk",
     )
     log.info("Dispatched ingest_all_bulk: %s", result.id)
@@ -41,7 +41,7 @@ def run_bulk_pipeline() -> None:
 def run_signals_pipeline() -> None:
     """Run signals + cases only (assumes data is already ingested)."""
     result = app.send_task(
-        "worker.tasks.signal_tasks.run_all_signals",
+        "openwatch_pipelines.signal_tasks.run_all_signals",
         queue="signals",
     )
     log.info("Dispatched run_all_signals: %s", result.id)
@@ -51,17 +51,17 @@ def run_signals_pipeline() -> None:
 def run_maintenance() -> None:
     """Run cleanup and maintenance tasks."""
     for task_name in [
-        "worker.tasks.maintenance_tasks.cleanup_stale_runs",
-        "worker.tasks.maintenance_tasks.purge_old_results",
-        "worker.tasks.maintenance_tasks.purge_normalized_raw_source",
-        "worker.tasks.maintenance_tasks.vacuum_raw_source",
+        "openwatch_pipelines.maintenance_tasks.cleanup_stale_runs",
+        "openwatch_pipelines.maintenance_tasks.purge_old_results",
+        "openwatch_pipelines.maintenance_tasks.purge_normalized_raw_source",
+        "openwatch_pipelines.maintenance_tasks.vacuum_raw_source",
     ]:
         result = app.send_task(task_name, queue="default")
         log.info("Dispatched %s: %s", task_name, result.id)
         result.get(timeout=3600)
 
     result = app.send_task(
-        "worker.tasks.coverage_tasks.update_coverage_registry",
+        "openwatch_pipelines.coverage_tasks.update_coverage_registry",
         queue="default",
     )
     result.get(timeout=1800)

@@ -133,7 +133,7 @@ def _log_dead_letter(sender=None, task_id=None, exception=None, traceback=None, 
             pass
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.cleanup_stale_runs", soft_time_limit=300, time_limit=360, max_retries=1)
+@shared_task(name="openwatch_pipelines.maintenance_tasks.cleanup_stale_runs", soft_time_limit=300, time_limit=360, max_retries=1)
 def cleanup_stale_runs(max_age_hours: int = 24):
     """Close orphaned 'running' RawRun entries older than max_age_hours.
 
@@ -172,7 +172,7 @@ def cleanup_stale_runs(max_age_hours: int = 24):
         return {"status": "ok", "cleaned": len(stale)}
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.purge_old_results", soft_time_limit=300, time_limit=360, max_retries=1)
+@shared_task(name="openwatch_pipelines.maintenance_tasks.purge_old_results", soft_time_limit=300, time_limit=360, max_retries=1)
 def purge_old_results(max_age_days: int = 7):
     """Remove old Celery result entries from Redis to reclaim memory.
 
@@ -191,7 +191,7 @@ def purge_old_results(max_age_days: int = 7):
     return {"status": "ok"}
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.backfill_signal_clarity", soft_time_limit=1800, time_limit=1900, max_retries=1)
+@shared_task(name="openwatch_pipelines.maintenance_tasks.backfill_signal_clarity", soft_time_limit=1800, time_limit=1900, max_retries=1)
 def backfill_signal_clarity(max_events: int = 20000):
     """Backfill data quality for investigability and refresh CATMAT-dependent signals.
 
@@ -357,7 +357,7 @@ def backfill_signal_clarity(max_events: int = 20000):
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.trigger_post_ingest_recompute",
+    name="openwatch_pipelines.maintenance_tasks.trigger_post_ingest_recompute",
     bind=False,
 )
 def trigger_post_ingest_recompute(connector: str = "", job: str = "") -> dict:
@@ -379,12 +379,12 @@ def trigger_post_ingest_recompute(connector: str = "", job: str = "") -> dict:
     from celery import chain, signature
     pipeline = chain(
         signature(
-            "worker.tasks.baseline_tasks.compute_all_baselines",
+            "openwatch_pipelines.baseline_tasks.compute_all_baselines",
             immutable=True,
             queue="default",
         ),
         signature(
-            "worker.tasks.signal_tasks.run_all_signals",
+            "openwatch_pipelines.signal_tasks.run_all_signals",
             immutable=True,
             queue="signals",
         ),
@@ -405,7 +405,7 @@ def trigger_post_ingest_recompute(connector: str = "", job: str = "") -> dict:
     }
 
 
-@shared_task(name="worker.tasks.maintenance_tasks.backfill_public_profile_photos", soft_time_limit=1800, time_limit=1900, max_retries=1)
+@shared_task(name="openwatch_pipelines.maintenance_tasks.backfill_public_profile_photos", soft_time_limit=1800, time_limit=1900, max_retries=1)
 def backfill_public_profile_photos(limit: int = 1000):
     """Populate missing public-profile photos for political entities."""
     from openwatch_db.db_sync import SyncSession
@@ -496,7 +496,7 @@ def backfill_public_profile_photos(limit: int = 1000):
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.run_full_pipeline",
+    name="openwatch_pipelines.maintenance_tasks.run_full_pipeline",
     bind=False,
     max_retries=0,
 )
@@ -506,17 +506,17 @@ def run_full_pipeline() -> dict:
 
     pipeline = chain(
         signature(
-            "worker.tasks.er_tasks.run_entity_resolution",
+            "openwatch_pipelines.er_tasks.run_entity_resolution",
             immutable=True,
             queue="er",
         ),
         signature(
-            "worker.tasks.baseline_tasks.compute_all_baselines",
+            "openwatch_pipelines.baseline_tasks.compute_all_baselines",
             immutable=True,
             queue="default",
         ),
         signature(
-            "worker.tasks.signal_tasks.run_all_signals",
+            "openwatch_pipelines.signal_tasks.run_all_signals",
             immutable=True,
             queue="signals",
         ),
@@ -527,7 +527,7 @@ def run_full_pipeline() -> dict:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.vacuum_raw_source",
+    name="openwatch_pipelines.maintenance_tasks.vacuum_raw_source",
     bind=False,
     max_retries=1,
     soft_time_limit=600,
@@ -550,7 +550,7 @@ def vacuum_raw_source() -> dict:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.purge_normalized_raw_source",
+    name="openwatch_pipelines.maintenance_tasks.purge_normalized_raw_source",
     bind=False,
     max_retries=1,
     soft_time_limit=1800,
@@ -627,7 +627,7 @@ def _cleanup_bulk_dirs() -> list[str]:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.disk_space_watchdog",
+    name="openwatch_pipelines.maintenance_tasks.disk_space_watchdog",
     bind=False,
     max_retries=0,
     soft_time_limit=60,
@@ -805,7 +805,7 @@ def _watchdog_recover_orphans() -> dict | None:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.pipeline_watchdog",
+    name="openwatch_pipelines.maintenance_tasks.pipeline_watchdog",
     bind=False,
     soft_time_limit=60,
     time_limit=90,
@@ -917,12 +917,12 @@ def pipeline_watchdog() -> dict:
                 from celery import chain, signature
                 pipeline = chain(
                     signature(
-                        "worker.tasks.baseline_tasks.compute_all_baselines",
+                        "openwatch_pipelines.baseline_tasks.compute_all_baselines",
                         immutable=True,
                         queue="default",
                     ),
                     signature(
-                        "worker.tasks.signal_tasks.run_all_signals",
+                        "openwatch_pipelines.signal_tasks.run_all_signals",
                         immutable=True,
                         queue="signals",
                     ),
@@ -1020,7 +1020,7 @@ def pipeline_watchdog() -> dict:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.purge_stale_t02_signals",
+    name="openwatch_pipelines.maintenance_tasks.purge_stale_t02_signals",
     bind=False,
     max_retries=1,
     soft_time_limit=600,
@@ -1063,7 +1063,7 @@ def purge_stale_t02_signals() -> dict:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.trigger_normalize_drain",
+    name="openwatch_pipelines.maintenance_tasks.trigger_normalize_drain",
     bind=False,
     max_retries=0,
     soft_time_limit=60,
@@ -1115,7 +1115,7 @@ def trigger_normalize_drain() -> dict:
 
 
 @shared_task(
-    name="worker.tasks.maintenance_tasks.docker_build_prune",
+    name="openwatch_pipelines.maintenance_tasks.docker_build_prune",
     bind=False,
     max_retries=0,
     soft_time_limit=120,

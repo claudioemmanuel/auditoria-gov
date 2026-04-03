@@ -45,7 +45,7 @@ _CONNECTOR_URLS: dict[str, str] = {
 }
 
 
-@shared_task(name="worker.tasks.compliance_tasks.check_source_compliance")
+@shared_task(name="openwatch_pipelines.compliance_tasks.check_source_compliance")
 def check_source_compliance() -> dict:
     """Weekly compliance audit for all data sources.
 
