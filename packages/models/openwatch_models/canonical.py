@@ -1,6 +1,4 @@
-import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -24,10 +22,10 @@ class CanonicalEvent(BaseModel):
     source_connector: str
     source_id: str
     type: str
-    subtype: Optional[str] = None
-    description: Optional[str] = None
-    occurred_at: Optional[datetime] = None
-    value_brl: Optional[float] = None
+    subtype: str | None = None
+    description: str | None = None
+    occurred_at: datetime | None = None
+    value_brl: float | None = None
     attrs: dict = Field(default_factory=dict)
     participants: list[CanonicalEventParticipant] = Field(default_factory=list)
 

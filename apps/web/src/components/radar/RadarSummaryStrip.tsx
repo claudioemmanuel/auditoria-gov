@@ -42,16 +42,16 @@ export function RadarSummaryStrip({
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-px bg-border sm:grid-cols-6">
+    <div className="ow-strip grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
       {kpis.map((k) => {
         const isActive = k.severity && activeSeverity === k.severity;
 
         const inner = (
           <>
-            <p className="byline mb-2">{k.label}</p>
+            <p className="ow-strip-label mb-2">{k.label}</p>
             <p
-              className="text-3xl font-bold text-ink leading-none tabular-nums"
-              style={{ fontFamily: "var(--font-playfair)" }}
+              className="ow-strip-value tabular-nums"
+              style={{ color: k.severity ? `var(--color-${k.severity})` : "var(--color-text)" }}
             >
               {k.value.toLocaleString("pt-BR")}
             </p>
@@ -64,10 +64,10 @@ export function RadarSummaryStrip({
               key={k.label}
               type="button"
               onClick={() => onSeverityClick(k.severity!)}
-              className={`px-4 py-4 text-left transition-colors duration-100 paper-texture ${
+              className={`ow-strip-item text-left transition-all duration-150 ${
                 isActive
-                  ? "bg-masthead text-newsprint"
-                  : "bg-newsprint-card hover:bg-newsprint-hover"
+                  ? "bg-[color:var(--color-brand-dim)] shadow-[inset_0_0_0_1px_rgba(45,212,191,0.22)]"
+                  : "hover:bg-[color:var(--color-surface-3)]"
               }`}
             >
               {inner}
@@ -76,7 +76,7 @@ export function RadarSummaryStrip({
         }
 
         return (
-          <div key={k.label} className="bg-newsprint-card px-4 py-4 paper-texture">
+          <div key={k.label} className="ow-strip-item">
             {inner}
           </div>
         );

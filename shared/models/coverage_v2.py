@@ -1,11 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from shared.models.coverage import CoverageMapItem, CoverageMetric
-
 
 CoveragePipelineStatus = Literal["up_to_date", "processing", "stale", "warning", "error", "pending"]
 CoverageOverallStatus = Literal["healthy", "attention", "blocked"]
@@ -67,8 +66,8 @@ class CoverageV2SourceRuntime(BaseModel):
     active_job_names: list[str] = Field(default_factory=list)
     items_fetched_live: int = 0
     items_normalized_live: int = 0
-    elapsed_seconds: Optional[float] = None
-    estimated_rate_per_min: Optional[float] = None
+    elapsed_seconds: float | None = None
+    estimated_rate_per_min: float | None = None
 
 
 class CoverageV2SourceItem(BaseModel):
@@ -79,8 +78,8 @@ class CoverageV2SourceItem(BaseModel):
     worst_status: CoverageSourceStatus
     status_counts: CoverageV2StatusCounts
     runtime: CoverageV2SourceRuntime
-    last_success_at: Optional[datetime] = None
-    max_freshness_lag_hours: Optional[float] = None
+    last_success_at: datetime | None = None
+    max_freshness_lag_hours: float | None = None
 
 
 class CoverageV2SourcesResponse(BaseModel):
@@ -94,19 +93,19 @@ class CoverageV2LatestRun(BaseModel):
     id: uuid.UUID
     status: str
     is_stuck: bool = False
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
     items_fetched: int = 0
     items_normalized: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
     is_retryable_error: bool = False
-    elapsed_seconds: Optional[float] = None
-    progress_pct: Optional[float] = None
+    elapsed_seconds: float | None = None
+    progress_pct: float | None = None
     # Enhanced progress tracking
-    fetch_progress_pct: Optional[float] = None
-    pages_fetched: Optional[int] = None
-    rate_per_min: Optional[float] = None
-    cursor_info: Optional[str] = None  # e.g. "Window 3, Page 500"
+    fetch_progress_pct: float | None = None
+    pages_fetched: int | None = None
+    rate_per_min: float | None = None
+    cursor_info: str | None = None  # e.g. "Window 3, Page 500"
 
 
 class CoverageV2SourcePreviewConnector(BaseModel):
@@ -121,13 +120,13 @@ class CoverageV2SourcePreviewConnector(BaseModel):
 class CoverageV2SourcePreviewJob(BaseModel):
     job: str
     domain: str
-    description: Optional[str] = None
+    description: str | None = None
     enabled_in_mvp: bool = False
     status: CoverageSourceStatus
     total_items: int = 0
-    last_success_at: Optional[datetime] = None
-    freshness_lag_hours: Optional[float] = None
-    latest_run: Optional[CoverageV2LatestRun] = None
+    last_success_at: datetime | None = None
+    freshness_lag_hours: float | None = None
+    latest_run: CoverageV2LatestRun | None = None
 
 
 class CoverageV2SourcePreviewResponse(BaseModel):
@@ -175,7 +174,7 @@ class CoverageV2RunFieldProfile(BaseModel):
 
 class CoverageV2RunSampleRecord(BaseModel):
     raw_id: str
-    created_at: Optional[str] = None
+    created_at: str | None = None
     preview: dict
     raw_data: dict
 
@@ -205,13 +204,13 @@ class PublicSourceItem(BaseModel):
     connector: str
     job: str
     domain: str
-    base_url: Optional[str] = None
+    base_url: str | None = None
     is_government: bool
-    veracity: Optional[SourceVeracityDetail] = None
+    veracity: SourceVeracityDetail | None = None
     status: CoverageSourceStatus = "pending"
-    freshness_lag_hours: Optional[float] = None
+    freshness_lag_hours: float | None = None
     total_items: int = 0
-    compliance_status: Optional[str] = None
+    compliance_status: str | None = None
 
 
 class PublicDomainException(BaseModel):

@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Approved public output schemas — ONLY these fields may be returned
@@ -29,9 +28,9 @@ class PublicSignalSummary(BaseModel):
     typology_name: str
     severity: str
     title: str
-    summary: Optional[str] = None
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    summary: str | None = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
     created_at: datetime
     disclaimer: str
 
@@ -42,7 +41,7 @@ class PublicEntitySummary(BaseModel):
     name: str
     type: str
     signal_count: int = 0
-    max_severity: Optional[str] = None
+    max_severity: str | None = None
 
 
 class PublicCaseSummary(BaseModel):
@@ -60,8 +59,8 @@ class PublicSourceInfo(BaseModel):
     """Source veracity entry — no internal weighting details."""
     connector_id: str
     label: str
-    veracity_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    last_ingested_at: Optional[datetime] = None
+    veracity_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    last_ingested_at: datetime | None = None
     is_active: bool
 
 

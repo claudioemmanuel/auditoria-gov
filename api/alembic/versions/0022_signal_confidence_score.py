@@ -4,7 +4,7 @@ Revision ID: 0022
 Revises: 0021
 Create Date: 2026-03-23 14:00:00.000000
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -12,9 +12,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers
 revision: str = "0022"
-down_revision: Union[str, None] = "0021"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0021"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

@@ -1,8 +1,8 @@
 import os
+from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
-from typing import Literal
 
 
 class Settings(BaseSettings):

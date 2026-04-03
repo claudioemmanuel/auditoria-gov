@@ -1,80 +1,65 @@
-.PHONY: install dev dev-full dev-down logs test test-core test-all test-cov lint typecheck boundaries migrate migrate-new seed ingest pipeline clean
+.PHONY: build dev dev-down logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync install
 
-# ── Setup ─────────────────────────────────────────────────────────────────────
-install:
-	uv sync --all-extras
-	pnpm install
+# ── Docker build ──────────────────────────────────────────────────────────────
+build:
+docker compose build
 
-# ── Development modes ─────────────────────────────────────────────────────────
-# Lightweight: only Postgres + Redis via Docker; run api/web natively
+# ── Development ───────────────────────────────────────────────────────────────
+# Requires openwatch-core to be running first (it owns postgres, redis, core-api).
+# Start core:   cd ../openwatch-core && make dev
+# Then:         make dev   (this repo)
 dev:
-	docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.dev-lite.yml up -d
-	@echo ""
-	@echo "  Services running:"
-	@echo "    Postgres:  localhost:5432"
-	@echo "    Redis:     localhost:6379"
-	@echo ""
-	@echo "  Start API:  cd apps/api && uv run uvicorn app.main:app --reload --port 8000"
-	@echo "  Start Web:  cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev"
-	@echo ""
-
-# Full stack: all services in Docker (~7.5 GB RAM)
-dev-full:
-	docker compose -f infra/docker/docker-compose.yml up -d
+docker compose up -d
+@echo ""
+@echo "  Public services running:"
+@echo "    API:  http://localhost:8000"
+@echo "    Web:  http://localhost:3000"
+@echo ""
 
 dev-down:
-	docker compose -f infra/docker/docker-compose.yml down
+docker compose down
 
 logs:
-	docker compose -f infra/docker/docker-compose.yml logs -f --tail=100
+docker compose logs -f --tail=100
 
 # ── Database ──────────────────────────────────────────────────────────────────
 migrate:
-	cd apps/api && uv run alembic upgrade head
+docker compose run --rm api alembic -c /app/api/alembic.ini upgrade head
 
 migrate-new:
-	cd apps/api && uv run alembic revision --autogenerate -m "$(name)"
+docker compose run --rm api alembic -c /app/api/alembic.ini revision --autogenerate -m "$(name)"
 
 seed:
-	bash infra/scripts/seed.sh
+docker compose run --rm api python -c "from shared.config import settings; print('DB:', settings.DATABASE_URL)"
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test:
-	uv run pytest tests/public -q
-
-test-core:
-	uv run pytest tests/core -q
-
-test-all:
-	uv run pytest -q
+uv run pytest tests/public -q
 
 test-cov:
-	uv run pytest --cov --cov-report=html -q
+uv run pytest tests/public --cov --cov-report=html -q
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 lint:
-	uv run ruff check packages/ core/ apps/api/
-	cd apps/web && npm run lint
+docker compose run --rm api ruff check packages/ api/ shared/
+cd apps/web && npm run lint
 
 typecheck:
-	uv run mypy packages/ core/ apps/api/ --ignore-missing-imports
-	cd apps/web && npm run typecheck
+docker compose run --rm api mypy packages/ api/ shared/ --ignore-missing-imports
+cd apps/web && npm run typecheck
 
 boundaries:
-	uv run lint-imports --config .import-linter
+docker compose run --rm api lint-imports --config .import-linter
 
-# ── Pipeline utils ────────────────────────────────────────────────────────────
-ingest:
-	curl -s -X POST http://localhost:8000/internal/ingest/all \
-	  -H "X-Internal-Api-Key: $$(cat .env | grep INTERNAL_API_KEY | cut -d= -f2)"
+# ── IDE tooling (optional — for editor/LSP support only) ─────────────────────
+install: sync
 
-pipeline:
-	curl -s -X POST http://localhost:8000/internal/pipeline/full \
-	  -H "X-Internal-Api-Key: $$(cat .env | grep INTERNAL_API_KEY | cut -d= -f2)"
+sync:
+	uv sync --all-packages
+	pnpm install
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 clean:
-	docker compose -f infra/docker/docker-compose.yml down -v
-	find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null; true
-	find . -name '.pytest_cache' -type d -exec rm -rf {} + 2>/dev/null; true
-
+docker compose down -v
+find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null; true
+find . -name '.pytest_cache' -type d -exec rm -rf {} + 2>/dev/null; true

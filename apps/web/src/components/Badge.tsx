@@ -68,7 +68,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
 }
 
 /* ── Generic Badge ──────────────────────────────────────────────── */
-type BadgeVariant = "critical" | "high" | "medium" | "low" | "info" | "neutral" | "amber" | "trust";
+type BadgeVariant = "critical" | "high" | "medium" | "low" | "info" | "neutral" | "amber" | "trust" | "signal";
 
 interface BadgeProps {
   variant?: BadgeVariant;

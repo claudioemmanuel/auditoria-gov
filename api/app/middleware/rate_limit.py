@@ -68,19 +68,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         headers={"Retry-After": "1"},
                     )
 
-        elif path.startswith("/internal"):
-            if redis is not None:
-                api_key = request.headers.get("X-Internal-Api-Key", "anonymous")
-                blocked = await _check_rate_limit(
-                    redis,
-                    f"ratelimit:internal:{api_key}",
-                    settings.INTERNAL_RATE_LIMIT_BURST,
+        elif path.startswith("/internal") and redis is not None:
+            api_key = request.headers.get("X-Internal-Api-Key", "anonymous")
+            blocked = await _check_rate_limit(
+                redis,
+                f"ratelimit:internal:{api_key}",
+                settings.INTERNAL_RATE_LIMIT_BURST,
+            )
+            if blocked:
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many requests"},
+                    headers={"Retry-After": "1"},
                 )
-                if blocked:
-                    return JSONResponse(
-                        status_code=429,
-                        content={"detail": "Too many requests"},
-                        headers={"Retry-After": "1"},
-                    )
 
         return await call_next(request)

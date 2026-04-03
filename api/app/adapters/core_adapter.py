@@ -1,362 +1,228 @@
-"""
-Core Adapter — Dual-Mode Data Access Layer
-==========================================
+"""Core Adapter — Public Gateway Layer.
 
-MONOREPO MODE (CORE_SERVICE_URL is empty):
-  All functions delegate directly to shared.repo.queries / shared.repo.provenance.
-  This is the default for local development and the current monorepo setup.
-
-SPLIT MODE (CORE_SERVICE_URL is set):
-  All functions delegate to CoreClient (HTTP calls to openwatch-core service).
-  This is the target architecture after the open-core split.
-
-POST-SPLIT CLEANUP:
-  Delete the entire `if settings.CORE_SERVICE_URL:` branch and all direct shared.repo
-  imports. Only the CoreClient path remains in the public repo.
-
-Import rule:
-  public.py (and any public-layer code) MUST ONLY import from this adapter.
-  Never import shared.repo.* or shared.typologies.* directly from public routes.
+The open-source `openwatch` repository no longer imports or executes protected
+analytics, ER, typology, or repository code directly. All investigative data
+access is delegated to the private `openwatch-core` service through
+`api.core_client.CoreClient`.
 """
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
-from typing import Optional, Any
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.core_client import CoreClient
 from shared.config import settings
+from shared.models.typology_catalog import get_public_typology, list_public_typologies
 
 
-# ---------------------------------------------------------------------------
-# Lazy import helpers — only loaded in monorepo mode
-# ---------------------------------------------------------------------------
+def _client() -> CoreClient:
+    if not settings.CORE_SERVICE_URL:
+        raise RuntimeError(
+            "CORE_SERVICE_URL is not configured. The public OpenWatch API must connect to openwatch-core."
+        )
+    if not settings.CORE_API_KEY:
+        raise RuntimeError(
+            "CORE_API_KEY is required when CORE_SERVICE_URL is configured."
+        )
+    return CoreClient()
 
-def _queries():
-    from shared.repo import queries  # noqa: PLC0415
-    return queries
-
-
-def _provenance():
-    from shared.repo import provenance  # noqa: PLC0415
-    return provenance
-
-
-def _factor_metadata():
-    from shared.typologies import factor_metadata  # noqa: PLC0415
-    return factor_metadata
-
-
-def _registry():
-    from shared.typologies.registry import TypologyRegistry  # noqa: PLC0415
-    return TypologyRegistry
-
-
-def _baselines():
-    from shared.baselines import models as bm  # noqa: PLC0415
-    return bm
-
-
-# ---------------------------------------------------------------------------
-# Mode check
-# ---------------------------------------------------------------------------
-
-def _use_core_service() -> bool:
-    return bool(settings.CORE_SERVICE_URL)
-
-
-# ---------------------------------------------------------------------------
-# Query adapters — one function per public use-case
-# ---------------------------------------------------------------------------
 
 async def adapter_get_coverage_v2_summary(session: AsyncSession) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_coverage_summary()
-    return await _queries().get_coverage_v2_summary(session)
+    _ = session
+    return await _client().get_coverage_summary()
 
 
 async def adapter_get_coverage_v2_sources(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_coverage_sources(**kwargs)
-    return await _queries().get_coverage_v2_sources(session, **kwargs)
+    _ = session
+    return await _client().get_coverage_sources(**kwargs)
 
 
 async def adapter_get_coverage_v2_source_preview(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_coverage_source_preview(**kwargs)
-    return await _queries().get_coverage_v2_source_preview(session, **kwargs)
+    _ = session
+    return await _client().get_coverage_source_preview(**kwargs)
 
 
 async def adapter_get_coverage_v2_map(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_coverage_map(**kwargs)
-    return await _queries().get_coverage_v2_map(session, **kwargs)
+    _ = session
+    return await _client().get_coverage_map(**kwargs)
 
 
 async def adapter_get_coverage_v2_analytics(session: AsyncSession) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_coverage_analytics()
-    return await _queries().get_coverage_v2_analytics(session)
+    _ = session
+    return await _client().get_coverage_analytics()
 
 
 async def adapter_get_coverage_v2_run_detail(session: AsyncSession, run_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_coverage_run_detail(str(run_id))
-    return await _queries().get_coverage_v2_run_detail(session, run_id)
+    _ = session
+    return await _client().get_coverage_run_detail(str(run_id))
 
 
 async def adapter_get_public_sources(session: AsyncSession) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_public_sources()
-    return await _queries().get_public_sources(session)
+    _ = session
+    return await _client().get_public_sources()
 
 
 async def adapter_get_radar_v2_summary(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_radar_summary(**kwargs)
-    return await _queries().get_radar_v2_summary(session, **kwargs)
+    _ = session
+    return await _client().get_radar_summary(**kwargs)
 
 
 async def adapter_get_radar_v2_signals(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_radar_signals(**kwargs)
-    return await _queries().get_radar_v2_signals(session, **kwargs)
+    _ = session
+    return await _client().get_radar_signals(**kwargs)
 
 
 async def adapter_get_radar_v2_signal_preview(session: AsyncSession, signal_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_radar_signal_preview(str(signal_id))
-    return await _queries().get_radar_v2_signal_preview(session, signal_id)
+    _ = session
+    return await _client().get_radar_signal_preview(str(signal_id))
 
 
 async def adapter_get_radar_v2_cases(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_radar_cases(**kwargs)
-    return await _queries().get_radar_v2_cases(session, **kwargs)
+    _ = session
+    return await _client().get_radar_cases(**kwargs)
 
 
 async def adapter_get_radar_v2_case_preview(session: AsyncSession, case_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_radar_case_preview(str(case_id))
-    return await _queries().get_radar_v2_case_preview(session, case_id)
+    _ = session
+    return await _client().get_radar_case_preview(str(case_id))
 
 
 async def adapter_get_radar_v2_coverage(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_radar_coverage(**kwargs)
-    return await _queries().get_radar_v2_coverage(session, **kwargs)
+    _ = session
+    return await _client().get_radar_coverage(**kwargs)
 
 
 async def adapter_search_entities(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().search_entities(**kwargs)
-    return await _queries().search_entities(session, **kwargs)
+    _ = session
+    return await _client().search_entities(**kwargs)
 
 
 async def adapter_get_entity_by_id(session: AsyncSession, entity_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_entity(str(entity_id))
-    return await _queries().get_entity_by_id(session, entity_id)
+    _ = session
+    return await _client().get_entity(str(entity_id))
 
 
 async def adapter_get_org_summary(session: AsyncSession, entity_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_org_summary(str(entity_id))
-    return await _queries().get_org_summary(session, entity_id)
+    _ = session
+    return await _client().get_org_summary(str(entity_id))
 
 
 async def adapter_get_case_by_id(session: AsyncSession, case_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_case(str(case_id))
-    return await _queries().get_case_by_id(session, case_id)
+    _ = session
+    return await _client().get_case(str(case_id))
 
 
 async def adapter_get_case_entities_with_roles(session: AsyncSession, case_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_case_entities(str(case_id))
-    return await _queries().get_case_entities_with_roles(session, case_id)
+    _ = session
+    return await _client().get_case_entities(str(case_id))
 
 
 async def adapter_get_case_graph(session: AsyncSession, case_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_case_graph(str(case_id))
-    return await _queries().get_case_graph(session, case_id)
+    _ = session
+    return await _client().get_case_graph(str(case_id))
 
 
 async def adapter_get_signal_by_id(session: AsyncSession, signal_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_signal(str(signal_id))
-    return await _queries().get_signal_by_id(session, signal_id)
+    _ = session
+    return await _client().get_signal(str(signal_id))
 
 
 async def adapter_get_signal_detail(session: AsyncSession, signal_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_signal_detail(str(signal_id))
-    return await _queries().get_signal_detail(session, signal_id)
+    _ = session
+    return await _client().get_signal_detail(str(signal_id))
 
 
 async def adapter_get_signal_graph(session: AsyncSession, signal_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_signal_graph(str(signal_id))
-    return await _queries().get_signal_graph(session, signal_id)
+    _ = session
+    return await _client().get_signal_graph(str(signal_id))
 
 
 async def adapter_get_signal_evidence_page(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_signal_evidence(**kwargs)
-    return await _queries().get_signal_evidence_page(session, **kwargs)
+    _ = session
+    return await _client().get_signal_evidence(**kwargs)
 
 
 async def adapter_replay_signal(session: AsyncSession, signal_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().replay_signal(str(signal_id))
-    return await _queries().replay_signal(session, signal_id)
+    _ = session
+    return await _client().replay_signal(str(signal_id))
 
 
 async def adapter_get_evidence_package_by_id(session: AsyncSession, package_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_evidence_package(str(package_id))
-    return await _queries().get_evidence_package_by_id(session, package_id)
+    _ = session
+    return await _client().get_evidence_package(str(package_id))
 
 
 async def adapter_get_dossier_summary(session: AsyncSession, entity_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_dossier_summary(str(entity_id))
-    return await _queries().get_dossier_summary(session, entity_id)
+    _ = session
+    return await _client().get_dossier_summary(str(entity_id))
 
 
 async def adapter_get_dossier_timeline(session: AsyncSession, entity_id: uuid.UUID, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_dossier_timeline(str(entity_id), **kwargs)
-    return await _queries().get_dossier_timeline(session, entity_id, **kwargs)
+    _ = session
+    return await _client().get_dossier_timeline(str(entity_id), **kwargs)
 
 
 async def adapter_get_entity_path(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_entity_path(**kwargs)
-    return await _queries().get_entity_path(session, **kwargs)
+    _ = session
+    return await _client().get_entity_path(**kwargs)
 
 
 async def adapter_get_graph_neighborhood(session: AsyncSession, **kwargs: Any) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_graph_neighborhood(**kwargs)
-    return await _queries().get_graph_neighborhood(session, **kwargs)
+    _ = session
+    return await _client().get_graph_neighborhood(**kwargs)
 
 
 async def adapter_get_signal_provenance(session: AsyncSession, signal_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_signal_provenance(str(signal_id))
-    return await _provenance().get_raw_sources_for_event(session, signal_id)
+    _ = session
+    return await _client().get_signal_provenance(str(signal_id))
 
 
 async def adapter_get_case_provenance(session: AsyncSession, case_id: uuid.UUID) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_case_provenance(str(case_id))
-    return await _provenance().get_case_provenance_web(session, case_id)
+    _ = session
+    return await _client().get_case_provenance(str(case_id))
 
 
 async def adapter_get_baseline(session: AsyncSession, baseline_type: str, scope_key: str) -> Any:
-    if _use_core_service():
-        from api.core_client import CoreClient
-        return await CoreClient().get_baseline(baseline_type=baseline_type, scope_key=scope_key)
-    q = _queries()
-    return await q.get_baseline(session, baseline_type, scope_key)
+    _ = session
+    return await _client().get_baseline(
+        baseline_type=baseline_type,
+        scope_key=scope_key,
+    )
 
 
-# ---------------------------------------------------------------------------
-# Typology metadata — read-only reference data (safe to expose publicly)
-# ---------------------------------------------------------------------------
+def adapter_get_factor_descriptions(factors: dict, typology_code: str | None = None) -> dict:
+    """Return safe public descriptions for factor keys.
 
-def adapter_get_factor_descriptions(factors: dict, typology_code: Optional[str] = None) -> dict:
-    """Returns human-readable factor descriptions for a signal's factors dict."""
-    if _use_core_service():
-        # In split mode, factor descriptions are embedded in the signal response from core.
-        return {}
-    return _factor_metadata().get_factor_descriptions(factors, typology_code=typology_code)
+    When detailed factor metadata is unavailable from `openwatch-core`, the
+    public layer still returns a stable key -> human label mapping so dossier and
+    case-detail views remain intelligible.
+    """
+    _ = typology_code
+    return {
+        key: key.replace("_", " ").strip().capitalize()
+        for key in (factors or {})
+    }
 
 
-def adapter_get_typology_legal_metadata(code: str) -> Optional[dict]:
-    """Returns legal metadata (laws, articles) for a typology code."""
-    if _use_core_service():
-        # In split mode, returned inline from core service get_typology endpoint.
+def adapter_get_typology_legal_metadata(code: str) -> dict | None:
+    item = get_public_typology(code)
+    if item is None:
         return None
-    return _factor_metadata().TYPOLOGY_LEGAL_METADATA.get(code.upper())
+    return {
+        "corruption_types": item.get("corruption_types", []),
+        "spheres": item.get("spheres", []),
+        "evidence_level": item.get("evidence_level", ""),
+        "description_legal": item.get("description_legal", ""),
+        "law_articles": item.get("law_articles", []),
+    }
 
 
 def adapter_list_typologies() -> list[dict]:
-    """Returns all registered typologies with their metadata."""
-    if _use_core_service():
-        # In split mode: CoreClient.list_typologies() — implement as needed.
-        return []
-    registry = _registry()
-    fm = _factor_metadata()
-    items = []
-    for code, cls in registry.items():
-        typology = cls()
-        meta = fm.TYPOLOGY_LEGAL_METADATA.get(code, {})
-        items.append({
-            "code": typology.id,
-            "name": typology.name,
-            "corruption_types": meta.get("corruption_types", []),
-            "spheres": meta.get("spheres", []),
-            "evidence_level": meta.get("evidence_level", ""),
-            "description_legal": meta.get("description_legal", ""),
-            "law_articles": meta.get("law_articles", []),
-        })
-    return items
+    return list_public_typologies()
 
 
-def adapter_get_typology(code: str) -> Optional[dict]:
-    """Returns metadata for a single typology by code."""
-    if _use_core_service():
-        return None
-    registry = _registry()
-    fm = _factor_metadata()
-    upper = code.upper()
-    cls = registry.get(upper)
-    if cls is None:
-        return None
-    typology = cls()
-    meta = fm.TYPOLOGY_LEGAL_METADATA.get(upper, {})
-    return {
-        "code": typology.id,
-        "name": typology.name,
-        "corruption_types": meta.get("corruption_types", []),
-        "spheres": meta.get("spheres", []),
-        "evidence_level": meta.get("evidence_level", ""),
-        "description_legal": meta.get("description_legal", ""),
-        "law_articles": meta.get("law_articles", []),
-        "factors": meta.get("factors", []),
-    }
+def adapter_get_typology(code: str) -> dict | None:
+    return get_public_typology(code)
+

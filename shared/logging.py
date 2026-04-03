@@ -1,6 +1,7 @@
 import logging
 
 import structlog
+
 from shared.config import settings
 
 _NAME_TO_LEVEL = {

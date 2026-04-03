@@ -1,3 +1,3 @@
-from openwatch_config.settings import Settings, settings, get_settings
+from openwatch_config.settings import Settings, get_settings, settings
 
 __all__ = ["Settings", "settings", "get_settings"]

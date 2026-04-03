@@ -75,35 +75,31 @@ ALL_PROTECTED = PROTECTED_MODULES + PROTECTED_CONNECTORS
 # (post-split, these will be the only files in the public repo)
 # ---------------------------------------------------------------------------
 PUBLIC_PATHS: list[str] = [
-    "web/src",
+    "apps/web/src",
     "packages/sdk",
     "packages/ui",
     "packages/utils",
     "packages/config",
+    "packages/models/openwatch_models",
+    "packages/connectors/openwatch_connectors/domain_guard.py",
+    "packages/connectors/openwatch_connectors/http_client.py",
     # Public API surface
     "api/app/routers/public.py",
     "api/app/main.py",
     "api/app/deps.py",
     "api/core_client.py",
-    "api/app/adapters",        # Dual-mode adapter — post-split removes the DB fallback branch
-    # Generic connectors
+    "api/app/adapters",
+    # Generic connectors kept in the public layer
     "shared/connectors/http_client.py",
     "shared/connectors/domain_guard.py",
-    "shared/connectors/ibge.py",
-    "shared/connectors/brasilapi_cnpj.py",
-    "shared/connectors/pncp.py",
-    "shared/connectors/portal_transparencia.py",
-    "shared/connectors/compras_gov.py",
-    "shared/connectors/comprasnet_contratos.py",
-    "shared/connectors/base.py",
     # Public models — response schemas (API contract)
     "shared/models/canonical.py",
     "shared/models/signals.py",
     "shared/models/vocabulary.py",
     "shared/models/base.py",
-    "shared/models/graph.py",      # Pydantic API response schemas
-    "shared/models/radar.py",      # Pydantic API response schemas
-    "shared/models/coverage_v2.py",# Pydantic API response schemas
+    "shared/models/graph.py",
+    "shared/models/radar.py",
+    "shared/models/coverage_v2.py",
     "shared/models/public_filter.py",
     "shared/logging.py",
     "shared/config.py",
@@ -116,27 +112,14 @@ PUBLIC_PATHS: list[str] = [
 # After the split, the monorepo fallback branch is deleted and this exemption
 # is removed along with api/app/adapters/ entry in PUBLIC_PATHS.
 # ---------------------------------------------------------------------------
-ADAPTER_EXEMPT_PATHS: list[str] = [
-    "api/app/adapters",
-    "api/app/main.py",  # Internal router import is runtime-guarded by CORE_SERVICE_URL check
-]
+ADAPTER_EXEMPT_PATHS: list[str] = []
 
 
 # ---------------------------------------------------------------------------
-# Public connector files that import shared.models.raw for their return types.
-# At split time these connectors move to openwatch-core (they are data-fetching
-# pipeline components, not pure public API helpers). Until the split, their
-# raw model imports are tracked as WARNINGS, not violations.
+# Post-split state: data-ingestion connectors live exclusively in
+# `openwatch-core`. The public repo keeps only generic transport helpers.
 # ---------------------------------------------------------------------------
-CONNECTOR_SPLIT_TODO_PATHS: list[str] = [
-    "shared/connectors/base.py",
-    "shared/connectors/ibge.py",
-    "shared/connectors/brasilapi_cnpj.py",
-    "shared/connectors/pncp.py",
-    "shared/connectors/portal_transparencia.py",
-    "shared/connectors/compras_gov.py",
-    "shared/connectors/comprasnet_contratos.py",
-]
+CONNECTOR_SPLIT_TODO_PATHS: list[str] = []
 
 
 def collect_python_files(paths: list[str]) -> list[Path]:
