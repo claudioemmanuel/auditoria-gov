@@ -1,0 +1,198 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { CoverageMapItem, CoverageV2MapResponse } from "@/lib/types";
+import { COVERAGE_STATUS_LABELS } from "@/lib/constants";
+import { formatNumber } from "@/lib/utils";
+
+interface CoverageMapPanelProps {
+  map: CoverageV2MapResponse | null;
+  metric: "coverage" | "freshness" | "risk";
+  loading: boolean;
+  onMetricChange: (metric: "coverage" | "freshness" | "risk") => void;
+}
+
+const UF_ORDER = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
+  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
+
+const UF_REGION: Record<string, string> = {
+  AC: "Norte", AL: "Nordeste", AP: "Norte", AM: "Norte", BA: "Nordeste",
+  CE: "Nordeste", DF: "Centro-Oeste", ES: "Sudeste", GO: "Centro-Oeste", MA: "Nordeste",
+  MT: "Centro-Oeste", MS: "Centro-Oeste", MG: "Sudeste", PA: "Norte", PB: "Nordeste",
+  PR: "Sul", PE: "Nordeste", PI: "Nordeste", RJ: "Sudeste", RN: "Nordeste",
+  RS: "Sul", RO: "Norte", RR: "Norte", SC: "Sul", SP: "Sudeste", SE: "Nordeste", TO: "Norte",
+};
+
+function cellClass(item?: CoverageMapItem, metric: "coverage" | "freshness" | "risk" = "coverage"): string {
+  if (!item) return "bg-surface-subtle text-muted border-border";
+  if (metric === "risk") {
+    if (item.risk_score >= 0.75) return "bg-error-subtle text-error border-error/20";
+    if (item.risk_score >= 0.5) return "bg-amber-subtle text-amber border-amber/20";
+    if (item.risk_score > 0) return "bg-accent-subtle text-accent border-accent/20";
+    return "bg-surface-subtle text-muted border-border";
+  }
+  if (metric === "freshness") {
+    if (item.freshness_hours == null) return "bg-surface-subtle text-muted border-border";
+    if (item.freshness_hours < 24) return "bg-success-subtle text-success border-success/20";
+    if (item.freshness_hours < 72) return "bg-amber-subtle text-amber border-amber/20";
+    return "bg-error-subtle text-error border-error/20";
+  }
+  if (item.coverage_score >= 0.75) return "bg-success-subtle text-success border-success/20";
+  if (item.coverage_score >= 0.45) return "bg-amber-subtle text-amber border-amber/20";
+  if (item.coverage_score > 0) return "bg-accent-subtle text-accent border-accent/20";
+  return "bg-surface-subtle text-muted border-border";
+}
+
+function metricLabel(item?: CoverageMapItem, metric: "coverage" | "freshness" | "risk" = "coverage"): string {
+  if (!item) return "Sem dados";
+  if (metric === "risk") return `${Math.round(item.risk_score * 100)}%`;
+  if (metric === "freshness") {
+    if (item.freshness_hours == null) return "Sem leitura";
+    return `${Math.round(item.freshness_hours)}h`;
+  }
+  return `${Math.round(item.coverage_score * 100)}%`;
+}
+
+export function CoverageMapPanel({ map, metric, loading, onMetricChange }: CoverageMapPanelProps) {
+  const [selectedUf, setSelectedUf] = useState<string>("SP");
+
+  const mapByUf = useMemo(() => {
+    const ufMap = new Map<string, CoverageMapItem>();
+    for (const item of map?.items || []) {
+      ufMap.set(item.code, item);
+    }
+    return ufMap;
+  }, [map]);
+
+  useEffect(() => {
+    if (mapByUf.has(selectedUf)) return;
+    const firstWithData = (map?.items || []).find((item) => item.event_count > 0)?.code;
+    if (firstWithData) setSelectedUf(firstWithData);
+  }, [map, mapByUf, selectedUf]);
+
+  const selectedItem = mapByUf.get(selectedUf);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="panel-title">Visao territorial</h3>
+          <p className="mt-1 text-xs text-muted">
+            Clique em uma UF para detalhar cobertura, frescor e risco.
+          </p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-base p-1">
+          {(["coverage", "freshness", "risk"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              onClick={() => onMetricChange(entry)}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${
+                metric === entry
+                  ? "bg-accent-subtle text-accent"
+                  : "text-secondary hover:bg-surface-subtle"
+              }`}
+            >
+              {entry === "coverage" ? "Cobertura" : entry === "freshness" ? "Frescor" : "Risco"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading || !map ? (
+        <div className="h-64 animate-pulse rounded-lg bg-surface-subtle" />
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[760px] grid-cols-9 gap-2">
+              {UF_ORDER.map((uf) => {
+                const item = mapByUf.get(uf);
+                const selected = selectedUf === uf;
+                return (
+                  <button
+                    key={uf}
+                    type="button"
+                    onClick={() => setSelectedUf(uf)}
+                    className={`min-h-[86px] rounded-lg border px-2 py-2 text-left transition ${cellClass(item, metric)} ${
+                      selected ? "ring-2 ring-accent" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <span className="text-sm font-bold">{uf}</span>
+                      <span className="text-[10px] opacity-80">{UF_REGION[uf]}</span>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold">{metricLabel(item, metric)}</p>
+                    <p className="mt-1 text-[11px] opacity-80">
+                      {item ? `${formatNumber(item.event_count)} eventos` : "Sem dados"}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+            <div className="rounded-xl border border-border bg-surface-base/70 p-3 lg:col-span-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">UF selecionada</h4>
+              <p className="mt-1 text-base font-semibold text-primary">
+                {selectedUf}{selectedItem?.label ? ` - ${selectedItem.label}` : ""}
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-secondary">
+                <p>
+                  Cobertura:{" "}
+                  <span className="font-semibold">
+                    {selectedItem ? `${Math.round(selectedItem.coverage_score * 100)}%` : "Sem dados"}
+                  </span>
+                </p>
+                <p>
+                  Risco:{" "}
+                  <span className="font-semibold">
+                    {selectedItem ? `${Math.round(selectedItem.risk_score * 100)}%` : "Sem dados"}
+                  </span>
+                </p>
+                <p>
+                  Frescor:{" "}
+                  <span className="font-semibold">
+                    {selectedItem?.freshness_hours == null ? "Nao informado" : `${Math.round(selectedItem.freshness_hours)}h`}
+                  </span>
+                </p>
+                <p>
+                  Status:{" "}
+                  <span className="font-semibold">
+                    {selectedItem ? COVERAGE_STATUS_LABELS[selectedItem.status] : "Sem dados"}
+                  </span>
+                </p>
+                <p className="col-span-2">
+                  Eventos: <span className="font-semibold">{selectedItem ? formatNumber(selectedItem.event_count) : 0}</span>
+                  {" • "}
+                  Sinais: <span className="font-semibold">{selectedItem ? formatNumber(selectedItem.signal_count) : 0}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface-base/70 p-3 lg:col-span-8">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Resumo nacional</h4>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-secondary sm:grid-cols-4">
+                <p>
+                  UFs com dados: <span className="font-semibold">{map.national.regions_with_data}</span>
+                </p>
+                <p>
+                  UFs sem dados: <span className="font-semibold">{map.national.regions_without_data}</span>
+                </p>
+                <p>
+                  Eventos: <span className="font-semibold">{formatNumber(map.national.total_events)}</span>
+                </p>
+                <p>
+                  Sinais: <span className="font-semibold">{formatNumber(map.national.total_signals)}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
