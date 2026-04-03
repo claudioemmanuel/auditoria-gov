@@ -1,26 +1,16 @@
-# docker-compose.prod.yml — production overrides for the public layer.
+# docker-compose.prod.yml — production overrides for the public layer
 # Frontend served by Vercel — web service disabled.
-# Workers and analytics run from openwatch-core on the same host or a separate service.
+# Postgres and Redis managed by openwatch-core on the same host.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-#
-# Shortcut — add to .env on your server:
-#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 
 services:
-  postgres:
-    restart: unless-stopped
-
-  redis:
-    restart: unless-stopped
-
   api:
     restart: unless-stopped
     environment:
       APP_ENV: production
 
-  # Caddy handles TLS termination for the public API.
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -42,8 +32,9 @@ services:
           memory: 64M
         reservations:
           memory: 32M
+    networks:
+      - openwatch-net
 
-  # Frontend deployed to Vercel — web container not needed in production.
   web:
     profiles:
       - disabled
@@ -51,3 +42,8 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+
+networks:
+  openwatch-net:
+    external: true
+    name: openwatch-net
