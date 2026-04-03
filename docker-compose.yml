@@ -1,3 +1,15 @@
+# docker-compose.yml
+# Public-layer stack: postgres + redis + public API gateway.
+#
+# Workers and analytics pipelines live in the private openwatch-core repository.
+# For a full local development setup, also run openwatch-core's docker compose
+# and set CORE_SERVICE_URL=http://localhost:8001 in your .env file.
+#
+# Usage:
+#   cp .env.example .env   # fill in your values
+#   docker compose up -d
+#   docker compose logs -f api
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -72,7 +84,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: api/Dockerfile
     ports:
       - "127.0.0.1:8000:8000"
     env_file: .env
@@ -93,104 +105,9 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: 384M
+          memory: 512M
         reservations:
           memory: 192M
-
-  # Primary worker: I/O-bound tasks (ingest, normalize, ai, maintenance) + Beat scheduler.
-  # Beat is embedded here (--beat flag) to avoid a separate container.
-  # Only ONE worker-primary should ever run — duplicate beat schedulers cause double-firing.
-  # Concurrency=6: ingest tasks are network-bound; high concurrency is safe.
-  worker-primary:
-    restart: on-failure
-    user: "openwatch"
-    build:
-      context: .
-      dockerfile: core/pipelines/Dockerfile
-    command: celery -A openwatch_pipelines.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum --concurrency=6 --max-memory-per-child=262144 -n worker-primary@%h
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-      APP_ENV: production
-      LOG_FORMAT: json
-      SQL_ECHO: "false"
-      MEM_WARN_PCT: "75"
-      MEM_BLOCK_PCT: "85"
-      CPU_WARN_PCT: "85"
-      BACKLOG_WARN_ETA_MINUTES: "30"
-      INFRA_ALERT_WEBHOOK_URL: ""
-      INFRA_ALERT_COOLDOWN_SECONDS: "1800"
-    depends_on:
-      api:
-        condition: service_healthy
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1536M
-        reservations:
-          memory: 512M
-
-  # Heavy worker: CPU/IO-bound tasks (ER, signals, bulk ingestion).
-  # Handles long-running resource-intensive work separately so it cannot starve primary queues.
-  # Concurrency=1: these tasks are memory-heavy; serial execution prevents OOM.
-  worker-heavy:
-    restart: on-failure
-    user: "openwatch"
-    build:
-      context: .
-      dockerfile: core/pipelines/Dockerfile
-    command: celery -A openwatch_pipelines.worker_app worker --loglevel=info -Q er,signals,bulk,default --concurrency=1 --max-memory-per-child=1024000 -n worker-heavy@%h
-    env_file: .env
-    environment:
-      PYTHONPATH: /app
-      APP_ENV: production
-      LOG_FORMAT: json
-      SQL_ECHO: "false"
-      MEM_WARN_PCT: "75"
-      MEM_BLOCK_PCT: "85"
-      CPU_WARN_PCT: "85"
-      BACKLOG_WARN_ETA_MINUTES: "30"
-      INFRA_ALERT_WEBHOOK_URL: ""
-      INFRA_ALERT_COOLDOWN_SECONDS: "1800"
-    depends_on:
-      api:
-        condition: service_healthy
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - tse_data:/data/tse
-      - receita_data:/data/receita_cnpj
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 2048M
-        reservations:
-          memory: 512M
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      api:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: "0.1"
-          memory: 64M
-        reservations:
-          memory: 32M
 
   web:
     build:
@@ -220,7 +137,3 @@ services:
 volumes:
   pgdata:
   redis_data:
-  tse_data:
-  receita_data:
-  caddy_data:
-  caddy_config:
