@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openwatch-models"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "openwatch-config",
+    "openwatch-utils",
+    "sqlalchemy[asyncio]>=2.0",
+    "pgvector>=0.3",
+    "pydantic>=2.10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["openwatch_models"]
+
+[tool.uv.sources]
+    openwatch-config = { workspace = true }
+    openwatch-utils = { workspace = true }

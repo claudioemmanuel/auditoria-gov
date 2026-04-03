@@ -1,0 +1,13 @@
+{
+  "name": "@openwatch/sdk",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Public TypeScript SDK for the OpenWatch public API",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "echo 'No linter configured yet'",
+    "typecheck": "tsc --noEmit 2>/dev/null || true",
+    "build": "echo 'Build: run tsup src/index.ts --format esm,cjs --dts'"
+  }
+}

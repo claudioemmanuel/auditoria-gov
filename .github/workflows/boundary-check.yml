@@ -1,0 +1,33 @@
+name: Boundary Check
+
+on:
+  pull_request_target:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  boundary-check:
+    name: Open-Core Boundary Enforcement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run boundary checker
+        run: |
+          echo "Checking that designated public files do not import protected core modules..."
+          python tools/check_boundaries.py
+
+      - name: Summary
+        if: failure()
+        run: |
+          echo "::error::Public layer imports protected core modules."
+          echo "::error::Replace direct imports with calls via api/core_client.py (gateway pattern)."
+          echo "::error::See docs/OPEN_CORE_STRATEGY.md for the classification manifest."

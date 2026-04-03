@@ -1,0 +1,62 @@
+[importlinter]
+root_packages =
+    openwatch_config
+    openwatch_utils
+    openwatch_models
+    openwatch_db
+    openwatch_connectors
+    openwatch_typologies
+    openwatch_er
+    openwatch_analytics
+    openwatch_baselines
+    openwatch_services
+    openwatch_ai
+    openwatch_queries
+    openwatch_pipelines
+    openwatch_scheduler
+    app
+
+# ── Public packages must never import core packages ───────────────────────────
+[importlinter:contract:public-cannot-import-core]
+name = Public packages must not import core packages
+type = forbidden
+source_modules =
+    openwatch_config
+    openwatch_utils
+    openwatch_models
+    openwatch_db
+    openwatch_connectors
+    app
+forbidden_modules =
+    openwatch_typologies
+    openwatch_er
+    openwatch_analytics
+    openwatch_baselines
+    openwatch_services
+    openwatch_ai
+    openwatch_pipelines
+    openwatch_scheduler
+
+# ── API cannot import core detectors/engines directly ─────────────────────────
+[importlinter:contract:api-cannot-import-detectors-directly]
+name = API cannot import typologies, ER, or analytics directly
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    openwatch_typologies
+    openwatch_er
+    openwatch_analytics
+    openwatch_baselines
+
+# ── Packages cannot create circular dependencies ─────────────────────────────
+[importlinter:contract:no-config-importing-utils]
+name = openwatch_config must not import openwatch_utils (no circular dep)
+type = forbidden
+source_modules =
+    openwatch_config
+forbidden_modules =
+    openwatch_utils
+    openwatch_models
+    openwatch_db
+    openwatch_connectors

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Public packages + API (no core required) ─────────────────────────────────
+  python-public:
+    name: Python — Public Packages & API
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+      - name: Install all workspace deps
+        run: uv sync --all-extras
+      - name: Auto-fix lint
+        run: uv run ruff check --fix packages/ apps/api/ || true
+      - name: Lint (fail on unfixable errors only)
+        run: uv run ruff check packages/ apps/api/
+      - name: Check import boundaries
+        run: uv run lint-imports --config .import-linter
+      - name: Run public tests
+        run: uv run pytest tests/public -q
+        env:
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+          DATABASE_URL_SYNC: postgresql+psycopg://test:test@localhost:5432/test
+          CPF_HASH_SALT: test-salt-for-ci
+          INTERNAL_API_KEY: test-internal-key
+          APP_ENV: development
+
+  # ── Core packages (secret-gated — skipped in OSS forks) ──────────────────────
+  python-core:
+    name: Python — Core (Private)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    # Only runs when CORE_CI_ENABLED secret is set (not available in OSS forks)
+    if: ${{ secrets.CORE_CI_ENABLED != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+      - name: Install all workspace deps
+        run: uv sync --all-extras
+      - name: Auto-fix lint (core)
+        run: uv run ruff check --fix core/ || true
+      - name: Lint core (fail on unfixable errors only)
+        run: uv run ruff check core/
+      - name: Run core tests
+        run: uv run pytest tests/core -q
+        env:
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+          DATABASE_URL_SYNC: postgresql+psycopg://test:test@localhost:5432/test
+          CPF_HASH_SALT: test-salt-for-ci
+          INTERNAL_API_KEY: test-internal-key
+          APP_ENV: development
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend — Next.js
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.auditoria.example.com
