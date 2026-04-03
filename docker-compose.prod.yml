@@ -1,5 +1,6 @@
-# Production override — OCI Always Free (4 ARM cores, 24GB RAM)
+# docker-compose.prod.yml — production overrides for the public layer.
 # Frontend served by Vercel — web service disabled.
+# Workers and analytics run from openwatch-core on the same host or a separate service.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
@@ -19,33 +20,34 @@ services:
     environment:
       APP_ENV: production
 
-  worker-ingest:
-    restart: unless-stopped
-
-  worker-normalize:
-    restart: unless-stopped
-
-  worker-bulk:
-    restart: unless-stopped
-
-  worker-cpu:
-    restart: unless-stopped
-
-  worker-ai:
-    restart: unless-stopped
-
-  beat:
-    restart: unless-stopped
-
-  flower:
-    restart: unless-stopped
-
+  # Caddy handles TLS termination for the public API.
   caddy:
+    image: caddy:2-alpine
     restart: unless-stopped
-    environment:
-      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN must be set in .env (e.g. api.yourdomain.com)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
+        reservations:
+          memory: 32M
 
-  # Frontend deployed to Vercel — web container not needed in production
+  # Frontend deployed to Vercel — web container not needed in production.
   web:
     profiles:
       - disabled
+
+volumes:
+  caddy_data:
+  caddy_config:
