@@ -1,7 +1,7 @@
 # docker-compose.dev-lite.yml
-# Lightweight override for local development (~2.8 GB total instead of ~7.5 GB).
+# Lightweight override for local development (~1.5 GB total instead of ~3.5 GB).
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml up -d
-# Run web natively: cd web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+# Run web natively: cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 
 services:
   postgres:
@@ -34,12 +34,12 @@ services:
           memory: 256M
 
   redis:
-    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru
     deploy:
       resources:
         limits:
           cpus: "0.1"
-          memory: 256M
+          memory: 128M
         reservations:
           memory: 64M
 
@@ -54,31 +54,6 @@ services:
         reservations:
           memory: 128M
 
-  # Merge both workers into a single container.
-  # Memory budget: 2 workers × 300MB + main/beat overhead ≈ 900MB → 1536M limit.
-  worker-primary:
-    user: "openwatch"
-    command: celery -A worker.worker_app worker --beat --loglevel=info -Q ingest,normalize,ai,default,vacuum,er,signals,bulk --concurrency=2 --max-memory-per-child=300000 -n worker-unified@%h
-    environment:
-      APP_ENV: development
-      LOG_FORMAT: json
-      SQL_ECHO: "false"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 1536M
-        reservations:
-          memory: 256M
-
-  # Disable worker-heavy (merged into worker-primary above)
-  worker-heavy:
-    profiles: ["disabled"]
-
-  # Disable caddy (access API directly on :8000)
-  caddy:
-    profiles: ["disabled"]
-
-  # Disable web (run natively: cd web && npm run dev)
+  # Disable web (run natively: cd apps/web && npm run dev)
   web:
     profiles: ["disabled"]
