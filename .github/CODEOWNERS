@@ -1,0 +1,35 @@
+# CODEOWNERS — openwatch-br/openwatch
+# All PRs require review from @claudioemmanuel by default.
+# More specific rules override the default for their paths.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ── Default owner (catch-all) ─────────────────────────────────────────────────
+*                          @claudioemmanuel
+
+# ── Canonical packages ────────────────────────────────────────────────────────
+packages/connectors/       @claudioemmanuel
+packages/db/               @claudioemmanuel
+packages/models/           @claudioemmanuel
+apps/api/                  @claudioemmanuel
+
+# ── Protected core (pre-split transition — paths will move to openwatch-core) ─
+core/                      @claudioemmanuel
+shared/typologies/         @claudioemmanuel
+shared/analytics/          @claudioemmanuel
+shared/er/                 @claudioemmanuel
+shared/ai/                 @claudioemmanuel
+shared/baselines/          @claudioemmanuel
+shared/services/           @claudioemmanuel
+shared/repo/               @claudioemmanuel
+shared/scheduler/          @claudioemmanuel
+
+# ── Internal API and infrastructure ──────────────────────────────────────────
+apps/api/app/routers/internal.py  @claudioemmanuel
+infra/                     @claudioemmanuel
+
+# ── CI / Security / Governance ────────────────────────────────────────────────
+.github/                   @claudioemmanuel
+tools/                     @claudioemmanuel
+pyproject.toml             @claudioemmanuel
+LICENSE                    @claudioemmanuel
+LICENSE-BSL                @claudioemmanuel

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openwatch-services"
+version = "0.1.0"
+requires-python = ">=3.12"
+# ⛔ PRIVATE — never publish to PyPI
+dependencies = [
+    "openwatch-models",
+    "openwatch-db",
+    "openwatch-config",
+    "openwatch-utils",
+    "openwatch-typologies",
+    "openwatch-analytics",
+    "openwatch-er",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["openwatch_services"]
+
+[tool.uv.sources]
+    openwatch-analytics = { workspace = true }
+    openwatch-config = { workspace = true }
+    openwatch-db = { workspace = true }
+    openwatch-er = { workspace = true }
+    openwatch-models = { workspace = true }
+    openwatch-typologies = { workspace = true }
+    openwatch-utils = { workspace = true }

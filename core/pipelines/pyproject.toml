@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openwatch-pipelines"
+version = "0.1.0"
+requires-python = ">=3.12"
+# ⛔ PRIVATE — never publish to PyPI
+dependencies = [
+    "openwatch-models",
+    "openwatch-db",
+    "openwatch-config",
+    "openwatch-utils",
+    "openwatch-connectors",
+    "openwatch-typologies",
+    "openwatch-er",
+    "openwatch-analytics",
+    "openwatch-baselines",
+    "openwatch-services",
+    "openwatch-ai",
+    "openwatch-queries",
+    "celery[redis]>=5.4",
+    "redis>=5.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["openwatch_pipelines"]
+
+[tool.uv.sources]
+    openwatch-ai = { workspace = true }
+    openwatch-analytics = { workspace = true }
+    openwatch-baselines = { workspace = true }
+    openwatch-config = { workspace = true }
+    openwatch-connectors = { workspace = true }
+    openwatch-db = { workspace = true }
+    openwatch-er = { workspace = true }
+    openwatch-models = { workspace = true }
+    openwatch-queries = { workspace = true }
+    openwatch-services = { workspace = true }
+    openwatch-typologies = { workspace = true }
+    openwatch-utils = { workspace = true }

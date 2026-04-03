@@ -1,0 +1,251 @@
+name: Deploy
+
+# DISABLED: Only running CI for local development. Deploy workflow disabled until production ready.
+# on:
+#   push:
+#     branches: [main]
+
+# Prevent concurrent deploys
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # OIDC federation → IAM role
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_API_REPO: auditoria-gov/api
+  ECR_WORKER_REPO: auditoria-gov/worker
+
+jobs:
+  # ── 1. Backend image: build + push to ECR ──────────────────────────────────
+  build-push-api:
+    name: Build & Push API image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve image metadata
+        id: meta
+        run: |
+          SHA_TAG="${GITHUB_SHA::8}"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_API_REPO }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_API_REPO }}:latest
+
+  build-push-worker:
+    name: Build & Push Worker image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve image metadata
+        id: meta
+        run: |
+          SHA_TAG="${GITHUB_SHA::8}"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./core/pipelines/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:latest
+
+  # ── 2. API service update → ECS Fargate ───────────────────────────────────
+  deploy-api:
+    name: Deploy API → ECS
+    runs-on: ubuntu-latest
+    needs: build-push-api
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download current ECS task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition auditoria-gov-api \
+            --query taskDefinition \
+            > task-def.json
+
+      - name: Render new task definition with updated image
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def.json
+          container-name: api
+          image: >-
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_API_REPO }}:${{ needs.build-push-api.outputs.image_tag }}
+
+      - name: Deploy to ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: auditoria-gov-api
+          cluster: auditoria-gov
+          wait-for-service-stability: true
+
+  # ── 3. Worker task definition update (for next scheduled run) ─────────────
+  update-worker-task-def:
+    name: Update Worker task definition
+    runs-on: ubuntu-latest
+    needs: build-push-worker
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download current worker task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition auditoria-gov-worker \
+            --query taskDefinition \
+            > worker-task-def.json
+
+      - name: Render new worker task definition
+        id: render-worker
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: worker-task-def.json
+          container-name: worker
+          image: >-
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:${{ needs.build-push-worker.outputs.image_tag }}
+
+      - name: Register updated worker task definition
+        run: |
+          aws ecs register-task-definition \
+            --cli-input-json file://${{ steps.render-worker.outputs.task-definition }}
+
+  # ── 4. Frontend → S3 + CloudFront invalidation ────────────────────────────
+  deploy-web:
+    name: Deploy Web → S3/CloudFront
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./web
+
+      - name: Build static export
+        run: npm run build
+        working-directory: ./web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync web/out/ s3://${{ secrets.FRONTEND_BUCKET }}/ \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "*.html" \
+            --exclude "*.json"
+          # HTML + JSON: no-cache so browser always revalidates
+          aws s3 sync web/out/ s3://${{ secrets.FRONTEND_BUCKET }}/ \
+            --delete \
+            --cache-control "public,max-age=0,must-revalidate" \
+            --include "*.html" \
+            --include "*.json"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  # ── 5. DB migrations (runs after API is live) ─────────────────────────────
+  migrate:
+    name: Run DB Migrations
+    runs-on: ubuntu-latest
+    needs: deploy-api
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run Alembic migrations via ECS run-task
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster auditoria-gov \
+            --task-definition auditoria-gov-api \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"api","command":["alembic","-c","apps/api/alembic.ini","upgrade","head"]}]}' \
+            --query "tasks[0].taskArn" \
+            --output text)
+
+          echo "Migration task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster auditoria-gov --tasks "$TASK_ARN"
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster auditoria-gov \
+            --tasks "$TASK_ARN" \
+            --query "tasks[0].containers[0].exitCode" \
+            --output text)
+
+          echo "Migration exit code: $EXIT_CODE"
+          test "$EXIT_CODE" -eq "0"

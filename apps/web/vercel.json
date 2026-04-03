@@ -1,0 +1,24 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["gru1"],
+  "rewrites": [
+    {
+      "source": "/radar/dossie/:caseId/capitulo/:typologyCode",
+      "destination": "/radar/dossie/placeholder/capitulo/placeholder"
+    },
+    {
+      "source": "/radar/dossie/:caseId/sinal/:signalId",
+      "destination": "/radar/dossie/placeholder/sinal/placeholder"
+    },
+    {
+      "source": "/radar/dossie/:caseId/rede",
+      "destination": "/radar/dossie/placeholder/rede"
+    },
+    {
+      "source": "/radar/dossie/:caseId",
+      "destination": "/radar/dossie/placeholder"
+    }
+  ]
+}

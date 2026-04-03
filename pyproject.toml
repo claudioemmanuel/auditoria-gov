@@ -1,0 +1,92 @@
+# Root workspace — all Python packages are managed as uv workspace members.
+# Do NOT add dependencies here. Each package has its own pyproject.toml.
+[project]
+name = "openwatch"
+version = "0.1.0"
+description = "OpenWatch — citizen auditing of Brazilian federal data"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "packages/config",
+    "packages/utils",
+    "packages/models",
+    "packages/db",
+    "packages/connectors",
+    "core/typologies",
+    "core/er",
+    "core/analytics",
+    "core/baselines",
+    "core/services",
+    "core/ai",
+    "core/queries",
+    "core/pipelines",
+    "core/scheduler",
+    "apps/api",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-asyncio>=0.25",
+    "respx>=0.22",
+    "httpx>=0.28",
+    "faker>=24.0",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "flower>=2.0",
+    "psutil>=5.9",
+    "import-linter>=2.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/public", "tests/core"]
+asyncio_mode = "auto"
+addopts = [
+    "--tb=short",
+    "--strict-markers",
+    "-m",
+    "not integration",
+    "-v",
+]
+markers = [
+    "integration: marks tests that hit real external APIs (deselect with '-m \"not integration\"')",
+]
+
+[tool.coverage.run]
+source = ["packages", "core", "apps"]
+omit = [
+    "*/db.py",
+    "*/db_sync.py",
+    "*/logging.py",
+    "*/connectors/http_client.py",
+    "*/connectors/querido_diario.py",
+    "*/services/alerts.py",
+    "*/services/infra_alerts.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+
