@@ -1,22 +1,5 @@
----
-name: New Data Connector
-about: Propose a new public data source connector
-title: "[Connector] "
-labels: connector, enhancement
----
+# new_connector
 
-## Data Source
-- **Name:**
-- **URL:**
-- **API docs:**
-- **Access:** Public / Token required
+Public OpenWatch documentation page. Sensitive implementation details are intentionally omitted.
 
-## Domain Verification
-- [ ] Domain ends in `.gov.br` or `.leg.br`
-- [ ] If not, provide justification for `DomainException`
-
-## Data Available
-
-## Legal Basis
-
-## Estimated Volume
+This repository contains only public-layer documentation and contribution guidance.
