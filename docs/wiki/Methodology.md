@@ -134,6 +134,6 @@ Any entity or person that appears in a signal can:
 1. **Review evidence** — `GET /signal/{id}/provenance` shows every raw record that contributed.
 2. **Check the methodology** — This document and the open-source code describe all detection logic.
 3. **File a contestation** — `POST /contestation` allows formal registration of a dispute.
-4. **Audit the code** — All typology logic is in `shared/typologies/` (MIT license).
+4. **Audit the code** — Typology logic lives in `core/typologies` within `openwatch-core` and is covered by the BSL 1.1 license boundary; see [docs/OPEN_CORE_STRATEGY.md](../OPEN_CORE_STRATEGY.md) for details.
 
 A contestation does not constitute a legal proceeding. Legal disputes follow proper judicial or administrative channels.

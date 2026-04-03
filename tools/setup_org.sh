@@ -12,7 +12,10 @@
 #
 # Prerequisites:
 #   - gh CLI installed and authenticated: gh auth login
-#   - Token scopes: repo, admin:org, delete_repo
+#   - Minimum token scopes (least privilege):
+#       * repo      — transfer/create repositories and manage branch protection
+#       * admin:org — manage organization membership and permissions
+#     Add additional scopes only if you extend this script to perform other operations.
 #   - Organization openwatch-br already created at https://github.com/openwatch-br
 #
 # Usage:
@@ -47,9 +50,12 @@ dry()   { echo -e "     ${YELLOW}[DRY-RUN]${NC} would: $1"; }
 
 run() {
   if [[ "$DRY_RUN" == "true" ]]; then
-    dry "$*"
+    local cmd=""
+    printf -v cmd '%q ' "$@"
+    cmd="${cmd% }"
+    dry "$cmd"
   else
-    eval "$*"
+    "$@"
   fi
 }
 

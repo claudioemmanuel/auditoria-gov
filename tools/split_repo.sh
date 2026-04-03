@@ -273,13 +273,29 @@ fi
 # ---------------------------------------------------------------------------
 step "3. Setting BSL license and NOTICE on core repo"
 if [[ "$DRY_RUN" == "false" ]]; then
-  # Compute change date: 4 years from today
-  CHANGE_DATE=$(python3 -c "from datetime import date; d = date.today(); print(d.replace(year=d.year+4).isoformat())")
+  # Compute change date: 4 years from today, falling back to Feb 28 on leap day
+  CHANGE_DATE=$(python3 -c "
+from datetime import date
+d = date.today()
+target_year = d.year + 4
+try:
+    change_date = d.replace(year=target_year)
+except ValueError:
+    change_date = d.replace(year=target_year, month=2, day=28)
+print(change_date.isoformat())
+")
+
+  # Portable sed -i: BSD (macOS) requires an explicit extension argument
+  if sed --version 2>/dev/null | grep -q GNU; then
+    SED_INPLACE=("sed" "-i")
+  else
+    SED_INPLACE=("sed" "-i" "")
+  fi
 
   # Write parameterized LICENSE (BSL 1.1 with concrete dates)
   cp "${REPO_ROOT}/LICENSE-BSL" "${TEMP_DIR}/LICENSE"
   # Replace the generic change date with the computed concrete date
-  sed -i "s/Four years from the date each file was committed/${CHANGE_DATE}/g" "${TEMP_DIR}/LICENSE"
+  "${SED_INPLACE[@]}" "s/Four years from the date each file was committed/${CHANGE_DATE}/g" "${TEMP_DIR}/LICENSE"
 
   # Copy the NOTICE file
   if [[ -f "${REPO_ROOT}/NOTICE-BSL" ]]; then
@@ -287,7 +303,7 @@ if [[ "$DRY_RUN" == "false" ]]; then
     # NOTICE-BSL contains placeholder date 2030-04-03 (computed at PR creation time).
     # Replace it with the authoritative CHANGE_DATE computed above so the
     # NOTICE always reflects the actual split execution date + 4 years.
-    sed -i "s/2030-04-03/${CHANGE_DATE}/g" "${TEMP_DIR}/NOTICE"
+    "${SED_INPLACE[@]}" "s/2030-04-03/${CHANGE_DATE}/g" "${TEMP_DIR}/NOTICE"
   fi
 
   cd "${TEMP_DIR}"
@@ -320,8 +336,8 @@ elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
     gh api "orgs/${GITHUB_OWNER}/repos" --method POST \
       -f name="openwatch-core" \
       -F private=true \
-      -f description="OpenWatch Core — typologies, analytics, entity resolution, pipelines (BSL 1.1)" | \
-      grep -E '"full_name"|"html_url"'
+      -f description="OpenWatch Core — typologies, analytics, entity resolution, pipelines (BSL 1.1)" \
+      --jq '"full_name: \(.full_name)\nhtml_url: \(.html_url)"'
   fi
 
   cd "${CORE_DIR}"
