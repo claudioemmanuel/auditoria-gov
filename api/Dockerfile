@@ -11,10 +11,11 @@ COPY pyproject.toml uv.lock ./
 COPY packages/ packages/
 COPY shared/ shared/
 COPY api/ api/
-COPY tests/ tests/
 
-# Install all packages + dev deps (needed for make test inside container)
-RUN uv sync --all-packages
+# ── runtime (slim — no dev-deps, no test suite) ────────────────────────────────
+FROM base AS runtime
+
+RUN uv sync --all-packages --no-dev
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
@@ -22,3 +23,13 @@ ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 
 CMD ["sh", "-c", "alembic -c api/alembic.ini upgrade head && uvicorn api.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+
+# ── test (includes dev-deps + test suite) ─────────────────────────────────────
+FROM base AS test
+
+COPY tests/ tests/
+
+RUN uv sync --all-packages
+
+ENV PYTHONPATH=/app
+ENV PATH="/app/.venv/bin:$PATH"

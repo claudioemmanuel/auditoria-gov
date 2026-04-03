@@ -27,9 +27,7 @@ jobs:
           python-version: "3.12"
       - name: Install all workspace deps
         run: uv sync --all-packages --all-extras
-      - name: Auto-fix lint
-        run: uv run ruff check --fix packages/ api/ shared/ || true
-      - name: Lint (fail on unfixable errors only)
+      - name: Lint
         run: uv run ruff check packages/ api/ shared/
       - name: Check import boundaries
         run: uv run lint-imports --config .import-linter
