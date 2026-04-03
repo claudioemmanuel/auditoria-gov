@@ -284,7 +284,9 @@ if [[ "$DRY_RUN" == "false" ]]; then
   # Copy the NOTICE file
   if [[ -f "${REPO_ROOT}/NOTICE-BSL" ]]; then
     cp "${REPO_ROOT}/NOTICE-BSL" "${TEMP_DIR}/NOTICE"
-    # Patch the change date inside NOTICE too
+    # NOTICE-BSL contains placeholder date 2030-04-03 (computed at PR creation time).
+    # Replace it with the authoritative CHANGE_DATE computed above so the
+    # NOTICE always reflects the actual split execution date + 4 years.
     sed -i "s/2030-04-03/${CHANGE_DATE}/g" "${TEMP_DIR}/NOTICE"
   fi
 
