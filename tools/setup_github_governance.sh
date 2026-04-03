@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 
 # Config
 DRY_RUN=false
-ORG_NAME="${1:-openwatch}"
+ORG_NAME="${1:-openwatch-br}"
 REPO_NAME="openwatch"
 
 if [[ "${2:-}" == "--dry-run" ]]; then

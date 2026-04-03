@@ -40,7 +40,7 @@ PARENT_DIR="$(dirname "${REPO_ROOT}")"
 REPO_NAME="$(basename "${REPO_ROOT}")"        # openwatch
 TEMP_DIR="${PARENT_DIR}/openwatch_temp"        # full safety copy
 CORE_DIR="${PARENT_DIR}/openwatch-core"        # final private core repo
-GITHUB_OWNER="${GITHUB_OWNER:-claudioemmanuel}"
+GITHUB_OWNER="${GITHUB_OWNER:-openwatch-br}"
 CORE_REMOTE="https://github.com/${GITHUB_OWNER}/openwatch-core.git"
 
 # ---------------------------------------------------------------------------
@@ -59,9 +59,59 @@ run_cmd() {
 
 # ---------------------------------------------------------------------------
 # Protected paths — moved to openwatch-core, removed from public repo
-# NOTE: shared/models/graph.py, radar.py, coverage_v2.py are PUBLIC (API schemas)
+#
+# Two-layer path set covers both legacy (shared/worker/api) and
+# canonical (core/packages) structures that coexist during the transition.
+# The split script removes ALL of these from the public repo.
+#
+# PUBLIC (stays in openwatch):
+#   apps/web/, packages/config/, packages/utils/, packages/models/(base/canonical/signals/vocabulary/coverage/graph)
+#   packages/connectors/(6 public), packages/sdk/, packages/ui/
+#   apps/api/app/routers/public.py, apps/api/alembic/, tests/public/
 # ---------------------------------------------------------------------------
 PROTECTED_PATHS=(
+  # ── Canonical protected packages (core/) ──────────────────────────────────
+  "core/typologies"
+  "core/analytics"
+  "core/er"
+  "core/ai"
+  "core/baselines"
+  "core/services"
+  "core/queries"
+  "core/pipelines"
+  "core/scheduler"
+  # ── Canonical protected packages (packages/) ──────────────────────────────
+  "packages/db"
+  "packages/models/openwatch_models/orm.py"
+  "packages/models/openwatch_models/raw.py"
+  "packages/models/openwatch_models/radar.py"
+  "packages/models/openwatch_models/public_filter.py"
+  # ── Protected connectors (packages/connectors) ────────────────────────────
+  "packages/connectors/openwatch_connectors/veracity.py"
+  "packages/connectors/openwatch_connectors/bacen.py"
+  "packages/connectors/openwatch_connectors/datajud.py"
+  "packages/connectors/openwatch_connectors/tce_pe.py"
+  "packages/connectors/openwatch_connectors/tce_rj.py"
+  "packages/connectors/openwatch_connectors/tce_rs.py"
+  "packages/connectors/openwatch_connectors/tce_sp.py"
+  "packages/connectors/openwatch_connectors/tcu.py"
+  "packages/connectors/openwatch_connectors/tse.py"
+  "packages/connectors/openwatch_connectors/camara.py"
+  "packages/connectors/openwatch_connectors/senado.py"
+  "packages/connectors/openwatch_connectors/bndes.py"
+  "packages/connectors/openwatch_connectors/jurisprudencia.py"
+  "packages/connectors/openwatch_connectors/querido_diario.py"
+  "packages/connectors/openwatch_connectors/transferegov.py"
+  "packages/connectors/openwatch_connectors/anvisa_bps.py"
+  "packages/connectors/openwatch_connectors/receita_cnpj.py"
+  "packages/connectors/openwatch_connectors/orcamento_bim.py"
+  # ── Internal API and infrastructure ──────────────────────────────────────
+  "apps/api/app/routers/internal.py"
+  "infra/aws"
+  "infra/caddy"
+  "infra/docker/docker-compose.prod.yml"
+  "infra/docker/docker-compose.yml"
+  # ── Legacy paths (shared/ worker/ api/) ──────────────────────────────────
   "shared/typologies"
   "shared/analytics"
   "shared/er"
@@ -76,10 +126,11 @@ PROTECTED_PATHS=(
   "worker/worker_app.py"
   "worker/run_pipeline.py"
   "api/app/routers/internal.py"
-  "infra"
+  "api/app/adapters/core_adapter.py"
+  "api/core_client.py"
   "docker-compose.yml"
   "docker-compose.prod.yml"
-  # Protected connectors (enrichment strategy + data pipeline)
+  # Protected legacy connectors
   "shared/connectors/veracity.py"
   "shared/connectors/bacen.py"
   "shared/connectors/datajud.py"
@@ -165,14 +216,50 @@ if [[ "$DRY_RUN" == "false" ]]; then
   done
   # Also keep root config files the core needs
   FILTER_ARGS+=(
+    # Legacy shared support files (needed by worker tests during transition)
     --path "shared/db.py"
+    --path "shared/db_sync.py"
     --path "shared/config.py"
     --path "shared/logging.py"
+    --path "shared/middleware"
+    --path "shared/utils"
+    --path "shared/connectors/base.py"
+    --path "shared/connectors/http_client.py"
+    --path "shared/connectors/domain_guard.py"
+    --path "shared/models/canonical.py"
+    --path "shared/models/base.py"
+    --path "shared/models/signals.py"
+    --path "shared/models/vocabulary.py"
+    --path "shared/models/coverage.py"
+    --path "shared/models/coverage_v2.py"
+    --path "shared/models/graph.py"
+    # Full packages layer (core needs everything)
+    --path "packages"
+    # Workspace and tooling
     --path "pyproject.toml"
     --path "uv.lock"
     --path "Makefile"
     --path "LICENSE-BSL"
-    --path "docker-compose.dev-lite.yml"
+    --path ".env.example"
+    --path ".env.production.example"
+    --path ".gitignore"
+    --path "docker-compose.yml"
+    --path "docker-compose.prod.yml"
+    --path "infra"
+    # Core tests
+    --path "tests/core"
+    --path "tests/worker"
+    --path "tests/typologies"
+    --path "tests/er"
+    --path "tests/analytics"
+    --path "tests/baselines"
+    --path "tests/services"
+    --path "tests/repo"
+    --path "tests/scheduler"
+    --path "tests/tasks"
+    --path "tests/ai"
+    # Legacy tests (needed during transition)
+    --path "tests/test_config.py"
   )
 
   cd "${TEMP_DIR}"
@@ -207,20 +294,17 @@ run_cmd "mv '${TEMP_DIR}' '${CORE_DIR}'"
 # ---------------------------------------------------------------------------
 step "5. Creating private GitHub repo: ${GITHUB_OWNER}/openwatch-core"
 if [[ "$DRY_RUN" == "true" ]]; then
-  dry "curl -X POST https://api.github.com/user/repos \\"
-  dry "  -H 'Authorization: token \$GITHUB_TOKEN' \\"
-  dry "  -d '{\"name\":\"openwatch-core\",\"private\":true,\"description\":\"OpenWatch core: typologies, analytics, entity resolution, pipelines (BSL 1.1)\"}'"
+  dry "gh api orgs/${GITHUB_OWNER}/repos --method POST -f name=openwatch-core -F private=true"
   dry "cd ${CORE_DIR} && git remote set-url origin ${CORE_REMOTE} && git push --mirror"
 elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  # Create the private repo via GitHub API
-  curl -s -X POST "https://api.github.com/user/repos" \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"name\": \"openwatch-core\",
-      \"private\": true,
-      \"description\": \"OpenWatch core: typologies, analytics, entity resolution, pipelines (BSL 1.1)\"
-    }" | grep -E '"full_name"|"html_url"|"message"'
+  # Repo may already exist (created by setup_org.sh)
+  if ! gh api "repos/${GITHUB_OWNER}/openwatch-core" >/dev/null 2>&1; then
+    gh api "orgs/${GITHUB_OWNER}/repos" --method POST \
+      -f name="openwatch-core" \
+      -F private=true \
+      -f description="OpenWatch Core — typologies, analytics, entity resolution, pipelines (BSL 1.1)" | \
+      grep -E '"full_name"|"html_url"'
+  fi
 
   cd "${CORE_DIR}"
   git remote add origin "${CORE_REMOTE}"
@@ -317,9 +401,9 @@ else
 fi
 echo ""
 echo " Next steps:"
-echo "   1. Set CORE_SERVICE_URL + CORE_API_KEY in GitHub Secrets"
-echo "   2. Update CI/CD in openwatch-core to deploy the core service"
-echo "   3. Delete the monorepo fallback branch from api/app/adapters/core_adapter.py"
-echo "   4. Remove adapter exemption from tools/check_boundaries.py"
-echo "   5. Update README with open-core architecture notice"
+echo "   1. Add CORE_SERVICE_URL + CORE_API_KEY to GitHub Secrets in both repos"
+echo "   2. Re-add all CI secrets (not transferred during split) in openwatch-core"
+echo "   3. Update CI/CD in openwatch-core to deploy the core service"
+echo "   4. Set CORE_SERVICE_URL in openwatch/.env.production.example"
+echo "   5. Verify boundary checker passes: uv run python tools/check_boundaries.py"
 echo "======================================================================="
