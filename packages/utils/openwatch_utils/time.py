@@ -1,17 +1,17 @@
-from datetime import date, datetime, timedelta, timezone
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import UTC, date, datetime, timedelta
 
 
 def utc_now() -> datetime:
     """Return current UTC datetime with timezone info."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def parse_br_date(date_str: str) -> datetime:
     """Parse a Brazilian date string (dd/mm/yyyy) to datetime."""
     for fmt in ("%d/%m/%Y", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S"):
         try:
-            return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(date_str, fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     raise ValueError(f"Cannot parse date: {date_str}")

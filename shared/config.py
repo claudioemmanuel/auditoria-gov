@@ -1,8 +1,8 @@
 import os
+from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
-from typing import Literal
 
 
 class Settings(BaseSettings):
@@ -66,10 +66,11 @@ class Settings(BaseSettings):
     # CORS — comma-separated list of allowed origins
     ALLOWED_ORIGINS: str = "http://localhost:3000"
 
-    # Internal API authentication — set a strong secret in production
-    INTERNAL_API_KEY: str = "dev-internal-key-change-in-production"
+    # Internal endpoints now live in the private `openwatch-core` repository.
+    # Keep this empty in the public repo.
+    INTERNAL_API_KEY: str = ""
 
-    # Open-core: Core service gateway (post-split architecture)
+    # Public gateway -> private core service (required in split deployments)
     # In the split architecture, the public API delegates computation to the
     # openwatch-core private service. Leave empty in the monorepo dev setup.
     CORE_SERVICE_URL: str = ""
@@ -90,7 +91,7 @@ class Settings(BaseSettings):
                 )
             if self.INTERNAL_API_KEY == "dev-internal-key-change-in-production":
                 raise ValueError(
-                    "INTERNAL_API_KEY must be changed before running in production"
+                    "INTERNAL_API_KEY must not use the legacy development default"
                 )
             if "auditoria:auditoria@" in self.DATABASE_URL:
                 raise ValueError(

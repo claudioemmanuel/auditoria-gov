@@ -47,9 +47,6 @@ Create Date: 2026-03-09
 # These should work in PG 17 (our version).
 """
 
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "0016"

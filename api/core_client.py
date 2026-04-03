@@ -14,10 +14,10 @@ IMPORTANT: This file is intentionally a stub in the monorepo.
 """
 from __future__ import annotations
 
-from typing import Any, Optional
-import uuid
+from typing import Any
 
 import httpx
+
 from shared.config import settings
 
 
@@ -200,6 +200,12 @@ class CoreClient:
             baseline_type=baseline_type,
             scope_key=scope_key,
         )
+
+    async def get_case_legal_hypothesis(self, case_id: str) -> Any:
+        try:
+            return await self._get(f"/internal/case/{case_id}/legal-hypothesis")
+        except CoreServiceError:
+            return None
 
 
 def _raise_for_status(response: httpx.Response) -> None:

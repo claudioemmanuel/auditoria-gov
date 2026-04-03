@@ -1,23 +1,16 @@
 from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
-from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
 
+from api.app.middleware.cache import CacheMiddleware
+from api.app.middleware.rate_limit import RateLimitMiddleware
+from api.app.middleware.security_events import SecurityEventsMiddleware
+from api.app.routers.public import router as public_router
 from shared.config import settings
 from shared.db import engine
 from shared.logging import setup_logging
-from api.app.routers.public import router as public_router
-# Internal router is only mounted in monorepo mode (CORE_SERVICE_URL not set).
-# In the split architecture, the internal router lives in openwatch-core only.
-if not settings.CORE_SERVICE_URL:
-    from api.app.routers.internal import router as internal_router  # type: ignore[assignment]  # noqa: F401
-else:
-    internal_router = None  # type: ignore[assignment]
-from api.app.middleware.rate_limit import RateLimitMiddleware
-from api.app.middleware.cache import CacheMiddleware
-from api.app.middleware.security_events import SecurityEventsMiddleware
 
 
 @asynccontextmanager
@@ -30,13 +23,6 @@ async def lifespan(app: FastAPI):
 
 
 _is_prod = settings.APP_ENV == "production"
-
-_internal_api_key_header = APIKeyHeader(name="X-Internal-Api-Key", auto_error=False)
-
-
-async def _require_internal_key(key: str = Security(_internal_api_key_header)) -> None:
-    if not key or key != settings.INTERNAL_API_KEY:
-        raise HTTPException(status_code=403, detail="Forbidden")
 
 app = FastAPI(
     title="OpenWatch",
@@ -62,13 +48,6 @@ app.add_middleware(
 )
 
 app.include_router(public_router, prefix="/public", tags=["public"])
-if internal_router is not None:
-    app.include_router(
-        internal_router,
-        prefix="/internal",
-        tags=["internal"],
-        dependencies=[Depends(_require_internal_key)],
-    )
 
 
 @app.get("/health")

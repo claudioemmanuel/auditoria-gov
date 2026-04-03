@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
-
 
 Status = Literal["ok", "warning", "stale", "error", "pending"]
 
@@ -12,14 +11,14 @@ class CoverageItem(BaseModel):
     job: str
     domain: str
     status: Status
-    description: Optional[str] = None
+    description: str | None = None
     enabled_in_mvp: bool = False
-    last_success_at: Optional[datetime] = None
-    freshness_lag_hours: Optional[float] = None
+    last_success_at: datetime | None = None
+    freshness_lag_hours: float | None = None
     total_items: int = 0
     last_run_error: bool = False
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
 
 
 CoverageLayer = Literal["uf", "municipio"]
@@ -33,7 +32,7 @@ class CoverageMapItem(BaseModel):
     event_count: int = 0
     signal_count: int = 0
     coverage_score: float = 0.0
-    freshness_hours: Optional[float] = None
+    freshness_hours: float | None = None
     risk_score: float = 0.0
     status: Status = "pending"
 

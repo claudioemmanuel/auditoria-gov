@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -41,9 +40,9 @@ class RadarV2SignalListItemOut(BaseModel):
     severity: SignalSeverity
     confidence: float
     title: str
-    summary: Optional[str] = None
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    summary: str | None = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
     created_at: datetime
     event_count: int = 0
     entity_count: int = 0
@@ -62,13 +61,13 @@ class RadarV2CaseListItemOut(BaseModel):
     title: str
     status: str
     severity: SignalSeverity
-    summary: Optional[str] = None
-    case_type: Optional[str] = None
+    summary: str | None = None
+    case_type: str | None = None
     signal_count: int = 0
     entity_count: int = 0
     typology_codes: list[str] = Field(default_factory=list)
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
     created_at: datetime
 
 

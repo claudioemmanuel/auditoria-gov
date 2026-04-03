@@ -1,53 +1,19 @@
 from openwatch_models.base import Base
-from openwatch_models.vocabulary import EventType, ParticipantRole, ROLE_ALIASES
-from openwatch_models.orm import (
-    RawRun,
-    RawSource,
-    Entity,
-    EntityAlias,
-    Event,
-    EventParticipant,
-    GraphNode,
-    GraphEdge,
-    TextCorpus,
-    TextEmbedding,
-    Typology,
-    EvidencePackage,
-    RiskSignal,
-    Case,
-    CaseItem,
-    Contestation,
-    IngestState,
-    CoverageRegistry,
-    BaselineSnapshot,
-)
 from openwatch_models.canonical import (
+    CanonicalEdge,
     CanonicalEntity,
     CanonicalEvent,
     CanonicalEventParticipant,
-    CanonicalEdge,
     NormalizeResult,
 )
-from openwatch_models.raw import RawItem, RawRunMeta
-from openwatch_models.graph import GraphNodeOut, GraphEdgeOut, NeighborhoodResponse
-from openwatch_models.signals import (
-    RiskSignalOut,
-    RefType,
-    EvidenceRef,
-    SignalSeverity,
-    CompletenessStatus,
-    EvidencePackageOut,
-    SignalReplayOut,
-    ContestationCreate,
-    ContestationOut,
-)
+from openwatch_models.contestation import Contestation
 from openwatch_models.coverage import (
     CoverageItem,
-    Status,
     CoverageLayer,
-    CoverageMetric,
     CoverageMapItem,
     CoverageMapResponse,
+    CoverageMetric,
+    Status,
 )
 from openwatch_models.coverage_v2 import (
     CoverageV2AnalyticsResponse,
@@ -72,38 +38,31 @@ from openwatch_models.coverage_v2 import (
     CoverageV2SummaryResponse,
     CoverageV2Totals,
 )
+from openwatch_models.graph import GraphEdgeOut, GraphNodeOut, NeighborhoodResponse
+from openwatch_models.signals import (
+    CompletenessStatus,
+    ContestationCreate,
+    ContestationOut,
+    EvidencePackageOut,
+    EvidenceRef,
+    RefType,
+    RiskSignalOut,
+    SignalReplayOut,
+    SignalSeverity,
+)
+from openwatch_models.vocabulary import ROLE_ALIASES, EventType, ParticipantRole
 
 __all__ = [
     "Base",
     "EventType",
     "ParticipantRole",
     "ROLE_ALIASES",
-    "RawRun",
-    "RawSource",
-    "Entity",
-    "EntityAlias",
-    "Event",
-    "EventParticipant",
-    "GraphNode",
-    "GraphEdge",
-    "TextCorpus",
-    "TextEmbedding",
-    "Typology",
-    "EvidencePackage",
-    "RiskSignal",
-    "Case",
-    "CaseItem",
-    "Contestation",
-    "IngestState",
-    "CoverageRegistry",
-    "BaselineSnapshot",
     "CanonicalEntity",
     "CanonicalEvent",
     "CanonicalEventParticipant",
     "CanonicalEdge",
     "NormalizeResult",
-    "RawItem",
-    "RawRunMeta",
+    "Contestation",
     "GraphNodeOut",
     "GraphEdgeOut",
     "NeighborhoodResponse",

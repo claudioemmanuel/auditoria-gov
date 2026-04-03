@@ -25,6 +25,7 @@ def _get_redis():
     """Lazy Redis connection for metrics storage."""
     try:
         import redis
+
         from shared.config import settings
         return redis.from_url(settings.REDIS_URL, decode_responses=True)
     except Exception:
