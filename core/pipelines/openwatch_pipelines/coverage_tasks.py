@@ -10,7 +10,7 @@ from openwatch_utils.logging import log
 from openwatch_models.orm import CoverageRegistry, IngestState, RawRun
 
 
-@shared_task(name="worker.tasks.coverage_tasks.update_coverage_registry")
+@shared_task(name="openwatch_pipelines.coverage_tasks.update_coverage_registry")
 def update_coverage_registry():
     """Update coverage registry with freshness metrics.
 

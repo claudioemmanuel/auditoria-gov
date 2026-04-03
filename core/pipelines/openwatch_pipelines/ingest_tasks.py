@@ -169,7 +169,7 @@ def _finalize_stale_running_runs(session, connector_name: str, job_name: str) ->
 
 
 @shared_task(
-    name="worker.tasks.ingest_tasks.ingest_connector",
+    name="openwatch_pipelines.ingest_tasks.ingest_connector",
     bind=True,
     max_retries=3,
 )
@@ -586,7 +586,7 @@ def ingest_connector(
             }
 
 
-@shared_task(name="worker.tasks.ingest_tasks.ingest_all_incremental")
+@shared_task(name="openwatch_pipelines.ingest_tasks.ingest_all_incremental")
 def ingest_all_incremental():
     """Trigger ingestion for all enabled connector jobs."""
     from openwatch_connectors import ConnectorRegistry
@@ -605,7 +605,7 @@ def ingest_all_incremental():
     return {"status": "dispatched", "count": dispatched}
 
 
-@shared_task(name="worker.tasks.ingest_tasks.ingest_all_bulk")
+@shared_task(name="openwatch_pipelines.ingest_tasks.ingest_all_bulk")
 def ingest_all_bulk():
     """Trigger ingestion for all enabled BULK (non-incremental) connector jobs.
 

@@ -3,7 +3,7 @@ from celery import shared_task
 from openwatch_utils.logging import log
 
 
-@shared_task(name="worker.tasks.baseline_tasks.compute_all_baselines")
+@shared_task(name="openwatch_pipelines.baseline_tasks.compute_all_baselines")
 def compute_all_baselines(force: bool = False):
     """Compute baseline distributions (incremental).
 

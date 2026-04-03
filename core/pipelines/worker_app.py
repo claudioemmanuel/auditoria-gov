@@ -20,17 +20,17 @@ app.conf.update(
     enable_utc=True,
     beat_schedule=BEAT_SCHEDULE,
     task_routes={
-        "worker.tasks.ingest_tasks.*": {"queue": "ingest"},
-        "worker.tasks.ingest_tasks.ingest_all_bulk": {"queue": "bulk"},
-        "worker.tasks.normalize_tasks.*": {"queue": "normalize"},
-        "worker.tasks.er_tasks.*": {"queue": "er"},
-        "worker.tasks.baseline_tasks.*": {"queue": "default"},
-        "worker.tasks.signal_tasks.*": {"queue": "signals"},
-        "worker.tasks.ai_tasks.*": {"queue": "ai"},
-        "worker.tasks.coverage_tasks.*": {"queue": "default"},
-        "worker.tasks.maintenance_tasks.*": {"queue": "default"},
-        "worker.tasks.reference_tasks.*": {"queue": "default"},
-        "worker.tasks.case_tasks.*": {"queue": "default"},
+        "openwatch_pipelines.ingest_tasks.*": {"queue": "ingest"},
+        "openwatch_pipelines.ingest_tasks.ingest_all_bulk": {"queue": "bulk"},
+        "openwatch_pipelines.normalize_tasks.*": {"queue": "normalize"},
+        "openwatch_pipelines.er_tasks.*": {"queue": "er"},
+        "openwatch_pipelines.baseline_tasks.*": {"queue": "default"},
+        "openwatch_pipelines.signal_tasks.*": {"queue": "signals"},
+        "openwatch_pipelines.ai_tasks.*": {"queue": "ai"},
+        "openwatch_pipelines.coverage_tasks.*": {"queue": "default"},
+        "openwatch_pipelines.maintenance_tasks.*": {"queue": "default"},
+        "openwatch_pipelines.reference_tasks.*": {"queue": "default"},
+        "openwatch_pipelines.case_tasks.*": {"queue": "default"},
     },
     # ── Performance tuning ───────────────────────────────────────────
     # Fetch one task at a time so long-running ingest doesn't starve
@@ -61,7 +61,7 @@ app.conf.update(
     task_reject_on_worker_lost=True,
 )
 
-app.autodiscover_tasks(["worker.tasks"])
+app.autodiscover_tasks(["openwatch_pipelines"])
 
 
 # ── Post-fork engine reset ─────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ def _cold_start_bootstrap(sender, **kwargs):
                 missing = _REQUIRED_REF_CATEGORIES - existing_categories
                 if missing:
                     app.send_task(
-                        "worker.tasks.reference_tasks.seed_reference_data",
+                        "openwatch_pipelines.reference_tasks.seed_reference_data",
                         queue="default",
                     )
                     log.info("cold_start.seed_reference_data", missing_categories=sorted(missing))
@@ -152,7 +152,7 @@ def _cold_start_bootstrap(sender, **kwargs):
 
             # Trigger first incremental ingest.
             app.send_task(
-                "worker.tasks.ingest_tasks.ingest_all_incremental",
+                "openwatch_pipelines.ingest_tasks.ingest_all_incremental",
                 queue="ingest",
             )
             log.info("cold_start.initial_ingest_dispatched")
@@ -266,7 +266,7 @@ def _recover_orphaned_runs(log, select, SyncSession, RawRun, IngestState):
                 cursor = state.last_cursor if state else None
 
                 app.send_task(
-                    "worker.tasks.ingest_tasks.ingest_connector",
+                    "openwatch_pipelines.ingest_tasks.ingest_connector",
                     args=[connector, job, cursor],
                     queue="ingest",
                     countdown=5,

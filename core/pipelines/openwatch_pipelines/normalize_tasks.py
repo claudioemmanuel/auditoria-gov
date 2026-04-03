@@ -26,7 +26,7 @@ _NORMALIZE_CHUNK_SIZE = 5000
 
 
 @shared_task(
-    name="worker.tasks.normalize_tasks.normalize_run",
+    name="openwatch_pipelines.normalize_tasks.normalize_run",
     bind=True,
     max_retries=15,
 )

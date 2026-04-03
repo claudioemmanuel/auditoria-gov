@@ -148,7 +148,7 @@ def _should_run_typology(
     return False
 
 
-@shared_task(name="worker.tasks.signal_tasks.run_all_signals", max_retries=1)
+@shared_task(name="openwatch_pipelines.signal_tasks.run_all_signals", max_retries=1)
 def run_all_signals(dry_run: bool = False, force: bool = False):
     """Execute all active typology detectors in dependency order (incremental).
 
@@ -310,7 +310,7 @@ def run_all_signals(dry_run: bool = False, force: bool = False):
     }
 
 
-@shared_task(name="worker.tasks.signal_tasks.run_single_signal", max_retries=2)
+@shared_task(name="openwatch_pipelines.signal_tasks.run_single_signal", max_retries=2)
 def run_single_signal(
     typology_code: str,
     dry_run: bool = False,

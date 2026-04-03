@@ -90,7 +90,7 @@ def _ensure_rf_reference_files(data_dir: str) -> int:
     return downloaded
 
 
-@shared_task(name="worker.tasks.reference_tasks.seed_reference_data")
+@shared_task(name="openwatch_pipelines.reference_tasks.seed_reference_data")
 def seed_reference_data():
     """Populate reference_data table from external sources (one-time).
 

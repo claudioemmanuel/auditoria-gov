@@ -3,7 +3,7 @@ from celery import shared_task
 from openwatch_utils.logging import log
 
 
-@shared_task(name="worker.tasks.ai_tasks.explain_pending_signals")
+@shared_task(name="openwatch_pipelines.ai_tasks.explain_pending_signals")
 def explain_pending_signals():
     """Generate AI explanations for signals without explanation_md.
 
@@ -67,7 +67,7 @@ def explain_pending_signals():
     return {"status": "completed", "explained": explained}
 
 
-@shared_task(name="worker.tasks.ai_tasks.classify_texts")
+@shared_task(name="openwatch_pipelines.ai_tasks.classify_texts")
 def classify_texts(text_ids: list[str], categories: list[str]):
     """Classify a batch of procurement descriptions.
 
@@ -117,7 +117,7 @@ _PROCUREMENT_CATEGORIES = [
 ]
 
 
-@shared_task(name="worker.tasks.ai_tasks.classify_texts_unclassified")
+@shared_task(name="openwatch_pipelines.ai_tasks.classify_texts_unclassified")
 def classify_texts_unclassified():
     """Classify unclassified procurement TextCorpus entries.
 
@@ -168,7 +168,7 @@ def classify_texts_unclassified():
     return {"status": "completed", "classified": classified}
 
 
-@shared_task(name="worker.tasks.ai_tasks.embed_entities_batch")
+@shared_task(name="openwatch_pipelines.ai_tasks.embed_entities_batch")
 def embed_entities_batch(entity_items: list):
     """Embed a batch of entity names and store in text_embedding.
 
