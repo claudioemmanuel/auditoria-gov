@@ -240,6 +240,7 @@ if [[ "$DRY_RUN" == "false" ]]; then
     --path "uv.lock"
     --path "Makefile"
     --path "LICENSE-BSL"
+    --path "NOTICE-BSL"
     --path ".env.example"
     --path ".env.production.example"
     --path ".gitignore"
@@ -270,14 +271,29 @@ fi
 # ---------------------------------------------------------------------------
 # Step 3: Set BSL 1.1 license on core repo + add README notice
 # ---------------------------------------------------------------------------
-step "3. Setting BSL license on core repo"
+step "3. Setting BSL license and NOTICE on core repo"
 if [[ "$DRY_RUN" == "false" ]]; then
-  # Replace any existing LICENSE with BSL
+  # Compute change date: 4 years from today
+  CHANGE_DATE=$(python3 -c "from datetime import date; d = date.today(); print(d.replace(year=d.year+4).isoformat())")
+
+  # Write parameterized LICENSE (BSL 1.1 with concrete dates)
   cp "${REPO_ROOT}/LICENSE-BSL" "${TEMP_DIR}/LICENSE"
+  # Replace the generic change date with the computed concrete date
+  sed -i "s/Four years from the date each file was committed/${CHANGE_DATE}/g" "${TEMP_DIR}/LICENSE"
+
+  # Copy the NOTICE file
+  if [[ -f "${REPO_ROOT}/NOTICE-BSL" ]]; then
+    cp "${REPO_ROOT}/NOTICE-BSL" "${TEMP_DIR}/NOTICE"
+    # Patch the change date inside NOTICE too
+    sed -i "s/2030-04-03/${CHANGE_DATE}/g" "${TEMP_DIR}/NOTICE"
+  fi
 
   cd "${TEMP_DIR}"
-  git add LICENSE
-  git commit -m "chore: set BSL 1.1 license for openwatch-core" \
+  git add LICENSE NOTICE 2>/dev/null || git add LICENSE
+  git commit -m "chore: apply BSL 1.1 license and NOTICE to openwatch-core
+
+Change Date: ${CHANGE_DATE} (converts to Apache 2.0 at that date)
+Licensor: claudioemmanuel / OpenWatch BR" \
     --author "claudioemmanuel <claudioemmanuel@users.noreply.github.com>" \
     || true
   cd "${REPO_ROOT}"
