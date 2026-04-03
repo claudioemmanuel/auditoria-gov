@@ -1,138 +1,189 @@
 # Contributing to OpenWatch
 
-Thanks for contributing to OpenWatch — a civic-tech platform for reproducible anti-corruption risk analysis of Brazilian federal public data.
+Thank you for your interest in contributing! OpenWatch is a citizen-auditing platform for
+Brazilian federal data. This guide covers how to contribute to the **public OSS layer** of
+the project.
 
-## Open-Core Model — What You Can Contribute
+## Contribution Scope
 
-OpenWatch uses an **open-core strategy**. This repository (`openwatch`) is the **public layer**, licensed MIT. The detection engine (`openwatch-core`) is private.
+Community contributions are welcome in the following areas:
 
-**In-scope for community contributions (this repo):**
-- 🌐 Web frontend (`web/`)
-- 🔌 SDK (`packages/sdk/`)
-- 🧩 UI components (`packages/ui/`)
-- 🔗 Generic government API connectors (`shared/connectors/` — public wrappers only)
-- 📖 Documentation
-- 🐛 Bug reports and security disclosures
+| Area | Examples |
+|------|---------|
+| **Web portal** (`apps/web/`) | UI/UX improvements, new views, accessibility fixes |
+| **TypeScript SDK** (`packages/sdk/`) | New API wrappers, type improvements |
+| **UI components** (`packages/ui/`) | Reusable component improvements |
+| **Public connectors** (`packages/connectors/` — 6 public) | Bug fixes, rate-limit improvements |
+| **Utilities** (`packages/utils/`, `packages/config/`) | Generic helper functions |
+| **Documentation** | Translations, corrections, new guides |
+| **Bug reports** | Any reproducible bug with clear steps |
 
-**Out of scope (handled internally):**
-- Typology algorithms (T01–T28)
-- Risk scoring logic
-- Entity resolution engine
-- Data enrichment pipelines
+> **Not in scope for external PRs:** Typology algorithms, risk scoring logic, entity resolution,
+> enrichment connectors (20+), and the data pipeline. These live in `openwatch-core` and are
+> maintained internally. See [`docs/OPEN_CORE_STRATEGY.md`](./docs/OPEN_CORE_STRATEGY.md).
 
-See [`docs/OPEN_CORE_STRATEGY.md`](docs/OPEN_CORE_STRATEGY.md) for the full classification.
+---
 
-## Development Setup
+## Getting Started
 
-### Prerequisites
+1. **Fork** the repository and clone your fork.
+2. Install dependencies:
+   ```bash
+   uv sync --all-extras
+   cd apps/web && npm ci
+   ```
+3. Create a branch following the naming convention:
+   ```
+   feat/<description>
+   fix/<description>
+   docs/<description>
+   chore/<description>
+   ```
+4. Make your changes.
+5. Ensure all checks pass before opening a PR (see below).
 
-- Python 3.12+
-- `uv`
-- Node.js 20+
-- Docker + Docker Compose
+---
 
-### Local setup
+## Branch Naming
 
-```bash
-git clone https://github.com/claudioemmanuel/openwatch.git
-cd openwatch
-cp .env.example .env
+All branches must follow: `<type>/<short-description>`
+
+| Type | When to use |
+|------|------------|
+| `feat` | New functionality |
+| `fix` | Bug fix |
+| `refactor` | Code restructuring without behavior change |
+| `docs` | Documentation only |
+| `chore` | Maintenance, dependencies, tooling |
+| `ci` | CI/CD workflow changes |
+| `test` | Adding or fixing tests |
+
+Example: `feat/sdk-entity-search`, `fix/radar-pagination`, `docs/api-quickstart`
+
+---
+
+## Commit Conventions
+
+All commits must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <short description>
 ```
 
-Update `.env` with at least:
-
-- `PORTAL_TRANSPARENCIA_TOKEN` for Portal da Transparencia jobs
-- `CPF_HASH_SALT` for non-dev environments
-
-Install dependencies:
-
-```bash
-uv sync --extra test
-cd web && npm ci && cd ..
+Examples:
+```
+feat(sdk): add entity search method with fuzzy matching
+fix(web): correct radar pagination offset
+docs(contributing): add branch naming table
+chore(deps): bump fastapi to 0.115.5
 ```
 
-Start local stack:
+**Rules:**
+- Maximum 72 characters in the subject line.
+- Use imperative mood in the description ("add", not "adds" or "added").
+- Do not end with a period.
+- Reference issues in the body when relevant: `Closes #42`
+
+---
+
+## Pull Request Process
+
+1. **Link an issue** — every PR must reference an open issue with `Closes #<number>` or `Fixes #<number>` in the description.
+2. **PR title** must follow conventional commits format.
+3. **CI must pass** — all required checks must be green before merge.
+4. **One approval** required from `@claudioemmanuel` (or designated reviewer).
+5. **No force merges** — do not squash, rebase, or merge without approval.
+
+### PR checklist (auto-enforced by CI)
+
+- [ ] Branch name follows `<type>/<description>` convention
+- [ ] PR title follows conventional commits format
+- [ ] PR body contains `Closes #<issue>` or `Fixes #<issue>`
+- [ ] `uv run ruff check packages/ apps/api/` passes
+- [ ] `uv run pytest tests/public -q` passes
+- [ ] Open-core boundary check passes (`uv run python tools/check_boundaries.py`)
+- [ ] `cd apps/web && npm run lint && npm run build` passes
+
+---
+
+## Code Style
+
+### Python
+
+- **Formatter/linter:** [Ruff](https://docs.astral.sh/ruff/) — run `uv run ruff check --fix`
+- **Type hints:** Required on all public functions
+- **Docstrings:** Not required but welcome for complex functions
+- **Async:** Prefer `async/await` for I/O-bound code; use `AsyncSession` for DB queries
+
+### TypeScript / React
+
+- **Linter:** ESLint with project config — run `npm run lint`
+- **Types:** No `any` unless absolutely necessary; prefer explicit types
+- **Components:** Functional components with TypeScript props interfaces
+- **Styling:** Tailwind CSS utility classes; no inline styles
+
+---
+
+## Testing
+
+### Python tests
 
 ```bash
-docker compose up --build
+# Run public tests only (no DB needed for many tests)
+uv run pytest tests/public -q
+
+# With coverage
+uv run pytest tests/public --cov -q
 ```
 
-Run migrations:
+New public tests go in `tests/public/`. Follow the existing conftest.py patterns.
+
+### Frontend tests
 
 ```bash
-docker compose run --rm api alembic -c api/alembic.ini upgrade head
+cd apps/web && npm run build  # verifies typecheck + build
 ```
 
-### Production deployment (AWS)
+---
 
-See `docs/DEPLOYMENT.md` for the full AWS setup guide (ECS Fargate + RDS + S3/CloudFront).
-The Terraform configuration lives in `infra/aws/`. Never commit `terraform.tfvars` — it is gitignored.
+## Open-Core Boundary Rules
 
-## Project Layout
-
-- `api/`: FastAPI app and Alembic migrations
-- `worker/`: Celery workers and scheduled tasks
-- `shared/`: Core domain logic (connectors, ER, typologies, analytics)
-- `web/`: Next.js public interface
-- `tests/`: backend/unit/integration-style test suite
-
-## Adding a New Connector
-
-1. Create a connector in `shared/connectors/<name>.py` implementing `BaseConnector`.
-2. Define `list_jobs()`, `fetch()`, and `normalize()` with deterministic behavior.
-3. Register it in `shared/connectors/__init__.py` (`ConnectorRegistry`).
-4. Add or update ingestion orchestration if needed (`worker/tasks/ingest_tasks.py`, scheduler config).
-5. Add tests in `tests/connectors/` and task-level tests in `tests/worker/` when relevant.
-6. Document source/access requirements in `README.md`.
-
-## Adding a New Typology
-
-1. Create `shared/typologies/tXX_<name>.py` inheriting from `BaseTypology`.
-2. Ensure factors and severity are deterministic and evidence-backed.
-3. Register typology in `shared/typologies/registry.py`.
-4. Add factor metadata in `shared/typologies/factor_metadata.py` when needed.
-5. Add tests in `tests/typologies/` including registry and minimum-detectable coverage.
-6. Update the typology table in `README.md`.
-
-## Testing and Quality Requirements
-
-Backend tests:
+The public layer **must not import** from protected modules. The boundary checker enforces this:
 
 ```bash
-uv run --extra test pytest -q
+uv run python tools/check_boundaries.py
 ```
 
-Frontend checks:
+Protected modules (do not import in `apps/`, `packages/`, or `tests/public/`):
+- `core.*` — all core packages
+- `openwatch_typologies.*`, `openwatch_er.*`, `openwatch_analytics.*`, etc.
+- `shared.typologies.*`, `shared.er.*`, `shared.analytics.*`, etc.
 
-```bash
-cd web
-npm run lint
-npm run build
-```
+If you need data from the core layer, use the `CoreClient` adapter pattern described in
+`api/app/adapters/` and `docs/OPEN_CORE_STRATEGY.md`.
 
-Coverage policy is strict: backend coverage target is `100%` (`pyproject.toml`, `fail_under = 100`).
+---
 
-## Pull Request Guidelines
+## Reporting Bugs
 
-- Open PRs against `main`.
-- Keep PRs focused and logically scoped.
-- Include problem statement, approach, and verification evidence.
-- Reference related issue(s).
-- Update docs when behavior, schema, connectors, or typologies change.
+Open an issue using the [bug report template](./.github/ISSUE_TEMPLATE/bug_report.yml).
 
-### PR Checklist
+Please include:
+- Steps to reproduce
+- Expected vs actual behavior
+- OpenWatch version / commit hash
+- Relevant logs or error messages
 
-- [ ] Tests added/updated for changed behavior
-- [ ] `uv run --extra test pytest -q` passes locally
-- [ ] Frontend checks pass if UI was touched
-- [ ] No secrets, tokens, or personal data were committed
-- [ ] README/CONTRIBUTING/docs updated as needed
+---
 
-## Reporting Issues
+## Security Vulnerabilities
 
-- Use GitHub issue templates for bugs and feature requests.
-- For security issues, do **not** open a public issue. Follow `SECURITY.md`.
+**Do not open public issues for security findings.**
+See [SECURITY.md](./SECURITY.md) for the responsible disclosure process.
 
-## Code of Conduct
+---
 
-This project follows the Contributor Covenant v2.1. See `CODE_OF_CONDUCT.md`.
+## Questions
+
+Open a [GitHub Discussion](https://github.com/openwatch-br/openwatch/discussions) for
+questions, ideas, or general conversation about the project.

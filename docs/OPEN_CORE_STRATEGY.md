@@ -1,110 +1,91 @@
 # OpenWatch — Open-Core Strategy
 
-This document defines what is open, what is protected, and why. It is the canonical reference for the open-core split between `openwatch` (public) and `openwatch-core` (private).
+This document defines what is open, what is protected, and why.
+It is the canonical reference for the open-core split between
+`openwatch-br/openwatch` (public, MIT) and `openwatch-br/openwatch-core` (private, BSL 1.1).
+
+> **Note on architecture:** The repository has been refactored from a legacy `shared/`
+> monolith to a canonical `packages/` + `core/` + `apps/` workspace structure. Both
+> structures coexist during the transition. The classification below covers the **canonical**
+> paths. The split script (`tools/split_repo.sh`) handles both.
 
 ---
 
-## What Is Open (MIT License)
+## What Is Open — `openwatch-br/openwatch` (MIT)
 
-The following components are publicly available and free to use, fork, and contribute to:
-
-| Component | Path | Purpose |
-|-----------|------|---------|
-| Web Frontend | `web/` | Next.js public portal |
-| Public API Router | `api/app/routers/public.py` | Read-only, filtered results only |
+| Component | Canonical path | Purpose |
+|-----------|---------------|---------|
+| Web portal | `apps/web/` | Next.js public investigation interface |
+| Public API router | `apps/api/app/routers/public.py` | Read-only filtered endpoints |
+| API app scaffold | `apps/api/app/` (excl. `routers/internal.py`) | FastAPI app, middleware, deps |
+| DB migrations | `apps/api/alembic/` | Public schema (all tables) |
+| Config package | `packages/config/` | Environment / settings |
+| Utilities package | `packages/utils/` | CNPJ, hashing, rate limit, text, time, sync helpers |
+| Public models | `packages/models/openwatch_models/` excl. `orm.py`, `raw.py`, `radar.py` | API response schemas, coverage, graph |
+| Public connectors (6) | `packages/connectors/openwatch_connectors/` — `ibge`, `brasilapi_cnpj`, `pncp`, `portal_transparencia`, `compras_gov`, `comprasnet_contratos`, `http_client`, `domain_guard`, `base` | Public government API wrappers |
 | TypeScript SDK | `packages/sdk/` | Client library for API consumers |
-| UI Components | `packages/ui/` | Reusable React components |
-| Generic Utilities | `packages/utils/`, `packages/config/` | Shared helpers |
-| Public Data Models | `shared/models/canonical.py`, `signals.py`, `vocabulary.py`, `base.py` | Output schemas |
-| Generic Connectors | `shared/connectors/ibge.py`, `brasilapi_cnpj.py`, `pncp.py`, `portal_transparencia.py`, `compras_gov.py`, `comprasnet_contratos.py` | Public government API wrappers |
-| HTTP Client | `shared/connectors/http_client.py`, `domain_guard.py` | Generic HTTP tooling |
-| Logging | `shared/logging.py` | Structured logging setup |
-| Documentation | `docs/`, `README.md`, `CONTRIBUTING.md` | Community and contributor docs |
-| Dev Tooling | `Makefile`, `docker-compose.dev-lite.yml`, CI configs | Local development support |
-| DB Migrations | `api/alembic/` | Public schema definition |
+| UI components | `packages/ui/` | Reusable React components |
+| Public tests | `tests/public/` | Tests for the public layer |
+| Documentation | `docs/`, `README.md`, `CONTRIBUTING.md`, etc. | Community-facing docs |
+| Dev tooling | `Makefile`, `infra/docker/docker-compose.dev-lite.yml` | Local dev support |
 
 ---
 
-## What Is Protected (BSL 1.1 License — `openwatch-core`)
-
-The following components are **source-available** but **not permitted for competitor production use**. They reside in the private `openwatch-core` repository.
+## What Is Protected — `openwatch-br/openwatch-core` (BSL 1.1)
 
 ### Typology Engine — T01–T28
 
-All corruption-risk detection algorithms are protected. These represent the primary intellectual property of OpenWatch.
+All 28 corruption-risk detectors. These represent the primary intellectual property of the project.
 
 ```
-shared/typologies/
-├── base.py               # Abstract typology interface
-├── registry.py           # Typology registry + runner
-├── confidence_scorer.py  # Scoring engine
-├── factor_metadata.py    # Factor weighting
-├── t01_concentration.py  # Supplier concentration
+core/typologies/openwatch_typologies/
+├── base.py                # Abstract typology interface
+├── registry.py            # Typology registry + runner
+├── confidence_scorer.py   # Scoring engine
+├── factor_metadata.py     # Factor weighting
+├── t01_concentration.py   # Supplier concentration
 ├── t02_low_competition.py
 ├── t03_splitting.py
-├── t04_amendments_outlier.py
-├── t05_price_outlier.py
-├── t06_shell_company_proxy.py
-├── t07_cartel_network.py
-├── t08_sanctions_mismatch.py
-├── t09_ghost_payroll_proxy.py
-├── t10_outsourcing_parallel_payroll.py
-├── t11_spreadsheet_manipulation.py
-├── t12_directed_tender.py
-├── t13_conflict_of_interest.py
-├── t14_compound_favoritism.py
-├── t15_false_sole_source.py
-├── t16_budget_clientelism.py
-├── t17_layered_money_laundering.py
-├── t18_illegal_position_accumulation.py
-├── t19_bid_rotation.py
-├── t20_phantom_bidders.py
-├── t21_collusive_cluster.py
-├── t22_political_favoritism.py
-├── t23_bim_cost_overrun.py
-├── t24_me_epp_quota_fraud.py
-├── t25_tcu_condemned.py
-├── t26_state_penalty_mismatch.py
-├── t27_bndes_loan_nexus.py
+...
 └── t28_judicial_precedent_warning.py
 ```
 
 ### Risk Analytics
 
 ```
-shared/analytics/
-├── risk_score.py    # Composite risk scoring algorithm
-└── benford.py       # Benford's Law statistical detector
+core/analytics/openwatch_analytics/
+├── risk_score.py   # Composite risk scoring algorithm
+└── benford.py      # Benford's Law statistical detector
 ```
 
 ### Entity Resolution
 
 ```
-shared/er/
-├── matching.py       # Fuzzy name/document matching
-├── clustering.py     # Entity cluster assignment
-├── normalize.py      # Name normalization pipeline
-├── edges.py          # Graph edge construction
+core/er/openwatch_er/
+├── matching.py        # Fuzzy name/document matching
+├── clustering.py      # Entity cluster assignment
+├── normalize.py       # Name normalization pipeline
+├── edges.py           # Graph edge construction
 ├── corporate_edges.py
 └── confidence.py
 ```
 
-### AI Pipeline
+### AI Pipeline (explanatory only)
 
 ```
-shared/ai/
+core/ai/openwatch_ai/
 ├── classify.py    # Document classification
 ├── embeddings.py  # Vector embedding generation
 ├── ner.py         # Named entity recognition
 ├── rag.py         # Retrieval-augmented generation
-├── explain.py     # Signal explanation (explanatory only)
+├── explain.py     # Signal explanation (LLM — never scoring)
 └── provider.py    # LLM provider abstraction
 ```
 
 ### Baselines & Statistical Models
 
 ```
-shared/baselines/
+core/baselines/openwatch_baselines/
 ├── compute.py   # Baseline computation (percentiles, z-scores)
 └── models.py    # Baseline ORM models
 ```
@@ -112,28 +93,46 @@ shared/baselines/
 ### Core Services
 
 ```
-shared/services/
+core/services/openwatch_services/
 ├── case_builder.py      # Evidence assembly and case generation
 ├── legal_inference.py   # Legal hypothesis generation
 ├── alerts.py            # Risk alert routing
-├── infra_alerts.py      # Infrastructure monitoring alerts
+├── infra_alerts.py      # Infrastructure monitoring
 └── reference_seed.py    # Reference data seeding
 ```
 
-### Internal Data Access
+### Internal Queries
 
 ```
-shared/repo/
-├── queries.py       # All analytical queries
-├── upsert.py        # Async upsert strategies
+core/queries/openwatch_queries/
+└── queries.py   # All analytical DB queries
+```
+
+### Database Access Layer
+
+```
+packages/db/openwatch_db/
+├── db.py          # Async session factory
+├── db_sync.py     # Sync session factory (worker)
+├── upsert.py      # Async upsert strategies
 ├── upsert_sync.py
-└── provenance.py    # Evidence chain queries
+└── provenance.py  # Evidence chain queries
 ```
 
-### Worker Tasks (Full Pipeline)
+### Internal Models
 
 ```
-worker/tasks/
+packages/models/openwatch_models/
+├── orm.py          # SQLAlchemy ORM models (all tables)
+├── raw.py          # Raw ingestion data models
+├── radar.py        # Risk signal radar response types
+└── public_filter.py  # Public API filtering helpers
+```
+
+### Data Pipelines (Celery Worker)
+
+```
+core/pipelines/openwatch_pipelines/
 ├── ingest_tasks.py      # Raw data ingestion
 ├── normalize_tasks.py   # Canonicalization
 ├── er_tasks.py          # Entity resolution runs
@@ -145,18 +144,24 @@ worker/tasks/
 ├── compliance_tasks.py  # Compliance checks
 ├── reference_tasks.py   # Reference data
 ├── maintenance_tasks.py # DB vacuum + cleanup
-├── backfill_cpf.py      # LGPD backfill
-└── __init__.py
+└── backfill_cpf.py      # LGPD backfill
 ```
 
-### Enrichment Connectors (Data Strategy)
+### Scheduler
 
 ```
-shared/connectors/
+core/scheduler/openwatch_scheduler/
+└── schedule.py   # Pipeline orchestration schedule
+```
+
+### Enrichment Connectors (17 protected)
+
+```
+packages/connectors/openwatch_connectors/
 ├── veracity.py        # Veracity scoring
 ├── bacen.py           # Brazilian Central Bank
 ├── datajud.py         # CNJ judicial data
-├── tce_pe/rj/rs/sp.py # State audit courts
+├── tce_pe/rj/rs/sp.py # State audit courts (4)
 ├── tcu.py             # Federal audit court
 ├── tse.py             # Electoral court
 ├── camara.py          # Chamber of Deputies
@@ -165,19 +170,19 @@ shared/connectors/
 ├── jurisprudencia.py  # Legal precedents
 ├── querido_diario.py  # Official gazette
 ├── transferegov.py    # Federal transfers
-├── anvisa_bps.py      # Health data
+├── anvisa_bps.py      # Health pricing
 ├── receita_cnpj.py    # Tax registry bulk data
 └── orcamento_bim.py   # Budget data
 ```
 
-### Internal API, Scheduler, Infrastructure
+### Internal API, Infrastructure, Production Stack
 
 ```
-api/app/routers/internal.py   # Internal endpoints (never public)
-shared/scheduler/schedule.py  # Pipeline orchestration schedule
-infra/                        # AWS/Terraform/Caddy configs
-docker-compose.yml            # Full stack (internal only)
-docker-compose.prod.yml       # Production stack
+apps/api/app/routers/internal.py   # Internal-only endpoints
+infra/aws/                         # Terraform (AWS)
+infra/caddy/                       # Reverse proxy config
+infra/docker/docker-compose.yml    # Full production stack
+infra/docker/docker-compose.prod.yml
 ```
 
 ---
@@ -185,26 +190,26 @@ docker-compose.prod.yml       # Production stack
 ## Architecture: Execution Model
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   PUBLIC INTERNET                        │
-└──────────────────────┬──────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│              PUBLIC INTERNET                  │
+└──────────────────────┬───────────────────────┘
                        │
              ┌─────────▼──────────┐
-             │   openwatch (MIT)  │
+             │  openwatch (MIT)   │
              │  Next.js Frontend  │
              │  Public API Router │
              │  (gateway only)    │
              └─────────┬──────────┘
-                       │  HTTPS / service mesh (internal only)
-             ┌─────────▼──────────────────────────────────┐
-             │        openwatch-core (BSL 1.1)             │
-             │  Internal API Router                         │
-             │  Typology Engine (T01–T28)                   │
-             │  Entity Resolution                           │
-             │  Risk Scoring                                │
-             │  Data Pipelines (Celery Workers)             │
-             │  Enrichment Connectors (20+)                 │
-             └─────────┬──────────────────────────────────┘
+                       │  HTTPS (CORE_SERVICE_URL)
+             ┌─────────▼──────────────────────────┐
+             │  openwatch-core (BSL 1.1)           │
+             │  Internal API Router                 │
+             │  Typology Engine (T01–T28)           │
+             │  Entity Resolution                   │
+             │  Risk Scoring                        │
+             │  Data Pipelines (Celery Workers)     │
+             │  Enrichment Connectors (20+)         │
+             └─────────┬──────────────────────────┘
                        │
              ┌─────────▼──────────┐
              │  PostgreSQL + Redis │
@@ -212,63 +217,55 @@ docker-compose.prod.yml       # Production stack
              └────────────────────┘
 ```
 
-**Critical:** The core service runs **only on controlled infrastructure**. The public API delegates to it via `api/core_client.py`. No typology, scoring, or enrichment logic ever executes in the public layer.
+The core service runs **only on controlled infrastructure**. The public API calls it via
+`CORE_SERVICE_URL` + `CORE_API_KEY`. No typology, scoring, or enrichment logic ever
+executes in the public layer.
 
 ---
 
 ## Licensing
 
-| Layer | License | Terms |
-|-------|---------|-------|
-| `openwatch` (public) | MIT | Free use, fork, modify, redistribute |
-| `openwatch-core` (private) | BSL 1.1 | Source-available; **no competitor production use**; converts to Apache 2.0 after 4 years from file commit date |
-
-See `LICENSE` (public repo) and `LICENSE-BSL` (core repo) for full terms.
+| Repository | License | Terms |
+|-----------|---------|-------|
+| `openwatch-br/openwatch` | **MIT** | Free use, fork, modify, redistribute |
+| `openwatch-br/openwatch-core` | **BSL 1.1** | Source-available; no competitor production use; converts to Apache 2.0 after 4 years |
 
 ---
 
 ## Boundary Enforcement
 
-The `tools/check_boundaries.py` script enforces that public-layer files never import protected modules. It runs automatically on every pull request via `.github/workflows/boundary-check.yml`.
+`tools/check_boundaries.py` enforces that public files never import protected modules.
+It runs on every PR via `.github/workflows/boundary-check.yml`.
 
 ```bash
-# Run manually
-python tools/check_boundaries.py
-
-# Strict mode (connector warnings = errors)
-python tools/check_boundaries.py --strict
-
-# List all protected modules
-python tools/check_boundaries.py --list-protected
+uv run python tools/check_boundaries.py          # check
+uv run python tools/check_boundaries.py --strict  # warnings = errors
 ```
+
+---
+
+## Executing the Split
+
+When ready to physically separate the repos:
+
+```bash
+# 1. Run pre-flight checks
+bash tools/split_repo_preflight.sh
+
+# 2. Dry run — review output carefully
+export GITHUB_TOKEN=$(gh auth token)
+export GITHUB_OWNER=openwatch-br
+bash tools/split_repo.sh --dry-run
+
+# 3. Execute (irreversible)
+bash tools/split_repo.sh
+```
+
+See `tools/split_repo.sh` for the full protected paths list.
 
 ---
 
 ## Contribution Scope
 
-Community contributions are welcome in the **public layer only**:
-- Web frontend improvements
-- SDK enhancements
-- Documentation
-- Generic connector fixes (for the 6 public connectors)
-- Bug reports and security disclosures
-
-Contributions to the typology engine, risk scoring, or entity resolution logic are managed internally and are not accepted via public PRs.
-
-See `CONTRIBUTING.md` for details.
-
----
-
-## Anti-Replication Posture
-
-| Asset | Protection Method |
-|-------|------------------|
-| Typology algorithms (T01–T28) | Private repo + BSL 1.1 |
-| Entity resolution logic | Private repo + BSL 1.1 |
-| Enrichment connector strategy | Private repo; connectors are data-source-specific |
-| Historical enriched datasets | Not published; infrastructure-side only |
-| Risk scoring weights | Server-side execution only; never exposed in API |
-| Pipeline schedule & orchestration | Private repo |
-| Infrastructure topology | Private repo (infra/) |
-
-Replication cost: a competitor would need to independently develop 28 typology algorithms, a multi-source entity resolution system, 20+ specialized government data connectors, and a risk scoring model — without access to the historical calibration data that shapes the current weights.
+External contributions welcome in the **public layer only**.
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.

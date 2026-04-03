@@ -2,7 +2,7 @@
 
 ## Governance Baseline
 
-- License: AGPL-3.0
+- License: MIT
 - Code of Conduct: Contributor Covenant 2.1
 - Security policy with responsible disclosure guidance
 - Issue/PR templates for consistency and triage

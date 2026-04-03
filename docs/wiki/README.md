@@ -1,9 +1,20 @@
-# Wiki Source Files
+# OpenWatch — Documentation Wiki
 
-This folder stores versioned source content for the GitHub Wiki.
+Reference documentation for the OpenWatch platform.
 
-- Primary entry page: `Home.md`
-- Keep page names compatible with GitHub Wiki page URLs
-- Update these files through PRs so wiki changes are reviewed
+## Contents
 
-If the `.wiki.git` endpoint is unavailable, pages can be copied manually into the GitHub Wiki UI.
+| File | Description |
+|------|-------------|
+| [Home.md](./Home.md) | Overview and quick links |
+| [Architecture.md](./Architecture.md) | System design and component overview |
+| [Data-Sources.md](./Data-Sources.md) | All 23 data connectors |
+| [Typologies.md](./Typologies.md) | Corruption-risk detector descriptions |
+| [Methodology.md](./Methodology.md) | How risk scores and signals are computed |
+| [Contributing-and-Governance.md](./Contributing-and-Governance.md) | Contribution process |
+| [FAQ.md](./FAQ.md) | Frequently asked questions |
+| [Roadmap.md](./Roadmap.md) | Feature roadmap |
+| [Runbook.md](./Runbook.md) | Local setup and pipeline operational guide |
+
+For deployment documentation, see [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md).
+For architecture decisions, see [`docs/decisions/`](../decisions/).

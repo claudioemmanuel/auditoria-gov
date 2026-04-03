@@ -1,271 +1,191 @@
 # OpenWatch
 
-[![CI](https://github.com/claudioemmanuel/openwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/claudioemmanuel/openwatch/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
+[![CI](https://github.com/openwatch-br/openwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/openwatch-br/openwatch/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./pyproject.toml)
-[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](./docker-compose.yml)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](./apps/web)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red?logo=github)](https://github.com/sponsors/claudioemmanuel)
 
-Citizen auditing platform for Brazilian federal government data.
+Citizen auditing platform for Brazilian federal government data — public read, reproducible evidence.
 
-OpenWatch ingests public datasets from procurement, spending, legislative, electoral, and corporate registries, resolves entities across sources, and applies deterministic corruption-risk typologies to generate reproducible investigation signals. The interface is public-read only and each signal links to concrete evidence.
+OpenWatch ingests 23 open-government sources, resolves entities across datasets, and applies deterministic corruption-risk detectors to generate investigation-ready signals. Every signal carries numeric factors and links to the raw evidence that produced it.
 
-The scoring and detection layer is deterministic (statistics + graph analysis). Optional LLM support is used only for narrative explanations, not for risk scoring.
+> **Open-Core Model**
+> This repository (`openwatch-br/openwatch`) is the **public OSS layer** — MIT license.
+> The private analytics core (typologies T01–T28, entity resolution, pipelines) lives in
+> [`openwatch-br/openwatch-core`](https://github.com/openwatch-br/openwatch-core) under BSL 1.1.
 
-## Em Português (resumo)
+## Em Português
 
-O OpenWatch é uma plataforma de auditoria cidadã para dados públicos federais do Brasil. O sistema ingere múltiplas bases abertas, cruza entidades, detecta sinais de risco de corrupção por regras determinísticas e mostra evidências reproduzíveis no portal web.
+O OpenWatch é uma plataforma de auditoria cidadã para dados públicos federais do Brasil.
+O sistema ingere múltiplas bases abertas, cruza entidades por CNPJ/CPF, detecta padrões
+de risco por regras determinísticas e apresenta evidências reproduzíveis no portal web.
 
-A camada analítica não depende de modelo generativo para pontuação. IA generativa é opcional e usada apenas para explicações em linguagem natural.
+A camada de pontuação não depende de modelo generativo. IA generativa é opcional e usada
+apenas para explicações em linguagem natural — nunca para calcular risco.
 
-## Architecture Overview
+---
 
-```text
-                             +----------------------+
-                             |   Next.js (web/)     |
-                             | Public investigation |
-                             +----------+-----------+
-                                        |
-                                        v
-+-------------------+       +-----------+-----------+       +-----------------------+
-| Celery Beat       |-----> | FastAPI (api/)        | <---- | Redis (cache/broker)  |
-| scheduler         |       | Public + internal API |       +-----------------------+
-+---------+---------+       +-----------+-----------+
-          |                             |
-          v                             v
-+---------+---------+       +-----------+-----------+
-| Celery Worker     |-----> | PostgreSQL 17 +       |
-| ingest/ER/signals |       | pgvector              |
-+---------+---------+       +-----------+-----------+
-          |
-          v
-+-------------------+
-| 23 connectors     |
-| connectors/jobs   |
-+-------------------+
+## What Lives Here (MIT)
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Web portal | `apps/web/` | Next.js public investigation interface |
+| Public API | `apps/api/app/routers/public.py` | Read-only filtered endpoints |
+| API gateway | `apps/api/` | FastAPI app, middleware, migrations |
+| Config | `packages/config/` | Settings and environment management |
+| Utilities | `packages/utils/` | Shared Python helpers |
+| Public models | `packages/models/` | Output schemas, public response types |
+| Public connectors | `packages/connectors/` (6 public) | ibge, pncp, portal_transparencia, compras_gov, comprasnet_contratos, brasilapi_cnpj |
+| HTTP client | `packages/connectors/openwatch_connectors/http_client.py` | Generic async HTTP with rate limiting |
+| TypeScript SDK | `packages/sdk/` | Client library for API consumers |
+| UI components | `packages/ui/` | Reusable React components |
+| Public tests | `tests/public/` | Tests for the public layer |
+| Dev tooling | `Makefile`, `infra/docker/docker-compose.dev-lite.yml` | Local development |
+| DB migrations | `apps/api/alembic/` | Public schema definition |
+
+---
+
+## Architecture
+
+```
+                      PUBLIC INTERNET
+                            │
+              ┌─────────────▼──────────────┐
+              │  openwatch (this repo, MIT) │
+              │  Next.js portal             │
+              │  Public API (gateway only)  │
+              └─────────────┬──────────────┘
+                            │  HTTPS (internal service mesh)
+              ┌─────────────▼──────────────────────────────────┐
+              │  openwatch-core (private, BSL 1.1)              │
+              │  Typologies T01–T28 · Entity Resolution         │
+              │  Risk Analytics · Data Pipelines (Celery)       │
+              │  Enrichment Connectors (20+)                    │
+              └─────────────┬──────────────────────────────────┘
+                            │
+              ┌─────────────▼──────────────┐
+              │  PostgreSQL 17 + pgvector   │
+              │  Redis                      │
+              └────────────────────────────┘
 ```
 
-See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the public architecture/design document.
+The public API is a **gateway only** — all computation runs in `openwatch-core` on
+controlled infrastructure. See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Data Sources (23 connectors / 60 jobs)
+---
 
-| # | Source | Connector / Jobs | Access |
-|---|--------|-------------------|--------|
-| 1 | Portal da Transparência - sanctions (CEIS/CNEP) | `portal_transparencia` / `pt_sancoes_ceis_cnep` | Token required |
-| 2 | Portal da Transparência - spending/transfers | `portal_transparencia` / `pt_*` expense, travel, card, benefits, amendments, transfers | Token required |
-| 3 | PNCP | `pncp` / `pncp_contracting_notices`, `pncp_contracts`, `pncp_arp` | Public |
-| 4 | Compras.gov.br | `compras_gov` / licitações + CATMAT/CATSER catalogs | Public |
-| 5 | ComprasNet contracts | `comprasnet_contratos` / `cnet_contracts` | Public |
-| 6 | TransfereGov | `transferegov` / convenio and transfer jobs | Public |
-| 7 | Câmara dos Deputados | `camara` / deputies, quota expenses, organs | Public |
-| 8 | Senado Federal | `senado` / senators, CEAPS expenses | Public |
-| 9 | TSE electoral data | `tse` / candidates, assets, campaign revenues, campaign expenses | Public (bulk downloads) |
-| 10 | Receita Federal CNPJ | `receita_cnpj` / companies, partners, establishments | Public (bulk downloads) |
-| 11 | Querido Diario gazettes | `querido_diario` / municipal gazette entries | Public |
-| 12 | TCU sanctions and rulings | `tcu` / inidôneos, inabilitados, acórdãos | Public |
-| 13 | DataJud/CNJ judicial cases | `datajud` / processos improbidade e licitação | Public (optional key) |
-| 14 | IBGE reference datasets | `ibge` / municípios, CNAE | Public |
-| 15 | TCE-RJ state audit | `tce_rj` / licitações, contratos, penalidades | Public |
-| 16 | TCE-RS state audit | `tce_rs` / gestão fiscal, educação, saúde | Public |
-| 17 | TCE-SP state audit | `tce_sp` / despesas, receitas | Public |
-| 18 | TCE-PE state audit | `tce_pe` / licitações, contratos, despesas | Public |
-| 19 | STF jurisprudência | `jurisprudencia` / licitação e improbidade rulings | Public |
-| 20 | Banco Central series | `bacen` / selic, ipca, câmbio | Public |
-| 21 | BNDES open data | `bndes` / operações auto e não-auto | Public |
-| 22 | BrasilAPI CNPJ fallback | `brasilapi_cnpj` / cnpj lookup | Public (exception domain, enrichment-only) |
-| 23 | ANVISA/BPS health pricing | `anvisa_bps` / bps prices, bulário registry | Public (enrichment-only) |
+## Quickstart (Local Development)
 
-## Corruption Typologies (Deterministic Detectors)
+### Prerequisites
 
-| Code | Detector | Primary Pattern |
-|------|----------|-----------------|
-| T01 | Supplier concentration | Recurring concentration in a small supplier set |
-| T02 | Low competition | Procurement records with low bidder competition |
-| T03 | Expense splitting | Sequential expenses that indicate threshold splitting |
-| T04 | Amendment outlier | Outlier behavior in parliamentary amendment spending |
-| T05 | Price outlier | Item-level price anomalies vs. baseline references |
-| T06 | Shell company proxy | Corporate profile and behavior consistent with shell proxies |
-| T07 | Cartel network | Recurrent co-participation and network collusion indicators |
-| T08 | Sanctions mismatch | Contracting activity involving sanctioned entities |
-| T09 | Ghost payroll proxy | Payroll-like inconsistencies and proxy ghost-worker patterns |
-| T10 | Outsourcing + parallel payroll | Outsourcing contracts overlapping suspicious payroll patterns |
-| T11 | Spreadsheet manipulation (jogo de planilha) | Unit price inflation exploited via contract amendments in engineering works |
-| T12 | Directed tender (edital direcionado) | Tender requirements tailored to a pre-selected supplier |
-| T13 | Conflict of interest | Contracting agent has financial or family ties to the winning supplier |
-| T14 | Compound favoritism sequence | Persistent accumulation of multiple favoritism signals for the same supplier |
-| T15 | False sole-source (inexigibilidade indevida) | Sole-source procurement where qualified alternatives exist |
-| T16 | Budget clientelism (emenda pix) | Parliamentary transfers without work plan or disproportionate to recipient capacity |
-| T17 | Layered money laundering | Circular fund flows between interconnected entities post-contract |
-| T18 | Illegal position accumulation | Simultaneous public roles or dismissed officials active in contracting companies |
-| T19 | Bid rotation | Alternância sistemática de vencedores em licitações repetidas — indicador de cartel coordenado |
-| T20 | Phantom bidders | Empresas participantes sem histórico operacional real — proxy para concorrência simulada |
-| T21 | Collusive cluster | Cluster de fornecedores com comportamento de lances estatisticamente coordenados |
-| T22 | Political favoritism | Correlação temporal entre contribuições eleitorais e contratos públicos |
-| T23 | BIM cost overrun | Sobrepreço de contratos de engenharia comparado a referência BIM |
-| T24 | ME/EPP quota fraud | Uso indevido de cota ME/EPP por empresas inelegíveis |
-| T25 | TCU condemned mismatch | Entidade condenada pelo TCU com contrato público ativo |
-| T26 | State penalty mismatch | Penalidade em TCE estadual com contratação ativa |
-| T27 | BNDES loan nexus | Financiamento BNDES correlacionado com vitória contratual |
-| T28 | Judicial precedent warning | Jurisprudência STF/STJ sobre entidade com contrato ativo |
+- Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js 20+, Docker Compose
 
-## Quick Start
-
-### Quick Start (All Platforms)
-
-**Step 1:** Clone and configure
-```bash
-git clone https://github.com/claudioemmanuel/openwatch.git && cd openwatch
-cp .env.example .env
-```
-
-**Step 2:** Start backend
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml up -d
-# ✓ API ready at http://localhost:8000
-```
-
-**Step 3:** Start frontend
-```bash
-cd web
-npm ci
-NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
-# ✓ Frontend ready at http://localhost:3000
-```
-
-**Access:**
-- 🌐 Frontend: http://localhost:3000
-- 🔌 API: http://localhost:8000
-- 📚 API Docs: http://localhost:8000/docs
-
-### Setup Guides
-
-**All Platforms (Windows, macOS, Linux):**
-- [LOCAL_SETUP.md](./LOCAL_SETUP.md) — Complete dev guide: testing, migrations, debugging
-- [CROSS_PLATFORM_SETUP.md](./CROSS_PLATFORM_SETUP.md) — OS-specific setup, line endings, troubleshooting
-
-### Load Data (Optional)
+### 1. Clone and install
 
 ```bash
-curl -X POST http://localhost:8000/internal/ingest/all
-curl -X POST http://localhost:8000/internal/er/run
-curl -X POST http://localhost:8000/internal/baselines/run
-curl -X POST http://localhost:8000/internal/signals/run
-curl -X POST http://localhost:8000/internal/coverage/update
+git clone https://github.com/openwatch-br/openwatch.git
+cd openwatch
+uv sync --all-extras
+cd apps/web && npm ci && cd ../..
 ```
 
-## Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` | Async SQLAlchemy PostgreSQL DSN | Yes |
-| `DATABASE_URL_SYNC` | Sync PostgreSQL DSN for sync tasks/utilities | Yes |
-| `POSTGRES_USER` | PostgreSQL container user | Docker local |
-| `POSTGRES_PASSWORD` | PostgreSQL container password | Docker local |
-| `POSTGRES_DB` | PostgreSQL container database name | Docker local |
-| `REDIS_URL` | Redis URL for cache and app services | Yes |
-| `PORTAL_TRANSPARENCIA_TOKEN` | API token for CGU Portal da Transparência | Yes (for `pt_*` jobs) |
-| `TSE_DATA_DIR` | Local directory for TSE bulk files | Optional |
-| `RECEITA_CNPJ_DATA_DIR` | Local directory for Receita CNPJ bulk files | Optional |
-| `LLM_PROVIDER` | `none` (default) or `openai` | Optional |
-| `OPENAI_API_KEY` | OpenAI API key when `LLM_PROVIDER=openai` | Conditional |
-| `OPENAI_MODEL` | OpenAI chat model for explanations | Optional |
-| `EMBEDDING_MODEL` | Embedding model for retrieval/explanations | Optional |
-| `RATE_LIMIT_PORTAL_TRANSPARENCIA_RPS` | Outgoing RPS cap for Portal da Transparência | Optional |
-| `RATE_LIMIT_COMPRAS_GOV_RPS` | Outgoing RPS cap for Compras.gov | Optional |
-| `RATE_LIMIT_PNCP_RPS` | Outgoing RPS cap for PNCP | Optional |
-| `RATE_LIMIT_DEFAULT_RPS` | Default outgoing RPS cap for connectors | Optional |
-| `PUBLIC_RATE_LIMIT_RPS` | Public API incoming rate limit | Optional |
-| `PUBLIC_RATE_LIMIT_BURST` | Public API burst limit | Optional |
-| `CACHE_TTL_SECONDS` | Public endpoint cache TTL | Optional |
-| `CELERY_BROKER_URL` | Celery broker URL | Yes |
-| `CELERY_RESULT_BACKEND` | Celery result backend URL | Yes |
-| `CPF_HASH_SALT` | Salt used to hash CPF values (LGPD control) | Yes (production) |
-| `APP_ENV` | `development`, `staging`, or `production` | Yes |
-| `LOG_LEVEL` | Application logging level | Optional |
-
-See [`.env.example`](./.env.example) for defaults.
-
-## Running Tests
-
-Backend:
+### 2. Start infrastructure
 
 ```bash
-uv sync --extra test
-uv run --extra test pytest -q
+make dev
+# Starts PostgreSQL and Redis via Docker
 ```
 
-Frontend checks:
+### 3. Run migrations
 
 ```bash
-cd web
-npm ci
-npm run lint
-npm run build
+make migrate
 ```
 
-## Deployment
-
-### Local Development (Docker Compose)
-
-The quick start above uses Docker Compose for local development.
-See [docker-compose.yml](./docker-compose.yml) for the full stack.
-
-### Production (AWS)
-
-For production deployment on AWS (ECS Fargate + RDS + S3/CloudFront):
+### 4. Start services
 
 ```bash
-cd infra/aws
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your secrets
-terraform init && terraform apply
+# API (with hot reload)
+cd apps/api && uv run uvicorn app.main:app --reload --port 8000
+
+# Web portal (separate terminal)
+cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
-Full guide: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) |
-Cost breakdown: [docs/COST.md](./docs/COST.md)
+### 5. Open
 
-## Compliance & Respaldo Legal
+- Portal: http://localhost:3000
+- API docs: http://localhost:8000/docs (development only)
 
-[![LAI Compliant](https://img.shields.io/badge/LAI-Lei%2012.527%2F2011-green)](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm)
-[![LGPD Compliant](https://img.shields.io/badge/LGPD-Lei%2013.709%2F2018-blue)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
-[![Dados Públicos](https://img.shields.io/badge/Dados-Transparência%20Ativa%20Obrigatória-orange)](./docs/COMPLIANCE.md)
+> **Note:** In local dev mode, the API uses a dual-mode adapter that can connect to the
+> core service (set `CORE_SERVICE_URL`) or fall back to direct DB access when available.
+> See `.env.example` for all configuration options.
 
-A plataforma opera inteiramente sobre **dados já tornados públicos por força de lei** — nenhum dado é obtido por acesso não autorizado ou violação de sigilo.
+---
 
-| Pilar | Garantia |
+## Data Sources (23 connectors)
+
+| Source | Connector | License |
+|--------|-----------|---------|
+| Portal da Transparência (sanctions, spending) | `portal_transparencia` | Open (token required) |
+| PNCP procurement | `pncp` | Open |
+| Compras.gov.br | `compras_gov` | Open |
+| ComprasNet contracts | `comprasnet_contratos` | Open |
+| IBGE reference data | `ibge` | Open |
+| BrasilAPI CNPJ (fallback) | `brasilapi_cnpj` | Open |
+| + 17 enrichment connectors (TCU, TSE, TCE-*, Camara, Senado, BNDES, …) | `openwatch-core` | Open (data) |
+
+The 6 connectors in the OSS layer are standalone wrappers for fully public government APIs.
+The 17 enrichment connectors are in `openwatch-core` as part of the protected data strategy.
+
+---
+
+## Corruption Typologies
+
+OpenWatch applies **28 deterministic typologies** (T01–T28) to detect corruption-risk patterns.
+These algorithms are the core intellectual property of the project and reside in `openwatch-core`.
+
+| Group | Examples |
 |-------|---------|
-| **Tecnologicamente robusto** | Whitelist de domínios `.gov.br`/`.leg.br`, testes automatizados, código aberto AGPL-3.0, cadeia de proveniência auditável |
-| **Metodologicamente defensável** | Tipologias com base legal explícita, scoring determinístico, veracity registry público via `GET /public/sources` |
-| **Juridicamente responsável** | CF/88 art. 5º XXXIII, LAI (Lei 12.527/2011), LGPD art. 7º VI, Lei Anticorrupção 12.846/2013 |
-| **Publicamente auditável** | Open source, endpoints de proveniência públicos, metodologia documentada, aviso de disclaimer em cada sinal |
+| Procurement fraud | T01 supplier concentration, T03 contract splitting, T12 directed tender |
+| Financial fraud | T05 price outlier, T04 amendment abuse, T23 BIM cost overrun |
+| Cartels & networks | T07 cartel network, T19 bid rotation, T21 collusive cluster |
+| Political & compliance | T22 political favoritism, T16 budget clientelism, T25 TCU condemned |
 
-Ver documento técnico-jurídico completo: [docs/COMPLIANCE.md](./docs/COMPLIANCE.md)
+Full methodology: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+
+---
 
 ## Contributing
 
-Contributions are welcome.
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening issues or pull requests.
+We welcome contributions to the **public layer** — web portal, SDK, public connectors, utilities,
+and documentation. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full guide.
 
-## Wiki
+Contributions to the typology engine, risk scoring, or entity resolution are managed internally
+and are not accepted via public PRs.
 
-Project wiki pages are versioned in [docs/wiki](./docs/wiki/README.md) and intended for GitHub Wiki publication.
-
-## Support This Project
-
-OpenWatch runs on ~$15-20/month of AWS infrastructure. If this project is useful to you, consider sponsoring:
-
-- [GitHub Sponsors](https://github.com/sponsors/claudioemmanuel)
-
-See [SPONSORS.md](./SPONSORS.md) for how funds are used.
+---
 
 ## License
 
-Licensed under the GNU Affero General Public License v3.0.
-See [LICENSE](./LICENSE).
+The code in this repository is released under the [MIT License](./LICENSE).
 
-## Acknowledgments
+The `openwatch-core` repository is released under the
+[Business Source License 1.1](./LICENSE-BSL) (BSL 1.1), which converts to Apache 2.0 after
+four years from each file's commit date. Non-commercial research and civic journalism use
+is always permitted.
 
-- Brazilian federal open data providers: CGU Portal da Transparência, PNCP, Compras.gov.br, TransfereGov, Câmara dos Deputados, Senado Federal, TSE, Receita Federal
-- Querido Diario project for public gazette access
-- Core open-source ecosystem: FastAPI, Celery, PostgreSQL, SQLAlchemy, Next.js, React, and many other OSS libraries
+---
+
+## Security
+
+Please report security vulnerabilities via [SECURITY.md](./SECURITY.md).
+Do **not** open public issues for security findings.
+
+---
+
+## Sponsor
+
+If OpenWatch helps your journalism, research, or civic tech work:
+[**Become a sponsor**](https://github.com/sponsors/claudioemmanuel)

@@ -30,7 +30,7 @@ The following key decisions are already in effect and should be formalized as AD
 |---|----------|--------|
 | 001 | Async-first architecture (FastAPI + asyncpg) | Accepted |
 | 002 | Deterministic-only risk signals (LLM explanatory only) | Accepted |
-| 003 | AGPL-3.0 license for public transparency | Accepted |
+| 003 | MIT license for public OSS layer | Accepted |
 | 004 | domain_guard.py whitelist for all outbound HTTP | Accepted |
 | 005 | 100% test coverage requirement for shared/ | Accepted |
 | 006 | 5-year event windows for typology detection | Accepted |

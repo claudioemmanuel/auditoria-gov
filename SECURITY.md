@@ -1,46 +1,87 @@
 # Security Policy
 
+## Supported Versions
+
+| Version | Supported |
+|---------|-----------|
+| `main` branch | ✅ Active |
+| Other branches | ❌ Not supported |
+
+We maintain security fixes only on the current `main` branch.
+
+---
+
+## Reporting a Vulnerability
+
+**Do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
+
+### Preferred method — GitHub Private Advisory
+
+Use [GitHub's private security advisory](https://github.com/openwatch-br/openwatch/security/advisories/new)
+to report a vulnerability confidentially. This keeps the report private until a fix is ready.
+
+### Alternative — Email
+
+If you prefer email, send details to the maintainer via the email address on
+[their GitHub profile](https://github.com/claudioemmanuel).
+
+---
+
+## What to Include
+
+Please include as much of the following as possible:
+
+- **Type of vulnerability** (e.g., SSRF, injection, authentication bypass, data exposure)
+- **Affected component** (file path or endpoint)
+- **Steps to reproduce** (proof-of-concept code or request/response samples)
+- **Potential impact** (data exposure scope, privilege escalation path, etc.)
+- **Suggested fix** (if you have one)
+
+---
+
+## Response Timeline
+
+| Stage | Target time |
+|-------|------------|
+| Initial acknowledgment | Within 48 hours |
+| Vulnerability assessment | Within 5 business days |
+| Fix developed and reviewed | Within 14 days (critical) / 30 days (other) |
+| Coordinated disclosure | After fix is deployed |
+
+We will keep you informed throughout the process and give credit in the release notes
+(unless you prefer to remain anonymous).
+
+---
+
 ## Scope
 
-Report security issues that could impact confidentiality, integrity, availability, or user safety, including:
+This policy covers:
 
-- Authentication/authorization bypass (if introduced in future private/admin surfaces)
-- Remote code execution, command injection, SQL injection
-- Sensitive data exposure (tokens, raw personal identifiers, internal secrets)
-- LGPD-related privacy failures (for example storing raw CPF where hashing is expected)
-- Supply-chain compromise risks in dependencies or build pipeline
+- The `openwatch-br/openwatch` repository (public OSS layer)
+- Any API endpoints served at the production URL
 
-Out-of-scope by default:
+Out of scope:
 
-- Requests for support or setup help
-- Non-security code style issues
-- Theoretical concerns without a reproducible scenario
+- `openwatch-br/openwatch-core` (private core — report directly to maintainer)
+- Third-party services and APIs consumed by OpenWatch (report to those vendors)
+- Denial-of-service against rate-limited public endpoints
+- Social engineering
 
-## Responsible Disclosure
+---
 
-Please report vulnerabilities privately through GitHub Security Advisories:
+## Safe Harbor
 
-- https://github.com/claudioemmanuel/openwatch/security/advisories/new
+We consider security research conducted in good faith, following this policy, to be
+authorized. We will not pursue legal action against researchers who:
 
-If private advisories are unavailable, open a minimal public issue asking for a private contact channel and **do not** include exploit details.
+- Avoid accessing or modifying data belonging to others
+- Do not perform actions that degrade service availability
+- Disclose findings privately before public disclosure
+- Act within the scope defined above
 
-## What to Include in a Report
+---
 
-- Affected component/file/path
-- Clear reproduction steps (or proof of concept)
-- Impact assessment and attack preconditions
-- Suggested remediation (if available)
-- Whether you believe the issue is already being exploited
+## Acknowledgments
 
-## Response Timeline (Targets)
-
-- Acknowledgement: within 72 hours
-- Triage decision: within 14 days
-- Remediation target: within 30 days for high severity, as soon as practical for critical severity
-
-Timelines may vary for complex issues, but status updates will be shared during triage/remediation.
-
-## Disclosure and Credit
-
-Please allow time for a fix before public disclosure.
-After remediation, coordinated disclosure and reporter attribution are welcome unless you request anonymity.
+We thank all researchers who responsibly disclose vulnerabilities to us.
+Credited disclosures will appear in the relevant release's changelog.

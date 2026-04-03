@@ -59,7 +59,7 @@ Qualquer pessoa — a plataforma é pública, gratuita e de código aberto. É d
 ## Como faço para contestar um sinal que me afeta?
 
 1. Consulte `GET /signal/{id}/provenance` para ver **todos os dados brutos** que geraram o sinal
-2. Verifique a lógica da tipologia em `/methodology` — o código-fonte é aberto (AGPL-3.0)
+2. Verifique a lógica da tipologia em `/methodology` — o código-fonte é aberto (MIT)
 3. Use `GET /contestation` para registrar uma impugnação formal com justificativa
 4. Se houver erro de dados na fonte original (Portal da Transparência, PNCP etc.), reporte diretamente ao órgão responsável pela fonte
 

@@ -3,7 +3,7 @@
 ## Local Setup
 
 ```bash
-git clone https://github.com/claudioemmanuel/openwatch.git
+git clone https://github.com/openwatch-br/openwatch.git
 cd openwatch
 cp .env.example .env
 docker compose up --build

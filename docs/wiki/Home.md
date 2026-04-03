@@ -33,7 +33,7 @@ OpenWatch is an open-source citizen auditing platform for Brazilian federal publ
 - Cluster-aware entity resolution: signals follow entities through merges
 - Reproducible evidence for each signal
 - LGPD-by-design: CPF hashing, person search restricted to public-servant sources
-- Public-interest mission with AGPL-3.0 license
+- Public-interest mission with MIT license
 
 ## Canonical Repository Docs
 

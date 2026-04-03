@@ -1,211 +1,148 @@
 # OpenWatch Architecture
 
-This document is the public architecture/specification baseline for OpenWatch.
-It replaces internal planning artifacts under `docs/plans/` for open-source publication.
+Public architecture and design document for the OpenWatch platform.
+
+---
 
 ## Open-Core Model
 
-OpenWatch uses a two-layer architecture:
+| Layer | Repository | License | Contains |
+|-------|-----------|---------|---------|
+| **Public** | `openwatch-br/openwatch` (this repo) | MIT | Frontend, public API gateway, 6 generic connectors, SDK, public models |
+| **Protected Core** | `openwatch-br/openwatch-core` | BSL 1.1 | Typologies T01–T28, risk scoring, entity resolution, 17 enrichment connectors, data pipelines |
 
-| Layer | Repo | License | Contains |
-|-------|------|---------|---------|
-| **Public** | `openwatch` (this repo) | MIT | Frontend, SDK, public API gateway, generic connectors |
-| **Protected Core** | `openwatch-core` (private) | BSL 1.1 | Typologies T01–T28, risk scoring, entity resolution, pipelines |
+See [`docs/OPEN_CORE_STRATEGY.md`](OPEN_CORE_STRATEGY.md) for the full file-by-file classification.
 
-The public API acts as a **gateway only** — all computation runs in the core service on controlled infrastructure. See [`docs/OPEN_CORE_STRATEGY.md`](OPEN_CORE_STRATEGY.md) for the full classification manifest.
+---
 
 ## Mission
 
-OpenWatch is a public-read citizen auditing platform that ingests Brazilian federal open data, resolves entities across sources, detects reproducible corruption-risk patterns, and surfaces investigation-ready evidence.
+OpenWatch is a public-read citizen auditing platform that:
 
-## Core Principles
+1. Ingests 23 Brazilian federal open-data sources
+2. Resolves entities across sources using CNPJ, CPF (hashed), and name matching
+3. Applies 28 deterministic corruption-risk typologies
+4. Surfaces reproducible, evidence-linked investigation signals via a public portal
 
-- Never claim corruption as fact; produce investigable risk signals.
-- Every signal must carry reproducible evidence and numeric factors.
-- LGPD by design: no raw CPF persistence in canonical storage.
-- Deterministic detection: typologies are statistical/rule-based.
-- LLM usage (optional) is explanatory only, never scoring.
+**Core principle:** Never claim corruption as fact; produce investigable risk signals.
+Every signal carries numeric factors and links to the raw evidence.
+
+---
+
+## Repository Structure
+
+```
+openwatch/
+├── apps/
+│   ├── api/          # FastAPI public API gateway (canonical)
+│   └── web/          # Next.js public portal (canonical)
+├── packages/
+│   ├── config/       # Settings and environment (openwatch-config)
+│   ├── connectors/   # 6 public + 17 protected connectors (openwatch-connectors)
+│   ├── db/           # Database access layer [PROTECTED] (openwatch-db)
+│   ├── models/       # Data models, public + protected (openwatch-models)
+│   ├── sdk/          # TypeScript client SDK
+│   ├── ui/           # Reusable React UI components
+│   └── utils/        # Python utilities (openwatch-utils)
+├── core/             # Protected packages [PROTECTED]
+│   ├── typologies/   # T01–T28 detectors (openwatch-typologies)
+│   ├── analytics/    # Risk scoring, Benford (openwatch-analytics)
+│   ├── er/           # Entity resolution (openwatch-er)
+│   ├── baselines/    # Statistical baselines (openwatch-baselines)
+│   ├── services/     # Case builder, legal inference (openwatch-services)
+│   ├── queries/      # Analytical DB queries (openwatch-queries)
+│   ├── pipelines/    # Celery worker tasks (openwatch-pipelines)
+│   ├── scheduler/    # Beat schedule (openwatch-scheduler)
+│   └── ai/           # LLM integration (openwatch-ai)
+├── tests/
+│   ├── public/       # Tests for the public layer (run in OSS CI)
+│   └── core/         # Tests for core packages (run in private CI)
+├── infra/
+│   ├── aws/          # Terraform infrastructure [PROTECTED]
+│   ├── caddy/        # Reverse proxy config [PROTECTED]
+│   └── docker/       # Docker Compose files
+└── tools/            # Dev and split automation scripts
+```
+
+> **Legacy note:** `shared/`, `api/` (root), and `worker/` directories are legacy
+> copies maintained for backward compatibility during the monorepo-to-split transition.
+> Canonical code lives in `packages/`, `core/`, and `apps/`.
+
+---
 
 ## System Components
 
-- `web/` (Next.js): Public portal for exploration, radar, and case views.
-- `api/` (FastAPI): Public and internal endpoints.
-- `worker/` (Celery): Ingestion, normalization, ER, baselines, and signal generation.
-- `shared/`: Domain logic shared by API and workers.
-- `postgres` (with pgvector): Canonical and analytical persistence.
-- `redis`: Cache and Celery broker/result backend.
+- `apps/web/` (Next.js 14): Public portal — radar, entity explorer, case investigation, dossiers
+- `apps/api/` (FastAPI): Public and internal API endpoints; acts as gateway to core service
+- `core/pipelines/` (Celery + Beat): Data ingestion, normalization, ER, baselines, signals
+- PostgreSQL 17 + pgvector: Canonical storage + semantic search
+- Redis: Celery broker, result backend, API cache
 
-## Data Pipeline
-
-1. Ingestion (`worker.tasks.ingest_tasks`)
-   - Pulls enabled jobs from connector registry.
-   - Stores raw payloads and run state.
-2. Normalization (`worker.tasks.normalize_tasks`)
-   - Maps source payloads into canonical entities/events/edges.
-3. Entity Resolution (`worker.tasks.er_tasks`)
-   - Matching + clustering across aliases/identifiers.
-4. Baselines (`worker.tasks.baseline_tasks`)
-   - Computes statistical reference baselines.
-5. Typologies (`worker.tasks.signal_tasks`)
-   - Runs T01-T28 deterministic detectors.
-6. Coverage (`worker.tasks.coverage_tasks`)
-   - Updates freshness and registry visibility.
+---
 
 ## Public API Endpoints
 
-### Public (unauthenticated)
+All endpoints are under `/public/` and require no authentication.
 
-- `GET /public/radar` — Risk signal radar with filters
-- `GET /public/entity/search?q=<text>&type=company|person&limit=20` — Fuzzy entity search via pg_trgm (GIN index on `name_normalized`). Person results are LGPD-scoped to public-servant connectors via `EntityRawSource` join.
-- `GET /public/graph/path?from=<id>&to=<id>&max_hops=5` — Shortest path between two entities using a PostgreSQL recursive CTE; returns node/edge list with `event_type`, `typology_ids`, `first_seen`, and `last_seen` per edge.
-- `GET /public/sources` — Source veracity registry (scores, compliance status, freshness)
-- `GET /signal/{id}/provenance` — Full evidence chain for a signal
-- `GET /case/{id}/provenance` — Full evidence chain for a case
+| Endpoint | Description |
+|----------|-------------|
+| `GET /public/radar` | Risk signal radar with filters |
+| `GET /public/entity/search?q=<text>` | Entity fuzzy search (pg_trgm) |
+| `GET /public/entity/{id}` | Entity detail |
+| `GET /public/case/{id}` | Case detail with signals |
+| `GET /public/signal/{id}` | Signal detail with evidence |
+| `GET /public/graph/path` | Shortest path between entities |
+| `GET /public/graph/neighborhood/{id}` | Entity neighborhood |
+| `GET /public/coverage` | Data freshness summary |
+| `GET /public/sources` | Active connector list |
+| `POST /public/contestation` | Submit contestation on a signal |
 
-### Internal (authenticated)
+Rate limit: 10 req/s, burst 30.
 
-- `GET /internal/data-quality` — Data quality monitoring: per-source entity count, freshness lag, veracity score, cross-source entity overlap histogram, and week-over-week contribution delta alerts (>20% drop threshold).
+---
 
-## Entity Resolution Bridge
+## Data Pipeline (runs in `openwatch-core`)
 
-`resolve_entity_ids_with_clusters(session, raw_entity_ids)` in `shared/repo/queries.py` expands any list of entity UUIDs to the full cluster — entities sharing the same `cluster_id` after an ER merge. This bridge is applied to all signal-matching query paths (`get_org_summary`, case graph, `compute_entity_risk_score`, radar listing) so that signals filed against pre-merge entity UUIDs are correctly surfaced after ER runs. The helper is batch-safe: always called once per request, never in a per-signal loop.
+```
+1. Ingest       connectors pull source data → raw_source table
+2. Normalize    raw payloads → canonical entities/events/edges
+3. Entity Res.  fuzzy matching + clustering across identifiers
+4. Baselines    compute statistical reference baselines
+5. Typologies   T01–T28 detectors → risk signals
+6. Cases        group signals by entity cluster → investigation cases
+7. Coverage     update freshness + registry visibility
+```
 
-## Database Extensions
+---
 
-- `pgvector`: embeddings support
-- `pg_trgm`: trigram similarity index on `entity.name_normalized` (migration `0014`) for fuzzy bulk entity search
+## LGPD Compliance
 
-## Sources and Connectors
+- CPF values are never stored in canonical tables; only a HMAC-SHA256 hash
+- The hash salt (`CPF_HASH_SALT`) is set once and never changed in production
+- Person entity search is scoped to public-servant connectors
+- No raw personal data is surfaced via the public API
 
-Current ingestion runs through connector modules in `shared/connectors/`:
+---
 
-- `portal_transparencia`
-- `pncp`
-- `compras_gov`
-- `comprasnet_contratos`
-- `transferegov`
-- `camara`
-- `senado`
-- `tse`
-- `receita_cnpj`
-- `querido_diario`
-- `tcu`
-- `datajud`
-- `ibge`
-- `tce_rj`
-- `tce_rs`
-- `tce_sp`
-- `tce_pe`
-- `jurisprudencia`
-- `bacen`
-- `bndes`
-- `brasilapi_cnpj` (enrichment-only)
-- `anvisa_bps` (enrichment-only)
+## Security Model
 
-These connectors expose multiple jobs and currently total 23 connectors with 60 jobs.
+| Component | Protection |
+|-----------|-----------|
+| Public API | Rate limited, no authentication required, read-only |
+| Internal API | Requires `X-Internal-Api-Key` header |
+| Core service | Not exposed to public internet; reached only via internal network |
+| Infrastructure | AWS VPC, private subnets, IAM least-privilege (Terraform in `infra/aws/`) |
+| Secrets | AWS Secrets Manager in production; `.env` locally |
 
-## Typology Engine
+---
 
-Registered in `shared/typologies/registry.py`:
+## Open-Core Boundary
 
-- T01 concentration
-- T02 low competition
-- T03 splitting
-- T04 amendments outlier
-- T05 price outlier
-- T06 shell company proxy
-- T07 cartel network
-- T08 sanctions mismatch
-- T09 ghost payroll proxy
-- T10 outsourcing parallel payroll
-- T11 jogo de planilha
-- T12 edital direcionado
-- T13 conflito de interesses
-- T14 sequência de favorecimento (meta-typology)
-- T15 inexigibilidade indevida
-- T16 clientelismo orçamentário (emenda pix)
-- T17 lavagem via camadas societárias
-- T18 acúmulo ilegal de cargos
-- T19 bid rotation
-- T20 phantom bidders
-- T21 collusive cluster
-- T22 political favoritism
-- T23 BIM cost overrun
-- T24 ME/EPP quota fraud
-- T25 TCU condemned x active contract
-- T26 state penalty mismatch
-- T27 BNDES loan nexus
-- T28 judicial precedent warning
-
-## Worker Architecture
-
-The Celery task queue is split into two worker containers with distinct queue assignments and resource profiles:
-
-| Worker | Queues | Concurrency | Memory Limit | Role |
-|--------|--------|-------------|--------------|------|
-| `worker-primary` | `ingest`, `normalize`, `ai`, `default`, `vacuum` | 2 | — | High-throughput ingestion + Beat scheduler |
-| `worker-heavy` | `er`, `signals`, `bulk`, `default` | 1 | 2 GB | CPU/memory-intensive ER and signal generation |
-
-`worker-primary` also runs the Celery Beat scheduler. `worker-heavy` handles entity resolution (advisory-locked singleton) and typology signal runs, which can process hundreds of thousands of participants per wave.
-
-## Privacy and LGPD
-
-- CPF handling uses hashed or masked representation for cross-source linkage.
-- Sensitive raw data should not be committed or exposed in repository artifacts.
-- `.env`, local secrets, and bulk data directories remain gitignored.
-
-## Operations
-
-### Local stack
+The `tools/check_boundaries.py` script enforces that the public API layer never imports
+from protected modules. This runs on every PR:
 
 ```bash
-docker compose up --build
-docker compose run --rm api alembic -c api/alembic.ini upgrade head
+uv run python tools/check_boundaries.py
 ```
 
-### Core verification
-
-```bash
-uv run --extra test pytest -q
-```
-
-### AWS Production Deployment
-
-Production runs on AWS ECS Fargate with the following topology:
-
-```
-CloudFront → S3 (Next.js static export)
-ALB → ECS Fargate (API service, always-on)
-EventBridge Scheduler → ECS Fargate (Worker one-shot tasks, on-demand)
-ECS → RDS PostgreSQL 17 + pgvector (db.t3.micro)
-ECS → ElastiCache Redis 7.1 (cache.t3.micro)
-```
-
-Infrastructure is managed by Terraform in `infra/aws/`. Deploy with:
-
-```bash
-cd infra/aws
-cp terraform.tfvars.example terraform.tfvars
-# Fill in secrets — see docs/DEPLOYMENT.md
-terraform init && terraform apply
-```
-
-Worker containers run as one-shot Fargate tasks triggered by EventBridge Scheduler:
-
-- `pipeline-full` — daily 03:00 UTC (full ingest + ER + signals)
-- `pipeline-bulk` — daily 00:00 UTC (bulk connector refresh)
-- `pipeline-maintenance` — Sunday 02:00 UTC (vacuum, coverage update)
-
-CI/CD: `.github/workflows/deploy.yml` uses GitHub OIDC (no long-lived keys) to push images to ECR, update ECS task definitions, sync the frontend to S3, and run Alembic migrations via a one-shot ECS task.
-
-**Budget guardrail:** A Lambda function triggered by AWS Budgets stops all ECS services, stops RDS, and disables EventBridge rules when spend reaches $20/month.
-
-See `docs/DEPLOYMENT.md` and `docs/COST.md` for full details.
-
-## Public-Facing Documentation Set
-
-- `README.md`: onboarding and usage
-- `CONTRIBUTING.md`: contributor workflow
-- `SECURITY.md`: vulnerability reporting policy
-- `CODE_OF_CONDUCT.md`: contributor standards
-- `CLAUDE.md`: Claude Code contributor guidance
+See [`OPEN_CORE_STRATEGY.md`](OPEN_CORE_STRATEGY.md) for the complete boundary rules.
