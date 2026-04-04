@@ -424,9 +424,9 @@ export default function CaseDetailPage() {
                           {entity.name}
                         </Link>
 
-                        {entity.cnpj_masked && (
+                        {(entity.cnpj ?? entity.cnpj_masked) && (
                           <span className="ow-id text-mono-xs shrink-0 hidden sm:inline">
-                            {entity.cnpj_masked}
+                            {entity.cnpj ?? entity.cnpj_masked}
                           </span>
                         )}
 
