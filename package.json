@@ -2,6 +2,10 @@
   "name": "openwatch",
   "private": true,
   "scripts": {
+    "env:detect": "node scripts/detect-resources.js",
+    "docker:up": "docker compose --env-file .env.runtime up -d",
+    "docker:down": "docker compose down",
+    "start": "npm run env:detect && npm run docker:up",
     "build": "turbo run build",
     "dev": "turbo run dev --parallel --filter=apps/web",
     "lint": "turbo run lint",
