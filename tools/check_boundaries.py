@@ -43,7 +43,9 @@ PROTECTED_MODULES: list[str] = [
     # NOTE: shared.models.graph, .radar, .coverage_v2 are PUBLIC API schemas — not protected
     "worker.tasks",
     "worker.worker_app",
-    "api.app.routers.internal",
+    # NOTE: api.app.routers.internal was protected when it only existed in the
+    # private monorepo. It now lives in the public repo as a gateway proxy —
+    # importing it from main.py is intentional and valid.
 ]
 
 # Protected connector modules (enrichment strategy, not generic wrappers)

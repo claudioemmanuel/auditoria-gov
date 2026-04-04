@@ -22,7 +22,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic -c api/alembic.ini upgrade head && uvicorn api.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn api.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
 # ── test (includes dev-deps + test suite) ─────────────────────────────────────
 FROM base AS test
