@@ -682,7 +682,8 @@ export interface CaseEntityBrief {
   id: string;
   name: string;
   type: "person" | "company" | "org";
-  cnpj_masked?: string;
+  cnpj?: string;          // full CNPJ — public data, never masked
+  cnpj_masked?: string;   // deprecated alias, equals cnpj
   roles: string[];
   signal_ids: string[];
 }

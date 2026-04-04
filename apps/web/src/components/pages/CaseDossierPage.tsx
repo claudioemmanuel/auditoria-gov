@@ -260,9 +260,9 @@ export default async function DossierPage({ id }: { id: string }) {
                       {entity.name}
                       <ExternalLink className="h-3 w-3 text-muted print:hidden" />
                     </Link>
-                    {entity.cnpj_masked && (
+                    {(entity.cnpj ?? entity.cnpj_masked) && (
                       <p className="font-mono text-[10px] text-muted mt-0.5">
-                        CNPJ: {entity.cnpj_masked}
+                        CNPJ: {entity.cnpj ?? entity.cnpj_masked}
                       </p>
                     )}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
