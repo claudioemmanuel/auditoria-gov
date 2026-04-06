@@ -1,10 +1,5 @@
-# docker-compose.dev-lite.yml — resource overrides for local dev (Apple M4, 8 GB Docker VM)
-#
-# Web runs natively — NOT in Docker — to save ~1 GB of container RAM:
-#   cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
-#
-# Usage:
-#   make dev-lite
+# docker-compose.dev-lite.yml — lower resource limits for local dev machines
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml up -d
 
 services:
   api:
@@ -13,11 +8,12 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 256M
+          cpus: "0.2"
+          memory: 384M
         reservations:
-          memory: 96M
+          memory: 128M
 
-  # Web is intentionally excluded from local dev — run it natively instead.
+  # Disable web container — run natively instead:
+  #   cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
   web:
     profiles: ["disabled"]

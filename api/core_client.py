@@ -211,25 +211,6 @@ class CoreClient:
         except CoreNotFoundError:
             return None
 
-    # ------------------------------------------------------------------
-    # Pipeline operator
-    # ------------------------------------------------------------------
-
-    async def get_pipeline_status(self) -> Any:
-        return await self._get("/internal/pipeline/status")
-
-    async def get_pipeline_capacity(self) -> Any:
-        return await self._get("/internal/pipeline/capacity")
-
-    async def trigger_full_pipeline(self) -> Any:
-        return await self._post("/internal/pipeline/full")
-
-    async def dispatch_next_pending(self) -> Any:
-        return await self._post("/internal/pipeline/dispatch-next")
-
-    async def yield_connector(self, connector: str) -> Any:
-        return await self._post(f"/internal/ingest/{connector}/yield")
-
 
 def _raise_for_status(response: httpx.Response) -> None:
     if response.status_code == 404:
