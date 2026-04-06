@@ -24,7 +24,8 @@ services:
       PYTHONPATH: /app
       APP_ENV: development
       # Reaches openwatch-core internal API via the shared Docker network
-      CORE_SERVICE_URL: http://core-api:8001
+      # Allow overriding via environment (e.g. .env.runtime) for local development.
+      CORE_SERVICE_URL: ${CORE_SERVICE_URL:-http://core-api:8001}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s

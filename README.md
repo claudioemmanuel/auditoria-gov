@@ -1,36 +1,40 @@
-# OpenWatch
+# OpenWatch (Public Layer)
 
 **Citizen auditing of Brazilian federal data.**
 
 OpenWatch is an open-core platform that ingests public procurement, contracting, and financial data from Brazilian federal government sources, detects corruption-risk signals using a typology engine, and exposes results through a public API and web portal.
 
-> **Repository visibility:** This is the **public layer** (`MIT`).
-> The private analytics engine lives in [openwatch-core](https://github.com/openwatch-br/openwatch-core) (`BSL 1.1`).
+---
+
+## Overview
+
+This repository contains the **public-facing layer** of OpenWatch:
+
+- **Frontend**: Next.js 15 portal for citizens, journalists, and researchers (`apps/web/`)
+- **Public API**: FastAPI gateway that proxies analytical queries to the private analytics engine (`api/`)
+- **Shared Packages**: Python utilities, config, and public-facing models (`packages/`, `shared/`)
+
+> **Note:** The private analytics engine lives in [openwatch-core](https://github.com/openwatch-br/openwatch-core) (`BSL 1.1`). This repo is MIT-licensed and contains no protected analytics code.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────┐
 │  openwatch  (public, MIT)                        │
-│  ┌─────────────┐   ┌──────────────────────────┐ │
+│  ┌───────────────┐   ┌────────────────────────────┐ │
 │  │  Next.js    │   │  FastAPI public gateway   │ │
 │  │  (Vercel)   │──▶│  api/                     │ │
-│  └─────────────┘   └──────────┬───────────────┘ │
-└─────────────────────────────┬─┘                  │
+│  └───────────────┘   └───────────────┬────────────┘ │
+└──────────────────────────────┬───────────────┘
                                │ CORE_SERVICE_URL   │
                                ▼                    │
-┌─────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────┐
 │  openwatch-core  (private, BSL 1.1)              │
 │  Analytics · ER · Typologies · Workers · Infra   │
-└─────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────┘
 ```
-
-- **Public API** (`api/`): FastAPI gateway that proxies analytical queries to `openwatch-core` via an internal HTTP interface.
-- **Frontend** (`apps/web/`): Next.js 15 portal for citizens, journalists, and researchers.
-- **Packages** (`packages/`): Shared Python utilities, config, and public-facing models.
-- **Shared** (`shared/`): Runtime Python module used by the API (config, DB session, models, middleware).
 
 ---
 
@@ -101,16 +105,16 @@ The public API delegates all analytical queries to `openwatch-core`. For full lo
 
 ## Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `make sync` | Install Python and Node dependencies |
-| `make dev` | Start Postgres + Redis in Docker |
-| `make dev-full` | Start full public stack in Docker |
-| `make migrate` | Run Alembic DB migrations |
-| `make test` | Run public test suite |
-| `make lint` | Lint Python and TypeScript |
-| `make typecheck` | Type-check Python and TypeScript |
-| `make boundaries` | Enforce import boundary rules |
+| Command         | Description                                 |
+|-----------------|---------------------------------------------|
+| `make sync`     | Install Python and Node dependencies        |
+| `make dev`      | Start Postgres + Redis in Docker            |
+| `make dev-full` | Start full public stack in Docker           |
+| `make migrate`  | Run Alembic DB migrations                   |
+| `make test`     | Run public test suite                       |
+| `make lint`     | Lint Python and TypeScript                  |
+| `make typecheck`| Type-check Python and TypeScript            |
+| `make boundaries`| Enforce import boundary rules              |
 
 ---
 

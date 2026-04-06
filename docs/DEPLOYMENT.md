@@ -1,19 +1,23 @@
-# Deployment
+# Deployment — OpenWatch (Public Layer)
+
+---
 
 ## Local Development
 
 See [README.md](../README.md#quick-start) for the full local setup guide.
 
-**TL;DR:**
+**Quickstart:**
 ```bash
 cp .env.example .env  # configure
-make install
-make dev              # starts postgres + redis
+make sync             # install Python/Node deps
+make dev              # starts Postgres + Redis
 make migrate
 uv run uvicorn api.app.main:app --reload --port 8000
 ```
 
-## Docker Compose (staging / single-server)
+---
+
+## Docker Compose (Staging / Single-Server)
 
 ```bash
 # Copy and configure environment
@@ -31,25 +35,29 @@ The `docker-compose.prod.yml` override enables Caddy for TLS and disables the we
 
 ### Required `.env` values for production
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis connection string |
-| `CPF_HASH_SALT` | Random hex string (LGPD compliance) |
-| `INTERNAL_API_KEY` | Strong random key (`openssl rand -hex 32`) |
-| `CORE_SERVICE_URL` | URL of running `openwatch-core` internal API |
-| `CORE_API_KEY` | Shared key between public and core services |
-| `ALLOWED_ORIGINS` | Comma-separated CORS allowed origins |
-| `API_DOMAIN` | Domain for Caddy TLS (e.g. `api.yourdomain.com`) |
+| Variable            | Description                                 |
+|---------------------|---------------------------------------------|
+| `DATABASE_URL`      | PostgreSQL connection string                |
+| `REDIS_URL`         | Redis connection string                     |
+| `CPF_HASH_SALT`     | Random hex string (LGPD compliance)         |
+| `INTERNAL_API_KEY`  | Strong random key (`openssl rand -hex 32`)  |
+| `CORE_SERVICE_URL`  | URL of running `openwatch-core` internal API|
+| `CORE_API_KEY`      | Shared key between public and core services |
+| `ALLOWED_ORIGINS`   | Comma-separated CORS allowed origins        |
+| `API_DOMAIN`        | Domain for Caddy TLS (e.g. `api.yourdomain.com`) |
+
+---
 
 ## Frontend (Vercel)
 
 Deploy `apps/web/` to Vercel:
 
-1. Connect the `openwatch` GitHub repository.
-2. Set root directory to `apps/web`.
+1. Connect the `openwatch` GitHub repository
+2. Set root directory to `apps/web`
 3. Set environment variable: `NEXT_PUBLIC_API_URL=https://api.yourdomain.com`
-4. Deploy.
+4. Deploy
+
+---
 
 ## AWS ECS (Production)
 
@@ -60,6 +68,8 @@ The workflow:
 2. Deploys to ECS Fargate
 3. Runs database migrations as a one-off ECS task
 4. Deploys the frontend to Vercel (triggered via webhook)
+
+---
 
 ### Infrastructure
 
