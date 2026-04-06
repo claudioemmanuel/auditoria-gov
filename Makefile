@@ -1,16 +1,4 @@
-.PHONY: env up down restart build dev dev-lite dev-down dev-lite-down web logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync install
-
-env:
-	node scripts/detect-resources.js
-
-up:
-	npm run docker:up
-
-down:
-	npm run docker:down
-
-restart:
-	make down && make up
+.PHONY: build dev dev-lite dev-down dev-lite-down web logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync install
 
 DC      = docker compose
 DC_LITE = docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml
@@ -51,7 +39,7 @@ dev-lite-down:
 	$(DC_LITE) down
 
 logs:
-	docker compose logs -f --tail=100
+docker compose logs -f --tail=100
 
 # ── Database ──────────────────────────────────────────────────────────────────
 migrate:
