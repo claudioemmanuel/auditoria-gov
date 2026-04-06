@@ -1,57 +1,26 @@
-.PHONY: env up down restart build dev dev-lite dev-down dev-lite-down web logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync install
-
-env:
-	node scripts/detect-resources.js
-
-up:
-	npm run docker:up
-
-down:
-	npm run docker:down
-
-restart:
-	make down && make up
-
-DC      = docker compose
-DC_LITE = docker compose -f docker-compose.yml -f docker-compose.dev-lite.yml
+.PHONY: build dev dev-down logs test test-cov lint typecheck boundaries migrate migrate-new seed clean sync install
 
 # ── Docker build ──────────────────────────────────────────────────────────────
 build:
-	$(DC) build
+docker compose build
 
 # ── Development ───────────────────────────────────────────────────────────────
 # Requires openwatch-core to be running first (it owns postgres, redis, core-api).
-# Start core:   cd ../openwatch-core && make dev-lite
-# Then:         make dev-lite   (this repo)
+# Start core:   cd ../openwatch-core && make dev
+# Then:         make dev   (this repo)
 dev:
-	$(DC) up -d
-	@echo ""
-	@echo "  Public services running (full mode):"
-	@echo "    API:  http://localhost:8000"
-	@echo "    Web:  http://localhost:3000 (containerised)"
-	@echo ""
-
-dev-lite:
-	$(DC_LITE) up -d api
-	@echo ""
-	@echo "  Public services running (lite mode — web is native):"
-	@echo "    API:  http://localhost:8000"
-	@echo ""
-	@echo "  Start the frontend natively:"
-	@echo "    make web"
-	@echo ""
-
-web:
-	cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+docker compose up -d
+@echo ""
+@echo "  Public services running:"
+@echo "    API:  http://localhost:8000"
+@echo "    Web:  http://localhost:3000"
+@echo ""
 
 dev-down:
-	$(DC) down
-
-dev-lite-down:
-	$(DC_LITE) down
+docker compose down
 
 logs:
-	docker compose logs -f --tail=100
+docker compose logs -f --tail=100
 
 # ── Database ──────────────────────────────────────────────────────────────────
 migrate:

@@ -71,10 +71,7 @@ async def adapter_get_radar_v2_summary(session: AsyncSession, **kwargs: Any) -> 
 
 async def adapter_get_radar_v2_signals(session: AsyncSession, **kwargs: Any) -> Any:
     _ = session
-    payload = await _client().get_radar_signals(**kwargs)
-    if isinstance(payload, dict):
-        return payload.get("items", []), int(payload.get("total", 0))
-    return payload
+    return await _client().get_radar_signals(**kwargs)
 
 
 async def adapter_get_radar_v2_signal_preview(session: AsyncSession, signal_id: uuid.UUID) -> Any:
@@ -84,10 +81,7 @@ async def adapter_get_radar_v2_signal_preview(session: AsyncSession, signal_id: 
 
 async def adapter_get_radar_v2_cases(session: AsyncSession, **kwargs: Any) -> Any:
     _ = session
-    payload = await _client().get_radar_cases(**kwargs)
-    if isinstance(payload, dict):
-        return payload.get("items", []), int(payload.get("total", 0))
-    return payload
+    return await _client().get_radar_cases(**kwargs)
 
 
 async def adapter_get_radar_v2_case_preview(session: AsyncSession, case_id: uuid.UUID) -> Any:
@@ -231,3 +225,4 @@ def adapter_list_typologies() -> list[dict]:
 
 def adapter_get_typology(code: str) -> dict | None:
     return get_public_typology(code)
+

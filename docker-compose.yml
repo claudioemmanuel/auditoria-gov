@@ -19,7 +19,7 @@ services:
       target: runtime
     ports:
       - "127.0.0.1:8000:8000"
-    env_file: .env.runtime
+    env_file: .env
     environment:
       PYTHONPATH: /app
       APP_ENV: development
@@ -34,8 +34,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${APP_CPU_LIMIT}'
-          memory: '${APP_MEMORY_LIMIT}'
+          cpus: "0.25"
+          memory: 512M
         reservations:
           memory: 192M
     networks:
@@ -53,7 +53,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
       - "127.0.0.1:3000:3000"
-    env_file: .env.runtime
+    env_file: .env
     depends_on:
       - api
     volumes:
@@ -62,8 +62,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${APP_CPU_LIMIT}'
-          memory: '${APP_MEMORY_LIMIT}'
+          cpus: "1.0"
+          memory: 1536M
         reservations:
           memory: 512M
     networks:
