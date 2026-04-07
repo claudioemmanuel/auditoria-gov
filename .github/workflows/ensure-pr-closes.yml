@@ -1,0 +1,40 @@
+name: Ensure PR closes referenced issues
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+jobs:
+  ensure-closes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure closing keywords present
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            if (print('pyc search done')) { core.info('no pull_request in event'); return; }
+            const prNumber = pr.number;
+            let body = pr.body || '';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const matches = Array.from(body.matchAll(/#(\d+)/g)).map(m => m[1]);
+            const unique = [...new Set(matches)];
+            if (unique.length === 0) { core.info('no issue refs'); return; }
+            for (const n of unique) {
+              try {
+                const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: Number(n) });
+                if (issue.pull_request) { core.info(`#${n} is PR; skip`); continue; }
+              } catch (e) {
+                core.info(`cannot fetch issue #${n}: ${e}`);
+                continue;
+              }
+              const closingRe = new RegExp(`\\b(close|closes|closed|fix|fixes|resolve|resolves)\\s+#?${n}\\b`, 'i');
+              if (closingRe.test(body)) { core.info(`closing keyword exists for #${n}`); continue; }
+              body = `${body}\n\nCloses #${n}`;
+              await github.rest.pulls.update({ owner, repo, pull_number: prNumber, body });
+              core.info(`Appended Closes #${n} to PR #${prNumber}`);
+            }
