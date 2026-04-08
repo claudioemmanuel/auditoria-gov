@@ -6,7 +6,6 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from shared.config import settings
-from shared.models import orm  # noqa: F401 — register all models
 from shared.models.base import Base
 
 config = context.config
