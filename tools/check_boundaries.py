@@ -27,54 +27,51 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
-# Classification: modules that must NEVER be imported from the public layer
+# Classification: workspace package modules that must NEVER be imported from
+# the public layer. These live in openwatch-core (private, BSL 1.1).
 # ---------------------------------------------------------------------------
 PROTECTED_MODULES: list[str] = [
-    "shared.typologies",
-    "shared.analytics",
-    "shared.er",
-    "shared.ai",
-    "shared.baselines",
-    "shared.services",
-    "shared.repo",
-    "shared.scheduler",
-    "shared.models.orm",   # DB schema — PROTECTED
-    "shared.models.raw",   # Internal raw source models — PROTECTED
-    # NOTE: shared.models.graph, .radar, .coverage_v2 are PUBLIC API schemas — not protected
-    "worker.tasks",
-    "worker.worker_app",
-    # NOTE: api.app.routers.internal was protected when it only existed in the
-    # private monorepo. It now lives in the public repo as a gateway proxy —
-    # importing it from main.py is intentional and valid.
+    "openwatch_typologies",
+    "openwatch_analytics",
+    "openwatch_er",
+    "openwatch_ai",
+    "openwatch_baselines",
+    "openwatch_services",
+    "openwatch_pipelines",
+    "openwatch_scheduler",
+    "openwatch_queries",
+    "openwatch_db",  # sync/async engine + upsert helpers — private ORM access
 ]
 
-# Protected connector modules (enrichment strategy, not generic wrappers)
+# Protected connector modules: gov API enrichment implementations live in
+# openwatch-core. The public layer keeps only the generic transport helpers
+# (http_client, domain_guard, base) shipped with openwatch_connectors.
 PROTECTED_CONNECTORS: list[str] = [
-    "shared.connectors.veracity",
-    "shared.connectors.bacen",
-    "shared.connectors.datajud",
-    "shared.connectors.tce_pe",
-    "shared.connectors.tce_rj",
-    "shared.connectors.tce_rs",
-    "shared.connectors.tce_sp",
-    "shared.connectors.tcu",
-    "shared.connectors.tse",
-    "shared.connectors.camara",
-    "shared.connectors.senado",
-    "shared.connectors.bndes",
-    "shared.connectors.jurisprudencia",
-    "shared.connectors.querido_diario",
-    "shared.connectors.transferegov",
-    "shared.connectors.anvisa_bps",
-    "shared.connectors.receita_cnpj",
-    "shared.connectors.orcamento_bim",
+    "openwatch_connectors.anvisa_bps",
+    "openwatch_connectors.bacen",
+    "openwatch_connectors.bndes",
+    "openwatch_connectors.camara",
+    "openwatch_connectors.datajud",
+    "openwatch_connectors.jurisprudencia",
+    "openwatch_connectors.orcamento_bim",
+    "openwatch_connectors.querido_diario",
+    "openwatch_connectors.receita_cnpj",
+    "openwatch_connectors.senado",
+    "openwatch_connectors.tce_pe",
+    "openwatch_connectors.tce_rj",
+    "openwatch_connectors.tce_rs",
+    "openwatch_connectors.tce_sp",
+    "openwatch_connectors.tcu",
+    "openwatch_connectors.transferegov",
+    "openwatch_connectors.tse",
+    "openwatch_connectors.veracity",
 ]
 
 ALL_PROTECTED = PROTECTED_MODULES + PROTECTED_CONNECTORS
 
 # ---------------------------------------------------------------------------
-# Files/directories that represent the PUBLIC layer
-# (post-split, these will be the only files in the public repo)
+# Files/directories that represent the PUBLIC layer.
+# These are the only files in the public repo post-split.
 # ---------------------------------------------------------------------------
 PUBLIC_PATHS: list[str] = [
     "apps/web/src",
@@ -83,45 +80,20 @@ PUBLIC_PATHS: list[str] = [
     "packages/utils",
     "packages/config",
     "packages/models/openwatch_models",
+    # Generic transport helpers only; per-connector implementations
+    # belong in openwatch-core.
     "packages/connectors/openwatch_connectors/domain_guard.py",
     "packages/connectors/openwatch_connectors/http_client.py",
-    # Public API surface
+    # Public API surface (thin gateway that proxies to openwatch-core).
     "api/app/routers/public.py",
+    "api/app/routers/internal.py",  # operator endpoints that proxy to core
     "api/app/main.py",
     "api/app/deps.py",
-    "api/core_client.py",
+    "api/app/db.py",
     "api/app/adapters",
-    # Generic connectors kept in the public layer
-    "shared/connectors/http_client.py",
-    "shared/connectors/domain_guard.py",
-    # Public models — response schemas (API contract)
-    "shared/models/canonical.py",
-    "shared/models/signals.py",
-    "shared/models/vocabulary.py",
-    "shared/models/base.py",
-    "shared/models/graph.py",
-    "shared/models/radar.py",
-    "shared/models/coverage_v2.py",
-    "shared/models/public_filter.py",
-    "shared/logging.py",
-    "shared/config.py",
+    "api/app/middleware",
+    "api/core_client.py",
 ]
-
-
-# ---------------------------------------------------------------------------
-# Files that are AUTHORIZED to import from both layers.
-# The adapter is the intentional bridge — its monorepo-mode imports are expected.
-# After the split, the monorepo fallback branch is deleted and this exemption
-# is removed along with api/app/adapters/ entry in PUBLIC_PATHS.
-# ---------------------------------------------------------------------------
-ADAPTER_EXEMPT_PATHS: list[str] = []
-
-
-# ---------------------------------------------------------------------------
-# Post-split state: data-ingestion connectors live exclusively in
-# `openwatch-core`. The public repo keeps only generic transport helpers.
-# ---------------------------------------------------------------------------
-CONNECTOR_SPLIT_TODO_PATHS: list[str] = []
 
 
 def collect_python_files(paths: list[str]) -> list[Path]:
@@ -133,16 +105,6 @@ def collect_python_files(paths: list[str]) -> list[Path]:
         elif p.is_dir():
             files.extend(p.rglob("*.py"))
     return files
-
-
-def _is_adapter_exempt(file: Path) -> bool:
-    rel = str(file.relative_to(ROOT)).replace("\\", "/")
-    return any(rel.startswith(exempt) for exempt in ADAPTER_EXEMPT_PATHS)
-
-
-def _is_connector_split_todo(file: Path) -> bool:
-    rel = str(file.relative_to(ROOT)).replace("\\", "/")
-    return any(rel == p for p in CONNECTOR_SPLIT_TODO_PATHS)
 
 
 def extract_imports(file: Path) -> list[tuple[int, str]]:
@@ -170,22 +132,13 @@ def check_violations(strict: bool = False) -> int:
 
     for file in files:
         rel_path = file.relative_to(ROOT)
-        if _is_adapter_exempt(file):
-            # core_adapter.py is the authorized bridge — exempt from boundary checks.
-            # POST-SPLIT: remove this exemption when the monorepo fallback is deleted.
-            continue
-        is_connector_todo = _is_connector_split_todo(file)
         for line_no, module in extract_imports(file):
             for protected in ALL_PROTECTED:
                 if module == protected or module.startswith(protected + "."):
                     msg = f"  {rel_path}:{line_no}  imports  {module!r}"
-                    if is_connector_todo and (protected == "shared.models.raw" or protected == "shared.models.orm"):
-                        # Connectors import raw/orm models — tracked as SPLIT-TODO warning
-                        warnings.append(f"{msg}  [SPLIT-TODO: connector moves to core]")
-                    elif protected in PROTECTED_MODULES:
+                    if protected in PROTECTED_MODULES:
                         violations.append(msg)
                     else:
-                        # Protected connectors are warnings (enrichment strategy)
                         warnings.append(msg)
 
     if violations:
