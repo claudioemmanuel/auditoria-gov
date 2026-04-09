@@ -1,14 +1,10 @@
-# openwatch — public API gateway + frontend
+# openwatch — public API gateway
 #
-# Requires openwatch-core to be running first (postgres, redis, core-api on openwatch-net).
+# Requires openwatch-core to be running first (it creates openwatch-net):
+#   cd ../openwatch-core && make dev
 #
-# Setup:
-#   # 1. Start openwatch-core first:
-#   #    cd ../openwatch-core && make dev
-#   #
-#   # 2. Then start this repo:
-#   cp .env.example .env   # set CORE_SERVICE_URL=http://core-api:8001
-#   make dev               # docker compose up -d
+# Then start this repo:
+#   make dev
 
 services:
 
@@ -23,8 +19,9 @@ services:
     environment:
       PYTHONPATH: /app
       APP_ENV: development
-      # Reaches openwatch-core internal API via the shared Docker network
-      # Allow overriding via environment (e.g. .env.runtime) for local development.
+      # Connects to openwatch-core internal API via openwatch-net.
+      # On macOS with split stacks, set CORE_SERVICE_URL=http://host.docker.internal:8001
+      # in .env.runtime (generated automatically by openwatch-core's make env).
       CORE_SERVICE_URL: ${CORE_SERVICE_URL:-http://core-api:8001}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -36,37 +33,9 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: 512M
+          memory: 256M
         reservations:
-          memory: 192M
-    networks:
-      - openwatch-net
-
-  web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-      target: builder
-    command: npm run dev
-    environment:
-      NODE_ENV: development
-      NODE_OPTIONS: "--max-old-space-size=1024"
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    ports:
-      - "127.0.0.1:3000:3000"
-    env_file: .env.runtime
-    depends_on:
-      - api
-    volumes:
-      - ./apps/web/src:/app/src
-      - ./apps/web/public:/app/public
-    deploy:
-      resources:
-        limits:
-          cpus: '${APP_CPU_LIMIT}'
-          memory: '${APP_MEMORY_LIMIT}'
-        reservations:
-          memory: 512M
+          memory: 128M
     networks:
       - openwatch-net
 

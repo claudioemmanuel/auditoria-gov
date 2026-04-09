@@ -1,15 +1,17 @@
-# docker-compose.prod.yml — production overrides for the public layer
-# Frontend served by Vercel — web service disabled.
-# Postgres and Redis managed by openwatch-core on the same host.
-#
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Production overrides — applies on top of docker-compose.yml.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 services:
+
   api:
     restart: unless-stopped
-    environment:
-      APP_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 512M
+        reservations:
+          memory: 192M
 
   caddy:
     image: caddy:2-alpine
@@ -35,15 +37,6 @@ services:
     networks:
       - openwatch-net
 
-  web:
-    profiles:
-      - disabled
-
 volumes:
   caddy_data:
   caddy_config:
-
-networks:
-  openwatch-net:
-    external: true
-    name: openwatch-net
