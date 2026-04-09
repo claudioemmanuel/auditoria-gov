@@ -39,4 +39,12 @@ The following ALWAYS live in the private (`openwatch-core`) repo:
 
 ## Boundary Enforcement
 
-Import boundary rules in `.import-linter` and the `boundary-check.yml` CI workflow prevent the public layer from importing private-layer code directly.
+Three layers of enforcement prevent the public layer from importing private-layer code directly:
+
+1. **`tools/check_boundaries.py --strict`** — AST-based static check that walks every public Python file (`api/app/*`, `packages/{config,utils,models,connectors}`, `api/core_client.py`) and fails the build if it finds any import of a protected workspace package (`openwatch_ai`, `openwatch_analytics`, `openwatch_baselines`, `openwatch_er`, `openwatch_pipelines`, `openwatch_queries`, `openwatch_scheduler`, `openwatch_services`, `openwatch_typologies`, `openwatch_db`) or a protected gov-API connector implementation (18 modules under `openwatch_connectors.*`). Lives at `tools/check_boundaries.py`.
+2. **`.import-linter`** — 3 contracts enforced by the `lint-imports` CLI: (a) public packages (`openwatch_config`, `openwatch_utils`, `openwatch_models`, `openwatch_connectors`, `app`) must not import core detection modules; (b) the `app` package (FastAPI gateway) must not import typologies, ER, analytics, or baselines directly; (c) `openwatch_config` must not create a circular dependency by importing `openwatch_utils`, `openwatch_models`, or `openwatch_connectors`.
+3. **`tests/public/test_boundary_hygiene.py`** — pytest regression suite that asserts (a) `shared/` does not exist, (b) `api/alembic/` does not exist, (c) `check_boundaries.py --strict` exits 0, and (d) no `from shared.` / `import shared.` statement (top-level or indented) exists anywhere in `api/`, `packages/`, or `tests/public/`. Runs as part of the normal `make test` suite.
+
+## 2026-04-09 Post-cleanup state
+
+The pre-split `shared/` namespace package has been fully removed from both repos. All imports were migrated to the `uv` workspace packages that were already declared in `pyproject.toml`. See `docs/PUBLIC_PRIVATE_BOUNDARY_REVIEW.md` for the full 6-phase audit + commit list.

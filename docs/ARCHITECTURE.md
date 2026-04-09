@@ -60,22 +60,25 @@ The public API calls `openwatch-core` over an internal HTTP channel authenticate
 
 ## Database
 
-PostgreSQL 17 with `pgvector` for embedding storage and `pg_trgm` for entity search. Schema migrations are managed by Alembic in `openwatch-core`.
+PostgreSQL 17 with `pgvector` for embedding storage and `pg_trgm` for entity search.
+
+### Schema ownership
+
+Schema migrations are managed by Alembic **exclusively in `openwatch-core`**. The public repo has no `alembic/` directory and no ORM models of its own; `openwatch_models.base.Base` is a shared declarative base used by openwatch-core's ORM classes and re-exported through the workspace package so both repos can reference the same metadata tree.
+
+To run migrations:
+
+```bash
+cd openwatch-core
+docker compose exec core-api sh -c 'cd /app/apps && uv run alembic -c api/alembic.ini upgrade head'
+```
 
 ---
 
 ## Deployment Targets
 
-| Environment   | API                  | Frontend         | Workers                |
-|---------------|----------------------|------------------|------------------------|
-| Local dev     | `uv run uvicorn`     | `npm run dev`    | openwatch-core         |
-| Docker (full) | Docker Compose       | Docker Compose   | openwatch-core compose |
-| Production    | AWS ECS Fargate      | Vercel           | AWS ECS Fargate (core) |
-
-## Deployment Targets
-
-| Environment | API | Frontend | Workers |
-|-------------|-----|----------|---------|
-| Local dev | `uv run uvicorn` | `npm run dev` | openwatch-core |
-| Docker (full) | Docker Compose | Docker Compose | openwatch-core compose |
-| Production | AWS ECS Fargate | Vercel | AWS ECS Fargate (core) |
+| Environment   | API              | Frontend      | Workers                |
+|---------------|------------------|---------------|------------------------|
+| Local dev     | `uv run uvicorn` | `npm run dev` | openwatch-core         |
+| Docker (full) | Docker Compose   | Docker Compose| openwatch-core compose |
+| Production    | AWS ECS Fargate  | Vercel        | AWS ECS Fargate (core) |
