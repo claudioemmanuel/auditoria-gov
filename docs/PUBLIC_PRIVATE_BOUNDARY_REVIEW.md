@@ -83,13 +83,6 @@ The pre-split `shared/` namespace package has now been fully removed from both r
 - pytest openwatch-core: 12 passed
 - Live container smoke tests: 2 clean rebuild+recreate cycles (Phase 2 + Phase 3), 59 Celery tasks registered, pipeline processing real data
 
-### Production impact of the cleanup
+### Correction to the 2026-04-03 review
 
-During the Phase 2 live rebuild, the drained normalize pipeline uncovered a pre-existing `value too long for type character varying(100)` error on the `event` table when datajud tried to insert `assuntos[0].nome` values up to 121 chars. Migration `202604090200_widen_event_type_subtype` widens `event.type` and `event.subtype` from varchar(100) to varchar(255), matching the precedent set by `202604041550` for `event.source_connector`. The normalize backlog (5.4M rows from tce_rj that had been stalled behind the datajud error) drained by 359k rows in the first two minutes after the fix landed.
-
-### Enforcement going forward
-
-- CI must run `tools/check_boundaries.py --strict` and `lint-imports` on every PR to the public repo. Both are already wired into the pytest regression suite via `tests/public/test_boundary_hygiene.py`.
-- Any new investigative logic continues to land in `openwatch-core` first.
-- Public endpoints continue to talk to `openwatch-core` only through `api/core_client.py`.
-- The `api/app/routers/internal.py` file is **live** (not dead). It proxies operator endpoints (`/internal/pipeline/status` etc.) to openwatch-core via `CoreClient`. An earlier revision of this doc claimed it had been removed; that was corrected in the 2026-04-09 cleanup.
+The 2026-04-03 notes claimed `api/app/routers/internal.py` had been removed. It was not. It is live and mounted in `api/app/main.py`, proxying `/internal/*` operator endpoints to openwatch-core via `CoreClient`. The "dead transitional code" bullet for that file is retracted.
