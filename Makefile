@@ -1,4 +1,4 @@
-.PHONY: dev dev-down web logs migrate migrate-new seed test test-cov lint typecheck boundaries sync install clean
+.PHONY: dev dev-down web logs test test-cov lint typecheck boundaries sync install clean
 
 # ── Development ───────────────────────────────────────────────────────────────
 # Requires openwatch-core to be running first (it owns postgres, redis, core-api).
@@ -23,14 +23,9 @@ logs:
 	docker compose logs -f --tail=100
 
 # ── Database ──────────────────────────────────────────────────────────────────
-migrate:
-	docker compose run --rm api alembic -c /app/api/alembic.ini upgrade head
-
-migrate-new:
-	docker compose run --rm api alembic -c /app/api/alembic.ini revision --autogenerate -m "$(name)"
-
-seed:
-	docker compose run --rm api python -c "from shared.config import settings; print('DB:', settings.DATABASE_URL)"
+# Schema ownership belongs to openwatch-core. There are intentionally no
+# migrate / migrate-new targets here. To run migrations:
+#   cd ../openwatch-core && make migrate
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test:
@@ -41,11 +36,11 @@ test-cov:
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 lint:
-	docker compose run --rm api ruff check packages/ api/ shared/
+	docker compose run --rm api ruff check packages/ api/
 	cd apps/web && npm run lint
 
 typecheck:
-	docker compose run --rm api mypy packages/ api/ shared/ --ignore-missing-imports
+	docker compose run --rm api mypy packages/ api/ --ignore-missing-imports
 	cd apps/web && npm run typecheck
 
 boundaries:
