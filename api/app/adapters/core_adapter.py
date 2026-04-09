@@ -13,8 +13,8 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core_client import CoreClient
-from shared.config import settings
-from shared.models.typology_catalog import get_public_typology, list_public_typologies
+from openwatch_config import settings
+from openwatch_models.typology_catalog import get_public_typology, list_public_typologies
 
 
 def _client() -> CoreClient:

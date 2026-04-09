@@ -9,7 +9,6 @@ RUN pip install --no-cache-dir uv
 # Copy workspace files for layer caching
 COPY pyproject.toml uv.lock ./
 COPY packages/ packages/
-COPY shared/ shared/
 COPY api/ api/
 
 # ── runtime (slim — no dev-deps, no test suite) ────────────────────────────────

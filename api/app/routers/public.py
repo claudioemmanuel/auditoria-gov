@@ -90,7 +90,7 @@ from api.app.adapters.core_adapter import (
     adapter_search_entities as search_entities,
 )
 from api.app.deps import DbSession, Pagination
-from shared.models.contestation import Contestation
+from openwatch_models.contestation import Contestation
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PUBLIC API ROUTER — SPLIT-READY ARCHITECTURE
@@ -120,7 +120,7 @@ from shared.models.contestation import Contestation
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 # ── Public API response schemas (API contract — public layer) ─────────────────
-from shared.models.coverage_v2 import (
+from openwatch_models.coverage_v2 import (
     CoverageV2AnalyticsResponse,
     CoverageV2MapResponse,
     CoverageV2RunDetailResponse,
@@ -129,14 +129,14 @@ from shared.models.coverage_v2 import (
     CoverageV2SummaryResponse,
     PublicSourcesResponse,
 )
-from shared.models.graph import (
+from openwatch_models.graph import (
     CaseGraphResponse,
     EntityPathResponse,
     NeighborhoodResponse,
     SignalGraphResponse,
 )
-from shared.models.public_filter import to_public_signal
-from shared.models.radar import (
+from openwatch_models.public_filter import to_public_signal
+from openwatch_models.radar import (
     RadarV2CaseListResponse,
     RadarV2CasePreviewResponse,
     RadarV2CoverageResponse,
@@ -144,7 +144,7 @@ from shared.models.radar import (
     RadarV2SignalPreviewResponse,
     RadarV2SummaryResponse,
 )
-from shared.models.signals import ContestationCreate, ContestationOut, SignalReplayOut
+from openwatch_models.signals import ContestationCreate, ContestationOut, SignalReplayOut
 
 router = APIRouter()
 

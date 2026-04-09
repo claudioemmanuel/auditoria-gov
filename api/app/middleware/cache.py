@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from shared.config import settings
+from openwatch_config import settings
 
 
 async def cache_invalidate_pattern(redis, pattern: str) -> int:

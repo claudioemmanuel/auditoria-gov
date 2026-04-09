@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from shared.logging import log
+from openwatch_utils.logging import log
 
 # Patterns that indicate active probing / attack attempts
 _SUSPICIOUS_PATTERNS: list[tuple[str, str]] = [

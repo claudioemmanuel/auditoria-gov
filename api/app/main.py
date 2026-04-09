@@ -11,9 +11,9 @@ from api.app.middleware.security_events import SecurityEventsMiddleware
 from api.app.routers.internal import router as internal_router
 from api.app.routers.public import router as public_router
 from api.core_client import CoreNotFoundError, CoreServiceError
-from shared.config import settings
-from shared.db import engine
-from shared.logging import setup_logging
+from api.app.db import engine
+from openwatch_config import settings
+from openwatch_utils.logging import setup_logging
 
 
 @asynccontextmanager

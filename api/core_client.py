@@ -18,7 +18,7 @@ from typing import Any
 
 import httpx
 
-from shared.config import settings
+from openwatch_config import settings
 
 
 class CoreServiceError(Exception):
