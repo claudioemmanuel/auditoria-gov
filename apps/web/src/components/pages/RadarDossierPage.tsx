@@ -1,943 +1,1455 @@
 "use client";
 
-import { useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import type { ElementType } from "react";
-import {
-  ArrowLeft, ShoppingCart, FileText, ShieldOff, ArrowRightLeft,
-  Landmark, AlertTriangle, X, Building2, User, Calendar,
-  Link2, Hash, DollarSign, Scale, Database, ChevronDown, ChevronUp,
-} from "lucide-react";
-import { useDossieBook } from "@/components/dossie/DossieBookContext";
+import { getDossierTimeline, getDossierSummary } from "@/lib/api";
+import { formatBRL, formatDate } from "@/lib/utils";
 import type {
-  TimelineEntityDTO,
-  TimelineEventDTO,
-  TimelineEventSignalDTO,
-  TimelineSignalDTO,
+  DossierTimelineResponse,
+  DossierSummaryResponse,
 } from "@/lib/types";
-import { cn, formatBRL, formatDate } from "@/lib/utils";
 
-// ── Config ───────────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 
-/** Read CSS variable at runtime */
-function getCSSToken(varName: string): string {
-  if (typeof document === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-}
-
-/** Entity type color tokens */
-function getEntityColor(entityType: string): string {
-  const tokenMap: Record<string, string> = {
-    org:     "--color-entity-org",
-    company: "--color-entity-company",
-    person:  "--color-entity-person",
-  };
-  const token = tokenMap[entityType];
-  return token ? getCSSToken(token) : getCSSToken("--color-muted");
-}
-
-/** Event type color tokens */
-function getEventColor(eventType: string): string {
-  const tokenMap: Record<string, string> = {
-    licitacao:     "--color-event-licitacao",
-    contrato:      "--color-event-contrato",
-    sancao:        "--color-event-sancao",
-    transferencia: "--color-event-transferencia",
-    emenda:        "--color-event-emenda",
-  };
-  const token = tokenMap[eventType];
-  return token ? getCSSToken(token) : getCSSToken("--color-muted");
-}
-
-const EVENT_META: Record<string, { Icon: ElementType; color?: string; label: string }> = {
-  licitacao:     { Icon: ShoppingCart,   label: "Licitação"     },
-  contrato:      { Icon: FileText,       label: "Contrato"      },
-  sancao:        { Icon: ShieldOff,      label: "Sanção"        },
-  transferencia: { Icon: ArrowRightLeft, label: "Transferência" },
-  emenda:        { Icon: Landmark,       label: "Emenda"        },
+const SEV_COLOR: Record<string, string> = {
+  critical: "var(--color-critical)",
+  high: "var(--color-high)",
+  medium: "var(--color-medium)",
+  low: "var(--color-low)",
+};
+const SEV_LABEL: Record<string, string> = {
+  critical: "CRÍTICO",
+  high: "ALTO",
+  medium: "MÉDIO",
+  low: "BAIXO",
 };
 
-const SEV = {
-  critical: { label: "Crítico", bg: "bg-severity-critical-bg", text: "text-severity-critical", border: "border-severity-critical/30", dot: "bg-severity-critical"   },
-  high:     { label: "Alto",    bg: "bg-severity-high-bg",     text: "text-severity-high",     border: "border-severity-high/30",     dot: "bg-severity-high"      },
-  medium:   { label: "Médio",   bg: "bg-severity-medium-bg",   text: "text-severity-medium",   border: "border-severity-medium/30",   dot: "bg-severity-medium"    },
-  low:      { label: "Baixo",   bg: "bg-severity-low-bg",      text: "text-severity-low",      border: "border-severity-low/30",      dot: "bg-severity-low"       },
-} as const;
+type DossierTab = "dossie" | "sinais" | "cronologia" | "entidades" | "hipoteses";
 
-type SevKey = keyof typeof SEV;
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  licitacao: "Licitação",
+  contrato: "Contrato",
+  aditivo: "Aditivo",
+  empenho: "Empenho",
+  pagamento: "Pagamento",
+  dispensa: "Dispensa",
+  inexigibilidade: "Inexigibilidade",
+  pregao: "Pregão",
+  credenciamento: "Credenciamento",
+};
 
-function getSev(severity: string) {
-  return SEV[(severity as SevKey) in SEV ? (severity as SevKey) : "low"];
-}
+// ── Shared components ────────────────────────────────────────────────────────
 
-const ENTITY_ICON: Record<string, ElementType> = { org: Building2, company: Building2, person: User };
-const ENTITY_LABEL: Record<string, string> = { org: "Órgão Público", company: "Empresa", person: "Pessoa Física" };
-
-function initials(name: string) {
-  const p = name.trim().split(/\s+/);
-  return ((p[0]?.[0] ?? "") + (p.length > 1 ? (p[p.length - 1]?.[0] ?? "") : "")).toUpperCase();
-}
-
-function confidenceColor(pct: number) {
-  if (pct >= 80) return "bg-success";
-  if (pct >= 50) return "bg-amber";
-  return "bg-error";
-}
-
-// ── Signal Modal ─────────────────────────────────────────────────────────────
-
-function SignalModal({
-  signal,
-  fullSignal,
-  caseId,
-  onClose,
-}: {
-  signal: TimelineEventSignalDTO | null;
-  fullSignal: TimelineSignalDTO | null;
-  caseId: string;
-  onClose: () => void;
-}) {
-  if (!signal) return null;
-  const s = getSev(signal.severity);
-  const pct = Math.round(signal.confidence * 100);
-  const pctColor = confidenceColor(pct);
-  const factorDescriptions = fullSignal?.factor_descriptions;
-  const evidenceCount = fullSignal?.event_count ?? 0;
-  const isPulsing = signal.severity === "critical" || signal.severity === "high";
-
+function SectionHeader({ n, title }: { n: number; title: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className={cn(
-          "relative w-full max-w-lg rounded-2xl border p-6 shadow-2xl overflow-y-auto max-h-[90vh]",
-          s.bg, s.border, s.text,
-        )}
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          color: "var(--color-text-3)",
+          letterSpacing: "0.1em",
+        }}
       >
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 opacity-50 hover:opacity-100"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        § {n}.
+      </span>
+      <h2
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--color-text-2)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          margin: 0,
+        }}
+      >
+        {title}
+      </h2>
+    </div>
+  );
+}
 
-        {/* Header */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className={cn("h-2.5 w-2.5 rounded-full", s.dot, isPulsing && "animate-pulse")} />
-          <span className="font-mono text-xs font-bold">{signal.typology_code} · {s.label}</span>
-        </div>
-        <h3 className="font-display text-lg font-bold mb-1">{signal.typology_name}</h3>
-        <p className="mb-3 text-sm opacity-85 leading-relaxed">{signal.title}</p>
-        <p className="mb-4 font-mono text-xs opacity-60">
-          {formatDate(signal.period_start)} — {formatDate(signal.period_end)}
+function Card({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-md)",
+        padding: "16px",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-bg)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            border: "2px solid var(--color-border)",
+            borderTopColor: "var(--color-amber)",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--color-text-3)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          Carregando dossiê…
         </p>
-
-        {/* Confidence bar */}
-        <div className="mb-4">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-widest opacity-70">Confiança</span>
-            <span className="font-mono text-sm font-bold">{pct}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
-            <div className={cn("h-full transition-all", pctColor)} style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-
-        {/* Factor descriptions */}
-        {factorDescriptions && Object.keys(factorDescriptions).length > 0 && (
-          <div className="mb-4">
-            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest opacity-70">
-              Fatores de Detecção
-            </p>
-            <div className="space-y-2">
-              {Object.entries(factorDescriptions).map(([key, meta]) => (
-                <div key={key} className="rounded-lg border border-current/20 bg-black/20 p-2.5">
-                  <p className="font-semibold text-sm">{meta.label}</p>
-                  <p className="mt-0.5 text-xs opacity-70 leading-relaxed">{meta.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Evidence count */}
-        {evidenceCount > 0 && (
-          <div className="mb-4 flex items-center gap-2">
-            <Database className="h-3.5 w-3.5 opacity-70" />
-            <span className="font-mono text-xs opacity-70">
-              {evidenceCount} evidência{evidenceCount !== 1 ? "s" : ""}
-            </span>
-          </div>
-        )}
-
-        {/* Full page link */}
-        <Link
-          href={`/radar/dossie/${caseId}/sinal/${signal.id}`}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-current/30 bg-black/20 px-4 py-2 font-mono text-xs font-bold transition-all hover:bg-black/40"
-        >
-          Ver página completa →
-        </Link>
-
-        <div className="mt-4 rounded-xl border border-current/20 bg-black/30 p-3 text-[11px] opacity-60 leading-relaxed">
-          Análise estatística determinística. Requer confirmação documental e contraditório.
-        </div>
       </div>
     </div>
   );
 }
 
-// ── Matrix table (extracted to keep DRY for mobile/desktop) ──────────────────
-
-function MatrixTable({
-  entities,
-  events,
-  entityMap,
-}: {
-  entities: TimelineEntityDTO[];
-  events: TimelineEventDTO[];
-  entityMap: Map<string, TimelineEntityDTO>;
-}) {
+function ErrorScreen({ error }: { error: string | null }) {
   return (
-    <table className="w-full border-collapse text-xs">
-      <thead className="sticky top-0 z-10">
-        <tr className="border-b border-border bg-surface-subtle">
-          <th className="sticky left-0 z-20 bg-surface-subtle px-4 py-3 text-left font-mono text-[10px] uppercase tracking-widest text-muted min-w-[140px]">
-            Ator
-          </th>
-          {events.map((e, i) => {
-            const m = EVENT_META[e.type] ?? { label: e.type };
-            const eventColor = getEventColor(e.type);
-            return (
-              <th
-                key={e.id}
-                className="px-3 py-3 text-center font-mono text-[10px] text-muted"
-                title={e.description}
-              >
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: eventColor }} />
-                  <span>E{i + 1}</span>
-                </div>
-              </th>
-            );
-          })}
-        </tr>
-      </thead>
-      <tbody>
-        {entities.map((ent, ri) => {
-          const col = getEntityColor(ent.type);
-          const rowBg = ri % 2 === 0 ? "bg-surface-card" : "bg-surface-subtle";
-          return (
-            <tr key={ent.id} className={rowBg}>
-              <td className={cn("sticky left-0 z-10 px-4 py-2", rowBg)}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-5 w-5 shrink-0 rounded-full flex items-center justify-center text-[7px] font-bold text-white"
-                    style={{ backgroundColor: col }}
-                  >
-                    {initials(ent.name)}
-                  </div>
-                  <span className="text-xs text-secondary truncate max-w-[110px]">{ent.name}</span>
-                </div>
-              </td>
-              {events.map((e) => {
-                const participants = e.participants.filter((p) => p.entity_id === ent.id);
-                const roleCount = participants.length;
-                const roleTitle = participants.map((p) => p.role_label).join(", ");
-                return (
-                  <td key={e.id} className="px-3 py-2 text-center">
-                    {roleCount > 0 ? (
-                      <div
-                        className={cn("flex flex-col items-center gap-0.5", roleCount === 1 ? "opacity-60" : "opacity-100")}
-                        title={roleTitle}
-                      >
-                        <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: col }} />
-                        <span className="font-mono text-[7px] text-muted">
-                          {participants[0]?.role_label.slice(0, 3)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-border">—</span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-bg)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-lg)",
+          padding: "32px 40px",
+          textAlign: "center",
+          maxWidth: 400,
+        }}
+      >
+        <div style={{ fontSize: 32, marginBottom: 12, color: "var(--color-critical)" }}>
+          ⚠
+        </div>
+        <h2
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 18,
+            fontWeight: 700,
+            color: "var(--color-text)",
+            marginBottom: 8,
+          }}
+        >
+          {error ?? "Erro desconhecido"}
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--color-text-3)" }}>
+          O caso solicitado não pôde ser carregado.
+        </p>
+      </div>
+    </div>
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── DossieTab ────────────────────────────────────────────────────────────────
 
+function DossieTab({
+  timeline,
+  summary,
+}: {
+  timeline: DossierTimelineResponse;
+  summary: DossierSummaryResponse | null;
+}) {
+  const cas = timeline.case;
+  let sectionN = 1;
 
-export default function DossierPage() {
-  const { caseId } = useParams<{ caseId: string }>();
-  const { data, loading, error } = useDossieBook();
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {cas.summary && (
+        <div>
+          <SectionHeader n={sectionN++} title="Resumo do Caso" />
+          <Card>
+            <p style={{ fontSize: 14, color: "var(--color-text)", lineHeight: 1.7 }}>
+              {cas.summary}
+            </p>
+            {cas.case_type && (
+              <div style={{ marginTop: 10 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    background: "var(--color-surface-2)",
+                    border: "1px solid var(--color-border)",
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {cas.case_type}
+                </span>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
 
-  const [openSignal, setOpenSignal] = useState<TimelineEventSignalDTO | null>(null);
-  const [expandedSignals, setExpandedSignals] = useState<Set<string>>(new Set());
+      {summary && summary.chapters.length > 0 && (
+        <div>
+          <SectionHeader n={sectionN++} title="Capítulos da Investigação" />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {summary.chapters.map((ch, i) => {
+              const chSevColor = SEV_COLOR[ch.max_severity] ?? "var(--color-text-3)";
+              return (
+                <div
+                  key={i}
+                  style={{
+                    background: "var(--color-surface)",
+                    border: `1px solid var(--color-border)`,
+                    borderLeftWidth: 3,
+                    borderLeftColor: chSevColor,
+                    borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+                    padding: "14px 16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 700,
+                        color: chSevColor,
+                        background: `${chSevColor}18`,
+                        border: `1px solid ${chSevColor}40`,
+                        padding: "1px 6px",
+                        borderRadius: 3,
+                      }}
+                    >
+                      {SEV_LABEL[ch.max_severity]}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                      }}
+                    >
+                      {ch.typology_code}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        marginLeft: "auto",
+                      }}
+                    >
+                      {ch.signal_count} sinal{ch.signal_count !== 1 ? "is" : ""}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {ch.typology_name}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--color-text-2)",
+                      lineHeight: 1.5,
+                      marginBottom: 10,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical" as const,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {ch.top_signal_summary}
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {ch.total_value_brl > 0 && (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontFamily: "var(--font-mono)",
+                          fontWeight: 600,
+                          color: chSevColor,
+                        }}
+                      >
+                        {formatBRL(ch.total_value_brl)}
+                      </span>
+                    )}
+                    {(ch.period_start || ch.period_end) && (
+                      <span style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                        {ch.period_start ? formatDate(ch.period_start) : "—"} →{" "}
+                        {ch.period_end ? formatDate(ch.period_end) : "presente"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {timeline.related_cases.length > 0 && (
+        <div>
+          <SectionHeader n={sectionN++} title="Casos Relacionados" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {timeline.related_cases.map((rc) => {
+              const rcSevColor = SEV_COLOR[rc.severity] ?? "var(--color-text-3)";
+              return (
+                <Link
+                  key={rc.id}
+                  href={`/radar/dossie/${rc.id}`}
+                  style={{ textDecoration: "none" }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 14px",
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-md)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 700,
+                        color: rcSevColor,
+                        background: `${rcSevColor}18`,
+                        border: `1px solid ${rcSevColor}40`,
+                        padding: "1px 6px",
+                        borderRadius: 3,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {SEV_LABEL[rc.severity]}
+                    </span>
+                    <span style={{ fontSize: 13, color: "var(--color-text)", flex: 1 }}>
+                      {rc.title}
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--color-amber)" }}>→</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SinaisTab ────────────────────────────────────────────────────────────────
+
+function SinaisTab({ signals }: { signals: DossierTimelineResponse["signals"] }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   function toggleExpand(id: string) {
-    setExpandedSignals((prev) => {
+    setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
 
-  // ── Loading ─────────────────────────────────────────────────────────────
-  if (loading) {
+  if (signals.length === 0) {
     return (
-      <div className="min-h-screen bg-surface-base">
-        <div className="border-b border-border bg-surface-card">
-          <div className="mx-auto max-w-6xl px-6 py-6">
-            <div className="h-8 w-48 rounded-lg bg-surface-subtle animate-pulse" />
-          </div>
-        </div>
-        <div className="mx-auto max-w-6xl px-6 py-10 space-y-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 rounded-2xl border border-border bg-surface-card animate-pulse" />
-          ))}
-        </div>
+      <div
+        style={{
+          textAlign: "center",
+          padding: "48px",
+          color: "var(--color-text-3)",
+          fontSize: 13,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-md)",
+        }}
+      >
+        Nenhum sinal encontrado.
       </div>
     );
   }
-
-  // ── Error ───────────────────────────────────────────────────────────────
-  if (error || !data) {
-    return (
-      <div className="min-h-screen bg-surface-base flex items-center justify-center p-6">
-        <div className="rounded-2xl border border-severity-critical/30 bg-severity-critical-bg p-8 text-center max-w-md">
-          <AlertTriangle className="h-8 w-8 text-severity-critical mx-auto mb-3" />
-          <p className="text-sm text-severity-critical mb-4">
-            {error ?? "Dossiê não encontrado."}
-          </p>
-          <Link
-            href="/radar"
-            className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline"
-          >
-            <ArrowLeft className="h-3 w-3" />Voltar ao Radar
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const { case: caseData, entities, events, signals: allSignals, legal_hypotheses, related_cases } = data;
-  const sevData = getSev(caseData.severity);
-  const isPulsing = caseData.severity === "critical" || caseData.severity === "high";
-  const sortedEvents = [...events].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at));
-  const entityMap = new Map(entities.map((e) => [e.id, e]));
-  const signalMap = new Map(allSignals.map((s) => [s.id, s]));
-
-  const totalValue = events.reduce((sum, e) => sum + (e.value_brl ?? 0), 0);
-  const eventYears = events.map((e) => new Date(e.occurred_at).getFullYear());
-  const periodStr = eventYears.length > 0
-    ? `${Math.min(...eventYears)}–${Math.max(...eventYears)}`
-    : "—";
-
-  // Entity × event stats
-  const entityMatrix = entities.map((ent) => ({
-    entity: ent,
-    eventCount: sortedEvents.filter((e) => e.participants.some((p) => p.entity_id === ent.id)).length,
-    roles: [...new Set(
-      sortedEvents.flatMap((e) =>
-        e.participants.filter((p) => p.entity_id === ent.id).map((p) => p.role_label)
-      )
-    )],
-    signalCount: [...new Set(
-      sortedEvents
-        .filter((e) => e.participants.some((p) => p.entity_id === ent.id))
-        .flatMap((e) => e.signals.map((s) => s.id))
-    )].length,
-  }));
-
-  // Unique signals across all events (for analysis section)
-  const uniqueEventSignals = Array.from(
-    new Map(sortedEvents.flatMap((e) => e.signals).map((s) => [s.id, s])).values()
-  );
-
-  const fullSignalForModal = openSignal ? (signalMap.get(openSignal.id) ?? null) : null;
 
   return (
-    <div className="ledger-page min-h-screen bg-[var(--color-surface-base)]">
-      {/* ── Hero severity banner - modernized ──────────────────────────── */}
-      <div className="border-b border-[var(--color-border-light)]" style={{ 
-        background: `linear-gradient(135deg, ${
-          sevData.bg === 'bg-severity-critical-bg' ? 'rgba(220, 38, 38, 0.08)' : 
-          sevData.bg === 'bg-severity-high-bg' ? 'rgba(217, 119, 6, 0.08)' : 
-          'rgba(14, 165, 233, 0.08)'
-        })`
-      }}>
-        <div className="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/radar" className={`transition-opacity hover:opacity-70 text-[var(--color-text-secondary)]`}>
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-sm font-bold",
-              `border-[var(--color-border-light)]`,
-            )}>
-              <span className={cn("h-2.5 w-2.5 rounded-full", sevData.dot, isPulsing && "animate-pulse")} />
-              <span className={sevData.text}>{sevData.label}</span>
-              <span className="opacity-50">·</span>
-              <span className="text-[var(--color-text-secondary)]">Dossiê {caseData.id}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {signals.map((sig) => {
+        const sigSevColor = SEV_COLOR[sig.severity] ?? "var(--color-text-3)";
+        const isExpanded = expandedIds.has(sig.id);
+        const factors = sig.factors ? Object.entries(sig.factors) : [];
+        const factorDescs = sig.factor_descriptions ?? {};
 
-      {/* ── Case header - modernized with better typography ──────────────────────────── */}
-      <div className="border-b border-[var(--color-border-light)] bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-10">
-          <h1 className="font-display text-4xl font-black text-[var(--color-text-primary)] mb-3">{caseData.title}</h1>
-          {caseData.summary && (
-            <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-3xl mb-8">{caseData.summary}</p>
-          )}
-
-          {/* Stats grid - modern card-like layout */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-            {[
-              { Icon: Calendar,      label: "Período",     val: periodStr },
-              { Icon: Hash,          label: "Eventos",     val: String(events.length) },
-              { Icon: User,          label: "Atores",      val: String(entities.length) },
-              { Icon: AlertTriangle, label: "Sinais",      val: String(allSignals.length) },
-              { Icon: DollarSign,    label: "Valor Total", val: totalValue > 0 ? formatBRL(totalValue) : "—" },
-            ].map(({ Icon, label, val }) => (
-              <div key={label} className="rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] p-4 hover:shadow-sm transition-all">
-                <Icon className="h-5 w-5 text-[var(--color-secondary)] mb-2" />
-                <p className="font-mono text-xs text-[var(--color-text-secondary)] mb-1 uppercase tracking-wide">{label}</p>
-                <p className="font-mono font-bold text-lg text-[var(--color-text-primary)] tabular-nums">{val}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Body ─────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-6xl px-6 py-10 space-y-14">
-
-        {/* ── Atores Identificados - modernized section header ─────────────────────────── */}
-        <section id="atores">
-          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-            <User className="h-5 w-5 text-[var(--color-secondary)]" />
-            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-              Atores Identificados
-            </h2>
-            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-              {entities.length} {entities.length !== 1 ? "atores" : "ator"}
-            </span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {entityMatrix.map(({ entity, eventCount, roles, signalCount }) => {
-              const col = getEntityColor(entity.type);
-              const photoUrl = typeof entity.attrs.photo_url === "string" ? entity.attrs.photo_url : null;
-              const party = typeof entity.attrs.party === "string" ? entity.attrs.party : null;
-              const sphere = typeof entity.attrs.sphere === "string" ? entity.attrs.sphere : null;
-              const parliament = typeof entity.attrs.parliament === "string" ? entity.attrs.parliament : null;
-              const mandateStart = entity.attrs.mandate_start != null ? String(entity.attrs.mandate_start) : null;
-              const mandateEnd = entity.attrs.mandate_end != null ? String(entity.attrs.mandate_end) : null;
-              const cnpj = entity.identifiers.cnpj;
-              const cpf = entity.identifiers.cpf;
-
-              return (
-                <div key={entity.id} className="rounded-lg border border-[var(--color-border-light)] bg-white p-6 hover:shadow-md hover:shadow-[var(--color-primary-dark)]/5 transition-all">
-                  <div className="mb-4 flex items-start gap-3">
-                    {/* Photo or initials avatar */}
-                    {photoUrl ? (
-                      <img
-                        src={photoUrl}
-                        alt={entity.name}
-                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-                        style={{ backgroundColor: col }}
-                      >
-                        {initials(entity.name)}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-display font-semibold text-[var(--color-text-primary)] leading-tight line-clamp-2">{entity.name}</p>
-                      <span className="font-mono text-xs font-bold uppercase" style={{ color: col }}>
-                        {ENTITY_LABEL[entity.type] ?? entity.type}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Identifiers */}
-                  {cnpj && <p className="mb-1 font-mono text-xs text-[var(--color-text-secondary)]">CNPJ {cnpj}</p>}
-                  {cpf && <p className="mb-1 font-mono text-xs text-[var(--color-text-secondary)]">CPF {cpf}</p>}
-
-                  {/* Attribute badges */}
-                  {(party || sphere || parliament) && (
-                    <div className="mb-3 flex flex-wrap gap-1.5">
-                      {party && (
-                        <span className="rounded-full border border-[var(--color-secondary)]/30 bg-[var(--color-secondary)]/10 px-2.5 py-1 font-mono text-xs font-semibold text-[var(--color-secondary)]">
-                          {party}
-                        </span>
-                      )}
-                      {sphere && (
-                        <span className="rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-2.5 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-                          {sphere}
-                        </span>
-                      )}
-                      {parliament && (
-                        <span className="rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-2.5 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-                          {parliament}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Mandate */}
-                  {(mandateStart || mandateEnd) && (
-                    <p className="mb-3 font-mono text-xs text-[var(--color-text-secondary)]">
-                      Mandato: {mandateStart ? String(mandateStart).slice(0, 4) : "?"}
-                      {mandateEnd ? `–${String(mandateEnd).slice(0, 4)}` : "–?"}
-                    </p>
-                  )}
-
-                  {/* Event / signal stats */}
-                  <div className="grid grid-cols-2 gap-2 border-t border-[var(--color-border-light)] pt-3">
-                    <div>
-                      <p className="font-mono text-lg font-black text-[var(--color-text-primary)]">{eventCount}</p>
-                      <p className="font-mono text-xs text-[var(--color-text-secondary)]">eventos</p>
-                    </div>
-                    <div>
-                      <p className={cn("font-mono text-lg font-black", signalCount > 0 ? "text-[var(--color-severity-high)]" : "text-[var(--color-text-secondary)]")}>
-                        {signalCount}
-                      </p>
-                      <p className="font-mono text-xs text-[var(--color-text-secondary)]">sinais</p>
-                    </div>
-                  </div>
-
-                  {/* Roles */}
-                  {roles.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {roles.map((r) => (
-                        <span key={r} className="rounded-full border border-border bg-surface-subtle px-2 py-0.5 font-mono text-[9px] text-muted">
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ── Linha do Tempo de Eventos - modernized section header ────────────────────────── */}
-        <section id="timeline">
-          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-            <Calendar className="h-5 w-5 text-[var(--color-secondary)]" />
-            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-              Linha do Tempo de Eventos
-            </h2>
-            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-              {events.length} {events.length !== 1 ? "eventos" : "evento"}
-            </span>
-          </div>
-          <div className="space-y-4">
-            {sortedEvents.map((evt, idx) => {
-              const meta = EVENT_META[evt.type] ?? { Icon: FileText, label: evt.type };
-              const eventColor = getEventColor(evt.type);
-              const uniqueEvtSignals = Array.from(
-                new Map(evt.signals.map((s) => [s.id, s])).values()
-              );
-              const valueBrlStr = evt.value_brl != null ? formatBRL(evt.value_brl) : null;
-              // Skip rendering value if description already contains it
-              const showValue = valueBrlStr != null &&
-                !evt.description.includes(valueBrlStr.replace(/\u00a0/g, " "));
-              const obs = typeof evt.attrs.obs === "string" ? evt.attrs.obs : null;
-              const justificativa = typeof evt.attrs.justificativa === "string" ? evt.attrs.justificativa : null;
-
-              return (
+        return (
+          <div
+            key={sig.id}
+            style={{
+              background: "var(--color-surface)",
+              border: `1px solid var(--color-border)`,
+              borderLeftWidth: 3,
+              borderLeftColor: sigSevColor,
+              borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+              overflow: "hidden",
+            }}
+          >
+            <Link href={`/signal/${sig.id}`} style={{ textDecoration: "none" }}>
+              <div style={{ padding: "14px 16px" }}>
                 <div
-                  key={evt.id}
-                  className="relative rounded-2xl border border-border bg-surface-card overflow-hidden"
-                  style={{ borderLeftWidth: 3, borderLeftColor: eventColor }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 8,
+                    flexWrap: "wrap",
+                  }}
                 >
-                  <div className="absolute right-4 top-4 font-mono text-[10px] text-muted">
-                    #{String(idx + 1).padStart(2, "0")}
-                  </div>
-                  <div className="p-5">
-                    {/* Header */}
-                    <div className="flex items-start gap-3 mb-3">
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                        style={{ backgroundColor: `${eventColor}1A`, color: eventColor }}
-                      >
-                        <meta.Icon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                          <span className="font-mono text-xs font-bold" style={{ color: eventColor }}>
-                            {meta.label}
-                          </span>
-                          <span className="font-mono text-xs text-muted">{formatDate(evt.occurred_at)}</span>
-                          <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted">
-                            {evt.source_connector}
-                          </span>
-                        </div>
-                        <p className="text-sm text-secondary leading-relaxed">{evt.description}</p>
-                        {showValue && (
-                          <p className="mt-1 font-mono text-lg font-bold tabular-nums text-primary">
-                            {valueBrlStr}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* obs / justificativa blockquote */}
-                    {(obs || justificativa) && (
-                      <blockquote className="mb-3 rounded-r-lg border-l-2 border-accent/40 bg-accent/5 px-4 py-2.5">
-                        <p className="text-sm italic leading-relaxed text-secondary">
-                          {obs ?? justificativa}
-                        </p>
-                      </blockquote>
-                    )}
-
-                    {/* Participants */}
-                    {evt.participants.length > 0 && (
-                      <div className="mb-3">
-                        <p className="mb-1.5 font-mono text-[9px] uppercase tracking-widest text-muted">
-                          Participantes
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {evt.participants.map((p, i) => {
-                            const ent = entityMap.get(p.entity_id);
-                            const col = getEntityColor(ent?.type ?? "org");
-                            return (
-                              <span
-                                key={i}
-                                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
-                                style={{ borderColor: `${col}30`, backgroundColor: `${col}0D`, color: col }}
-                              >
-                                <span className="opacity-60">{p.role_label}</span>
-                                <span>·</span>
-                                <span className="font-semibold">{ent?.name ?? p.entity_id}</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Signal pills */}
-                    {uniqueEvtSignals.length > 0 && (
-                      <div>
-                        <p className="mb-1.5 font-mono text-[9px] uppercase tracking-widest text-muted">
-                          Alertas de Risco
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {uniqueEvtSignals.map((sig) => {
-                            const ss = getSev(sig.severity);
-                            return (
-                              <button
-                                key={sig.id}
-                                onClick={() => setOpenSignal(sig)}
-                                className={cn(
-                                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-xs font-bold transition-all hover:opacity-80",
-                                  ss.bg, ss.border, ss.text,
-                                )}
-                              >
-                                <AlertTriangle className="h-3 w-3" />
-                                {sig.typology_code} · {ss.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ── Análise Detalhada dos Sinais - modernized section header ────────────────────── */}
-        {uniqueEventSignals.length > 0 && (
-          <section id="sinais">
-            <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-              <AlertTriangle className="h-5 w-5 text-[var(--color-secondary)]" />
-              <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-                Análise Detalhada dos Sinais
-              </h2>
-              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-                {uniqueEventSignals.length} {uniqueEventSignals.length !== 1 ? "sinais" : "sinal"}
-              </span>
-            </div>
-            <div className="space-y-4">
-              {uniqueEventSignals.map((sig) => {
-                const s = getSev(sig.severity);
-                const fullSig = signalMap.get(sig.id);
-                const pct = Math.round(sig.confidence * 100);
-                const pctColor = confidenceColor(pct);
-                const relatedEvts = sortedEvents.filter((e) =>
-                  e.signals.some((rs) => rs.id === sig.id)
-                );
-                const factorDescs = fullSig?.factor_descriptions;
-                const factorKeys = factorDescs
-                  ? Object.keys(factorDescs)
-                  : sig.factors;
-                const isExpanded = expandedSignals.has(sig.id);
-                const visibleFactors = isExpanded ? factorKeys : factorKeys.slice(0, 5);
-                const hasMore = factorKeys.length > 5;
-                const evidenceCount = fullSig?.event_count ?? 0;
-
-                return (
-                  <div
-                    key={sig.id}
-                    className={cn("relative rounded-2xl border overflow-hidden bg-surface-card", s.border)}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: 700,
+                      color: sigSevColor,
+                      background: `${sigSevColor}18`,
+                      border: `1px solid ${sigSevColor}40`,
+                      padding: "1px 6px",
+                      borderRadius: 3,
+                    }}
                   >
-                    {/* Severity stripe */}
-                    <div className={cn("absolute left-0 top-0 bottom-0 w-1", s.dot)} />
-
-                    <div className="pl-5 pr-6 py-6">
-                      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="mb-1 flex flex-wrap items-center gap-2">
-                            <span className={cn("font-mono text-xs font-bold", s.text)}>
-                              {sig.typology_code}
-                            </span>
-                            <span className={cn("rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold", s.border, s.text)}>
-                              {s.label}
-                            </span>
-                            {evidenceCount > 0 && (
-                              <span className={cn("flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] opacity-70", s.border, s.text)}>
-                                <Database className="h-2.5 w-2.5" />
-                                {evidenceCount} ev.
-                              </span>
-                            )}
-                          </div>
-                          <h3 className={cn("font-display text-lg font-bold", s.text)}>
-                            {sig.typology_name}
-                          </h3>
-                          <p className={cn("mt-0.5 text-sm opacity-80", s.text)}>{sig.title}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-mono text-[9px] uppercase tracking-widest opacity-60">Período</p>
-                          <p className={cn("font-mono text-xs font-bold", s.text)}>
-                            {sig.period_start ? formatDate(sig.period_start) : "—"}
-                            {" — "}
-                            {sig.period_end ? formatDate(sig.period_end) : "—"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Confidence bar */}
-                      <div className="mb-4">
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className={cn("font-mono text-[10px] opacity-70", s.text)}>
-                            Confiança
-                          </span>
-                          <span className={cn("font-mono text-xs font-bold", s.text)}>{pct}%</span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
-                          <div
-                            className={cn("h-full transition-all", pctColor)}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {/* Factors as pills */}
-                        <div>
-                          <p className={cn("mb-2 font-mono text-[9px] uppercase tracking-widest opacity-60", s.text)}>
-                            Fatores
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {visibleFactors.map((f) => {
-                              const label = factorDescs?.[f]?.label ?? f;
-                              return (
-                                <span
-                                  key={f}
-                                  className={cn(
-                                    "rounded-full border px-2.5 py-1 font-mono text-[10px] bg-black/10 opacity-80",
-                                    s.border, s.text,
-                                  )}
-                                >
-                                  {label}
-                                </span>
-                              );
-                            })}
-                            {hasMore && (
-                              <button
-                                onClick={() => toggleExpand(sig.id)}
-                                className={cn(
-                                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[10px] opacity-60 transition-all hover:opacity-80",
-                                  s.border, s.text,
-                                )}
-                              >
-                                {isExpanded ? (
-                                  <><ChevronUp className="h-3 w-3" />Recolher</>
-                                ) : (
-                                  <><ChevronDown className="h-3 w-3" />Ver todos ({factorKeys.length})</>
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Related events */}
-                        {relatedEvts.length > 0 && (
-                          <div>
-                            <p className={cn("mb-2 font-mono text-[9px] uppercase tracking-widest opacity-60", s.text)}>
-                              Eventos Relacionados
-                            </p>
-                            <div className="space-y-1">
-                              {relatedEvts.map((e) => {
-                                const m = EVENT_META[e.type] ?? { label: e.type };
-                                const relatedEventColor = getEventColor(e.type);
-                                return (
-                                  <div key={e.id} className="flex items-center gap-2 text-xs">
-                                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: relatedEventColor }} />
-                                    <span className={cn("font-mono opacity-70", s.text)}>
-                                      {formatDate(e.occurred_at)}
-                                    </span>
-                                    <span className={cn("opacity-80", s.text)}>{m.label}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* ── Matriz de Cruzamento - modernized section header ─────────────────────────── */}
-        <section id="matriz">
-          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-            <Link2 className="h-5 w-5 text-[var(--color-secondary)]" />
-            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-              Matriz de Cruzamento — Atores × Eventos
-            </h2>
-          </div>
-
-          {/* Mobile: hidden behind <details> */}
-          <details className="md:hidden mb-2">
-            <summary className="cursor-pointer rounded-xl border border-border bg-surface-card px-4 py-3 font-mono text-xs text-muted hover:border-accent/40 select-none">
-              Mostrar matriz de cruzamento
-            </summary>
-            <div className="mt-2 overflow-x-auto rounded-xl border border-border">
-              <MatrixTable entities={entities} events={sortedEvents} entityMap={entityMap} />
-            </div>
-          </details>
-
-          {/* Desktop: always visible */}
-          <div className="hidden md:block overflow-x-auto rounded-xl border border-border">
-            <MatrixTable entities={entities} events={sortedEvents} entityMap={entityMap} />
-          </div>
-
-          <p className="mt-2 font-mono text-[9px] text-muted">
-            E1–E{sortedEvents.length} = eventos em ordem cronológica
-          </p>
-        </section>
-
-        {/* ── Hipóteses Jurídicas - modernized section header ───────────────────────────── */}
-        {legal_hypotheses.length > 0 && (
-          <section id="juridico">
-            <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-              <Scale className="h-5 w-5 text-[var(--color-secondary)]" />
-              <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-                Hipóteses Jurídicas
-              </h2>
-              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-                {legal_hypotheses.length} {legal_hypotheses.length !== 1 ? "hipóteses" : "hipótese"}
-              </span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {legal_hypotheses.map((lh, i) => (
-                <div key={i} className="rounded-xl border border-accent/20 bg-accent/5 p-5">
-                  <div className="mb-2 flex items-center gap-2">
-                    <Scale className="h-3.5 w-3.5 text-accent" />
-                    <span className="font-mono text-xs font-bold text-accent">
-                      {lh.law} — Art. {lh.article}
-                    </span>
-                  </div>
-                  <p className="mb-2 font-semibold text-primary">{lh.violation_type}</p>
-                  <p className="text-sm text-muted leading-relaxed">{lh.description}</p>
+                    {SEV_LABEL[sig.severity]}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                    }}
+                  >
+                    {sig.typology_code}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: 600,
+                      color: sigSevColor,
+                      marginLeft: "auto",
+                    }}
+                  >
+                    {Math.round(sig.confidence * 100)}%
+                  </span>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+                <p
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                    marginBottom: 6,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {sig.title}
+                </p>
+                {sig.summary && (
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--color-text-2)",
+                      lineHeight: 1.5,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {sig.summary}
+                  </p>
+                )}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 600,
+                        color: "var(--color-text-2)",
+                      }}
+                    >
+                      {sig.entity_count}
+                    </span>{" "}
+                    entidades
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 600,
+                        color: "var(--color-text-2)",
+                      }}
+                    >
+                      {sig.event_count}
+                    </span>{" "}
+                    eventos
+                  </span>
+                  {(sig.period_start || sig.period_end) && (
+                    <span style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                      {sig.period_start ? formatDate(sig.period_start) : "—"} →{" "}
+                      {sig.period_end ? formatDate(sig.period_end) : "presente"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
 
-        {/* ── Fontes de Dados - modernized section header ───────────────────────────────── */}
-        <section>
-          <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-            <Database className="h-5 w-5 text-[var(--color-secondary)]" />
-            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-              Fontes de Dados
-            </h2>
+            {factors.length > 0 && (
+              <div style={{ borderTop: "1px solid var(--color-border)" }}>
+                <button
+                  onClick={() => toggleExpand(sig.id)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 16px",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 11,
+                    color: "var(--color-text-3)",
+                    fontFamily: "var(--font-mono)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-block",
+                      transition: "transform 0.2s",
+                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  >
+                    ▾
+                  </span>
+                  {isExpanded ? "Ocultar fatores" : `${factors.length} fatores`}
+                </button>
+
+                {isExpanded && (
+                  <div
+                    style={{
+                      padding: "12px 16px",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                      gap: 8,
+                      background: "var(--color-surface-2)",
+                    }}
+                  >
+                    {factors.map(([key, value]) => {
+                      const meta = factorDescs[key];
+                      return (
+                        <div key={key}>
+                          <p
+                            style={{
+                              fontSize: 10,
+                              fontFamily: "var(--font-mono)",
+                              color: "var(--color-text-3)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {meta?.label ?? key}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              fontFamily: "var(--font-mono)",
+                              color: "var(--color-text)",
+                            }}
+                          >
+                            {typeof value === "number"
+                              ? value.toLocaleString("pt-BR")
+                              : String(value)}
+                            {meta?.unit ? ` ${meta.unit}` : ""}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {[...new Set(events.map((e) => e.source_connector))].map((src) => (
-              <span
-                key={src}
-                className="rounded-full border border-border bg-surface-card px-3 py-1.5 font-mono text-xs text-secondary"
-              >
-                {src}
-              </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── CronologiaTab ────────────────────────────────────────────────────────────
+
+function CronologiaTab({
+  events,
+  entities,
+}: {
+  events: DossierTimelineResponse["events"];
+  entities: DossierTimelineResponse["entities"];
+}) {
+  const entityMap: Record<string, string> = {};
+  for (const e of entities) {
+    entityMap[e.id] = e.name;
+  }
+
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          padding: "48px",
+          color: "var(--color-text-3)",
+          fontSize: 13,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-md)",
+        }}
+      >
+        Nenhum evento encontrado.
+      </div>
+    );
+  }
+
+  const byDate: Map<string, typeof sorted> = new Map();
+  for (const ev of sorted) {
+    const dateKey = ev.occurred_at.slice(0, 10);
+    const group = byDate.get(dateKey);
+    if (group) {
+      group.push(ev);
+    } else {
+      byDate.set(dateKey, [ev]);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {Array.from(byDate.entries()).map(([date, dayEvents]) => (
+        <div key={date}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 10,
+            }}
+          >
+            <div
+              style={{
+                height: 1,
+                width: 20,
+                background: "var(--color-border)",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "var(--color-text-3)",
+                letterSpacing: "0.08em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatDate(date)}
+            </span>
+            <div style={{ height: 1, flex: 1, background: "var(--color-border)" }} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {dayEvents.map((ev) => (
+              <Card key={ev.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                      background: "var(--color-surface-2)",
+                      border: "1px solid var(--color-border)",
+                      padding: "2px 6px",
+                      borderRadius: 3,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {EVENT_TYPE_LABEL[ev.type] ?? ev.type}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                    }}
+                  >
+                    {ev.source_connector}
+                  </span>
+                  {ev.value_brl != null && (
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 700,
+                        color: "var(--color-amber)",
+                        marginLeft: "auto",
+                      }}
+                    >
+                      {formatBRL(ev.value_brl)}
+                    </span>
+                  )}
+                </div>
+
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-text)",
+                    lineHeight: 1.5,
+                    marginBottom:
+                      ev.participants.length > 0 || ev.signals.length > 0 ? 10 : 0,
+                  }}
+                >
+                  {ev.description}
+                </p>
+
+                {ev.participants.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 4,
+                      marginBottom: ev.signals.length > 0 ? 8 : 0,
+                    }}
+                  >
+                    {ev.participants.map((p) => (
+                      <Link
+                        key={p.entity_id}
+                        href={`/entity/${p.entity_id}`}
+                        style={{ textDecoration: "none" }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--color-text-2)",
+                            background: "var(--color-surface-2)",
+                            border: "1px solid var(--color-border)",
+                            padding: "2px 8px",
+                            borderRadius: 10,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{ color: "var(--color-text-3)", fontSize: 10 }}
+                          >
+                            {p.role_label}
+                          </span>
+                          {entityMap[p.entity_id] ?? p.entity_id.slice(0, 8)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {ev.signals.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {ev.signals.map((s) => {
+                      const sSevColor = SEV_COLOR[s.severity] ?? "var(--color-text-3)";
+                      return (
+                        <Link
+                          key={s.id}
+                          href={`/signal/${s.id}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontFamily: "var(--font-mono)",
+                              color: sSevColor,
+                              background: `${sSevColor}12`,
+                              border: `1px solid ${sSevColor}40`,
+                              padding: "2px 6px",
+                              borderRadius: 3,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                            }}
+                          >
+                            ⚑ {s.typology_code}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted leading-relaxed">
-            Todos os dados provêm de fontes públicas oficiais do governo federal brasileiro.
-            Análise gerada automaticamente por OpenWatch. Requer investigação adicional e contraditório.
-          </p>
-        </section>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-        {/* ── Casos Relacionados - modernized section header ───────────────────────────────── */}
-        {related_cases.length > 0 && (
-          <section>
-            <div className="mb-6 flex items-center gap-3 border-b border-[var(--color-border-light)] pb-3">
-              <Link2 className="h-5 w-5 text-[var(--color-secondary)]" />
-              <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-                Casos Relacionados
-              </h2>
-              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface-hover)] px-3 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
-                {related_cases.length} {related_cases.length !== 1 ? "casos" : "caso"}
+// ── EntidadesTab ─────────────────────────────────────────────────────────────
+
+function formatCNPJ(cnpj: string): string {
+  const digits = cnpj.replace(/\D/g, "");
+  if (digits.length === 14) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+  }
+  return cnpj;
+}
+
+function EntidadesTab({
+  entities,
+}: {
+  entities: DossierTimelineResponse["entities"];
+}) {
+  const TYPE_ICON: Record<string, string> = {
+    person: "👤",
+    company: "🏢",
+    org: "🏛",
+  };
+
+  if (entities.length === 0) {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          padding: "48px",
+          color: "var(--color-text-3)",
+          fontSize: 13,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-md)",
+        }}
+      >
+        Nenhuma entidade encontrada.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: 12,
+      }}
+    >
+      {entities.map((ent) => {
+        const cnpj = ent.identifiers["cnpj"];
+        const otherIds = Object.entries(ent.identifiers).filter(
+          ([k]) => !["name_key", "cpf", "cpf_hash", "cnpj"].includes(k)
+        );
+
+        return (
+          <Link
+            key={ent.id}
+            href={`/entity/${ent.id}`}
+            style={{ textDecoration: "none" }}
+          >
+            <Card style={{ cursor: "pointer" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <span style={{ fontSize: 22, flexShrink: 0 }}>
+                  {TYPE_ICON[ent.type] ?? "📄"}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                      marginBottom: 2,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {ent.name}
+                  </p>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {ent.type}
+                  </span>
+                </div>
+              </div>
+
+              {cnpj && (
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    marginBottom: 4,
+                  }}
+                >
+                  CNPJ: {formatCNPJ(cnpj)}
+                </p>
+              )}
+
+              {otherIds.slice(0, 2).map(([k, v]) => (
+                <p
+                  key={k}
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    marginBottom: 2,
+                  }}
+                >
+                  {k.toUpperCase()}: {v}
+                </p>
+              ))}
+
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <span style={{ fontSize: 11, color: "var(--color-amber)" }}>
+                  Ver entidade →
+                </span>
+              </div>
+            </Card>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── HipotesesTab ─────────────────────────────────────────────────────────────
+
+function HipotesesTab({
+  hypotheses,
+}: {
+  hypotheses: DossierTimelineResponse["legal_hypotheses"];
+}) {
+  if (hypotheses.length === 0) {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          padding: "48px",
+          color: "var(--color-text-3)",
+          fontSize: 13,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-md)",
+        }}
+      >
+        Nenhuma hipótese legal identificada.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {hypotheses.map((hyp, i) => (
+        <Card key={i}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                fontWeight: 700,
+                color: "var(--color-text-3)",
+                background: "var(--color-surface-2)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "50%",
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {i + 1}
+            </span>
+
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {hyp.law}
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                  }}
+                >
+                  {hyp.article}
+                </span>
+              </div>
+
+              <div style={{ marginBottom: hyp.description ? 8 : 0 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                    color: "var(--color-high)",
+                    background: "rgba(255,100,0,0.08)",
+                    border: "1px solid rgba(255,100,0,0.2)",
+                    padding: "2px 8px",
+                    borderRadius: 3,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {hyp.violation_type}
+                </span>
+              </div>
+
+              {hyp.description && (
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-text-2)",
+                    lineHeight: 1.6,
+                    marginBottom: 8,
+                    marginTop: 8,
+                  }}
+                >
+                  {hyp.description}
+                </p>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  marginTop: 8,
+                }}
+              >
+                {hyp.confidence != null && (
+                  <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                    Confiança:{" "}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 600,
+                        color: "var(--color-text-2)",
+                      }}
+                    >
+                      {Math.round(hyp.confidence * 100)}%
+                    </span>
+                  </span>
+                )}
+                {hyp.signal_cluster && hyp.signal_cluster.length > 0 && (
+                  <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 600,
+                        color: "var(--color-text-2)",
+                      }}
+                    >
+                      {hyp.signal_cluster.length}
+                    </span>{" "}
+                    sinal{hyp.signal_cluster.length !== 1 ? "is" : ""} vinculado
+                    {hyp.signal_cluster.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+
+export default function RadarDossierPage() {
+  const params = useParams();
+  const caseId = params["caseId"] as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = (searchParams.get("tab") as DossierTab) ?? "dossie";
+
+  const [timeline, setTimeline] = useState<DossierTimelineResponse | null>(null);
+  const [summary, setSummary] = useState<DossierSummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!caseId) return;
+    setLoading(true);
+    Promise.all([getDossierTimeline(caseId), getDossierSummary(caseId)])
+      .then(([t, s]) => {
+        setTimeline(t);
+        setSummary(s);
+      })
+      .catch(() => setError("Caso não encontrado"))
+      .finally(() => setLoading(false));
+  }, [caseId]);
+
+  function setTab(t: DossierTab) {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", t);
+    router.replace(`?${p.toString()}`, { scroll: false });
+  }
+
+  if (loading) return <LoadingScreen />;
+  if (error || !timeline) return <ErrorScreen error={error} />;
+
+  const cas = timeline.case;
+  const sevColor = SEV_COLOR[cas.severity] ?? "var(--color-text-3)";
+
+  const tabDefs: { key: DossierTab; label: string; count?: number }[] = [
+    { key: "dossie", label: "Dossiê" },
+    { key: "sinais", label: "Sinais", count: timeline.signals.length },
+    { key: "cronologia", label: "Cronologia", count: timeline.events.length },
+    { key: "entidades", label: "Entidades", count: timeline.entities.length },
+    {
+      key: "hipoteses",
+      label: "Hipóteses Legais",
+      count: timeline.legal_hypotheses.length,
+    },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
+      {/* Sticky header */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "var(--color-bg)",
+        }}
+      >
+        <div style={{ padding: "0 16px", maxWidth: 1056, margin: "0 auto" }}>
+          <div
+            style={{
+              borderLeft: `4px solid ${sevColor}`,
+              background: "var(--color-surface)",
+              borderRadius: "0 var(--radius-lg) var(--radius-lg) 0",
+              padding: "16px 20px",
+              marginTop: 16,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  background: `${sevColor}18`,
+                  color: sevColor,
+                  border: `1px solid ${sevColor}40`,
+                  borderRadius: 4,
+                  padding: "1px 8px",
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                }}
+              >
+                {SEV_LABEL[cas.severity]}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  color: "var(--color-text-3)",
+                }}
+              >
+                CASO DE INVESTIGAÇÃO
+              </span>
+              <div style={{ marginLeft: "auto" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.15em",
+                    color: "var(--color-text-3)",
+                    border: "1px solid var(--color-border)",
+                    padding: "2px 6px",
+                    borderRadius: 2,
+                    textTransform: "uppercase" as const,
+                    opacity: 0.7,
+                  }}
+                >
+                  Dossiê de Investigação
+                </span>
+              </div>
+            </div>
+
+            <h1
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 20,
+                fontWeight: 700,
+                color: "var(--color-text)",
+                lineHeight: 1.3,
+                margin: "0 0 8px",
+              }}
+            >
+              {cas.title}
+            </h1>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                    color: "var(--color-text-2)",
+                  }}
+                >
+                  {timeline.signals.length}
+                </span>{" "}
+                sinais
+              </span>
+              <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                    color: "var(--color-text-2)",
+                  }}
+                >
+                  {timeline.entities.length}
+                </span>{" "}
+                entidades
+              </span>
+              {summary?.case.total_value_brl != null && (
+                <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: 600,
+                      color: sevColor,
+                    }}
+                  >
+                    {formatBRL(summary.case.total_value_brl)}
+                  </span>{" "}
+                  total
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-text-3)",
+                  border: "1px solid var(--color-border)",
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  fontFamily: "var(--font-mono)",
+                  marginLeft: "auto",
+                }}
+              >
+                {cas.status.toUpperCase()}
               </span>
             </div>
-            <div className="space-y-2">
-              {related_cases.map((rc) => {
-                const rcs = getSev(rc.severity);
-                return (
-                  <Link key={rc.id} href={`/radar/dossie/${rc.id}`} className="block">
-                    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-card p-3 hover:border-accent/40 transition-colors">
-                      <span className={cn("h-2 w-2 shrink-0 rounded-full", rcs.dot)} />
-                      <p className="flex-1 truncate text-sm text-primary">{rc.title}</p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
+          </div>
+        </div>
+
+        {/* Tab strip */}
+        <div style={{ padding: "0 16px", maxWidth: 1056, margin: "0 auto" }}>
+          <div
+            style={{
+              display: "flex",
+              borderBottom: "1px solid var(--color-border)",
+              marginTop: 8,
+              overflowX: "auto",
+            }}
+          >
+            {tabDefs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  background: "none",
+                  border: "none",
+                  borderBottom:
+                    tab === t.key
+                      ? "2px solid var(--color-amber)"
+                      : "2px solid transparent",
+                  color:
+                    tab === t.key ? "var(--color-amber)" : "var(--color-text-3)",
+                  marginBottom: -1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  whiteSpace: "nowrap" as const,
+                  transition: "color 0.15s",
+                }}
+              >
+                {t.label}
+                {t.count != null && t.count > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      background:
+                        tab === t.key
+                          ? "var(--color-amber-dim)"
+                          : "var(--color-surface-2)",
+                      color:
+                        tab === t.key ? "var(--color-amber)" : "var(--color-text-3)",
+                      padding: "1px 5px",
+                      borderRadius: 10,
+                    }}
+                  >
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* ── Signal Modal ─────────────────────────────────────────── */}
-      <SignalModal
-        signal={openSignal}
-        fullSignal={fullSignalForModal}
-        caseId={caseId}
-        onClose={() => setOpenSignal(null)}
-      />
+      {/* Content */}
+      <div style={{ maxWidth: 1056, margin: "0 auto", padding: "24px 16px" }}>
+        {tab === "dossie" && (
+          <DossieTab timeline={timeline} summary={summary} />
+        )}
+        {tab === "sinais" && <SinaisTab signals={timeline.signals} />}
+        {tab === "cronologia" && (
+          <CronologiaTab events={timeline.events} entities={timeline.entities} />
+        )}
+        {tab === "entidades" && <EntidadesTab entities={timeline.entities} />}
+        {tab === "hipoteses" && (
+          <HipotesesTab hypotheses={timeline.legal_hypotheses} />
+        )}
+      </div>
     </div>
   );
 }

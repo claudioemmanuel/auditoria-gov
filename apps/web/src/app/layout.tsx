@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Header } from "@/components/Header";
+import { Topbar } from "@/components/Topbar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CommandPalette } from "@/components/CommandPalette";
 
@@ -75,12 +75,12 @@ export default function RootLayout({
 
         <CommandPalette />
 
-        {/* Mobile header — visible below md breakpoint */}
-        <Header />
+        {/* Global topbar — all viewports */}
+        <Topbar />
 
-        <div className="ow-page" style={{ paddingTop: "var(--header-height)" }}>
-          {/* Desktop sidebar — hidden on mobile */}
-          <div className="hidden md:flex md:flex-shrink-0" style={{ marginTop: "calc(-1 * var(--header-height))" }}>
+        <div className="ow-page" style={{ paddingTop: "var(--topbar-height)" }}>
+          {/* Sidebar — hidden on mobile */}
+          <div className="hidden md:flex md:flex-shrink-0">
             <Suspense fallback={<div style={{ width: "var(--sidebar-width)" }} aria-hidden="true" />}>
               <AppSidebar />
             </Suspense>

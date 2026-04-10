@@ -7,14 +7,14 @@
     "docker:down": "docker compose down",
     "start": "npm run env:detect && npm run docker:up",
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel --filter=apps/web",
+    "dev": "turbo run dev --filter=auditoria-web",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test:js": "turbo run test",
     "clean": "turbo run clean"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.9.5"
   },
   "engines": {
     "node": ">=20.0.0",

@@ -28,7 +28,7 @@ jobs:
       - name: Install all workspace deps
         run: uv sync --all-packages --all-extras
       - name: Lint
-        run: uv run ruff check packages/ api/ shared/
+        run: uv run ruff check packages/ api/
       - name: Check import boundaries
         run: uv run lint-imports --config .import-linter
       - name: Run public tests

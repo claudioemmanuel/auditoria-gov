@@ -1,6 +1,7 @@
 FROM node:22-slim AS deps
 
 WORKDIR /app
+RUN useradd -m -u 1001 appuser
 COPY package.json package-lock.json* ./
 RUN npm ci
 
@@ -15,6 +16,24 @@ COPY next.config.mjs postcss.config.mjs tsconfig.json eslint.config.mjs next-env
 COPY src/ src/
 
 RUN npm run build
+
+
+# ── runtime (minimal production image — no dev deps) ──────────────────────────
+FROM node:22-slim AS runtime
+
+WORKDIR /app
+RUN useradd -m -u 1001 appuser
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public 2>/dev/null || true
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+
+RUN chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 3000
+CMD ["npm", "start"]
 
 
 FROM deps AS dev

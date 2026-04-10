@@ -71,11 +71,20 @@ export default function DossieBookLayout({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-base">
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ background: "var(--color-bg)" }}
+      >
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          <span className="font-mono text-sm text-muted">
-            Carregando dossie...
+          <Loader2
+            className="h-8 w-8 animate-spin"
+            style={{ color: "var(--color-brand)" }}
+          />
+          <span
+            className="font-mono text-sm"
+            style={{ color: "var(--color-text-3)" }}
+          >
+            Carregando dossiê...
           </span>
         </div>
       </div>
@@ -84,14 +93,19 @@ export default function DossieBookLayout({
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-base">
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ background: "var(--color-bg)" }}
+      >
         <div className="flex flex-col items-center gap-4 text-center">
-          <AlertTriangle className="h-10 w-10 text-severity-high" />
-          <p className="text-sm text-secondary">{error}</p>
-          <Link
-            href="/radar"
-            className="rounded-lg border border-border bg-surface-card px-4 py-2 text-sm font-medium text-primary hover:bg-surface-subtle"
-          >
+          <AlertTriangle
+            className="h-10 w-10"
+            style={{ color: "var(--color-high)" }}
+          />
+          <p className="text-sm" style={{ color: "var(--color-text-2)" }}>
+            {error}
+          </p>
+          <Link href="/radar" className="ow-btn ow-btn-outline ow-btn-sm">
             Voltar ao Radar
           </Link>
         </div>

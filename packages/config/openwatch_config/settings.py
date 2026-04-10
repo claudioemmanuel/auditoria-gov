@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     # CORS — comma-separated list of allowed origins
     ALLOWED_ORIGINS: str = "http://localhost:3000"
 
+    # Core service (openwatch-core) — public API proxies requests to this backend
+    CORE_SERVICE_URL: str = ""
+    CORE_API_KEY: str = ""
+
     # Internal API authentication — set a strong secret in production
     INTERNAL_API_KEY: str = "dev-internal-key-change-in-production"
 

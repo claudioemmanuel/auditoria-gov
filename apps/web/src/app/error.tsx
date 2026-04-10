@@ -10,45 +10,65 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang="pt-BR">
-      <body className="min-h-screen bg-surface-base">
-        <div className="mx-auto flex min-h-screen max-w-3xl items-center px-4 py-12">
-          <div className="w-full rounded-2xl border border-error/20 bg-error-subtle p-6 shadow-sm">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-error" />
-              <div>
-                <h1 className="font-display text-lg font-semibold text-error">Erro inesperado na aplicacao</h1>
-                <p className="mt-1 text-sm text-error/80">
-                  Encontramos uma falha em tempo de execucao. O front manteve uma rota segura para
-                  voce retomar o uso sem tela quebrada.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => reset()}
-                    className="inline-flex items-center gap-1 rounded-md border border-error/20 bg-surface-card px-3 py-1.5 text-sm font-medium text-error hover:bg-error-subtle"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Tentar novamente
-                  </button>
-                  <Link
-                    href="/api-health"
-                    className="inline-flex items-center rounded-md border border-accent/20 bg-accent-subtle px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-subtle"
-                  >
-                    Ver Saude API
-                  </Link>
-                  <Link
-                    href="/radar"
-                    className="inline-flex items-center rounded-md border border-border bg-surface-card px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-subtle"
-                  >
-                    Voltar ao Radar
-                  </Link>
-                </div>
-              </div>
+    <div className="ow-content flex min-h-screen items-center justify-center">
+      <div
+        className="w-full max-w-lg rounded-xl border p-6"
+        style={{
+          background: "var(--color-critical-bg)",
+          borderColor: "var(--color-critical-border)",
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <AlertTriangle
+            className="mt-0.5 h-5 w-5 flex-shrink-0"
+            style={{ color: "var(--color-critical)" }}
+            aria-hidden="true"
+          />
+          <div className="min-w-0">
+            <h1
+              className="font-display text-lg font-semibold"
+              style={{ color: "var(--color-critical-text)" }}
+            >
+              Erro inesperado na aplicação
+            </h1>
+            <p
+              className="mt-1 text-sm leading-relaxed"
+              style={{ color: "var(--color-critical-text)", opacity: 0.8 }}
+            >
+              Encontramos uma falha em tempo de execução. O front manteve uma
+              rota segura para você retomar o uso sem tela quebrada.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => reset()}
+                className="ow-btn ow-btn-sm gap-1.5"
+                style={{
+                  background: "var(--color-critical-bg)",
+                  borderColor: "var(--color-critical-border)",
+                  color: "var(--color-critical-text)",
+                }}
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Tentar novamente
+              </button>
+
+              <Link
+                href="/api-health"
+                className="ow-btn ow-btn-sm ow-btn-ghost"
+                style={{ color: "var(--color-brand-light)" }}
+              >
+                Ver Saúde da API
+              </Link>
+
+              <Link href="/radar" className="ow-btn ow-btn-sm ow-btn-ghost">
+                Voltar ao Radar
+              </Link>
             </div>
           </div>
         </div>
-      </body>
-    </html>
+      </div>
+    </div>
   );
 }

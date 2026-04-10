@@ -527,16 +527,16 @@ async def entity_detail(entity_id: uuid.UUID, session: DbSession):
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
     return {
-        "id": entity.id,
-        "type": entity.type,
-        "name": entity.name,
-        "identifiers": {k: v for k, v in (entity.identifiers or {}).items() if k not in ("cpf", "cpf_hash")},
-        "attrs": entity.attrs,
-        "cluster_id": entity.cluster_id,
-        "cluster_confidence": entity.cluster_confidence,
+        "id": entity["id"],
+        "type": entity.get("type"),
+        "name": entity.get("name"),
+        "identifiers": {k: v for k, v in (entity.get("identifiers") or {}).items() if k not in ("cpf", "cpf_hash")},
+        "attrs": entity.get("attrs"),
+        "cluster_id": entity.get("cluster_id"),
+        "cluster_confidence": entity.get("cluster_confidence"),
         "aliases": [
-            {"type": a.alias_type, "value": a.value, "source": a.source}
-            for a in entity.aliases
+            {"type": a.get("alias_type"), "value": a.get("value"), "source": a.get("source")}
+            for a in (entity.get("aliases") or [])
         ],
     }
 
@@ -690,7 +690,7 @@ async def signal_related(signal_id: uuid.UUID, session: DbSession):
     if signal is None:
         raise HTTPException(status_code=404, detail="Signal not found")
 
-    signal_entity_ids = signal.entity_ids or []
+    signal_entity_ids = signal.get("entity_ids") or []
     if not signal_entity_ids:
         return []
 
@@ -699,7 +699,7 @@ async def signal_related(signal_id: uuid.UUID, session: DbSession):
 
     entity_id_strs = [str(e) for e in signal_entity_ids]
     overlap_stmt = text("""
-        SELECT rs.id, rs.severity, rs.confidence, rs.title, rs.created_at,
+        SELECT rs.id, rs.severity, rs.signal_confidence_score AS confidence, rs.title, rs.created_at,
                t.code AS typology_code, t.name AS typology_name
         FROM risk_signal rs
         LEFT JOIN typology t ON t.id = rs.typology_id
@@ -743,18 +743,18 @@ async def export_signal_evidence(
         raise HTTPException(status_code=404, detail="Signal not found")
 
     package = None
-    if signal.evidence_package_id:
-        package = await adapter_get_evidence_package_by_id(session, signal.evidence_package_id)
+    if signal.get("evidence_package_id"):
+        package = await adapter_get_evidence_package_by_id(session, signal["evidence_package_id"])
 
     payload = {
-        "signal_id": str(signal.id),
-        "typology_code": signal.typology.code if signal.typology else None,
-        "title": signal.title,
-        "severity": signal.severity,
-        "confidence": signal.confidence,
-        "completeness_score": signal.completeness_score,
-        "completeness_status": signal.completeness_status,
-        "evidence_refs": signal.evidence_refs or [],
+        "signal_id": str(signal["id"]),
+        "typology_code": signal.get("typology_code"),
+        "title": signal.get("title"),
+        "severity": signal.get("severity"),
+        "confidence": signal.get("confidence"),
+        "completeness_score": signal.get("completeness_score"),
+        "completeness_status": signal.get("completeness_status"),
+        "evidence_refs": signal.get("evidence_refs") or [],
         "evidence_package": (
             {
                 "id": str(package.id),
@@ -794,17 +794,17 @@ async def export_signal_evidence(
             "description",
         ]
     )
-    refs = signal.evidence_refs or []
+    refs = signal.get("evidence_refs") or []
     if not refs:
         writer.writerow(
             [
-                str(signal.id),
-                signal.typology.code if signal.typology else "",
-                signal.title,
-                signal.severity,
-                signal.confidence,
-                signal.completeness_score,
-                signal.completeness_status,
+                str(signal["id"]),
+                signal.get("typology_code") or "",
+                signal.get("title") or "",
+                signal.get("severity") or "",
+                signal.get("confidence") or "",
+                signal.get("completeness_score") or "",
+                signal.get("completeness_status") or "",
                 "",
                 "",
                 "",
@@ -816,13 +816,13 @@ async def export_signal_evidence(
     for ref in refs:
         writer.writerow(
             [
-                str(signal.id),
-                signal.typology.code if signal.typology else "",
-                signal.title,
-                signal.severity,
-                signal.confidence,
-                signal.completeness_score,
-                signal.completeness_status,
+                str(signal["id"]),
+                signal.get("typology_code") or "",
+                signal.get("title") or "",
+                signal.get("severity") or "",
+                signal.get("confidence") or "",
+                signal.get("completeness_score") or "",
+                signal.get("completeness_status") or "",
                 ref.get("ref_type", ""),
                 ref.get("ref_id", ""),
                 ref.get("url", ""),
@@ -860,14 +860,14 @@ async def signal_provenance(signal_id: uuid.UUID, session: DbSession):
         raise HTTPException(status_code=404, detail="Signal not found")
     event_ids = []
     from contextlib import suppress
-    for eid_str in (signal.event_ids or []):
+    for eid_str in (signal.get("event_ids") or []):
         with suppress(ValueError, TypeError):
             event_ids.append(uuid.UUID(str(eid_str)))
     event_raw_sources = await adapter_get_signal_provenance(session, signal_id)
     return {
-        "signal_id": signal.id,
-        "title": signal.title,
-        "typology_code": signal.typology.code if signal.typology else None,
+        "signal_id": signal["id"],
+        "title": signal.get("title"),
+        "typology_code": signal.get("typology_code"),
         "events": [
             {
                 "event_id": eid,

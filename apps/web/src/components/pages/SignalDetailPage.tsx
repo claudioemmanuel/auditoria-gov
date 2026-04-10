@@ -1,1054 +1,2120 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { getSignal, fetchTypologyLegalBasis, fetchRelatedSignals } from "@/lib/api";
-import type { TypologyLegalBasis, RelatedSignal } from "@/lib/types";
-import { Markdown } from "@/components/Markdown";
-import { SeverityBadge } from "@/components/Badge";
-import { SignalEvidenceSection } from "@/components/SignalEvidenceSection";
-import { DetailSkeleton } from "@/components/Skeleton";
-import { EmptyState } from "@/components/EmptyState";
-import { formatBRL, formatDate, normalizeUnknownDisplay, cn } from "@/lib/utils";
-import { TYPOLOGY_LABELS } from "@/lib/constants";
-import type { SignalDetail, FactorMeta, SignalSeverity } from "@/lib/types";
 import {
-  Building2,
-  User,
-  Landmark,
-  Network,
-  Briefcase,
-  ExternalLink,
-  CheckCircle2,
-  XCircle,
-  HelpCircle,
-  Scale,
-  Layers,
-  ChevronRight,
-  AlertTriangle,
-  FileText,
-  GitBranch,
-  Share2,
-} from "lucide-react";
+  getSignal,
+  getSignalEvidence,
+  getSignalGraph,
+  fetchTypologyLegalBasis,
+  fetchRelatedSignals,
+} from "@/lib/api";
+import type { GNode, GLink } from "@/hooks/useCaseGraph";
+import { formatBRL, formatDate, relativeTime } from "@/lib/utils";
+import type {
+  SignalDetail,
+  SignalEvidencePage,
+  SignalGraphResponse,
+  TypologyLegalBasis,
+  RelatedSignal,
+} from "@/lib/types";
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 
-const ENTITY_TYPE_ICONS: Record<string, typeof Building2> = {
-  company: Building2,
-  person: User,
-  org: Landmark,
+const SEV_COLOR: Record<string, string> = {
+  critical: "var(--color-critical)",
+  high: "var(--color-high)",
+  medium: "var(--color-medium)",
+  low: "var(--color-low)",
+};
+const SEV_LABEL: Record<string, string> = {
+  critical: "CRÍTICO",
+  high: "ALTO",
+  medium: "MÉDIO",
+  low: "BAIXO",
 };
 
-function maskIdentifier(key: string, value: string): string {
-  if (key === "cpf" && value.length >= 6) {
-    return value.slice(0, 3) + ".***.***-**";
-  }
-  if (key === "cnpj" && value.length >= 8) {
-    return value.slice(0, 2) + ".***.***/" + value.slice(-6);
-  }
-  return value;
-}
+type SignalTab = "dossie" | "evidencias" | "entidades" | "analise";
 
-function sanitizeText(value: string): string {
-  return value
-    .replace(/\bunknown\b/gi, "Nao informado pela fonte")
-    .replace(/sem classificacao/gi, "Nao informado pela fonte")
-    .replace(/sem classificação/gi, "Nao informado pela fonte");
-}
+// ── Shared small components ──────────────────────────────────────────────────
 
-function toNumberOrNull(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-    const parsed = Number(normalized);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
-function formatFactorValue(value: unknown, meta?: FactorMeta): string {
-  if (value === null || value === undefined) return "—";
-  if (meta?.unit === "boolean" || typeof value === "boolean") return "";
-  if (meta?.unit === "brl" && typeof value === "number") return formatBRL(value);
-  if (meta?.unit === "percent" && typeof value === "number") {
-    const pct = value > 1 ? value : value * 100;
-    return `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-  }
-  if (meta?.unit === "days" && typeof value === "number") {
-    return `${Math.round(value)} dias`;
-  }
-  if (typeof value === "number") {
-    return value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
-  }
-  return normalizeUnknownDisplay(value);
-}
-
-// ── ScoreBar ─────────────────────────────────────────────────────────────────
-
-function ScoreBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.round(value * 100);
-  const barColor =
-    pct >= 75
-      ? "var(--color-low)"
-      : pct >= 50
-      ? "var(--color-medium)"
-      : "var(--color-critical)";
+function SectionHeader({ n, title }: { n: number; title: string }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-caption" style={{ color: "var(--color-text-2)" }}>
-          {label}
-        </span>
-        <span
-          className="text-mono-sm font-semibold tabular-nums"
-          style={{ color: "var(--color-text)" }}
-        >
-          {pct}%
-        </span>
-      </div>
-      <div
-        className="h-1 w-full rounded-full overflow-hidden"
-        style={{ background: "var(--color-surface-3)" }}
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          color: "var(--color-text-3)",
+          letterSpacing: "0.1em",
+        }}
       >
+        § {n}.
+      </span>
+      <h2
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--color-text-2)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          margin: 0,
+        }}
+      >
+        {title}
+      </h2>
+    </div>
+  );
+}
+
+function Card({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-md)",
+        padding: "16px",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-bg)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
         <div
-          className="h-1 rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: barColor }}
+          style={{
+            width: 32,
+            height: 32,
+            border: "2px solid var(--color-border)",
+            borderTopColor: "var(--color-amber)",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
         />
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--color-text-3)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          Carregando dossiê…
+        </p>
       </div>
     </div>
   );
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-
-type TabId = "resumo" | "evidencias" | "legal" | "relacionados";
-
-const TABS: { id: TabId; label: string; Icon: typeof FileText }[] = [
-  { id: "resumo", label: "Resumo", Icon: FileText },
-  { id: "evidencias", label: "Evidências", Icon: Layers },
-  { id: "legal", label: "Base Legal", Icon: Scale },
-  { id: "relacionados", label: "Relacionados", Icon: GitBranch },
-];
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-export default function SignalDetailPage() {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
-
-  const [signal, setSignal] = useState<SignalDetail | null>(null);
-  const [legalBasis, setLegalBasis] = useState<TypologyLegalBasis | null>(null);
-  const [relatedSignals, setRelatedSignals] = useState<RelatedSignal[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>("resumo");
-
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const s = await getSignal(id);
-        if (cancelled) return;
-        setSignal(s);
-
-        const [lb, rs] = await Promise.all([
-          fetchTypologyLegalBasis(s.typology_code).catch(() => null),
-          fetchRelatedSignals(id).catch((): RelatedSignal[] => []),
-        ]);
-        if (cancelled) return;
-        setLegalBasis(lb);
-        setRelatedSignals(rs);
-      } catch {
-        if (!cancelled) setError("not_found");
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (error === "not_found") {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 animate-fade-in">
-        <EmptyState
-          title="Sinal nao encontrado"
-          description="O sinal solicitado nao existe ou foi removido."
-        />
+function ErrorScreen({ error }: { error: string | null }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-bg)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-lg)",
+          padding: "32px 40px",
+          textAlign: "center",
+          maxWidth: 400,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 32,
+            marginBottom: 12,
+            color: "var(--color-critical)",
+          }}
+        >
+          ⚠
+        </div>
+        <h2
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 18,
+            fontWeight: 700,
+            color: "var(--color-text)",
+            marginBottom: 8,
+          }}
+        >
+          {error ?? "Erro desconhecido"}
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--color-text-3)" }}>
+          O sinal solicitado não pôde ser carregado.
+        </p>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  if (!signal) {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        <DetailSkeleton />
-      </div>
-    );
-  }
+// ── DossieTab ────────────────────────────────────────────────────────────────
 
-  const shortId = id.slice(0, 8);
-  const confidence = signal.confidence;
-  const completeness = signal.completeness_score;
-  const factorDescriptions = signal.factor_descriptions ?? {};
-  const entities = signal.entities ?? [];
+function DossieTab({ signal }: { signal: SignalDetail }) {
+  const sevColor = SEV_COLOR[signal.severity] ?? "var(--color-text-3)";
 
-  const fallbackInvestigation = {
-    what_crossed:
-      signal.typology_code === "T03"
-        ? ["orgao_comprador", "modalidade_dispensa", "grupo_catmat", "janela_temporal"]
-        : ["entidades", "eventos", "fatores_quantitativos"],
-    period_start: signal.period_start ?? null,
-    period_end: signal.period_end ?? null,
-    observed_total_brl: toNumberOrNull(
-      signal.factors?.total_value_brl ?? signal.factors?.value_brl
-    ),
-    legal_threshold_brl: toNumberOrNull(
-      signal.factors?.threshold_brl ?? signal.factors?.limit_brl
-    ),
-    ratio_over_threshold: toNumberOrNull(signal.factors?.ratio),
-    legal_reference:
-      signal.typology_code === "T03"
-        ? "Lei 14.133/2021"
-        : (legalBasis?.law_articles[0]?.law_name ?? null),
-  };
+  const paragraphs = signal.explanation_md
+    ? signal.explanation_md.split(/\n\n+/)
+    : signal.summary
+    ? [signal.summary]
+    : [];
 
-  const investigation = signal.investigation_summary ?? fallbackInvestigation;
-
-  const WHAT_CROSSED_LABELS: Record<string, string> = {
-    orgao_comprador: "Órgão comprador",
-    modalidade_dispensa: "Modalidade de compra direta (dispensa)",
-    grupo_catmat: "Classificacao do item (CATMAT/CATSER)",
-    janela_temporal: "Janela temporal das compras",
-    entidades: "Entidades envolvidas",
-    eventos: "Eventos publicos vinculados",
-    fatores_quantitativos: "Indicadores quantitativos da tipologia",
-  };
-
-  const severityAccent: Record<SignalSeverity, string> = {
-    critical: "var(--color-critical)",
-    high: "var(--color-high)",
-    medium: "var(--color-medium)",
-    low: "var(--color-low)",
-  };
+  const inv = signal.investigation_summary;
+  const factors = signal.factors ? Object.entries(signal.factors) : [];
+  const factorDescs = signal.factor_descriptions ?? {};
 
   return (
     <div
-      className="min-h-screen animate-fade-in"
-      style={{ background: "var(--color-surface)" }}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr",
+        gap: 24,
+        alignItems: "start",
+      }}
     >
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-5">
-
-        {/* Breadcrumb */}
-        <nav
-          className="flex items-center gap-1.5 text-caption"
-          style={{ color: "var(--color-text-3)" }}
-        >
-          <Link
-            href="/radar"
-            className="transition-colors hover:text-white"
-          >
-            Radar
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 opacity-40" />
-          <span
-            className="text-mono-sm font-bold"
-            style={{ color: "var(--color-amber)" }}
-          >
-            #{shortId.toUpperCase()}
-          </span>
-        </nav>
-
-        {/* Page header card */}
-        <div
-          className="ow-card animate-slide-up overflow-hidden"
-          style={{ border: "1px solid var(--color-border)" }}
-        >
-          {/* Severity accent line */}
-          <div
-            className="h-px w-full"
-            style={{
-              background: `linear-gradient(90deg, ${severityAccent[signal.severity as SignalSeverity] ?? "var(--color-border)"} 0%, transparent 60%)`,
-            }}
-          />
-
-          <div className="p-5 space-y-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              {/* Title block */}
-              <div className="space-y-2.5 flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className="text-mono-sm font-bold px-2 py-0.5 rounded"
-                    style={{
-                      background: "var(--color-surface-3)",
-                      border: "1px solid var(--color-border-strong)",
-                      color: "var(--color-amber)",
-                    }}
-                  >
-                    {signal.typology_code}
-                  </span>
-                  <SeverityBadge severity={signal.severity as SignalSeverity} />
-                  {signal.completeness_status === "insufficient" && (
-                    <span className="ow-badge ow-badge-neutral flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Evidência parcial
-                    </span>
-                  )}
-                </div>
-                <h1
-                  className="text-display-md leading-tight"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  {sanitizeText(signal.title)}
-                </h1>
-                <p className="text-caption" style={{ color: "var(--color-text-3)" }}>
-                  {TYPOLOGY_LABELS[signal.typology_code] ?? signal.typology_name}
-                </p>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex flex-row sm:flex-col gap-2 sm:items-end shrink-0">
-                {signal.case_id && (
-                  <Link
-                    href={`/case/${signal.case_id}`}
-                    className="ow-btn ow-btn-primary ow-btn-md flex items-center gap-1.5"
-                  >
-                    <Briefcase className="h-3.5 w-3.5" />
-                    <span className="truncate max-w-[160px]">
-                      {signal.case_title ? signal.case_title : "Ver Caso"}
-                    </span>
-                  </Link>
-                )}
-                <Link
-                  href={`/signal/${signal.id}/graph`}
-                  className="ow-btn ow-btn-ghost ow-btn-sm flex items-center gap-1.5"
-                >
-                  <Network className="h-3.5 w-3.5" />
-                  Grafo
-                </Link>
-              </div>
-            </div>
-
-            {/* Meta strip */}
-            <div
-              className="ow-divider"
-              style={{ borderColor: "var(--color-border)" }}
-            />
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-              <div>
+      {/* Left column */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* Narrative */}
+        {paragraphs.length > 0 && (
+          <div>
+            <SectionHeader n={1} title="Narrativa do Sinal" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {paragraphs.map((p, i) => (
                 <p
-                  className="text-label uppercase tracking-widest mb-1"
-                  style={{ color: "var(--color-text-3)" }}
-                >
-                  Severidade
-                </p>
-                <SeverityBadge severity={signal.severity as SignalSeverity} />
-              </div>
-              <div>
-                <p
-                  className="text-label uppercase tracking-widest mb-1"
-                  style={{ color: "var(--color-text-3)" }}
-                >
-                  ID do Sinal
-                </p>
-                <span className="ow-id">{shortId}…</span>
-              </div>
-              {signal.period_start && (
-                <div>
-                  <p
-                    className="text-label uppercase tracking-widest mb-1"
-                    style={{ color: "var(--color-text-3)" }}
-                  >
-                    Início
-                  </p>
-                  <span
-                    className="text-mono-sm tabular-nums"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {formatDate(signal.period_start)}
-                  </span>
-                </div>
-              )}
-              {signal.period_end && (
-                <div>
-                  <p
-                    className="text-label uppercase tracking-widest mb-1"
-                    style={{ color: "var(--color-text-3)" }}
-                  >
-                    Fim
-                  </p>
-                  <span
-                    className="text-mono-sm tabular-nums"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {formatDate(signal.period_end)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Body: aside + tabbed main */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[288px_1fr]">
-
-          {/* ── Aside ──────────────────────────────────────────────── */}
-          <aside className="space-y-3">
-
-            {/* Score indicators */}
-            <div
-              className="ow-card p-4 space-y-4"
-              style={{ border: "1px solid var(--color-border)" }}
-            >
-              <h3
-                className="text-label uppercase tracking-widest"
-                style={{ color: "var(--color-text-3)" }}
-              >
-                Indicadores
-              </h3>
-              <ScoreBar label="Confiança" value={confidence} />
-              <ScoreBar label="Completude" value={completeness} />
-            </div>
-
-            {/* Entities */}
-            {(entities.length > 0 || signal.entity_ids.length > 0) && (
-              <div
-                className="ow-card p-4 space-y-3"
-                style={{ border: "1px solid var(--color-border)" }}
-              >
-                <h3
-                  className="text-label uppercase tracking-widest"
-                  style={{ color: "var(--color-text-3)" }}
-                >
-                  Entidades
-                </h3>
-                <ul className="space-y-2">
-                  {entities.length > 0
-                    ? entities.map((entity) => {
-                        const EntityIcon =
-                          ENTITY_TYPE_ICONS[entity.type] ?? Building2;
-                        const identifierEntries = Object.entries(
-                          entity.identifiers
-                        );
-                        return (
-                          <li key={entity.id}>
-                            <Link
-                              href={`/entity/${entity.id}`}
-                              className="ow-card-hover flex items-center gap-2.5 rounded-md p-2.5 transition-colors"
-                              style={{
-                                background: "var(--color-surface-2)",
-                                border: "1px solid var(--color-border)",
-                              }}
-                            >
-                              <div
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                                style={{
-                                  background: "var(--color-surface-3)",
-                                  border: "1px solid var(--color-border-strong)",
-                                }}
-                              >
-                                <EntityIcon
-                                  className="h-3.5 w-3.5"
-                                  style={{ color: "var(--color-amber)" }}
-                                />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p
-                                  className="text-body font-medium truncate"
-                                  style={{ color: "var(--color-text)" }}
-                                >
-                                  {entity.name}
-                                </p>
-                                {identifierEntries.length > 0 && (
-                                  <p
-                                    className="text-mono-xs truncate"
-                                    style={{ color: "var(--color-text-3)" }}
-                                  >
-                                    {identifierEntries
-                                      .map(
-                                        ([k, v]) =>
-                                          `${k.toUpperCase()}: ${maskIdentifier(k, v)}`
-                                      )
-                                      .join(" · ")}
-                                  </p>
-                                )}
-                              </div>
-                              <ExternalLink
-                                className="h-3 w-3 shrink-0"
-                                style={{ color: "var(--color-text-3)" }}
-                              />
-                            </Link>
-                          </li>
-                        );
-                      })
-                    : signal.entity_ids.map((eid) => (
-                        <li key={eid}>
-                          <Link
-                            href={`/entity/${eid}`}
-                            className="ow-card-hover flex items-center gap-2 rounded-md p-2.5 transition-colors"
-                            style={{
-                              background: "var(--color-surface-2)",
-                              border: "1px solid var(--color-border)",
-                            }}
-                          >
-                            <span className="ow-id flex-1">
-                              {eid.slice(0, 8)}…
-                            </span>
-                            <ExternalLink
-                              className="h-3 w-3"
-                              style={{ color: "var(--color-amber)" }}
-                            />
-                          </Link>
-                        </li>
-                      ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Metadata */}
-            <div
-              className="ow-card p-4 space-y-3"
-              style={{ border: "1px solid var(--color-border)" }}
-            >
-              <h3
-                className="text-label uppercase tracking-widest"
-                style={{ color: "var(--color-text-3)" }}
-              >
-                Metadados
-              </h3>
-              <dl className="space-y-3">
-                <div>
-                  <dt
-                    className="text-label mb-0.5"
-                    style={{ color: "var(--color-text-3)" }}
-                  >
-                    ID
-                  </dt>
-                  <dd>
-                    <span className="ow-id">{shortId}…</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt
-                    className="text-label mb-0.5"
-                    style={{ color: "var(--color-text-3)" }}
-                  >
-                    Tipologia
-                  </dt>
-                  <dd
-                    className="text-mono-sm"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {signal.typology_code}
-                  </dd>
-                </div>
-                {signal.created_at && (
-                  <div>
-                    <dt
-                      className="text-label mb-0.5"
-                      style={{ color: "var(--color-text-3)" }}
-                    >
-                      Detectado em
-                    </dt>
-                    <dd
-                      className="text-mono-sm tabular-nums"
-                      style={{ color: "var(--color-text)" }}
-                    >
-                      {formatDate(signal.created_at)}
-                    </dd>
-                  </div>
-                )}
-                <div>
-                  <dt
-                    className="text-label mb-0.5"
-                    style={{ color: "var(--color-text-3)" }}
-                  >
-                    Status evidência
-                  </dt>
-                  <dd>
-                    <span
-                      className={cn(
-                        "ow-badge",
-                        signal.completeness_status === "sufficient"
-                          ? "ow-badge-info"
-                          : "ow-badge-neutral"
-                      )}
-                    >
-                      {signal.completeness_status === "sufficient"
-                        ? "Suficiente"
-                        : "Insuficiente"}
-                    </span>
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </aside>
-
-          {/* ── Main: Tabs ─────────────────────────────────────────── */}
-          <div className="min-w-0">
-            {/* Tab navigation */}
-            <div
-              className="flex items-center gap-0 rounded-t-lg border-b overflow-x-auto"
-              style={{
-                background: "var(--color-surface-2)",
-                borderColor: "var(--color-border)",
-                borderLeft: "1px solid var(--color-border)",
-                borderRight: "1px solid var(--color-border)",
-                borderTop: "1px solid var(--color-border)",
-              }}
-            >
-              {TABS.map(({ id: tabId, label, Icon }) => (
-                <button
-                  key={tabId}
-                  onClick={() => setActiveTab(tabId)}
-                  className="relative flex items-center gap-1.5 px-5 py-3.5 text-label font-medium whitespace-nowrap transition-colors"
+                  key={i}
                   style={{
-                    color:
-                      activeTab === tabId
-                        ? "var(--color-text)"
-                        : "var(--color-text-3)",
+                    fontSize: 14,
+                    color: "var(--color-text)",
+                    lineHeight: 1.7,
+                    margin: 0,
                   }}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                  {activeTab === tabId && (
+                  {p.trim()}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Investigation Summary */}
+        {inv && (
+          <div>
+            <SectionHeader n={2} title="Resumo da Investigação" />
+            <Card>
+              {inv.what_crossed.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Limiares cruzados
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {inv.what_crossed.map((item, i) => (
+                      <li
+                        key={i}
+                        style={{
+                          fontSize: 13,
+                          color: "var(--color-text)",
+                          marginBottom: 4,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  marginTop: 12,
+                }}
+              >
+                {inv.observed_total_brl != null && (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Total observado
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: sevColor,
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {formatBRL(inv.observed_total_brl)}
+                    </p>
+                  </div>
+                )}
+                {inv.legal_threshold_brl != null && (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Limite legal
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: "var(--color-text)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {formatBRL(inv.legal_threshold_brl)}
+                    </p>
+                  </div>
+                )}
+                {inv.ratio_over_threshold != null && (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Razão sobre limite
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: sevColor,
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {inv.ratio_over_threshold.toFixed(2)}×
+                    </p>
+                  </div>
+                )}
+                {inv.legal_reference && (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Referência legal
+                    </p>
+                    <p style={{ fontSize: 12, color: "var(--color-text-2)" }}>
+                      {inv.legal_reference}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Factors */}
+        {factors.length > 0 && (
+          <div>
+            <SectionHeader n={3} title="Fatores de Risco" />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {factors.map(([key, value]) => {
+                const meta = factorDescs[key];
+                return (
+                  <Card key={key}>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {meta?.label ?? key}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "var(--color-text)",
+                        fontFamily: "var(--font-mono)",
+                        marginBottom: meta?.description ? 4 : 0,
+                      }}
+                    >
+                      {typeof value === "number"
+                        ? value.toLocaleString("pt-BR")
+                        : String(value)}
+                      {meta?.unit ? ` ${meta.unit}` : ""}
+                    </p>
+                    {meta?.description && (
+                      <p style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                        {meta.description}
+                      </p>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right sidebar */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Confidence bar */}
+        <Card>
+          <p
+            style={{
+              fontSize: 11,
+              fontFamily: "var(--font-mono)",
+              color: "var(--color-text-3)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 10,
+            }}
+          >
+            Confiança
+          </p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 20,
+                height: 100,
+                background: "var(--color-surface-2)",
+                borderRadius: 4,
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  height: `${Math.round(signal.confidence * 100)}%`,
+                  background: sevColor,
+                  borderRadius: 4,
+                  marginTop: `${100 - Math.round(signal.confidence * 100)}%`,
+                  transition: "height 0.4s ease",
+                }}
+              />
+            </div>
+            <div>
+              <p
+                style={{
+                  fontSize: 28,
+                  fontWeight: 700,
+                  fontFamily: "var(--font-mono)",
+                  color: sevColor,
+                  lineHeight: 1,
+                  marginBottom: 4,
+                }}
+              >
+                {Math.round(signal.confidence * 100)}%
+              </p>
+              <p style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                {signal.confidence >= 0.8
+                  ? "Alta confiança"
+                  : signal.confidence >= 0.5
+                  ? "Confiança moderada"
+                  : "Confiança baixa"}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Completeness */}
+        {signal.completeness_score != null && (
+          <Card>
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "var(--color-text-3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 8,
+              }}
+            >
+              Completude
+            </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 6,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--color-text)",
+                  lineHeight: 1,
+                }}
+              >
+                {Math.round(signal.completeness_score * 100)}%
+              </p>
+              {signal.completeness_status && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                    letterSpacing: "0.1em",
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    background:
+                      signal.completeness_status === "sufficient"
+                        ? "rgba(0,200,100,0.1)"
+                        : "rgba(255,100,0,0.1)",
+                    color:
+                      signal.completeness_status === "sufficient"
+                        ? "var(--color-low)"
+                        : "var(--color-high)",
+                    border: `1px solid ${
+                      signal.completeness_status === "sufficient"
+                        ? "rgba(0,200,100,0.3)"
+                        : "rgba(255,100,0,0.3)"
+                    }`,
+                  }}
+                >
+                  {signal.completeness_status === "sufficient"
+                    ? "SUFICIENTE"
+                    : "INSUFICIENTE"}
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                height: 4,
+                background: "var(--color-surface-2)",
+                borderRadius: 2,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.round(signal.completeness_score * 100)}%`,
+                  background:
+                    signal.completeness_status === "sufficient"
+                      ? "var(--color-low)"
+                      : "var(--color-high)",
+                  borderRadius: 2,
+                }}
+              />
+            </div>
+          </Card>
+        )}
+
+        {/* Period */}
+        {(signal.period_start || signal.period_end) && (
+          <Card>
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "var(--color-text-3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 8,
+              }}
+            >
+              Período
+            </p>
+            <p style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 2 }}>
+              {signal.period_start ? formatDate(signal.period_start) : "—"}
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: "var(--color-text-3)",
+                marginBottom: 6,
+              }}
+            >
+              até
+            </p>
+            <p style={{ fontSize: 13, color: "var(--color-text)" }}>
+              {signal.period_end ? formatDate(signal.period_end) : "presente"}
+            </p>
+          </Card>
+        )}
+
+        {/* Case link */}
+        {signal.case_id && (
+          <Card>
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "var(--color-text-3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 8,
+              }}
+            >
+              Caso vinculado
+            </p>
+            <Link
+              href={`/radar/dossie/${signal.case_id}`}
+              style={{
+                fontSize: 13,
+                color: "var(--color-amber)",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {signal.case_title ?? signal.case_id.slice(0, 8)} →
+            </Link>
+          </Card>
+        )}
+
+        {/* Created */}
+        <Card>
+          <p
+            style={{
+              fontSize: 11,
+              fontFamily: "var(--font-mono)",
+              color: "var(--color-text-3)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 6,
+            }}
+          >
+            Criado
+          </p>
+          <p style={{ fontSize: 12, color: "var(--color-text-2)" }}>
+            {formatDate(signal.created_at)}
+          </p>
+          <p style={{ fontSize: 11, color: "var(--color-text-3)", marginTop: 2 }}>
+            {relativeTime(signal.created_at)}
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── EvidenciasTab ────────────────────────────────────────────────────────────
+
+function EvidenciasTab({
+  signal,
+  evidence,
+  loading,
+  offset,
+  pageSize,
+  onPageChange,
+}: {
+  signal: SignalDetail;
+  evidence: SignalEvidencePage | null;
+  loading: boolean;
+  offset: number;
+  pageSize: number;
+  onPageChange: (offset: number) => void;
+}) {
+  const refs = signal.evidence_refs ?? [];
+  const stats = signal.evidence_stats;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Evidence refs */}
+      {refs.length > 0 && (
+        <div>
+          <SectionHeader n={1} title="Referências de Evidência" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {refs.map((ref, i) => (
+              <Card key={i}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                      background: "var(--color-surface-2)",
+                      padding: "2px 6px",
+                      borderRadius: 3,
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}
+                  >
+                    {ref.ref_type}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 4 }}>
+                      {ref.description}
+                    </p>
+                    {ref.url && (
+                      <a
+                        href={ref.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: 11,
+                          color: "var(--color-amber)",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {ref.url} ↗
+                      </a>
+                    )}
+                    {ref.ref_id && !ref.url && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          color: "var(--color-text-3)",
+                        }}
+                      >
+                        {ref.ref_id}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Events */}
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <SectionHeader n={refs.length > 0 ? 2 : 1} title="Eventos de Evidência" />
+          {stats && (
+            <div style={{ display: "flex", gap: 12 }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                    color: "var(--color-text-2)",
+                  }}
+                >
+                  {stats.total_events}
+                </span>{" "}
+                total
+              </span>
+              {stats.omitted_refs > 0 && (
+                <span style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-medium)",
+                    }}
+                  >
+                    {stats.omitted_refs}
+                  </span>{" "}
+                  omitidos
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {loading ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px",
+              color: "var(--color-text-3)",
+              fontSize: 13,
+            }}
+          >
+            Carregando evidências…
+          </div>
+        ) : evidence && evidence.items.length > 0 ? (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {evidence.items.map((item) => (
+                <Card key={item.event_id}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginBottom: 6,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--color-text-3)",
+                            background: "var(--color-surface-2)",
+                            padding: "2px 6px",
+                            borderRadius: 3,
+                          }}
+                        >
+                          {item.modality}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--color-text-3)",
+                          }}
+                        >
+                          {item.source_connector}
+                        </span>
+                        {item.occurred_at && (
+                          <span
+                            style={{ fontSize: 11, color: "var(--color-text-3)" }}
+                          >
+                            {formatDate(item.occurred_at)}
+                          </span>
+                        )}
+                        {item.value_brl != null && (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontFamily: "var(--font-mono)",
+                              fontWeight: 600,
+                              color: "var(--color-amber)",
+                              marginLeft: "auto",
+                            }}
+                          >
+                            {formatBRL(item.value_brl)}
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "var(--color-text)",
+                          lineHeight: 1.5,
+                          marginBottom: 6,
+                        }}
+                      >
+                        {item.description}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "var(--color-text-3)",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {item.evidence_reason}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      borderTop: "1px solid var(--color-border)",
+                      paddingTop: 6,
+                      marginTop: 4,
+                    }}
+                  >
                     <span
-                      className="absolute bottom-0 left-0 right-0 h-px rounded-t-full"
-                      style={{ background: "var(--color-amber)" }}
-                    />
-                  )}
-                </button>
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                      }}
+                    >
+                      {item.catmat_group} · {item.source_id}
+                    </span>
+                  </div>
+                </Card>
               ))}
             </div>
 
-            {/* Tab content */}
-            <div
-              className="rounded-b-lg p-5 space-y-5"
-              style={{
-                background: "var(--color-surface-2)",
-                border: "1px solid var(--color-border)",
-                borderTop: "none",
-              }}
-            >
-              {/* ── Resumo ── */}
-              {activeTab === "resumo" && (
-                <div className="space-y-6 animate-fade-in">
+            {/* Pagination */}
+            {evidence.total > pageSize && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginTop: 16,
+                  padding: "12px 0",
+                  borderTop: "1px solid var(--color-border)",
+                }}
+              >
+                <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                  {offset + 1}–{Math.min(offset + pageSize, evidence.total)} de{" "}
+                  {evidence.total}
+                </span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    disabled={offset === 0}
+                    onClick={() => onPageChange(Math.max(0, offset - pageSize))}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: 12,
+                      background: "var(--color-surface-2)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-md)",
+                      color:
+                        offset === 0
+                          ? "var(--color-text-3)"
+                          : "var(--color-text)",
+                      cursor: offset === 0 ? "not-allowed" : "pointer",
+                      opacity: offset === 0 ? 0.5 : 1,
+                    }}
+                  >
+                    ← Anterior
+                  </button>
+                  <button
+                    disabled={offset + pageSize >= evidence.total}
+                    onClick={() => onPageChange(offset + pageSize)}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: 12,
+                      background: "var(--color-surface-2)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-md)",
+                      color:
+                        offset + pageSize >= evidence.total
+                          ? "var(--color-text-3)"
+                          : "var(--color-text)",
+                      cursor:
+                        offset + pageSize >= evidence.total
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity: offset + pageSize >= evidence.total ? 0.5 : 1,
+                    }}
+                  >
+                    Próxima →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px",
+              color: "var(--color-text-3)",
+              fontSize: 13,
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            Nenhuma evidência encontrada.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-                  {/* Summary / explanation */}
-                  {(signal.explanation_md || signal.summary) && (
-                    <section>
-                      <h2
-                        className="text-label uppercase tracking-widest mb-3"
-                        style={{ color: "var(--color-text-3)" }}
-                      >
-                        Análise do Sinal
-                      </h2>
-                      <div
-                        className="text-body rounded-md p-4"
-                        style={{
-                          borderLeft: "3px solid var(--color-amber)",
-                          background: "var(--color-surface-3)",
-                          color: "var(--color-text-2)",
-                        }}
-                      >
-                        {signal.explanation_md ? (
-                          <Markdown content={signal.explanation_md} />
-                        ) : (
-                          <p>{sanitizeText(signal.summary ?? "")}</p>
-                        )}
-                      </div>
-                    </section>
-                  )}
+// ── EntidadesTab ─────────────────────────────────────────────────────────────
 
-                  {/* Risk Factors */}
-                  {signal.factors && Object.keys(signal.factors).length > 0 && (
-                    <section>
-                      <h2
-                        className="text-label uppercase tracking-widest mb-3 flex items-center gap-1.5"
-                        style={{ color: "var(--color-text-3)" }}
-                      >
-                        <Layers className="h-3.5 w-3.5" />
-                        Fatores de Risco
-                      </h2>
-                      <div className="ow-table-wrapper">
-                        <table className="ow-table">
-                          <thead>
-                            <tr>
-                              <th>Fator</th>
-                              <th>Valor</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Object.entries(signal.factors).map(
-                              ([key, value]) => {
-                                const meta = factorDescriptions[key];
-                                const isBoolean =
-                                  meta?.unit === "boolean" ||
-                                  typeof value === "boolean";
-                                const boolVal = isBoolean
-                                  ? Boolean(value)
-                                  : null;
-                                return (
-                                  <tr key={key}>
-                                    <td>
-                                      <span
-                                        className="flex items-center gap-1.5"
-                                        style={{ color: "var(--color-text-2)" }}
-                                      >
-                                        {meta?.label ?? key}
-                                        {meta?.description && (
-                                          <span className="group relative inline-flex">
-                                            <HelpCircle
-                                              className="h-3 w-3"
-                                              style={{
-                                                color:
-                                                  "var(--color-text-3)",
-                                              }}
-                                            />
-                                            <span
-                                              className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden w-56 -translate-x-1/2 rounded-md px-3 py-2 text-xs group-hover:block"
-                                              style={{
-                                                background:
-                                                  "var(--color-surface-3)",
-                                                border:
-                                                  "1px solid var(--color-border-strong)",
-                                                color: "var(--color-text)",
-                                              }}
-                                            >
-                                              {meta.description}
-                                            </span>
-                                          </span>
-                                        )}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <span
-                                        className="text-mono-sm font-semibold tabular-nums"
-                                        style={{ color: "var(--color-text)" }}
-                                      >
-                                        {isBoolean ? (
-                                          <span className="inline-flex items-center gap-1">
-                                            {boolVal ? (
-                                              <CheckCircle2
-                                                className="h-3.5 w-3.5"
-                                                style={{
-                                                  color: "var(--color-low)",
-                                                }}
-                                              />
-                                            ) : (
-                                              <XCircle
-                                                className="h-3.5 w-3.5"
-                                                style={{
-                                                  color:
-                                                    "var(--color-text-3)",
-                                                }}
-                                              />
-                                            )}
-                                            {boolVal ? "Sim" : "Nao"}
-                                          </span>
-                                        ) : (
-                                          formatFactorValue(value, meta)
-                                        )}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              }
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  )}
+function EntidadesTab({
+  signal,
+  graph,
+  graphLoading,
+  graphData,
+  showExpanded,
+  setShowExpanded,
+  selectedNode,
+  setSelectedNode,
+}: {
+  signal: SignalDetail;
+  graph: SignalGraphResponse | null;
+  graphLoading: boolean;
+  graphData: { nodes: GNode[]; links: GLink[] };
+  showExpanded: boolean;
+  setShowExpanded: (v: boolean) => void;
+  selectedNode: GNode | null;
+  setSelectedNode: (n: GNode | null) => void;
+}) {
+  const entities = signal.entities ?? [];
 
-                  {/* Investigation summary */}
-                  {investigation && (
-                    <section>
-                      <h2
-                        className="text-label uppercase tracking-widest mb-3 flex items-center gap-1.5"
-                        style={{ color: "var(--color-text-3)" }}
-                      >
-                        <Scale className="h-3.5 w-3.5" />
-                        Por que este sinal existe?
-                      </h2>
-                      <div
-                        className="rounded-md p-4 space-y-4"
-                        style={{
-                          background: "var(--color-surface-3)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        <p
-                          className="text-caption"
-                          style={{ color: "var(--color-text-3)" }}
-                        >
-                          O motor cruzou dados públicos para identificar um
-                          padrão atípico nesta tipologia.
-                        </p>
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            {
-                              label: "Valor observado",
-                              value:
-                                typeof investigation.observed_total_brl ===
-                                "number"
-                                  ? formatBRL(investigation.observed_total_brl)
-                                  : null,
-                            },
-                            {
-                              label: "Limite de referência",
-                              value:
-                                typeof investigation.legal_threshold_brl ===
-                                "number"
-                                  ? formatBRL(investigation.legal_threshold_brl)
-                                  : null,
-                            },
-                            {
-                              label: "Razão sobre limite",
-                              value:
-                                typeof investigation.ratio_over_threshold ===
-                                "number"
-                                  ? `${investigation.ratio_over_threshold.toLocaleString(
-                                      "pt-BR",
-                                      { maximumFractionDigits: 2 }
-                                    )}x`
-                                  : null,
-                            },
-                            {
-                              label: "Base legal",
-                              value: investigation.legal_reference ?? null,
-                            },
-                          ].map(({ label, value }) => (
-                            <div
-                              key={label}
-                              className="rounded-md p-3"
-                              style={{
-                                background: "var(--color-surface-2)",
-                                border: "1px solid var(--color-border)",
-                              }}
-                            >
-                              <p
-                                className="text-label mb-1"
-                                style={{ color: "var(--color-text-3)" }}
-                              >
-                                {label}
-                              </p>
-                              <p
-                                className="text-mono-sm font-semibold"
-                                style={{
-                                  color: value
-                                    ? "var(--color-text)"
-                                    : "var(--color-text-3)",
-                                }}
-                              >
-                                {value ?? "Nao informado"}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                        {investigation.what_crossed.length > 0 && (
-                          <div>
-                            <p
-                              className="text-label mb-2"
-                              style={{ color: "var(--color-text-3)" }}
-                            >
-                              Dados cruzados
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {investigation.what_crossed.map((item) => (
-                                <span
-                                  key={item}
-                                  className="ow-badge ow-badge-neutral"
-                                >
-                                  {WHAT_CROSSED_LABELS[item] ?? item}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </section>
-                  )}
+  const TYPE_ICON: Record<string, string> = {
+    person: "👤",
+    company: "🏢",
+    org: "🏛",
+  };
 
-                  {/* Legal disclaimer */}
-                  <div className="ow-alert ow-alert-warning flex gap-2.5">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <p className="text-caption">
-                      <strong>Aviso legal:</strong>{" "}
-                      Este sinal constitui uma{" "}
-                      <em>hipótese investigativa</em> baseada em cruzamento
-                      automático de dados públicos. Nao equivale a acusação,
-                      condenação ou juízo de culpa. A decisão final pertence
-                      aos órgãos competentes (controle interno, auditoria,
-                      corregedoria, Ministério Público e Judiciário).
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Entity list */}
+      {entities.length > 0 && (
+        <div>
+          <SectionHeader n={1} title="Entidades Envolvidas" />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 10,
+            }}
+          >
+            {entities.map((ent) => (
+              <Card key={ent.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>
+                    {TYPE_ICON[ent.type] ?? "📄"}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--color-text)",
+                        marginBottom: 2,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {ent.name}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {ent.type}
                     </p>
                   </div>
                 </div>
-              )}
 
-              {/* ── Evidências ── */}
-              {activeTab === "evidencias" && (
-                <div className="animate-fade-in">
-                  <SignalEvidenceSection
-                    signalId={signal.id}
-                    evidenceRefs={signal.evidence_refs}
-                    evidenceStats={signal.evidence_stats}
-                  />
-                </div>
-              )}
-
-              {/* ── Base Legal ── */}
-              {activeTab === "legal" && (
-                <div className="space-y-5 animate-fade-in">
-                  {legalBasis ? (
-                    <>
-                      {legalBasis.description_legal && (
-                        <div
-                          className="text-body rounded-md p-4"
-                          style={{
-                            borderLeft: "3px solid var(--color-amber)",
-                            background: "var(--color-surface-3)",
-                            color: "var(--color-text-2)",
-                          }}
-                        >
-                          {legalBasis.description_legal}
-                        </div>
-                      )}
-
-                      {legalBasis.law_articles.length > 0 && (
-                        <div>
-                          <h3
-                            className="text-label uppercase tracking-widest mb-3"
-                            style={{ color: "var(--color-text-3)" }}
-                          >
-                            Artigos aplicáveis
-                          </h3>
-                          <div className="ow-table-wrapper">
-                            <table className="ow-table">
-                              <thead>
-                                <tr>
-                                  <th>Lei</th>
-                                  <th>Artigo</th>
-                                  <th>Tipo de Violação</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {legalBasis.law_articles.map((article, i) => (
-                                  <tr key={i}>
-                                    <td
-                                      className="font-medium"
-                                      style={{ color: "var(--color-text)" }}
-                                    >
-                                      {article.law_name}
-                                    </td>
-                                    <td
-                                      className="text-mono-sm"
-                                      style={{ color: "var(--color-text-2)" }}
-                                    >
-                                      {article.article || "—"}
-                                    </td>
-                                    <td
-                                      style={{ color: "var(--color-text-3)" }}
-                                    >
-                                      {article.violation_type || "—"}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {legalBasis.corruption_types?.length > 0 && (
-                        <div>
-                          <p
-                            className="text-label uppercase tracking-widest mb-2"
-                            style={{ color: "var(--color-text-3)" }}
-                          >
-                            Tipos de corrupção relacionados
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {legalBasis.corruption_types.map((type) => (
-                              <span key={type} className="ow-badge ow-badge-high">
-                                {type}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="ow-empty">
-                      <Scale className="h-8 w-8 opacity-30 mb-2" />
-                      <p>
-                        Nenhuma base legal disponível para esta tipologia.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Relacionados ── */}
-              {activeTab === "relacionados" && (
-                <div className="animate-fade-in">
-                  {relatedSignals.length > 0 ? (
-                    <ul className="space-y-2">
-                      {relatedSignals.map((s) => (
-                        <li key={s.id}>
-                          <Link
-                            href={`/signal/${s.id}`}
-                            className="ow-signal-card ow-card-hover flex items-center gap-3 rounded-md p-3 transition-colors"
+                {/* Roles */}
+                {ent.roles.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 4,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {ent.roles_detailed
+                      ? ent.roles_detailed.map((r) => (
+                          <span
+                            key={r.code}
                             style={{
-                              background: "var(--color-surface-3)",
+                              fontSize: 10,
+                              fontFamily: "var(--font-mono)",
+                              color: "var(--color-text-3)",
+                              background: "var(--color-surface-2)",
                               border: "1px solid var(--color-border)",
+                              padding: "2px 6px",
+                              borderRadius: 10,
                             }}
                           >
-                            <SeverityBadge severity={s.severity} />
-                            <span
-                              className="text-mono-sm font-bold shrink-0"
-                              style={{ color: "var(--color-amber)" }}
-                            >
-                              {s.typology_code}
-                            </span>
-                            <span
-                              className="flex-1 truncate text-body"
-                              style={{ color: "var(--color-text-2)" }}
-                            >
-                              {s.title}
-                            </span>
-                            <span
-                              className="text-mono-xs tabular-nums shrink-0"
-                              style={{ color: "var(--color-text-3)" }}
-                            >
-                              {Math.round(s.confidence * 100)}%
-                            </span>
-                            <ExternalLink
-                              className="h-3.5 w-3.5 shrink-0"
-                              style={{ color: "var(--color-text-3)" }}
-                            />
-                          </Link>
-                        </li>
+                            {r.label}
+                            {r.count_in_signal > 1 && (
+                              <span
+                                style={{
+                                  marginLeft: 4,
+                                  color: "var(--color-amber)",
+                                }}
+                              >
+                                ×{r.count_in_signal}
+                              </span>
+                            )}
+                          </span>
+                        ))
+                      : ent.roles.map((r) => (
+                          <span
+                            key={r}
+                            style={{
+                              fontSize: 10,
+                              fontFamily: "var(--font-mono)",
+                              color: "var(--color-text-3)",
+                              background: "var(--color-surface-2)",
+                              border: "1px solid var(--color-border)",
+                              padding: "2px 6px",
+                              borderRadius: 10,
+                            }}
+                          >
+                            {r}
+                          </span>
+                        ))}
+                  </div>
+                )}
+
+                {/* Identifiers */}
+                {Object.keys(ent.identifiers).length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {Object.entries(ent.identifiers)
+                      .filter(([k]) => !["name_key", "cpf_hash"].includes(k))
+                      .slice(0, 3)
+                      .map(([k, v]) => (
+                        <span
+                          key={k}
+                          style={{
+                            fontSize: 11,
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--color-text-3)",
+                          }}
+                        >
+                          {k.toUpperCase()}: {v}
+                        </span>
                       ))}
-                    </ul>
-                  ) : (
-                    <div className="ow-empty">
-                      <Share2 className="h-8 w-8 opacity-30 mb-2" />
-                      <p>
-                        Nenhum sinal relacionado encontrado para estas
-                        entidades.
-                      </p>
-                    </div>
-                  )}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Graph section */}
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <SectionHeader n={entities.length > 0 ? 2 : 1} title="Rede de Relacionamentos" />
+          {graph && graph.overview.expanded_nodes && (
+            <button
+              onClick={() => setShowExpanded(!showExpanded)}
+              style={{
+                fontSize: 12,
+                color: showExpanded ? "var(--color-amber)" : "var(--color-text-3)",
+                background: "none",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                padding: "4px 10px",
+                cursor: "pointer",
+              }}
+            >
+              {showExpanded ? "← Ocultar expandido" : "Mostrar rede expandida →"}
+            </button>
+          )}
+        </div>
+
+        {graphLoading ? (
+          <div
+            style={{
+              height: 400,
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-3)",
+              fontSize: 13,
+            }}
+          >
+            Carregando grafo…
+          </div>
+        ) : graph && graphData.nodes.length > 0 ? (
+          <div
+            style={{
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              padding: "16px",
+              background: "var(--color-surface)",
+            }}
+          >
+            {/* Node list — canvas requires extra maps not available here */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 8,
+              }}
+            >
+              {graphData.nodes.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => setSelectedNode(selectedNode?.id === n.id ? null : n)}
+                  style={{
+                    padding: "8px 12px",
+                    background:
+                      selectedNode?.id === n.id
+                        ? "var(--color-surface-3)"
+                        : "var(--color-surface-2)",
+                    border: `1px solid ${
+                      n.isSeed
+                        ? "var(--color-amber)"
+                        : selectedNode?.id === n.id
+                        ? "var(--color-amber-dim)"
+                        : "var(--color-border)"
+                    }`,
+                    borderRadius: "var(--radius-md)",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-3)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      marginBottom: 2,
+                    }}
+                  >
+                    {n.node_type}
+                    {n.isSeed && (
+                      <span style={{ color: "var(--color-amber)", marginLeft: 4 }}>
+                        ★
+                      </span>
+                    )}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--color-text)",
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {n.label}
+                  </p>
+                </button>
+              ))}
+            </div>
+            {graphData.links.length > 0 && (
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-text-3)",
+                  marginTop: 12,
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {graphData.nodes.length} nós · {graphData.links.length} conexões
+              </p>
+            )}
+          </div>
+        ) : (
+          <div
+            style={{
+              height: 200,
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-3)",
+              fontSize: 13,
+            }}
+          >
+            Dados de grafo não disponíveis.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── AnaliseTab ───────────────────────────────────────────────────────────────
+
+function AnaliseTab({
+  signal,
+  legalBasis,
+  relatedSignals,
+  graph,
+}: {
+  signal: SignalDetail;
+  legalBasis: TypologyLegalBasis | null;
+  relatedSignals: RelatedSignal[];
+  graph: SignalGraphResponse | null;
+}) {
+  let sectionN = 1;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Pattern Story */}
+      {graph?.pattern_story && (
+        <div>
+          <SectionHeader n={sectionN++} title="História do Padrão" />
+          <Card>
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--color-text)",
+                marginBottom: 8,
+              }}
+            >
+              {graph.pattern_story.pattern_label}
+            </p>
+            {(graph.pattern_story.started_at || graph.pattern_story.ended_at) && (
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-3)",
+                  fontFamily: "var(--font-mono)",
+                  marginBottom: 10,
+                }}
+              >
+                {graph.pattern_story.started_at
+                  ? formatDate(graph.pattern_story.started_at)
+                  : "—"}{" "}
+                →{" "}
+                {graph.pattern_story.ended_at
+                  ? formatDate(graph.pattern_story.ended_at)
+                  : "presente"}
+              </p>
+            )}
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-2)",
+                lineHeight: 1.6,
+                marginBottom: 12,
+              }}
+            >
+              {graph.pattern_story.why_flagged}
+            </p>
+
+            {graph.pattern_story.started_from_entities.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: 6,
+                  }}
+                >
+                  Originado em
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {graph.pattern_story.started_from_entities.map((e) => (
+                    <span
+                      key={e.entity_id}
+                      style={{
+                        fontSize: 12,
+                        color: "var(--color-text)",
+                        background: "var(--color-surface-2)",
+                        border: "1px solid var(--color-border)",
+                        padding: "3px 8px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      {e.name}
+                    </span>
+                  ))}
                 </div>
+              </div>
+            )}
+
+            {graph.pattern_story.flow_targets.length > 0 && (
+              <div>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: 6,
+                  }}
+                >
+                  Destinos do fluxo
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {graph.pattern_story.flow_targets.map((e) => (
+                    <span
+                      key={e.entity_id}
+                      style={{
+                        fontSize: 12,
+                        color: "var(--color-text)",
+                        background: "var(--color-surface-2)",
+                        border: "1px solid var(--color-border)",
+                        padding: "3px 8px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      {e.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Completeness */}
+      {signal.completeness_score != null && (
+        <div>
+          <SectionHeader n={sectionN++} title="Completude da Análise" />
+          <Card>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: `conic-gradient(var(--color-amber) ${Math.round(signal.completeness_score * 100 * 3.6)}deg, var(--color-surface-2) 0deg)`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    background: "var(--color-surface)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text)",
+                  }}
+                >
+                  {Math.round(signal.completeness_score * 100)}%
+                </div>
+              </div>
+              <div>
+                <p style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>
+                  {signal.completeness_status === "sufficient"
+                    ? "Evidências suficientes"
+                    : "Evidências insuficientes"}
+                </p>
+                <p style={{ fontSize: 12, color: "var(--color-text-3)", marginTop: 2 }}>
+                  {signal.completeness_status === "sufficient"
+                    ? "O sinal possui base factual adequada."
+                    : "Podem existir lacunas de informação."}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Legal Basis */}
+      {legalBasis && (
+        <div>
+          <SectionHeader n={sectionN++} title="Base Legal" />
+          <Card style={{ marginBottom: 12 }}>
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--color-text)",
+                marginBottom: 6,
+              }}
+            >
+              {legalBasis.name}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              {legalBasis.corruption_types.map((ct) => (
+                <span
+                  key={ct}
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-high)",
+                    background: "rgba(255,100,0,0.08)",
+                    border: "1px solid rgba(255,100,0,0.2)",
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                  }}
+                >
+                  {ct}
+                </span>
+              ))}
+              {legalBasis.spheres.map((s) => (
+                <span
+                  key={s}
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    background: "var(--color-surface-2)",
+                    border: "1px solid var(--color-border)",
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                  }}
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-2)",
+                lineHeight: 1.6,
+                marginBottom: 12,
+              }}
+            >
+              {legalBasis.description_legal}
+            </p>
+
+            {legalBasis.law_articles.length > 0 && (
+              <div>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-3)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: 8,
+                  }}
+                >
+                  Artigos de Lei
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {legalBasis.law_articles.map((art, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "8px 10px",
+                        background: "var(--color-surface-2)",
+                        borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--color-border)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          fontWeight: 600,
+                          color: "var(--color-text)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {art.law_name}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          color: "var(--color-text-3)",
+                        }}
+                      >
+                        {art.article}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "var(--color-text-3)",
+                          marginLeft: "auto",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {art.violation_type}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Related Signals */}
+      {relatedSignals.length > 0 && (
+        <div>
+          <SectionHeader n={sectionN++} title="Sinais Relacionados" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {relatedSignals.map((rs) => {
+              const rSevColor = SEV_COLOR[rs.severity] ?? "var(--color-text-3)";
+              return (
+                <Link
+                  key={rs.id}
+                  href={`/signal/${rs.id}`}
+                  style={{ textDecoration: "none" }}
+                >
+                  <div
+                    style={{
+                      borderLeft: `3px solid ${rSevColor}`,
+                      background: "var(--color-surface)",
+                      border: `1px solid var(--color-border)`,
+                      borderLeftWidth: 3,
+                      borderLeftColor: rSevColor,
+                      borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+                      padding: "12px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 700,
+                        color: rSevColor,
+                        background: `${rSevColor}18`,
+                        border: `1px solid ${rSevColor}40`,
+                        padding: "1px 6px",
+                        borderRadius: 3,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {SEV_LABEL[rs.severity]}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--color-text-3)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {rs.typology_code}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "var(--color-text)",
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {rs.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 600,
+                        color: rSevColor,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {Math.round(rs.confidence * 100)}%
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+
+export default function SignalDetailPage() {
+  const params = useParams();
+  const signalId = params["id"] as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = (searchParams.get("tab") as SignalTab) ?? "dossie";
+
+  const [signal, setSignal] = useState<SignalDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Evidence tab state
+  const [evidence, setEvidence] = useState<SignalEvidencePage | null>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceOffset, setEvidenceOffset] = useState(0);
+  const EVIDENCE_PAGE = 15;
+
+  // Entidades tab state
+  const [graph, setGraph] = useState<SignalGraphResponse | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [showExpanded, setShowExpanded] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<GNode | null>(null);
+
+  // Analise tab state
+  const [legalBasis, setLegalBasis] = useState<TypologyLegalBasis | null>(null);
+  const [legalLoaded, setLegalLoaded] = useState(false);
+  const [relatedSignals, setRelatedSignals] = useState<RelatedSignal[]>([]);
+  const [relatedLoaded, setRelatedLoaded] = useState(false);
+
+  // Load signal
+  useEffect(() => {
+    if (!signalId) return;
+    setLoading(true);
+    getSignal(signalId)
+      .then(setSignal)
+      .catch(() => setError("Sinal não encontrado"))
+      .finally(() => setLoading(false));
+  }, [signalId]);
+
+  // Lazy load evidence
+  useEffect(() => {
+    if (tab !== "evidencias" || !signalId) return;
+    setEvidenceLoading(true);
+    getSignalEvidence(signalId, { offset: evidenceOffset, limit: EVIDENCE_PAGE })
+      .then(setEvidence)
+      .catch(() => {})
+      .finally(() => setEvidenceLoading(false));
+  }, [tab, signalId, evidenceOffset]);
+
+  // Lazy load graph
+  useEffect(() => {
+    if (tab !== "entidades" || !signalId || graph) return;
+    setGraphLoading(true);
+    getSignalGraph(signalId)
+      .then(setGraph)
+      .catch(() => {})
+      .finally(() => setGraphLoading(false));
+  }, [tab, signalId, graph]);
+
+  // Lazy load legal basis + related
+  useEffect(() => {
+    if (tab !== "analise" || !signal) return;
+    if (!legalLoaded) {
+      setLegalLoaded(true);
+      fetchTypologyLegalBasis(signal.typology_code)
+        .then(setLegalBasis)
+        .catch(() => {});
+    }
+    if (!relatedLoaded) {
+      setRelatedLoaded(true);
+      fetchRelatedSignals(signal.id)
+        .then(setRelatedSignals)
+        .catch(() => {});
+    }
+  }, [tab, signal, legalLoaded, relatedLoaded]);
+
+  // Graph data memo
+  const graphData = useMemo(() => {
+    if (!graph) return { nodes: [] as GNode[], links: [] as GLink[] };
+    const starterIds = new Set(
+      graph.pattern_story.started_from_entities.map((e) => e.entity_id)
+    );
+    const directNodes: GNode[] = graph.overview.nodes.map((n) => ({
+      id: n.id,
+      label: n.label,
+      node_type: n.node_type,
+      entity_id: n.entity_id,
+      isSeed: starterIds.has(n.entity_id),
+      isFocused: false,
+    }));
+    const bfsNodes: GNode[] = showExpanded
+      ? (graph.overview.expanded_nodes ?? []).map((n) => ({
+          id: n.id,
+          label: n.label,
+          node_type: n.node_type,
+          entity_id: n.entity_id,
+          isSeed: false,
+          isFocused: false,
+          isExpanded: true,
+        }))
+      : [];
+    const allNodes = [...directNodes, ...bfsNodes];
+    const e2n: Record<string, string> = {};
+    for (const n of allNodes) e2n[n.entity_id] = n.id;
+    const directLinks: GLink[] = graph.overview.edges.map((e) => ({
+      id: e.id,
+      source: e.from_node_id,
+      target: e.to_node_id,
+      type: e.type,
+      weight: e.weight,
+      isFocused: false,
+    }));
+    const bfsLinks: GLink[] = showExpanded
+      ? (graph.overview.expansion_edges ?? [])
+          .map((e) => ({
+            id: e.id,
+            source: e2n[e.from_entity_id] ?? "",
+            target: e2n[e.to_entity_id] ?? "",
+            type: e.edge_type,
+            weight: e.weight,
+            isFocused: false,
+            isExpansion: true,
+          }))
+          .filter((l) => l.source && l.target)
+      : [];
+    return { nodes: allNodes, links: [...directLinks, ...bfsLinks] };
+  }, [graph, showExpanded]);
+
+  function setTab(t: SignalTab) {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", t);
+    router.replace(`?${p.toString()}`, { scroll: false });
+  }
+
+  if (loading) return <LoadingScreen />;
+  if (error || !signal) return <ErrorScreen error={error} />;
+
+  const sevColor = SEV_COLOR[signal.severity] ?? "var(--color-text-3)";
+  const tabDefs: { key: SignalTab; label: string; count?: number }[] = [
+    { key: "dossie", label: "Dossiê" },
+    {
+      key: "evidencias",
+      label: "Evidências",
+      count: signal.evidence_stats?.total_events,
+    },
+    { key: "entidades", label: "Entidades", count: signal.entities?.length },
+    { key: "analise", label: "Análise" },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
+      {/* Sticky wrapper */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "var(--color-bg)",
+        }}
+      >
+        {/* Masthead */}
+        <div
+          style={{ padding: "0 16px", maxWidth: 1056, margin: "0 auto" }}
+        >
+          <div
+            style={{
+              borderLeft: `4px solid ${sevColor}`,
+              background: "var(--color-surface)",
+              borderRadius: "0 var(--radius-lg) var(--radius-lg) 0",
+              padding: "16px 20px",
+              marginTop: 16,
+            }}
+          >
+            {/* Top row */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  background: `${sevColor}18`,
+                  color: sevColor,
+                  border: `1px solid ${sevColor}40`,
+                  borderRadius: 4,
+                  padding: "1px 8px",
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                }}
+              >
+                {SEV_LABEL[signal.severity]}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  color: "var(--color-text-3)",
+                }}
+              >
+                {signal.typology_code}
+              </span>
+              <span
+                style={{ fontSize: 12, color: "var(--color-text-2)" }}
+              >
+                —
+              </span>
+              <span style={{ fontSize: 12, color: "var(--color-text-2)" }}>
+                {signal.typology_name}
+              </span>
+              <div style={{ marginLeft: "auto" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.15em",
+                    color: "var(--color-text-3)",
+                    border: "1px solid var(--color-border)",
+                    padding: "2px 6px",
+                    borderRadius: 2,
+                    textTransform: "uppercase" as const,
+                    opacity: 0.7,
+                  }}
+                >
+                  Dossiê de Investigação
+                </span>
+              </div>
+            </div>
+            {/* Title */}
+            <h1
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 20,
+                fontWeight: 700,
+                color: "var(--color-text)",
+                lineHeight: 1.3,
+                marginBottom: 8,
+                margin: "0 0 8px",
+              }}
+            >
+              {signal.title}
+            </h1>
+            {/* Meta row */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                    color: sevColor,
+                  }}
+                >
+                  {Math.round(signal.confidence * 100)}%
+                </span>{" "}
+                confiança
+              </span>
+              {(signal.period_start || signal.period_end) && (
+                <span style={{ fontSize: 12, color: "var(--color-text-3)" }}>
+                  {signal.period_start
+                    ? formatDate(signal.period_start)
+                    : "—"}{" "}
+                  →{" "}
+                  {signal.period_end
+                    ? formatDate(signal.period_end)
+                    : "presente"}
+                </span>
+              )}
+              {signal.case_id && (
+                <Link
+                  href={`/radar/dossie/${signal.case_id}`}
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-amber)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    textDecoration: "none",
+                  }}
+                >
+                  Caso: {signal.case_title ?? signal.case_id.slice(0, 8)} →
+                </Link>
               )}
             </div>
           </div>
         </div>
+
+        {/* Tab strip */}
+        <div
+          style={{ padding: "0 16px", maxWidth: 1056, margin: "0 auto" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              borderBottom: "1px solid var(--color-border)",
+              marginTop: 8,
+            }}
+          >
+            {tabDefs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  background: "none",
+                  border: "none",
+                  borderBottom:
+                    tab === t.key
+                      ? "2px solid var(--color-amber)"
+                      : "2px solid transparent",
+                  color:
+                    tab === t.key
+                      ? "var(--color-amber)"
+                      : "var(--color-text-3)",
+                  marginBottom: -1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "color 0.15s",
+                }}
+              >
+                {t.label}
+                {t.count != null && t.count > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "var(--font-mono)",
+                      background:
+                        tab === t.key
+                          ? "var(--color-amber-dim)"
+                          : "var(--color-surface-2)",
+                      color:
+                        tab === t.key
+                          ? "var(--color-amber)"
+                          : "var(--color-text-3)",
+                      padding: "1px 5px",
+                      borderRadius: 10,
+                    }}
+                  >
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Tab content */}
+      <div
+        style={{ maxWidth: 1056, margin: "0 auto", padding: "24px 16px" }}
+      >
+        {tab === "dossie" && <DossieTab signal={signal} />}
+        {tab === "evidencias" && (
+          <EvidenciasTab
+            signal={signal}
+            evidence={evidence}
+            loading={evidenceLoading}
+            offset={evidenceOffset}
+            pageSize={EVIDENCE_PAGE}
+            onPageChange={setEvidenceOffset}
+          />
+        )}
+        {tab === "entidades" && (
+          <EntidadesTab
+            signal={signal}
+            graph={graph}
+            graphLoading={graphLoading}
+            graphData={graphData}
+            showExpanded={showExpanded}
+            setShowExpanded={setShowExpanded}
+            selectedNode={selectedNode}
+            setSelectedNode={setSelectedNode}
+          />
+        )}
+        {tab === "analise" && (
+          <AnaliseTab
+            signal={signal}
+            legalBasis={legalBasis}
+            relatedSignals={relatedSignals}
+            graph={graph}
+          />
+        )}
+      </div>
+
     </div>
   );
 }

@@ -32,7 +32,10 @@ class PublicSignalSummary(BaseModel):
     period_start: datetime | None = None
     period_end: datetime | None = None
     created_at: datetime
-    disclaimer: str
+    disclaimer: str = (
+        "Dados gerados automaticamente por análise de risco. "
+        "Sujeitos a revisão humana. Não constituem acusação formal."
+    )
 
 
 class PublicEntitySummary(BaseModel):

@@ -4,6 +4,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+RUN useradd -m -u 1001 appuser
+
 RUN pip install --no-cache-dir uv
 
 # Copy workspace files for layer caching
@@ -18,6 +20,9 @@ RUN uv sync --all-packages --no-dev
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
+
+RUN chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8000
 

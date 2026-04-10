@@ -16,11 +16,9 @@ import { SEVERITY_LABELS } from "@/lib/constants";
 import {
   AlertTriangle,
   Network,
-  Scale,
   ArrowRight,
   Calendar,
   Users,
-  FileText,
   Waypoints,
   MapPin,
   Tag,
@@ -36,9 +34,17 @@ function entityTypeLabel(nodeType: string): string {
   return nodeType;
 }
 
-function entityDisplayName(name: string, entityId: string, nodeType: string): string {
-  if (name && name.trim()) return name;
-  return `${entityTypeLabel(nodeType)} (${entityId.slice(0, 8)}...)`;
+function entityDisplayName(name: string, _entityId: string, nodeType: string, nameKey?: string): string {
+  // Reject purely numeric names (pipeline artifact — entity code, not a real name)
+  if (name && name.trim() && !/^\d+$/.test(name.trim())) return name;
+  // Use name_key hint if available: "municipio:42" → "Órgão — MUNICIPIO #42"
+  if (nameKey) {
+    const parts = nameKey.split(":");
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      return `${entityTypeLabel(nodeType)} — ${parts[0].toUpperCase()} #${parts[1]}`;
+    }
+  }
+  return `${entityTypeLabel(nodeType)} (não identificado)`;
 }
 
 function attrLabel(key: string): string {
@@ -66,6 +72,20 @@ function cleanSourceId(sourceId: string): string {
     return parts[0] ?? sourceId;
   }
   return sourceId;
+}
+
+// Parse technical "Baseline p95=R$ X, p99=R$ Y" out of why_flagged narrative
+function parseWhyFlagged(text: string): { narrative: string; p95: string | null; p99: string | null } {
+  const baselineRe = /\.\s*Baseline\s+p95=(R\$[\s\d.,]+),\s*p99=(R\$[\s\d.,]+)\.?\s*$/i;
+  const match = text.match(baselineRe);
+  if (match) {
+    return {
+      narrative: text.slice(0, match.index).replace(/\.$/, "").trim(),
+      p95: match[1]?.trim() ?? null,
+      p99: match[2]?.trim() ?? null,
+    };
+  }
+  return { narrative: text, p95: null, p99: null };
 }
 
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
@@ -102,7 +122,7 @@ export default function SignalGraphPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GNode | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
-  const [showExpanded, setShowExpanded] = useState(true);
+  const [showExpanded, setShowExpanded] = useState(false);
 
   useEffect(() => {
     if (!signalId) return;
@@ -296,56 +316,103 @@ export default function SignalGraphPage() {
 
       {/* Summary cards */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-accent/20 bg-accent-subtle p-4 sm:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">Padrão detectado</p>
-          <p className="mt-1 text-sm font-medium text-primary">{data.pattern_story.pattern_label}</p>
-          <p className="mt-2 text-xs text-accent-hover leading-relaxed">{cleanUuidsInText(data.pattern_story.why_flagged)}</p>
-        </div>
+        {(() => {
+          const { narrative, p95, p99 } = parseWhyFlagged(data.pattern_story.why_flagged);
+          return (
+            <div
+              className="ow-rail-card sm:col-span-2"
+              style={{ '--rail-color': 'var(--color-brand)' } as React.CSSProperties}
+            >
+              <div className="ow-rail-card-body">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-brand)' }}>Padrão detectado</p>
+                <p className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{data.pattern_story.pattern_label}</p>
+                <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--color-text-2)' }}>{cleanUuidsInText(narrative)}</p>
+                {(p95 || p99) && (
+                  <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-2">
+                    {p95 && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--color-text-3)' }}>Limite normal (95% dos casos)</p>
+                        <p className="text-xs font-semibold tabular-nums" style={{ color: 'var(--color-text-2)' }}>{p95}</p>
+                      </div>
+                    )}
+                    {p99 && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--color-text-3)' }}>Limite extremo (99% dos casos)</p>
+                        <p className="text-xs font-semibold tabular-nums" style={{ color: 'var(--color-text-2)' }}>{p99}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Value */}
-        <div className="rounded-lg border border-border bg-surface-card p-4">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">
-            <DollarSign className="h-3.5 w-3.5" />
-            Valor estimado
-          </p>
-          {data.timeline[0]?.value_brl != null ? (
-            <p className="mt-1 text-lg font-bold text-primary tabular-nums">
-              {formatBRL(data.timeline[0].value_brl)}
+        <div
+          className="ow-rail-card"
+          style={{ '--rail-color': 'var(--color-brand-light)' } as React.CSSProperties}
+        >
+          <div className="ow-rail-card-body">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-3)' }}>
+              <DollarSign className="h-3.5 w-3.5" />
+              Valor estimado
             </p>
-          ) : (
-            <p className="mt-1 text-sm text-muted">Não informado</p>
-          )}
-          <p className="mt-1 text-xs text-muted">
-            {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data desconhecida"}
-          </p>
+            {data.timeline[0]?.value_brl != null ? (
+              <p className="mt-1 text-lg font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>
+                {formatBRL(data.timeline[0].value_brl)}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm" style={{ color: 'var(--color-text-3)' }}>Não informado</p>
+            )}
+            <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
+              {data.pattern_story.started_at ? formatDate(data.pattern_story.started_at) : "Data desconhecida"}
+            </p>
+          </div>
         </div>
 
         {/* Event attrs */}
-        <div className="rounded-lg border border-border bg-surface-card p-4">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">
-            <Info className="h-3.5 w-3.5" />
-            Atributos
-          </p>
-          <div className="mt-2 space-y-1.5">
-            {(["modalidade", "uf", "situacao", "catmat_group"] as const).map((key) => {
-              const val = attrValue(data.timeline[0]?.attrs?.[key]);
-              return (
-                <div key={key} className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] uppercase tracking-wide text-muted">{attrLabel(key)}</span>
-                  <span className="text-xs font-medium text-secondary truncate max-w-[100px]">{val}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {(() => {
+          const attrKeys = ["modalidade", "uf", "situacao", "catmat_group"] as const;
+          const attrRows = attrKeys
+            .map((key) => ({ key, val: attrValue(data.timeline[0]?.attrs?.[key]) }))
+            .filter((row) => row.val !== "—");
+          return (
+            <div
+              className="ow-rail-card"
+              style={{ '--rail-color': 'var(--color-border-strong)' } as React.CSSProperties}
+            >
+              <div className="ow-rail-card-body">
+                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-3)' }}>
+                  <Info className="h-3.5 w-3.5" />
+                  Atributos
+                </p>
+                {attrRows.length > 0 ? (
+                  <div className="mt-2 space-y-1.5">
+                    {attrRows.map(({ key, val }) => (
+                      <div key={key} className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--color-text-3)' }}>{attrLabel(key)}</span>
+                        <span className="text-xs font-medium truncate max-w-[100px]" style={{ color: 'var(--color-text-2)' }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs" style={{ color: 'var(--color-text-3)' }}>
+                    Atributos não disponíveis para este evento.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Entities involved */}
       <div className="mt-3 rounded-lg border border-border bg-surface-card px-4 py-3">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-secondary">
-          <Users className="h-3.5 w-3.5" />
-          Entidades envolvidas ({data.overview.nodes.length + (data.overview.expanded_nodes?.length ?? 0)})
-        </p>
+        <div className="ow-brief-section" style={{ marginBottom: 8 }}>
+          <span className="ow-brief-section-num">§ 1.</span>
+          <span className="ow-brief-section-title">Entidades Envolvidas ({data.overview.nodes.length})</span>
+        </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {data.pattern_story.started_from_entities.map((entity) => (
             <Link
@@ -359,16 +426,19 @@ export default function SignalGraphPage() {
           ))}
           {data.overview.nodes
             .filter((n) => !data.pattern_story.started_from_entities.some((e) => e.entity_id === n.entity_id))
-            .map((node) => (
-              <Link
-                key={node.entity_id}
-                href={`/entity/${node.entity_id}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs text-secondary hover:bg-surface-hover transition"
-              >
-                {entityDisplayName(node.label, node.entity_id, node.node_type)}
-                <ExternalLink className="h-3 w-3 opacity-40" />
-              </Link>
-            ))}
+            .map((node) => {
+              const nameKey = (node.attrs?.identifiers as Record<string, string> | undefined)?.name_key;
+              return (
+                <Link
+                  key={node.entity_id}
+                  href={`/entity/${node.entity_id}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-subtle px-3 py-1 text-xs text-secondary hover:bg-surface-hover transition"
+                >
+                  {entityDisplayName(node.label, node.entity_id, node.node_type, nameKey)}
+                  <ExternalLink className="h-3 w-3 opacity-40" />
+                </Link>
+              );
+            })}
         </div>
       </div>
 
@@ -409,7 +479,16 @@ export default function SignalGraphPage() {
             </div>
           </div>
           {hasGraph ? (
-            <div className="relative h-[520px] overflow-hidden rounded-lg border border-border">
+            <div
+              style={{
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-xl)',
+                overflow: 'hidden',
+                position: 'relative',
+                minHeight: 480,
+              }}
+            >
               <InvestigationCanvas
                 graphData={graphData}
                 degreeMap={degreeMap}
@@ -421,9 +500,19 @@ export default function SignalGraphPage() {
                 onClearSelected={() => setSelectedNode(null)}
                 onExpandSelected={() => {}}
               />
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 48,
+                background: 'linear-gradient(transparent, var(--color-surface))',
+                pointerEvents: 'none',
+                zIndex: 10,
+              }} />
             </div>
           ) : (
-            <div className="space-y-2 rounded-lg border border-amber/20 bg-amber-subtle p-4">
+            <div className="space-y-2 rounded-lg border border-amber/20 bg-brand-dim p-4">
               <p className="text-sm font-medium text-amber">Teia insuficiente para visualização em grafo</p>
               <p className="text-xs text-amber/80">
                 {data.diagnostics.fallback_reason === "insufficient_entities"
@@ -484,16 +573,16 @@ export default function SignalGraphPage() {
               </div>
 
               {selectedEntity.is_direct_participant === false && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-subtle px-2 py-0.5 text-xs text-amber">
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-dim px-2 py-0.5 text-xs text-amber">
                   <Waypoints className="h-3 w-3" />
                   Descoberto via expansão de rede
                 </span>
               )}
 
-              {Object.entries(selectedEntity.identifiers).filter(([, v]) => v && String(v).trim()).length > 0 && (
+              {Object.entries(selectedEntity.identifiers).filter(([k, v]) => k !== "name_key" && v && String(v).trim()).length > 0 && (
                 <div className="space-y-1">
                   {Object.entries(selectedEntity.identifiers)
-                    .filter(([, v]) => v && String(v).trim())
+                    .filter(([k, v]) => k !== "name_key" && v && String(v).trim())
                     .map(([key, value]) => (
                       <p key={key} className="rounded bg-surface-base px-2 py-1 text-xs text-secondary">
                         <span className="font-semibold">{key.toUpperCase()}:</span> {String(value)}
@@ -555,10 +644,10 @@ export default function SignalGraphPage() {
 
       <div className="mt-6 rounded-lg border border-border bg-surface-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-primary">
-            <FileText className="h-4 w-4 text-accent" />
-            Eventos e evidências ({filteredTimeline.length})
-          </h2>
+          <div className="ow-brief-section" style={{ marginBottom: 0, paddingBottom: 0, borderBottom: 'none' }}>
+            <span className="ow-brief-section-num">§ 2.</span>
+            <span className="ow-brief-section-title">Eventos & Evidências ({filteredTimeline.length})</span>
+          </div>
           <label className="text-xs text-secondary">
             Filtrar por papel:
             <select

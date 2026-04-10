@@ -13,7 +13,6 @@ import type {
   RadarV2SummaryResponse,
   RadarV2SignalItem,
 } from "@/lib/types";
-import { TYPOLOGY_LABELS, TYPOLOGY_META, CORRUPTION_TYPE_LABELS } from "@/lib/constants";
 import { SeverityBadge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { SkeletonCard } from "@/components/Skeleton";
@@ -25,7 +24,7 @@ import {
   ChevronDown, ChevronRight, ChevronLeft, Search,
   Radar, GitBranch, AlertTriangle, SlidersHorizontal, X,
 } from "lucide-react";
-import { formatDate, relativeTime } from "@/lib/utils";
+import { relativeTime } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 const SEVERITY_ORDER = ["critical", "high", "medium", "low"] as const;
@@ -145,25 +144,24 @@ function CaseCard({ item }: { item: RadarV2CaseItem }) {
     <Link
       href={`/radar/dossie/${item.id}`}
       className="ow-card ow-card-hover block group"
+      style={{ borderLeft: `3px solid ${color}` }}
     >
-      {/* Severity bar */}
-      <div className="h-0.5 w-full" style={{ background: color }} />
       <div className="ow-card-section">
         {/* Typology codes */}
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-          {item.typology_codes.slice(0, 3).map((code) => (
+          {(item.typology_codes ?? []).slice(0, 3).map((code) => (
             <span key={code} className="ow-badge ow-badge-neutral text-mono-xs">
               {code}
             </span>
           ))}
-          {item.typology_codes.length > 3 && (
+          {(item.typology_codes ?? []).length > 3 && (
             <span className="text-caption text-[var(--color-text-3)]">
-              +{item.typology_codes.length - 3}
+              +{(item.typology_codes ?? []).length - 3}
             </span>
           )}
         </div>
 
-        <h3 className="text-body font-semibold text-[var(--color-text)] mb-2 truncate-2 group-hover:text-[var(--color-amber)] transition-colors">
+        <h3 className="text-body font-semibold text-[var(--color-text)] mb-2 truncate-2 group-hover:text-[var(--color-brand)] transition-colors">
           {item.title}
         </h3>
 
@@ -406,10 +404,6 @@ function RadarPageInner() {
       .finally(() => setSummaryLoading(false));
   }, [typology, periodFrom, periodTo]);
 
-  const typologyOptions = Object.entries(TYPOLOGY_LABELS).map(([code, name]) => ({
-    value: code,
-    label: `${code} — ${name}`,
-  }));
 
   const headerStats = [
     {
@@ -437,9 +431,16 @@ function RadarPageInner() {
     },
   ];
 
+  // Only show typologies present in current data, sorted by count desc
+  const presentTypologies = (summary?.typology_counts ?? [])
+    .filter((t) => t.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const hasPeriodFilter = !!(periodFrom || periodTo);
+
   return (
     <div className="ow-content">
-      {/* Page Header */}
+      {/* Page Header — no view toggle here */}
       <PageHeader
         eyebrow="Investigação"
         title="Radar de Risco"
@@ -448,74 +449,63 @@ function RadarPageInner() {
         icon={<Radar className="h-5 w-5" />}
         stats={headerStats}
         actions={
-          <div className="flex items-center gap-2">
-            {/* View toggle */}
-            <div className="flex items-center border border-[var(--color-border-strong)] rounded-md overflow-hidden">
-              <button
-                onClick={() => updateParam({ view: "cases" })}
-                className={`ow-btn ow-btn-ghost ow-btn-sm gap-1.5 rounded-none border-0 ${view === "cases" ? "!bg-[var(--color-amber-dim)] !text-[var(--color-amber)]" : ""}`}
-              >
-                <GitBranch size={14} />
-                Casos
-              </button>
-              <div className="w-px h-5 bg-[var(--color-border-strong)]" />
-              <button
-                onClick={() => updateParam({ view: "signals" })}
-                className={`ow-btn ow-btn-ghost ow-btn-sm gap-1.5 rounded-none border-0 ${view === "signals" ? "!bg-[var(--color-amber-dim)] !text-[var(--color-amber)]" : ""}`}
-              >
-                <Radar size={14} />
-                Sinais
-              </button>
-            </div>
-
-            {/* Filters button */}
+          hasFilters ? (
             <button
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`ow-btn ow-btn-sm gap-1.5 ${filtersOpen || hasFilters ? "ow-btn-amber" : "ow-btn-ghost"}`}
+              onClick={() => router.replace("/radar", { scroll: false })}
+              className="ow-btn ow-btn-ghost ow-btn-sm gap-1 !text-[var(--color-critical-text)]"
             >
-              <SlidersHorizontal size={14} />
-              Filtros
-              {hasFilters && (
-                <span className="w-1.5 h-1.5 rounded-full bg-current" />
-              )}
+              <X size={13} />
+              Limpar filtros
             </button>
-          </div>
+          ) : null
         }
       />
 
       {/* Summary Strip */}
       <SummaryStrip summary={summary} loading={summaryLoading} />
 
-      {/* Filter panel */}
+      {/* Filter + Search bar */}
+      <div className="mb-1 flex flex-col sm:flex-row gap-2">
+        {/* Typology — only present typologies */}
+        <Select
+          value={typology}
+          onChange={(e) => updateParam({ typology: e.target.value })}
+          className="sm:w-72 shrink-0"
+        >
+          <option value="">Todas as tipologias</option>
+          {presentTypologies.map((t) => (
+            <option key={t.code} value={t.code}>
+              {t.code} — {t.name} ({t.count.toLocaleString("pt-BR")})
+            </option>
+          ))}
+        </Select>
+
+        {/* Search */}
+        <Input
+          iconLeft={<Search size={14} />}
+          placeholder="Buscar por título..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
+
+        {/* Period filter toggle */}
+        <button
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={`ow-btn ow-btn-sm gap-1.5 shrink-0 ${filtersOpen || hasPeriodFilter ? "ow-btn-amber" : "ow-btn-ghost"}`}
+        >
+          <SlidersHorizontal size={14} />
+          Período
+          {hasPeriodFilter && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
+        </button>
+      </div>
+
+      {/* Period filter panel */}
       {filtersOpen && (
-        <div className="ow-card ow-card-section mb-5 animate-slide-up">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-body-sm font-semibold text-[var(--color-text)]">Filtros</span>
-            {hasFilters && (
-              <button
-                onClick={() => router.replace("/radar", { scroll: false })}
-                className="ow-btn ow-btn-ghost ow-btn-sm gap-1 !text-[var(--color-critical-text)]"
-              >
-                <X size={13} />
-                Limpar tudo
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="ow-card ow-card-section mb-3 animate-slide-up">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="ow-label">Tipologia</label>
-              <Select
-                value={typology}
-                onChange={(e) => updateParam({ typology: e.target.value })}
-              >
-                <option value="">Todas as tipologias</option>
-                {typologyOptions.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <label className="ow-label">Período — De</label>
+              <label className="ow-label">De</label>
               <input
                 type="date"
                 className="ow-input"
@@ -524,7 +514,7 @@ function RadarPageInner() {
               />
             </div>
             <div>
-              <label className="ow-label">Período — Até</label>
+              <label className="ow-label">Até</label>
               <input
                 type="date"
                 className="ow-input"
@@ -536,15 +526,54 @@ function RadarPageInner() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="mb-4">
-        <Input
-          iconLeft={<Search size={14} />}
-          placeholder="Buscar por título..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-md"
-        />
+      {/* Tabs — Casos / Sinais */}
+      <div className="flex items-end gap-0 border-b border-[var(--color-border)] mb-5 mt-3">
+        <button
+          onClick={() => updateParam({ view: "cases" })}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors relative"
+          style={{
+            color: view === "cases" ? "var(--color-brand)" : "var(--color-text-3)",
+            borderBottom: view === "cases" ? "2px solid var(--color-brand)" : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          <GitBranch size={14} />
+          Casos
+          {!summaryLoading && summary && (
+            <span
+              className="text-xs tabular-nums px-1.5 py-0.5 rounded"
+              style={{
+                background: view === "cases" ? "var(--color-amber-dim)" : "var(--color-surface-3)",
+                color: view === "cases" ? "var(--color-brand)" : "var(--color-text-3)",
+              }}
+            >
+              {summary.totals.cases.toLocaleString("pt-BR")}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => updateParam({ view: "signals" })}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors relative"
+          style={{
+            color: view === "signals" ? "var(--color-brand)" : "var(--color-text-3)",
+            borderBottom: view === "signals" ? "2px solid var(--color-brand)" : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          <Radar size={14} />
+          Sinais
+          {!summaryLoading && summary && (
+            <span
+              className="text-xs tabular-nums px-1.5 py-0.5 rounded"
+              style={{
+                background: view === "signals" ? "var(--color-amber-dim)" : "var(--color-surface-3)",
+                color: view === "signals" ? "var(--color-brand)" : "var(--color-text-3)",
+              }}
+            >
+              {summary.totals.signals.toLocaleString("pt-BR")}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Sections by severity */}

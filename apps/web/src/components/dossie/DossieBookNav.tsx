@@ -57,11 +57,12 @@ export function DossieBookNav() {
         disabled={!hasPrev}
         aria-label="Pagina anterior"
         className={cn(
-          "fixed left-4 top-1/2 z-50 hidden -translate-y-1/2 rounded-full border border-border bg-surface-card/90 p-2.5 shadow-lg backdrop-blur transition-all md:flex",
+          "fixed top-1/2 z-50 hidden -translate-y-1/2 rounded-full border border-border bg-surface-card/90 p-2.5 shadow-lg backdrop-blur transition-all md:flex",
           hasPrev
             ? "text-primary hover:bg-surface-subtle hover:border-accent/30"
             : "cursor-not-allowed text-muted opacity-40",
         )}
+        style={{ left: "calc(var(--sidebar-width) + 1rem)" }}
       >
         <span className="font-sans text-sm leading-none">← Anterior</span>
       </button>
