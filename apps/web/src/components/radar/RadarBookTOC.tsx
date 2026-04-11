@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import type { BookPage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useRadarBook } from "@/components/radar/RadarBookContext";
