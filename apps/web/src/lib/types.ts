@@ -974,7 +974,10 @@ export type BookPage =
   | { type: "chapter"; href: string; label: string; typologyCode: string; severity: string }
   | { type: "signal"; href: string; label: string; signalId: string; typologyCode: string }
   | { type: "network"; href: string; label: string }
-  | { type: "legal"; href: string; label: string };
+  | { type: "legal"; href: string; label: string }
+  | { type: "radar-hub"; href: string; label: string }
+  | { type: "radar-rede"; href: string; label: string }
+  | { type: "radar-juridico"; href: string; label: string };
 
 export interface DossieBookContextValue {
   data: DossierTimelineResponse | null;
@@ -982,6 +985,18 @@ export interface DossieBookContextValue {
   error: string | null;
   pages: BookPage[];
   currentIndex: number;
+}
+
+/** Top-level radar book navigation context (pure navigation, no data ownership) */
+export interface RadarBookContextValue {
+  pages: BookPage[];
+  currentIndex: number;
+  activeCaseId: string | null;
+}
+
+/** Registration context: allows nested dossier layout to push its pages up to the radar shell */
+export interface RadarBookRegistrationContextValue {
+  setDossierPages: (pages: BookPage[]) => void;
 }
 
 // Entity search types

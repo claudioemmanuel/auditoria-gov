@@ -10,7 +10,7 @@ import {
   DossieBookContext,
   buildBookSequence,
 } from "@/components/dossie/DossieBookContext";
-import { DossieBookNav } from "@/components/dossie/DossieBookNav";
+import { useRadarBookRegistration } from "@/components/radar/RadarBookContext";
 
 export default function DossieBookLayout({
   children,
@@ -69,10 +69,19 @@ export default function DossieBookLayout({
     [data, loading, error, pages, currentIndex],
   );
 
+  const { setDossierPages } = useRadarBookRegistration();
+
+  useEffect(() => {
+    setDossierPages(pages);
+    return () => {
+      setDossierPages([]);  // cleanup on unmount
+    };
+  }, [pages, setDossierPages]);
+
   if (loading) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center"
+        className="flex items-center justify-center py-16"
         style={{ background: "var(--color-bg)" }}
       >
         <div className="flex flex-col items-center gap-3">
@@ -94,7 +103,7 @@ export default function DossieBookLayout({
   if (error) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center"
+        className="flex items-center justify-center py-16"
         style={{ background: "var(--color-bg)" }}
       >
         <div className="flex flex-col items-center gap-4 text-center">
@@ -115,8 +124,7 @@ export default function DossieBookLayout({
 
   return (
     <DossieBookContext.Provider value={contextValue}>
-      <div className="pb-14">{children}</div>
-      <DossieBookNav />
+      {children}
     </DossieBookContext.Provider>
   );
 }

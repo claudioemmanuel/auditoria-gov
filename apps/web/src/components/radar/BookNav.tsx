@@ -3,11 +3,15 @@
 import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useDossieBook } from "./DossieBookContext";
+import { useRadarBook } from "@/components/radar/RadarBookContext";
 
-export function DossieBookNav() {
+interface BookNavProps {
+  onOpenTOC?: () => void;
+}
+
+export function BookNav({ onOpenTOC }: BookNavProps): React.ReactElement | null {
   const router = useRouter();
-  const { pages, currentIndex } = useDossieBook();
+  const { pages, currentIndex } = useRadarBook();
 
   const totalPages = pages.length;
   const hasPrev = currentIndex > 0;
@@ -47,7 +51,7 @@ export function DossieBookNav() {
 
   if (totalPages === 0 || currentIndex < 0) return null;
 
-  const showDots = totalPages <= 11;
+  const showDots = totalPages <= 12;
 
   return (
     <>
@@ -83,19 +87,30 @@ export function DossieBookNav() {
 
       {/* Bottom bar (always visible) */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t border-border bg-surface-card/90 px-4 backdrop-blur">
-        {/* Mobile prev */}
-        <button
-          onClick={goPrev}
-          disabled={!hasPrev}
-          className={cn(
-            "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors md:hidden",
-            hasPrev ? "text-primary hover:bg-surface-subtle" : "text-muted opacity-40",
+        {/* Mobile left controls: TOC button + prev */}
+        <div className="flex items-center gap-1 md:hidden">
+          {onOpenTOC !== undefined && (
+            <button
+              onClick={onOpenTOC}
+              aria-label="Abrir índice"
+              className="flex items-center rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-surface-subtle"
+            >
+              ☰
+            </button>
           )}
-        >
-          ← Anterior
-        </button>
+          <button
+            onClick={goPrev}
+            disabled={!hasPrev}
+            className={cn(
+              "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors",
+              hasPrev ? "text-primary hover:bg-surface-subtle" : "text-muted opacity-40",
+            )}
+          >
+            ← Anterior
+          </button>
+        </div>
 
-        {/* Center: label + page indicator + dots */}
+        {/* Center: label + page indicator */}
         <div className="flex flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden">
           <span className="max-w-[240px] truncate text-xs font-medium text-primary sm:max-w-[400px]">
             {currentPage?.label}
