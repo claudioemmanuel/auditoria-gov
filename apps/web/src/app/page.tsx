@@ -31,6 +31,10 @@ const SAMPLE_CASES: CaseCardProps[] = [
   },
 ];
 
+// Static fallback stats — replace with API fetch when data layer is ready.
+const STUB_FLAGGED_TODAY = 7;
+const STUB_ANALYZED_24H = 128;
+
 export default function HomePage() {
   const typologyCount = Object.keys(TYPOLOGY_LABELS).length;
   const sourceCount = DATA_SOURCES.length;
@@ -53,12 +57,12 @@ export default function HomePage() {
               className="tabular-nums"
               style={{ color: "var(--color-critical)" }}
             >
-              7
+              {STUB_FLAGGED_TODAY}
             </strong>{" "}
             casos sinalizados hoje
           </span>
           <span>
-            <strong className="tabular-nums">128</strong> analisados nas
+            <strong className="tabular-nums">{STUB_ANALYZED_24H}</strong> analisados nas
             últimas 24h
           </span>
         </div>
@@ -117,7 +121,7 @@ export default function HomePage() {
         </ol>
       </Section>
 
-      {/* ── Disclaimer ───────────────────────────────────────────────── */}
+      {/* Disclaimer — raw section intentional, no title needed */}
       <section className="text-xs text-[var(--color-text-3)] border-t border-[var(--color-border)] pt-6 max-w-xl">
         OpenWatch não acusa irregularidades. Destacamos padrões para que
         possam ser investigados. Os dados são extraídos de fontes oficiais do
