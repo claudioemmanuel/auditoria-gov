@@ -234,6 +234,8 @@ body {
 
   /* Watchdog utilities — data blocks and field labels */
   .data  { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.5; }
+  /* .label — Watchdog component field labels. Includes muted color unlike .text-label.
+     Use inside CaseCard, Section, and other components/watchdog/* components only. */
   .label { font-size: 0.6875rem; line-height: 1.4; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-3); }
 }
 
