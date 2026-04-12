@@ -67,6 +67,7 @@ export function CaseCard({
         <div>
           <span className="label">Órgão</span>
           <br />
+          {/* agency is prose text, not an identifier — no monospace */}
           <span className="text-[var(--color-text-2)]">{agency}</span>
         </div>
       </div>

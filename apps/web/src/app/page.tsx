@@ -72,7 +72,7 @@ export default function HomePage() {
       <div>
         <Link
           href="/radar"
-          className="inline-flex items-center gap-2 bg-[var(--color-brand)] text-[var(--color-bg)] px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-[var(--color-brand-light)] transition-colors"
+          className="ow-btn ow-btn-primary ow-btn-lg"
         >
           Ver casos sinalizados
         </Link>
