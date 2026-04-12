@@ -1,6 +1,7 @@
 // apps/web/src/components/watchdog/CaseCard.tsx
 
 import Link from "next/link";
+import clsx from "clsx";
 import { SignalTag } from "./SignalTag";
 
 export type RiskLevel = "CRÍTICO" | "ALTO" | "MÉDIO" | "BAIXO";
@@ -19,8 +20,10 @@ export interface CaseCardProps {
   company: string;
   agency: string;
   signals: string[];
-  explanation: string;
+  /** Pre-formatted display string, e.g. "há 2 horas" or "12/04/2025". Caller must format. */
   flaggedAt: string;
+  explanation: string;
+  className?: string;
 }
 
 export function CaseCard({
@@ -32,11 +35,12 @@ export function CaseCard({
   signals,
   explanation,
   flaggedAt,
+  className,
 }: CaseCardProps) {
   const riskColor = RISK_COLORS[riskLevel];
 
   return (
-    <article className="border border-[var(--color-border)] rounded-lg p-5 space-y-4 bg-[var(--color-surface)]">
+    <article className={clsx("ow-card p-5 space-y-4", className)}>
       {/* Risk level + timestamp */}
       <div className="flex items-center justify-between">
         <span
@@ -67,12 +71,14 @@ export function CaseCard({
         </div>
       </div>
 
-      {/* Signal tags */}
-      <div className="flex flex-wrap gap-2">
-        {signals.map((signal) => (
-          <SignalTag key={signal} label={signal} />
-        ))}
-      </div>
+      {/* Signal tags — rendered only when present */}
+      {signals.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {signals.map((signal) => (
+            <SignalTag key={signal} label={signal} />
+          ))}
+        </div>
+      )}
 
       {/* Explanation — why this matters */}
       <p className="text-sm text-[var(--color-text-3)]">{explanation}</p>
