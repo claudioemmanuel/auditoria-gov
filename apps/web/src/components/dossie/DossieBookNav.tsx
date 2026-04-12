@@ -3,15 +3,11 @@
 import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useRadarBook } from "@/components/radar/RadarBookContext";
+import { useDossieBook } from "./DossieBookContext";
 
-interface BookNavProps {
-  onOpenTOC?: () => void;
-}
-
-export function BookNav({ onOpenTOC }: BookNavProps): React.ReactElement | null {
+export function DossieBookNav() {
   const router = useRouter();
-  const { pages, currentIndex } = useRadarBook();
+  const { pages, currentIndex } = useDossieBook();
 
   const totalPages = pages.length;
   const hasPrev = currentIndex > 0;
@@ -51,7 +47,7 @@ export function BookNav({ onOpenTOC }: BookNavProps): React.ReactElement | null 
 
   if (totalPages === 0 || currentIndex < 0) return null;
 
-  const showDots = totalPages <= 12;
+  const showDots = totalPages <= 11;
 
   return (
     <>
@@ -87,30 +83,19 @@ export function BookNav({ onOpenTOC }: BookNavProps): React.ReactElement | null 
 
       {/* Bottom bar (always visible) */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t border-border bg-surface-card/90 px-4 backdrop-blur">
-        {/* Mobile left controls: TOC button + prev */}
-        <div className="flex items-center gap-1 md:hidden">
-          {onOpenTOC !== undefined && (
-            <button
-              onClick={onOpenTOC}
-              aria-label="Abrir índice"
-              className="flex items-center rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-surface-subtle"
-            >
-              ☰
-            </button>
+        {/* Mobile prev */}
+        <button
+          onClick={goPrev}
+          disabled={!hasPrev}
+          className={cn(
+            "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors md:hidden",
+            hasPrev ? "text-primary hover:bg-surface-subtle" : "text-muted opacity-40",
           )}
-          <button
-            onClick={goPrev}
-            disabled={!hasPrev}
-            className={cn(
-              "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors",
-              hasPrev ? "text-primary hover:bg-surface-subtle" : "text-muted opacity-40",
-            )}
-          >
-            ← Anterior
-          </button>
-        </div>
+        >
+          ← Anterior
+        </button>
 
-        {/* Center: label + page indicator */}
+        {/* Center: label + page indicator + dots */}
         <div className="flex flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden">
           <span className="max-w-[240px] truncate text-xs font-medium text-primary sm:max-w-[400px]">
             {currentPage?.label}
