@@ -174,9 +174,7 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(circle at top center, rgba(20, 184, 166, 0.12), transparent 0 34%),
-    linear-gradient(180deg, #0b1220 0%, #0d1628 52%, #0a1323 100%);
+  background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -233,6 +231,10 @@ body {
   .text-mono     { font-family: var(--font-mono); font-size: 0.8125rem; }
   .text-mono-sm  { font-family: var(--font-mono); font-size: 0.75rem; }
   .text-mono-xs  { font-family: var(--font-mono); font-size: 0.6875rem; }
+
+  /* Watchdog utilities — data blocks and field labels */
+  .data  { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.5; }
+  .label { font-size: 0.6875rem; line-height: 1.4; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-3); }
 }
 
 /* ─── Focus Ring ─────────────────────────────────────────────────── */
@@ -456,6 +458,7 @@ body {
     gap: 8px;
     padding: 0 14px 0 12px;
     height: 100%;
+    width: var(--sidebar-width);
     border-right: 1px solid var(--color-border);
     flex-shrink: 0;
     text-decoration: none;
