@@ -137,8 +137,8 @@ function RunCard({ run, linkToDetail }: { run: CoverageV2LatestRun; linkToDetail
         </div>
       )}
 
-      {/* Error message */}
-      {run.error_message && (
+      {/* Error message — only shown when run is not actively executing */}
+      {run.error_message && run.status !== "running" && (
         <div className="flex items-start gap-1.5 rounded border border-error/20 bg-error/5 px-2 py-1.5">
           <AlertTriangle className="h-3 w-3 shrink-0 text-error mt-0.5" />
           <p className="font-mono text-[10px] text-error leading-snug">{run.error_message}</p>
